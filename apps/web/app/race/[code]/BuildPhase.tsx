@@ -183,9 +183,10 @@ export function BuildPhase({ mission, build, ready, secondsLeft, onChange }: Bui
         </div>
       </section>
 
-      {warnings.length > 0 ? (
+      {/* The bar below already shows the first warning; this box only lists the rest. */}
+      {warnings.length > 1 ? (
         <ul className="rounded-lg border border-warn/50 bg-warn/10 px-3 py-2 text-[13px] text-amber-100">
-          {warnings.slice(0, 3).map((line) => (
+          {warnings.slice(1, 4).map((line) => (
             <li key={line}>{line}</li>
           ))}
         </ul>
