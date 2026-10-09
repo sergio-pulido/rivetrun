@@ -1,11 +1,12 @@
 import type { Episode } from '@rivetrun/contracts';
 import { MISSIONS } from '@rivetrun/sim';
 import { buildName } from '@/ui/buildStats';
+import { formatSeconds } from '@/ui/format';
 
 export function shareText(episode: Episode): string {
   const mission = MISSIONS[episode.missionId];
   const { outcome } = episode;
-  const result = outcome.finished ? `${outcome.score} pts in ${outcome.timeS.toFixed(1)} s ${'★'.repeat(outcome.stars)}` : `DNF at ${Math.round(outcome.progressFraction * 100)}%, ${outcome.score} pts`;
+  const result = outcome.finished ? `${outcome.score} pts in ${formatSeconds(outcome.timeS)} s ${'★'.repeat(outcome.stars)}` : `DNF at ${Math.round(outcome.progressFraction * 100)}%, ${outcome.score} pts`;
   return `RivetRun ${mission.id} ${mission.name}: ${result.trim()}. Robot: ${buildName(episode.build)} (€${outcome.costEur}). I built the body, AI drove it.`;
 }
 

@@ -2,6 +2,7 @@ import type { Episode, Outcome, Policy } from '@rivetrun/contracts';
 import { POLICY_LABEL } from '@/game/palette';
 import type { GhostResult } from '@/state/run';
 import { briefingName } from '@/ui/brief/BriefTheBrain';
+import { formatSeconds } from '@/ui/format';
 
 interface Row {
   readonly policy: Policy;
@@ -82,7 +83,7 @@ export function DuelTable({ episode, ghosts, briefing }: DuelTableProps) {
             </span>
             <span className="truncate text-[9px] text-cyan-muted">{row.player ? `brief: ${brief ?? 'none'}` : GHOST_NOTE[row.policy]}</span>
           </span>
-          <span className="text-right">{row.outcome.finished ? `${row.outcome.timeS.toFixed(1)}s` : 'DNF'}</span>
+          <span className="text-right">{row.outcome.finished ? `${formatSeconds(row.outcome.timeS)}s` : 'DNF'}</span>
           <span className="text-right">{Math.round(row.outcome.damagePct)}%</span>
           <span className="text-right font-semibold">{row.outcome.score}</span>
         </div>

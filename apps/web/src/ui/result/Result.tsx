@@ -6,6 +6,7 @@ import { MISSION_IDS, MISSIONS, whyLine } from '@rivetrun/sim';
 import { DNF_LABEL } from '@/game/palette';
 import { useBuildStore } from '@/state/build';
 import { buildStats } from '@/ui/buildStats';
+import { formatSeconds } from '@/ui/format';
 import { LOCKED_PARTS, isUnlocked, useProgressStore } from '@/state/progress';
 import { useRunStore, type RunResult } from '@/state/run';
 import { Icon, type IconName } from '@/ui/Icon';
@@ -72,7 +73,8 @@ function Summary({ result }: { readonly result: RunResult }) {
   const [shared, setShared] = useState<ShareResult | null>(null);
   // Retry deploys the robot on the bench now, which may have changed since this run.
   const overBudgetEur = buildStats(useBuildStore((store) => store.build)).overBudgetEur;
-  const tenths = useCountUp(Math.round(outcome.timeS * 10));
+  // Counts up to the formatted time, so the headline lands on the same figure as the table and the breakdown.
+  const tenths = useCountUp(Math.round(Number(formatSeconds(outcome.timeS)) * 10));
   const percent = useCountUp(Math.round(outcome.progressFraction * 100));
   const next = MISSION_IDS[MISSION_IDS.indexOf(mission.id) + 1];
   const headline = outcome.finished ? 'Finished' : outcome.dnfReason ? DNF_LABEL[outcome.dnfReason] : 'Did not finish';
@@ -85,7 +87,7 @@ function Summary({ result }: { readonly result: RunResult }) {
 
   return (
     <main className="mx-auto flex min-h-dvh max-w-[430px] flex-col gap-3 px-4 pb-[max(18px,env(safe-area-inset-bottom))] pt-[max(22px,env(safe-area-inset-top))]">
-      <header className="rr-rise relative flex flex-col items-center gap-1">
+      <header className="relative flex flex-col items-center gap-1">
         <Link href="/" aria-label="Home" className="rr-iconbtn absolute right-0 top-0">
           <Icon name="close" />
         </Link>

@@ -49,6 +49,51 @@ export function Brief({ missionId }: { readonly missionId: MissionId }) {
 
   useEffect(() => setMission(missionId), [missionId, setMission]);
 
+  const robotCard = (
+    <section className="rr-rise flex flex-col gap-2 rounded-xl border border-dashed border-line-3 px-3 py-2.5">
+      <div className="flex items-center justify-between gap-3">
+        <span className="min-w-0 text-xs text-[#B8C0C9]">
+          <span className="font-mono text-text">{buildName(build).toUpperCase()}</span> · €{stats.costEur} of €{BUDGET_EUR} · {stats.massKg.toFixed(1)} kg
+        </span>
+        <Link href="/workshop" className="shrink-0 font-mono text-[11px] font-medium tracking-[1px] text-orange-soft">
+          CHANGE
+        </Link>
+      </div>
+      {deepWater ? (
+        <p className="flex items-start gap-2 text-xs leading-snug text-warn">
+          <Icon name="warn" size={14} className="mt-px shrink-0" />
+          <span className="min-w-0 flex-1">{deepWater}</span>
+          {/* One tap: straight to the Extras shelf, where both parts are. */}
+          <Link href="/workshop" onClick={() => setSlot('extra')} className="shrink-0 font-mono text-[11px] font-medium tracking-[1px] text-orange-soft underline underline-offset-2">
+            FIX IN WORKSHOP
+          </Link>
+        </p>
+      ) : null}
+      {rescue ? (
+        <button
+          type="button"
+          onClick={() => setBuild(rescue.build)}
+          className="flex min-h-11 items-center justify-between gap-3 rounded-[10px] border border-orange px-3 text-left active:bg-orange-deep"
+        >
+          <span className="min-w-0 text-xs leading-snug text-text-2">
+            <span className="font-display text-[13px] font-semibold text-orange-soft">Switch to {rescue.name}</span>
+            <span className="block truncate">{rescue.blurb}</span>
+          </span>
+          <span className="shrink-0 font-mono text-[11px] tabular-nums text-muted">€{buildStats(rescue.build).costEur}</span>
+        </button>
+      ) : null}
+      {warnings.map((warning) => (
+        <p key={warning} className="flex items-start gap-2 text-xs leading-snug text-warn">
+          <Icon name="warn" size={14} className="mt-px shrink-0" />
+          {warning}
+        </p>
+      ))}
+      <p className="text-xs text-[#B8C0C9]">
+        Same seed, two ghosts: <span className="font-mono text-text">HEURISTIC</span> and <span className="font-mono text-text">RANDOM</span>.
+      </p>
+    </section>
+  );
+
   return (
     <Shell
       back="/workshop"
@@ -83,6 +128,9 @@ export function Brief({ missionId }: { readonly missionId: MissionId }) {
         <TrackProfile mission={mission} />
       </section>
 
+      {/* A build that cannot finish goes above the fold, next to its fix; otherwise the robot is a footnote. */}
+      {deepWater ? robotCard : null}
+
       <div className="rr-rise" style={{ ['--i' as string]: 2 }}>
         <BriefTheBrain />
       </div>
@@ -91,48 +139,7 @@ export function Brief({ missionId }: { readonly missionId: MissionId }) {
         <PrioritySlider />
       </div>
 
-      <section className="rr-rise flex flex-col gap-2 rounded-xl border border-dashed border-line-3 px-3 py-2.5" style={{ ['--i' as string]: 4 }}>
-        <div className="flex items-center justify-between gap-3">
-          <span className="min-w-0 text-xs text-[#B8C0C9]">
-            <span className="font-mono text-text">{buildName(build).toUpperCase()}</span> · €{stats.costEur} of €{BUDGET_EUR} · {stats.massKg.toFixed(1)} kg
-          </span>
-          <Link href="/workshop" className="shrink-0 font-mono text-[11px] font-medium tracking-[1px] text-orange-soft">
-            CHANGE
-          </Link>
-        </div>
-        {deepWater ? (
-          <p className="flex items-start gap-2 text-xs leading-snug text-warn">
-            <Icon name="warn" size={14} className="mt-px shrink-0" />
-            <span className="min-w-0 flex-1">{deepWater}</span>
-            {/* One tap: straight to the Extras shelf, where both parts are. */}
-            <Link href="/workshop" onClick={() => setSlot('extra')} className="shrink-0 font-mono text-[11px] font-medium tracking-[1px] text-orange-soft underline underline-offset-2">
-              FIX IN WORKSHOP
-            </Link>
-          </p>
-        ) : null}
-        {rescue ? (
-          <button
-            type="button"
-            onClick={() => setBuild(rescue.build)}
-            className="flex min-h-11 items-center justify-between gap-3 rounded-[10px] border border-orange px-3 text-left active:bg-orange-deep"
-          >
-            <span className="min-w-0 text-xs leading-snug text-text-2">
-              <span className="font-display text-[13px] font-semibold text-orange-soft">Switch to {rescue.name}</span>
-              <span className="block truncate">{rescue.blurb}</span>
-            </span>
-            <span className="shrink-0 font-mono text-[11px] tabular-nums text-muted">€{buildStats(rescue.build).costEur}</span>
-          </button>
-        ) : null}
-        {warnings.map((warning) => (
-          <p key={warning} className="flex items-start gap-2 text-xs leading-snug text-warn">
-            <Icon name="warn" size={14} className="mt-px shrink-0" />
-            {warning}
-          </p>
-        ))}
-        <p className="text-xs text-[#B8C0C9]">
-          Same seed, two ghosts: <span className="font-mono text-text">HEURISTIC</span> and <span className="font-mono text-text">RANDOM</span>.
-        </p>
-      </section>
+      {deepWater ? null : robotCard}
     </Shell>
   );
 }

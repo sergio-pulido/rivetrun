@@ -1,5 +1,6 @@
 import type { Outcome } from '@rivetrun/contracts';
 import { TUNING } from '@rivetrun/sim';
+import { formatSeconds } from '@/ui/format';
 
 interface Line {
   readonly label: string;
@@ -15,7 +16,7 @@ function lines(outcome: Outcome): readonly Line[] {
   }
   return [
     { label: 'base', points: base },
-    { label: `time ${outcome.timeS.toFixed(1)} s × ${perSecond}`, points: -perSecond * outcome.timeS },
+    { label: `time ${formatSeconds(outcome.timeS)} s × ${perSecond}`, points: -perSecond * outcome.timeS },
     { label: `damage ${outcome.damagePct} % × ${perDamagePct}`, points: -perDamagePct * outcome.damagePct },
     { label: `energy ${outcome.energyUsedPct} % × ${perEnergyPct}`, points: -perEnergyPct * outcome.energyUsedPct },
     { label: `cost €${outcome.costEur} ÷ ${costDivisor}`, points: -outcome.costEur / costDivisor },
