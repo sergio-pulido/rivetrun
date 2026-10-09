@@ -3,11 +3,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { Build, Episode, GhostTrace, Mission } from '@rivetrun/contracts';
-import { driveController, driveSeed, heuristicBrain, randomBrain, runController, runHeadless } from '@rivetrun/sim';
+import { createRun, driveController, driveSeed, heuristicBrain, randomBrain, runController, runHeadless } from '@rivetrun/sim';
 import { createClientBrain } from '@/brain/clientBrain';
 import { createDriveInput, createRunFeed, type DriveInput, type RunFeed } from '@/game';
 import { useRunStore, type GhostResult } from '@/state/run';
 import { loadRivalGhost } from './ghost';
+import { sceneReady } from './sceneReady';
 
 /** Time the finish / crash stays on screen before the Result page. */
 const RESULT_DELAY_MS = 3200;
@@ -92,6 +93,11 @@ export function useRun(options: RunOptions): RunSession {
         ? driveController(config, drive.read, { onEvent: feed.push })
         : runController(config, createClientBrain(), { onEvent: feed.push, policy: 'jev', briefing });
       stop = controller.stop;
+      // The clock starts when the player can see the track, not when the code is ready.
+      // Until then the robot waits on the start line.
+      feed.push({ type: 'frame', state: createRun(config).sim });
+      await sceneReady(() => cancelled);
+      if (cancelled) return;
       const episode: Episode = await controller.start();
       drive?.release();
       if (cancelled) return;
