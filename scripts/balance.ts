@@ -1,23 +1,27 @@
 // Headless balance table: every build × every mission × {heuristic, random}.
 // Run from the repo root:
-//   node_modules/.pnpm/node_modules/.bin/tsx scripts/balance.ts [--seeds 3]
+//   node_modules/.pnpm/node_modules/.bin/tsx scripts/balance.ts [--seeds 3] [--all]
 import type { Build } from '@rivetrun/contracts';
 import { MISSIONS, MISSION_IDS, PRESETS, TUNING, deriveSpec, heuristicBrain, randomBrain, runHeadless } from '../packages/sim/src/index.ts';
 
 const seedsFlag = process.argv.indexOf('--seeds');
 const SEEDS = seedsFlag > 0 ? Number(process.argv[seedsFlag + 1]) : 3;
 
-// Presets plus two builds that only use starter-or-unlockable parts, to check each mission has more than one answer.
-const BUILDS: Readonly<Record<string, Build>> = {
+// Default: the presets plus one scout-drone build. --all adds more custom builds.
+const CORE_BUILDS: Readonly<Record<string, Build>> = {
   speedster: PRESETS.speedster.build,
   mud_crawler: PRESETS.mud_crawler.build,
   all_rounder: PRESETS.all_rounder.build,
-  offroad_winch: { locomotion: 'offroad_wheels', motor: 'motor_torque', battery: 'battery_large', sensors: ['imu', 'ultrasonic'], extras: ['winch', 'bumper'] },
   drone_sprinter: { locomotion: 'offroad_wheels', motor: 'motor_light', battery: 'battery_large', sensors: ['scout_drone', 'ultrasonic'], extras: ['bumper'] },
+};
+const EXTRA_BUILDS: Readonly<Record<string, Build>> = {
+  offroad_winch: { locomotion: 'offroad_wheels', motor: 'motor_torque', battery: 'battery_large', sensors: ['imu', 'ultrasonic'], extras: ['winch', 'bumper'] },
   camera_sprinter: { locomotion: 'offroad_wheels', motor: 'motor_light', battery: 'battery_large', sensors: ['camera', 'ultrasonic'], extras: ['bumper'] },
   drone_rounder: { locomotion: 'offroad_wheels', motor: 'motor_torque', battery: 'battery_large', sensors: ['scout_drone', 'ultrasonic'], extras: ['bumper'] },
   tracks_scout: { locomotion: 'tracks', motor: 'motor_torque', battery: 'battery_large', sensors: ['camera', 'ultrasonic'], extras: ['bumper'] },
 };
+
+const BUILDS = process.argv.includes('--all') ? { ...CORE_BUILDS, ...EXTRA_BUILDS } : CORE_BUILDS;
 
 const mean = (values: readonly number[]): number => values.reduce((sum, value) => sum + value, 0) / Math.max(1, values.length);
 const pad = (value: string | number, width: number): string => String(value).padEnd(width);

@@ -20,6 +20,8 @@ export const PartEffectsSchema = z.object({
   grip: z.partialRecord(TerrainIdSchema, z.number().positive()).optional(),
   /** Multiplier on terrain sinkage (tracks < 1). */
   sinkageFactor: z.number().positive().optional(),
+  /** Multiplier on the impact of driving onto rough ground too fast (tracks < 1; missing = 1). */
+  roughGroundFactor: z.number().min(0).max(1).optional(),
   /** Tip-over limit. */
   maxSlopeDeg: z.number().positive().optional(),
   // motor

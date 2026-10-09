@@ -17,7 +17,7 @@ export const PARTS: readonly Part[] = [
   {
     id: 'tracks', name: 'Tracks', slot: 'locomotion', blurb: 'Slow, heavy, almost never slips or sinks.',
     massKg: 1.3, costEur: 80, powerW: 2, unlockPoints: 0,
-    effects: { grip: { asphalt: 0.9, sand: 1.4, mud: 1.6, ice: 1.8, water: 1.2, rock: 1.1 }, sinkageFactor: 0.4, maxSlopeDeg: 32 },
+    effects: { grip: { asphalt: 0.9, sand: 1.4, mud: 1.6, ice: 1.8, water: 1.2, rock: 1.1 }, sinkageFactor: 0.4, maxSlopeDeg: 32, roughGroundFactor: 0.35 },
   },
   // Motor (exactly 1)
   {

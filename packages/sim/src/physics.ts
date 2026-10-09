@@ -30,7 +30,7 @@ export const PHYSICS = {
   /** Driving onto rough ground (impactRisk at or above this) faster than the safe speed is an impact. */
   roughTerrainRisk: 0.7,
   roughEntrySafeMps: 1,
-  roughEntryDamagePerMps: 25,
+  roughEntryDamagePerMps: 60,
 } as const;
 
 interface ActionProfile {
@@ -213,7 +213,7 @@ export function step(state: RunState, action: Action): RunState {
   const entered = world.segments[segmentIndexAt(world, x, state.segmentIndex)]!;
   if (!hit && entered.index > segment.index && entered.terrain !== terrainId && TERRAINS[entered.terrain].impactRisk >= PHYSICS.roughTerrainRisk) {
     const speed = Math.abs(v);
-    const amountPct = Math.max(0, speed - PHYSICS.roughEntrySafeMps) * PHYSICS.roughEntryDamagePerMps * spec.impactDamageFactor * profile.impact;
+    const amountPct = Math.max(0, speed - PHYSICS.roughEntrySafeMps) * PHYSICS.roughEntryDamagePerMps * spec.roughGroundFactor * spec.impactDamageFactor * profile.impact;
     if (amountPct > 0) {
       hit = { cause: 'impact', amountPct, roughEntry: entered.terrain, speedMps: speed };
       v *= 0.7;

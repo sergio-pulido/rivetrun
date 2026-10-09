@@ -9,7 +9,7 @@ import { createRunFeed, type RunFeed } from '@/game/runFeed';
 import { useRunStore } from '@/state/run';
 
 /** Time the finish / crash stays on screen before the Result page. */
-const RESULT_DELAY_MS = 2200;
+const RESULT_DELAY_MS = 3200;
 
 export interface RunSession {
   readonly feed: RunFeed;

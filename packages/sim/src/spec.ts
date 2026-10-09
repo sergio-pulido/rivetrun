@@ -18,6 +18,7 @@ export interface RobotSpec {
   readonly grip: Partial<Record<TerrainId, number>>;
   readonly sinkageFactor: number;
   readonly maxSlopeDeg: number;
+  readonly roughGroundFactor: number;
   readonly sensorRangeM: Partial<Record<SensorKind, number>>;
   readonly extras: readonly ExtraKind[];
   readonly impactDamageFactor: number;
@@ -55,6 +56,7 @@ export function deriveSpec(build: Build): RobotSpec {
     grip: locomotion.effects.grip ?? {},
     sinkageFactor: locomotion.effects.sinkageFactor ?? 1,
     maxSlopeDeg: locomotion.effects.maxSlopeDeg ?? 20,
+    roughGroundFactor: locomotion.effects.roughGroundFactor ?? 1,
     sensorRangeM,
     extras: extras.flatMap((p) => (p.effects.extra ? [p.effects.extra] : [])),
     impactDamageFactor: extras.reduce((factor, p) => factor * (p.effects.impactDamageFactor ?? 1), 1),
