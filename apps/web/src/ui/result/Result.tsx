@@ -56,7 +56,7 @@ function PointsRow({ earned }: { readonly earned: number }) {
         <span style={{ width: `${next ? Math.min(100, (points / next.unlockPoints) * 100) : 100}%`, backgroundColor: 'var(--color-orange)' }} />
       </div>
       <span className="font-mono text-[11px] tabular-nums text-muted">
-        {next ? `${next.name} ${Math.min(points, next.unlockPoints)}/${next.unlockPoints}` : `${points.toLocaleString('en-US')} pts banked`}
+        {!next ? `${points.toLocaleString('en-US')} pts banked` : points >= next.unlockPoints ? `${next.name} ready to unlock` : `${next.name} ${points}/${next.unlockPoints}`}
       </span>
     </div>
   );
@@ -105,7 +105,7 @@ function Summary({ result }: { readonly result: RunResult }) {
         {whyLine(episode)}
         {outcome.finished && outcome.stars < 3 ? (
           <span className="text-muted">
-            {' '}
+            {'. '}
             {outcome.stars < 2 ? `Second star: ${mission.starThreshold} points.` : 'Third star: finish with zero damage.'}
           </span>
         ) : null}
