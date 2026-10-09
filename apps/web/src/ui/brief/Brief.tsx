@@ -13,6 +13,7 @@ import { Icon } from '@/ui/Icon';
 import { MODE_NOTE, ModeSwitch } from '@/ui/ModeSwitch';
 import { Shell } from '@/ui/Shell';
 import { TrackProfile } from '@/ui/TrackProfile';
+import { useRivalPrefetch } from '@/ui/useRivalPrefetch';
 import { BriefTheBrain } from './BriefTheBrain';
 import { DriveCard } from './DriveCard';
 import { PrioritySlider } from './PrioritySlider';
@@ -53,6 +54,7 @@ export function Brief({ missionId }: { readonly missionId: MissionId }) {
   const overBudget = stats.overBudgetEur > 0;
 
   useEffect(() => setMission(missionId), [missionId, setMission]);
+  useRivalPrefetch(mission);
 
   const robotCard = (
     <section className="rr-rise flex flex-col gap-2 rounded-xl border border-dashed border-line-3 px-3 py-2.5">

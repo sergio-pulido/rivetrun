@@ -6,6 +6,7 @@ import { useBuildStore } from '@/state/build';
 import { buildStats } from '@/ui/buildStats';
 import { PlayLink } from '@/ui/coach/PlayLink';
 import { Icon } from '@/ui/Icon';
+import { useRivalPrefetch } from '@/ui/useRivalPrefetch';
 
 const FIRST = MISSIONS.M1;
 const FIRST_LENGTH_M = FIRST.track.segments.reduce((sum, segment) => sum + segment.lengthM, 0);
@@ -14,6 +15,8 @@ const FIRST_LENGTH_M = FIRST.track.segments.reduce((sum, segment) => sum + segme
 export function PlayNow() {
   const build = useBuildStore((store) => store.build);
   const mode = useBuildStore((store) => store.mode);
+  // Play Now skips the Brief, so the Jev ghost for mission 01 is requested from here.
+  useRivalPrefetch(FIRST);
   const overBudgetEur = buildStats(build).overBudgetEur;
   // The sim does not check the budget, so every way into a run has to.
   if (overBudgetEur > 0) {
