@@ -2,6 +2,7 @@
 // Each state is asked twice (options in sim order and reversed) to expose option-order bias (docs/JEV.md).
 //   pnpm --filter @rivetrun/brain tune
 import type { Action, BrainQuestion, LookaheadEntry, Perception } from '@rivetrun/contracts';
+import { BRIEFING_PRESETS } from '@rivetrun/contracts';
 import { createJevBrain, JEV_MODEL_ID } from '../src/index';
 
 const UNKNOWN: Perception = {
@@ -130,6 +131,22 @@ async function main(): Promise<void> {
     console.info(`  reversed order → ${backward.selected.padEnd(12)} ${row(backward.probabilities)}\n`);
   }
   console.info(`${sensibleCount}/${STATES.length} sensible`);
+
+  // "Brief the brain": the same states with each preset briefing, to show how the probabilities shift.
+  console.info('\n=== Briefing presets ===');
+  for (const test of STATES) {
+    const briefings = [{ name: 'no briefing', text: undefined }, ...BRIEFING_PRESETS];
+    const decisions = await Promise.all(
+      briefings.map((briefing) => brain.decide({ ...test.question, briefing: briefing.text })),
+    );
+    console.info(`\n[${test.name}]`);
+    decisions.forEach((decision, i) => {
+      const row = test.question.options
+        .map((action) => `${action} ${((decision.probabilities[action] ?? 0) * 100).toFixed(0)}%`)
+        .join(' | ');
+      console.info(`  ${briefings[i]!.name.padEnd(12)} → ${decision.selected.padEnd(12)} ${row}`);
+    });
+  }
 }
 
 await main();

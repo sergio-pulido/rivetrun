@@ -1,5 +1,6 @@
 // Browser Brain: asks the server (Jev) and falls back to the heuristic. Never imports @rivetrun/brain.
 import {
+  BRIEFING_MAX_CHARS,
   BrainDecisionSchema,
   type Action,
   type Brain,
@@ -14,6 +15,8 @@ const DECIDE_URL = '/api/decide';
 
 export interface ClientBrainOptions {
   readonly timeoutMs?: number;
+  /** "Brief the brain": the player's instructions, sent to Jev with every question. The heuristic ignores it. */
+  readonly briefing?: string;
   /** Called when Jev could not decide and the heuristic took over. */
   readonly onFallback?: (reason: string) => void;
 }
@@ -70,8 +73,10 @@ const askServer = async (question: BrainQuestion, timeoutMs: number): Promise<Br
 /** Jev via POST /api/decide; on error or timeout the heuristic decides with `fallback: true`. */
 export function createClientBrain(options: ClientBrainOptions = {}): Brain {
   const timeoutMs = options.timeoutMs ?? DECIDE_TIMEOUT_MS;
+  const briefing = options.briefing?.trim().slice(0, BRIEFING_MAX_CHARS);
   return {
-    decide: async (question) => {
+    decide: async (asked) => {
+      const question: BrainQuestion = briefing ? { ...asked, briefing } : asked;
       const started = performance.now();
       try {
         const decision = await askServer(question, timeoutMs);

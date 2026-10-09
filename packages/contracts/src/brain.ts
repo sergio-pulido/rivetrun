@@ -63,6 +63,17 @@ export type DecisionTrigger = z.infer<typeof DecisionTriggerSchema>;
 /** 0 = pure speed, 1 = pure safety. */
 export const PrioritySchema = z.number().min(0).max(1);
 
+export const BRIEFING_MAX_CHARS = 140;
+/** "Brief the brain": the player's free-text instructions to the driver. Only Jev reads it; the heuristic ignores it. */
+export const BriefingSchema = z.string().trim().max(BRIEFING_MAX_CHARS);
+
+export const BRIEFING_PRESETS = [
+  { id: 'daredevil', name: 'Daredevil', text: 'Speed is everything. Take risks.' },
+  { id: 'careful', name: 'Careful', text: 'Never risk damage. Slow is fine.' },
+  { id: 'eco', name: 'Eco', text: 'Save battery. Smooth and steady.' },
+] as const;
+export type BriefingPresetId = (typeof BRIEFING_PRESETS)[number]['id'];
+
 export const BrainQuestionSchema = z
   .object({
     missionId: MissionIdSchema,
@@ -76,6 +87,8 @@ export const BrainQuestionSchema = z
     options: z.array(ActionSchema).min(1).max(ActionSchema.options.length),
     /** One entry per option. */
     lookahead: z.array(LookaheadEntrySchema),
+    /** Player's instructions to the driver (optional). */
+    briefing: BriefingSchema.optional(),
   })
   .refine((q) => new Set(q.options).size === q.options.length, {
     message: 'options must be unique',

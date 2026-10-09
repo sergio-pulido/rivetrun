@@ -70,6 +70,8 @@ const ACTION_MEANING: Readonly<Record<Action, string>> = {
 };
 
 const STOPPED_SPEED_MPS = 0.1;
+// Mirrors BRIEFING_MAX_CHARS in @rivetrun/contracts (type-only imports here: see the header).
+const BRIEFING_MAX_CHARS = 140;
 const STALL_PROGRESS_M = 0.15;
 
 const round = (value: number, digits: number): number => {
@@ -114,6 +116,10 @@ const describeOption = (action: Action, entry: LookaheadEntry | undefined, bestP
   );
 };
 
+/** Briefing as one quotable line: no quotes, backticks or line breaks that could break out of the sentence. */
+const cleanBriefing = (briefing: string | undefined): string =>
+  (briefing ?? '').replace(/["`\\]/g, "'").replace(/\s+/g, ' ').trim().slice(0, BRIEFING_MAX_CHARS);
+
 /** BrainQuestion → the documented System One request with one Choice question. */
 export function buildJevRequest(question: BrainQuestion, model: string = JEV_MODEL_ID): JevRequest {
   const byAction = new Map(question.lookahead.map((entry) => [entry.action, entry]));
@@ -122,6 +128,10 @@ export function buildJevRequest(question: BrainQuestion, model: string = JEV_MOD
     question.options.map((action) => [action, describeOption(action, byAction.get(action), bestProgress)]),
   );
   const stopped = Math.abs(question.status.speedMps) < STOPPED_SPEED_MPS;
+  const briefing = cleanBriefing(question.briefing);
+  const briefingLine = briefing
+    ? `The player gave the driver these instructions: "${briefing}" Follow them when choosing between the forward options, even where they differ from the priority rule below. `
+    : '';
   return {
     model,
     state: {
@@ -136,6 +146,7 @@ export function buildJevRequest(question: BrainQuestion, model: string = JEV_MOD
           'Which driving action should it take for the next 1.5 seconds? ' +
           'Each option states its predicted progress, damage and energy from a forward simulation, each with a named level in brackets. ' +
           'Damage is cumulative and the robot is only destroyed at 100 %, so negligible damage is acceptable. ' +
+          briefingLine +
           `${priorityRule(question.priority)} ` +
           'Options with no progress or backwards progress are only correct when every forward option has heavy damage. ' +
           '`perceived` holds the sensor readings ("unknown" means no sensor for that reading); `robot` is the current speed, battery, damage and motion.',
