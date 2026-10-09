@@ -118,6 +118,15 @@ const GLYPHS: Readonly<Record<string, ReactNode>> = {
       <circle cx="45" cy="29" r="4" fill="none" stroke="#3FD0E0" strokeWidth="1.5" />
     </>
   ),
+  thruster_kit: (
+    <>
+      <rect x="30" y="18" width="30" height="12" rx="2" fill="#5B6470" />
+      <rect x="8" y="8" width="26" height="14" rx="7" fill="#23272E" stroke="#3FD0E0" strokeWidth="1.5" />
+      <rect x="8" y="26" width="26" height="14" rx="7" fill="#23272E" stroke="#3FD0E0" strokeWidth="1.5" />
+      <path d="M62 15h8M62 33h8" stroke="#8A929C" strokeWidth="3" strokeLinecap="round" />
+      <path d="M74 11v8M74 29v8M80 13v4M80 31v4" stroke="#3FD0E0" strokeWidth="2" strokeLinecap="round" />
+    </>
+  ),
   bumper: (
     <>
       <path d="M14 14h50a14 10 0 0 1 0 20H14z" fill="#FF7A1A" />

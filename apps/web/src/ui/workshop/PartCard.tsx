@@ -4,10 +4,12 @@ import Link from 'next/link';
 import type { Part } from '@rivetrun/contracts';
 import { Icon } from '@/ui/Icon';
 import { PartGlyph } from './PartGlyph';
-import { effectLine, partInfo } from './partInfo';
+import { effectLine } from './partInfo';
 
 interface PartCardProps {
   readonly part: Part;
+  /** The real hardware the part stands for, e.g. "HC-SR04". */
+  readonly model: string | null;
   readonly equipped: boolean;
   readonly locked: boolean;
   readonly affordable: boolean;
@@ -16,8 +18,7 @@ interface PartCardProps {
 }
 
 /** One part on the shelf. The card opens the part sheet; the strip at the bottom acts on the build. */
-export function PartCard({ part, equipped, locked, affordable, onAct }: PartCardProps) {
-  const info = partInfo(part);
+export function PartCard({ part, model, equipped, locked, affordable, onAct }: PartCardProps) {
   const frame = equipped ? 'border-cyan bg-[#10181C]' : locked ? 'border-dashed border-line-3 bg-[#111418]' : 'border-line-2 bg-panel-3';
   return (
     <div className={`flex h-[166px] flex-col rounded-[14px] border p-2.5 ${frame}`}>
@@ -29,7 +30,7 @@ export function PartCard({ part, equipped, locked, affordable, onAct }: PartCard
           <span className="truncate font-display text-[15px] font-semibold leading-tight">{part.name}</span>
           <span className="shrink-0 font-mono text-[10px] text-muted">€{part.costEur}</span>
         </span>
-        <span className="truncate font-mono text-[10px] text-muted">{info.klass}</span>
+        <span className="truncate font-mono text-[10px] text-muted">{model ?? part.slot}</span>
         <span className="truncate text-xs text-text-2">{effectLine(part)}</span>
       </Link>
       {equipped ? (

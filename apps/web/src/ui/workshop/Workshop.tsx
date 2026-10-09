@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useState } from 'react';
 import type { Part } from '@rivetrun/contracts';
-import { PRESETS } from '@rivetrun/sim';
+import { PRESETS, buildIssues } from '@rivetrun/sim';
 import { WorkshopCanvas } from '@/game';
 import { useBuildStore } from '@/state/build';
 import { isUnlocked, useProgressStore } from '@/state/progress';
@@ -19,7 +19,12 @@ const BAR_COLOR = { speed: 'var(--color-orange)', grip: 'var(--color-pcb)', endu
 const CALLOUT = 'absolute flex items-center gap-1.5 font-mono text-[10px] font-medium tracking-[1px]';
 const DOT = 'grid h-[22px] w-[22px] place-items-center rounded-full text-[11px] font-semibold';
 
-export function Workshop() {
+interface WorkshopProps {
+  /** Part id → the real hardware it stands for, from docs/inputs/real-parts.json. */
+  readonly models: Readonly<Record<string, string>>;
+}
+
+export function Workshop({ models }: WorkshopProps) {
   const build = useBuildStore((store) => store.build);
   const setBuild = useBuildStore((store) => store.setBuild);
   const missionId = useBuildStore((store) => store.missionId);
@@ -33,6 +38,7 @@ export function Workshop() {
   const stats = buildStats(build);
   const fittedIds = fitted(build, slot);
   const over = stats.overBudgetEur > 0;
+  const issues = buildIssues(build);
 
   const act = (part: Part): void => {
     if (!isUnlocked(unlocked, part.id) && !unlock(part.id)) {
@@ -146,17 +152,18 @@ export function Workshop() {
         })}
       </div>
 
-      {notice ? (
-        <p role="status" className="text-xs leading-snug text-warn">
-          {notice}
+      {[...issues, ...(notice ? [notice] : [])].map((line) => (
+        <p key={line} role="status" className="text-xs leading-snug text-warn">
+          {line}
         </p>
-      ) : null}
+      ))}
 
       <section role="tabpanel" className="grid grid-cols-2 gap-2.5">
         {partsIn(slot).map((part) => (
           <PartCard
             key={part.id}
             part={part}
+            model={models[part.id] ?? null}
             equipped={fittedIds.includes(part.id)}
             locked={!isUnlocked(unlocked, part.id)}
             affordable={points >= part.unlockPoints}
