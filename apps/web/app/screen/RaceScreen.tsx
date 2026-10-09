@@ -163,8 +163,7 @@ export function RaceScreen({ code, siteUrl }: RaceScreenProps) {
               <span className={`${styles.dot} ${status === 'racing' ? '' : styles.dotIdle}`} />
               <span className={styles.title}>ROOM RACE · {link === 'reconnecting' ? 'RECONNECTING' : STATUS_TITLE[status]}</span>
               <span className={styles.chip}>
-                {mission.id} · {mission.name}
-                {status === 'finished' ? '' : ` · ${mission.weather}`}
+                {status === 'finished' ? mission.name : `${mission.id} · ${mission.name} · ${mission.weather}`}
               </span>
             </div>
             <div className={styles.controls}>
