@@ -3,10 +3,10 @@ import { Bench } from '@/ui/home/Bench';
 import { EpisodesLogged } from '@/ui/home/EpisodesLogged';
 import { MissionRail } from '@/ui/home/MissionRail';
 import { PlayNow } from '@/ui/home/PlayNow';
+import { Tagline } from '@/ui/home/Tagline';
 import { Icon } from '@/ui/Icon';
 import { ModeSwitch } from '@/ui/ModeSwitch';
 
-const HEADLINE = 'font-display text-[40px] font-bold leading-[1.02]';
 const TILE = 'rr-btn rr-btn-secondary !min-h-14 !text-[15px]';
 
 export default function HomePage() {
@@ -26,11 +26,7 @@ export default function HomePage() {
           </Link>
         </header>
 
-        <h1 className="rr-rise mt-1.5 flex flex-col gap-0.5">
-          <span className={HEADLINE}>Build the body.</span>
-          <span className={`${HEADLINE} text-cyan`}>Brief the brain.</span>
-          <span className={`${HEADLINE} text-orange`}>Watch it drive.</span>
-        </h1>
+        <Tagline />
 
         <div className="rr-rise" style={{ ['--i' as string]: 1 }}>
           <Bench />

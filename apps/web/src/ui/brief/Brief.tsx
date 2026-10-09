@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useEffect } from 'react';
 import type { Mission, MissionId } from '@rivetrun/contracts';
-import { MISSIONS, TUNING } from '@rivetrun/sim';
+import { MISSIONS, TUNING, compileTrack } from '@rivetrun/sim';
 import { TERRAIN_LOOK } from '@/game/palette';
 import { useBuildStore } from '@/state/build';
 import { useWorkshopUi } from '@/state/workshop';
@@ -26,12 +26,21 @@ function conditionChips(mission: Mission): readonly string[] {
   const steepest = [...segments].sort((a, b) => b.slopeDeg - a.slopeDeg)[0];
   const deepest = [...segments].sort((a, b) => (b.depthCm ?? 0) - (a.depthCm ?? 0))[0];
   const current = Math.max(0, ...segments.map((segment) => segment.currentMps ?? 0));
+  const features = compileTrack(mission.track).features;
+  const ramps = features.filter((feature) => feature.type === 'ramp').length;
+  const gaps = features.filter((feature) => feature.type === 'gap');
+  const widestGapM = Math.max(0, ...gaps.map((gap) => gap.endM - gap.startM));
+  const drops = features.flatMap((feature) => (feature.type === 'drop' ? [feature.heightM] : []));
+  const plural = (count: number, word: string): string => `${count} ${word}${count === 1 ? '' : 's'}`;
   const obstacles = [...new Set(segments.flatMap((segment) => (segment.obstacle ? [segment.obstacle] : [])))];
   return [
     mission.weather === 'rain' ? `Rain · grip ×${rain.frictionFactor}` : null,
     mission.weather === 'cold' ? `Cold · battery ×${cold.batteryCapacityFactor}` : null,
     mission.weather === 'clear' ? 'Clear' : null,
     steepest && steepest.slopeDeg >= 5 ? `${steepest.slopeDeg}° ${TERRAIN_LOOK[steepest.terrain].label} climb` : null,
+    ramps > 0 ? plural(ramps, 'ramp') : null,
+    gaps.length > 0 ? `${plural(gaps.length, 'gap')} up to ${Math.round(widestGapM * 100) / 100} m` : null,
+    drops.length > 0 ? `${Math.max(...drops)} m drop` : null,
     obstacles.length > 0 ? obstacles.join(' + ') : null,
     deepest?.depthCm ? `${TERRAIN_LOOK[deepest.terrain].label} ${deepest.depthCm} cm deep` : null,
     current > 0 ? `Current ${current} m/s` : null,
@@ -45,8 +54,8 @@ export function Brief({ missionId }: { readonly missionId: MissionId }) {
   const setMission = useBuildStore((store) => store.setMission);
   const setBuild = useBuildStore((store) => store.setBuild);
   const mode = useBuildStore((store) => store.mode);
+  const warnings = missionWarnings(mission, build, { aiSenses: mode === 'jev' });
   const stats = buildStats(build);
-  const warnings = missionWarnings(mission, build);
   const blockers = missionBlockers(mission, build);
   const blocked = blockers.length > 0;
   const rescue = blocked ? presetThatFinishes(mission) : null;

@@ -125,7 +125,11 @@ export const presetThatFinishes = (mission: Mission): Preset | null =>
   Object.values(PRESETS).find((preset) => missionBlockers(mission, preset.build).length === 0) ?? null;
 
 /** Facts about this build on this track: what will hurt and what the AI cannot perceive. */
-export function missionWarnings(mission: Mission, build: Build): readonly string[] {
+/**
+ * `aiSenses: false` leaves out the lines about what the AI cannot perceive: in Drive mode the player has eyes,
+ * and those lines only describe the Jev ghost.
+ */
+export function missionWarnings(mission: Mission, build: Build, { aiSenses = true }: { readonly aiSenses?: boolean } = {}): readonly string[] {
   const spec = deriveSpec(build);
   const segments = mission.track.segments;
   const has = (kind: SensorKind): boolean => spec.sensorRangeM[kind] !== undefined;
@@ -137,9 +141,9 @@ export function missionWarnings(mission: Mission, build: Build): readonly string
     deep === null && deepest > Math.max(spec.maxWadingDepthCm, spec.maxSwimDepthCm) ? `${deepest} cm of water: the thrusters reach ${spec.maxSwimDepthCm} cm` : null,
     deep === null && segments.some((segment) => segment.terrain === 'water') && !spec.waterproof ? 'Water crossing and no waterproof case' : null,
     steepest > spec.maxSlopeDeg ? `${steepest}° slope: ${spec.locomotionName.toLowerCase()} tip over past ${spec.maxSlopeDeg}°` : null,
-    segments.some((segment) => segment.obstacle) && !has('ultrasonic') ? 'Obstacles on track: no ultrasonic, the AI cannot see them' : null,
-    segments.some((segment) => segment.terrain === 'ice' || segment.terrain === 'mud') && !has('imu') ? 'Slippery ground: no IMU, the AI cannot feel slip' : null,
-    !has('camera') && !has('scout_drone') ? 'No camera or scout drone: the AI learns each terrain only on entry' : null,
+    aiSenses && segments.some((segment) => segment.obstacle) && !has('ultrasonic') ? 'Obstacles on track: no ultrasonic, the AI cannot see them' : null,
+    aiSenses && segments.some((segment) => segment.terrain === 'ice' || segment.terrain === 'mud') && !has('imu') ? 'Slippery ground: no IMU, the AI cannot feel slip' : null,
+    aiSenses && !has('camera') && !has('scout_drone') ? 'No camera or scout drone: the AI learns each terrain only on entry' : null,
   ].flatMap((line) => (line ? [line] : []));
 }
 

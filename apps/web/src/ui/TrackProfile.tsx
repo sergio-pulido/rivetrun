@@ -13,7 +13,7 @@ const CHAR_PX = 5.6;
 
 const rise = (segment: Segment): number => segment.lengthM * Math.tan((segment.slopeDeg * Math.PI) / 180);
 
-/** Side-on elevation profile: dark ground, one coloured stroke per terrain, obstacles as spikes. */
+/** Side-on elevation profile: dark ground, one coloured stroke per terrain, obstacles as spikes, ramps as orange lips, gaps as breaks, drops as steps. */
 export function TrackProfile({ mission }: { readonly mission: Mission }) {
   const world = compileTrack(mission.track);
   const segments = mission.track.segments;
@@ -61,6 +61,30 @@ export function TrackProfile({ mission }: { readonly mission: Mission }) {
             )}
           </g>
         );
+      })}
+      {world.features.map((feature) => {
+        const [fx0, fx1] = [x(feature.startM), x(feature.endM)];
+        if (feature.type === 'gap') {
+          // A break in the rail, drawn at least 7 px wide so a 0.6 m gap still reads on a 60 m track.
+          const mid = (fx0 + fx1) / 2;
+          const half = Math.max(3.5, (fx1 - fx0) / 2);
+          const top = y(heightAt(feature.startM));
+          return (
+            <g key={`gap-${feature.startM}`}>
+              <rect x={mid - half} y={top - 4} width={half * 2} height={HEIGHT - LABEL_BAND - top + 8} fill="#12161B" />
+              <path d={`M${mid - half},${top - 4} v8 M${mid + half},${top - 4} v8`} stroke="#FF7A1A" strokeWidth="1.5" />
+            </g>
+          );
+        }
+        if (feature.type === 'ramp') {
+          // A launch lip at the end of the segment.
+          const base = y(heightAt(feature.endM));
+          const length = Math.max(10, fx1 - fx0);
+          return <polygon key={`ramp-${feature.startM}`} points={`${fx1 - length},${base - 2} ${fx1},${base - 11} ${fx1},${base - 2}`} fill="#FF7A1A" />;
+        }
+        // A step down at the start of the segment.
+        const top = y(heightAt(feature.startM));
+        return <path key={`drop-${feature.startM}`} d={`M${fx0 - 6},${top - 9} h6 v9 M${fx0 - 3},${top - 4} l3,4 l3,-4`} fill="none" stroke="#3FD0E0" strokeWidth="1.5" strokeLinejoin="round" />;
       })}
       {world.obstacles.map((obstacle) => {
         const [ox, oy] = [x(obstacle.xM), y(heightAt(obstacle.xM)) - 2];
