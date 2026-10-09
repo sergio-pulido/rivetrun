@@ -12,8 +12,6 @@ import { earthTexture, padTexture, terrainTexture } from './textures';
 const CUT_DEPTH = 16;
 const LIP = 0.24;
 const FILLER_M = 60;
-const LAND_FAR_Z = -70;
-const LAND_RISE = 5;
 const WATER_DROP = 0.06;
 
 interface Span {
@@ -46,7 +44,6 @@ interface Built {
   readonly tops: ReadonlyArray<{ key: string; geometry: BufferGeometry; terrain: TerrainId | 'pad' }>;
   readonly cut: BufferGeometry;
   readonly lip: BufferGeometry;
-  readonly land: BufferGeometry;
   readonly waterFront: BufferGeometry | null;
   readonly waters: readonly LaidSegment[];
 }
@@ -65,7 +62,6 @@ function buildTerrain(layout: TrackLayout): Built {
   const tops = new Map<string, QuadBuilder>();
   const cut = new QuadBuilder();
   const lip = new QuadBuilder();
-  const land = new QuadBuilder();
   const waterFront = new QuadBuilder();
 
   for (const segment of all) {
@@ -74,7 +70,6 @@ function buildTerrain(layout: TrackLayout): Built {
     tops.set(key, top);
     const look = TERRAIN_LOOK[segment.terrain];
     const lipColor = segment.pad ? '#565b64' : look.lip;
-    const landColor = segment.pad ? TERRAIN_LOOK.grass.land : look.land;
     for (const span of spansOf(segment)) {
       const { ax, ay, bx, by } = span;
       const uvTop: [P2, P2, P2, P2] = [[ax / 3, zFront / 3], [bx / 3, zFront / 3], [bx / 3, zBack / 3], [ax / 3, zBack / 3]];
@@ -88,13 +83,6 @@ function buildTerrain(layout: TrackLayout): Built {
         undefined,
         [lipColor, lipColor, lipColor, lipColor],
       );
-      // Land behind the strip, tilted up towards the horizon so it reads from the side.
-      const far = '#9db39a';
-      land.quad(
-        [ax, span.lineA, zBack], [bx, span.lineB, zBack], [bx, span.lineB + LAND_RISE, LAND_FAR_Z], [ax, span.lineA + LAND_RISE, LAND_FAR_Z],
-        undefined,
-        [landColor, landColor, far, far],
-      );
       if (segment.basin > 0) {
         waterFront.quad(
           [ax, ay, zFront + 0.03], [bx, by, zFront + 0.03], [bx, span.lineB - WATER_DROP, zFront + 0.03], [ax, span.lineA - WATER_DROP, zFront + 0.03],
@@ -107,7 +95,6 @@ function buildTerrain(layout: TrackLayout): Built {
     tops: [...tops.entries()].map(([key, builder]) => ({ key, geometry: builder.build(), terrain: key as TerrainId | 'pad' })),
     cut: cut.build(),
     lip: lip.build(),
-    land: land.build(),
     waterFront: waterFront.empty ? null : waterFront.build(),
     waters: layout.segments.filter((segment) => segment.basin > 0),
   };
@@ -179,7 +166,6 @@ export function Terrain({ layout }: TerrainProps) {
       tops: new Map(built.tops.map((top) => [top.key, topMaterial(top.terrain)])),
       cut: new MeshStandardMaterial({ map: earthTexture(), roughness: 1 }),
       lip: new MeshStandardMaterial({ vertexColors: true, roughness: 0.9 }),
-      land: new MeshStandardMaterial({ vertexColors: true, roughness: 1 }),
       waterFront: new MeshBasicMaterial({ color: '#2a86cf', transparent: true, opacity: 0.6 }),
     }),
     [built],
@@ -188,9 +174,9 @@ export function Terrain({ layout }: TerrainProps) {
   useEffect(
     () => () => {
       built.tops.forEach((top) => top.geometry.dispose());
-      [built.cut, built.lip, built.land, built.waterFront].forEach((geometry) => geometry?.dispose());
+      [built.cut, built.lip, built.waterFront].forEach((geometry) => geometry?.dispose());
       materials.tops.forEach((material) => material.dispose());
-      [materials.cut, materials.lip, materials.land, materials.waterFront].forEach((material) => material.dispose());
+      [materials.cut, materials.lip, materials.waterFront].forEach((material) => material.dispose());
     },
     [built, materials],
   );
@@ -202,7 +188,6 @@ export function Terrain({ layout }: TerrainProps) {
       ))}
       <mesh geometry={built.cut} material={materials.cut} />
       <mesh geometry={built.lip} material={materials.lip} />
-      <mesh geometry={built.land} material={materials.land} receiveShadow />
       {built.waterFront && <mesh geometry={built.waterFront} material={materials.waterFront} />}
       {built.waters.map((segment) => (
         <WaterSheet key={segment.s0} segment={segment} />

@@ -85,11 +85,10 @@ interface Dressed {
   readonly paint: Item[];
   readonly puddles: Item[];
   readonly trees: Item[];
-  readonly trunks: Item[];
 }
 
 function dress(layout: TrackLayout): Dressed {
-  const out: Dressed = { tufts: [], blobs: [], paint: [], puddles: [], trees: [], trunks: [] };
+  const out: Dressed = { tufts: [], blobs: [], paint: [], puddles: [], trees: [] };
   const { zFront, zBack } = LANES;
   layout.segments.forEach((segment, order) => {
     const rand = mulberry32(order * 977 + 13);
@@ -172,19 +171,19 @@ function dress(layout: TrackLayout): Dressed {
     }
 
     // Backdrop land: trees, boulders or ice by biome.
-    const count = Math.round((length / 10) * 7);
+    // The ground falls away behind the strip: only treetops and boulders poke above the back edge.
+    const count = Math.round((length / 10) * 6);
     for (let i = 0; i < count; i += 1) {
-      const z = zBack - 1.2 - rand() * rand() * 30;
-      const lift = ((zBack - z) / 65) * 5;
-      const base = at(along(), z, lift);
+      const z = zBack - 0.9 - rand() * 4;
+      const sunk = 1 + (zBack - z) * 0.55;
+      const base = at(along(), z, -sunk);
       if (terrain === 'rock' || terrain === 'ice' || terrain === 'sand' || terrain === 'water') {
-        const r = 0.4 + rand() * 1.1;
+        const r = 0.5 + rand() * 0.6;
         const c = terrain === 'ice' ? pick(rand, ['#eef8ff', '#c7e6f6']) : terrain === 'rock' ? pick(rand, ['#6f747c', '#8a8f98']) : pick(rand, ['#c9a45e', '#b9925a']);
-        out.blobs.push({ p: [base[0], base[1] + r * 0.3, base[2]], s: [r * 1.3, r * (terrain === 'ice' ? 1.6 : 0.8), r], yaw: rand() * 6, slope: 0, tilt: rand() * 0.6, c });
+        out.blobs.push({ p: [base[0], base[1] + sunk - r * 0.5, base[2]], s: [r * 1.3, r * (terrain === 'ice' ? 1.7 : 0.9), r], yaw: rand() * 6, slope: 0, tilt: rand() * 0.6, c });
       } else {
-        const h = 1.4 + rand() * 1.8;
-        out.trunks.push({ p: [base[0], base[1] + 0.25, base[2]], s: [0.09, 0.6, 0.09], yaw: 0, slope: 0, c: '#5a3d26' });
-        out.trees.push({ p: [base[0], base[1] + 0.45, base[2]], s: [0.55 + rand() * 0.3, h, 0.55 + rand() * 0.3], yaw: rand() * 6, slope: 0, c: pick(rand, ['#2f7a3a', '#3f8f42', '#27663a', '#4f9a45']) });
+        const h = sunk + 0.35 + rand() * 1.25;
+        out.trees.push({ p: base, s: [0.5 + rand() * 0.3, h, 0.5 + rand() * 0.3], yaw: rand() * 6, slope: 0, c: pick(rand, ['#2f7a3a', '#3f8f42', '#27663a', '#4f9a45']) });
       }
     }
   });
@@ -306,7 +305,6 @@ export function Dressing({ layout }: DressingProps) {
       <Scatter geometry={BOX} material={PAINT} items={dressed.paint} />
       <Scatter geometry={DISC} material={PUDDLE} items={dressed.puddles} />
       <Scatter geometry={CONE} material={FLAT} items={dressed.trees} />
-      <Scatter geometry={DISC} material={FLAT} items={dressed.trunks} />
       {layout.segments.map((segment) => (segment.obstacle ? <ObstacleProp key={segment.s0} layout={layout} segment={segment} /> : null))}
 
       <mesh geometry={BOX} position={[0, 0.006, midZ]} scale={[0.14, 0.012, depth]}>

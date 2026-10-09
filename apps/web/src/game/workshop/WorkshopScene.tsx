@@ -117,12 +117,12 @@ function FitCamera() {
   useEffect(() => {
     const aspect = size.width / Math.max(1, size.height);
     const halfV = (camera.fov * Math.PI) / 360;
-    const halfWidth = 1.75;
-    const halfHeight = 1.25;
-    const distance = Math.max(halfWidth / (Math.tan(halfV) * aspect), halfHeight / Math.tan(halfV)) + 1.2;
-    const elevation = 0.42;
-    camera.position.set(0, 0.75 + Math.sin(elevation) * distance, Math.cos(elevation) * distance);
-    camera.lookAt(0, 0.72, 0);
+    const halfWidth = 1.45;
+    const halfHeight = 1.12;
+    const distance = Math.max(halfWidth / (Math.tan(halfV) * aspect), halfHeight / Math.tan(halfV)) + 1;
+    const elevation = 0.4;
+    camera.position.set(0, 0.8 + Math.sin(elevation) * distance, Math.cos(elevation) * distance);
+    camera.lookAt(0, 0.8, 0);
     camera.updateProjectionMatrix();
   }, [camera, size]);
   return null;

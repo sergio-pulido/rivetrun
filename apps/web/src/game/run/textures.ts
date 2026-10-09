@@ -236,8 +236,8 @@ export function skyTexture(top: string, mid: string, horizon: string): CanvasTex
     canvasTexture(4, 256, (ctx) => {
       const gradient = ctx.createLinearGradient(0, 0, 0, 256);
       gradient.addColorStop(0, top);
-      gradient.addColorStop(0.24, mid);
-      gradient.addColorStop(0.46, horizon);
+      gradient.addColorStop(0.17, mid);
+      gradient.addColorStop(0.36, horizon);
       gradient.addColorStop(1, horizon);
       ctx.fillStyle = gradient;
       ctx.fillRect(0, 0, 4, 256);

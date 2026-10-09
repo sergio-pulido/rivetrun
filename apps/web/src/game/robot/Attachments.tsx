@@ -136,7 +136,12 @@ function WaterproofCase({ floor }: AttachmentProps) {
           <Box key={`${ax}${side}`} s={[0.035, h + 0.02, 0.035]} p={[(ax * w) / 2, h / 2, (side * d) / 2]} m={m.darkSteel} shadow={false} />
         )),
       )}
-      <Box s={[w + 0.02, 0.03, d + 0.02]} p={[0, h + 0.005, 0]} m={m.darkSteel} shadow={false} />
+      {[1, -1].map((side) => (
+        <Box key={`lid-x${side}`} s={[w + 0.035, 0.035, 0.035]} p={[0, h, (side * d) / 2]} m={m.darkSteel} shadow={false} />
+      ))}
+      {[1, -1].map((ax) => (
+        <Box key={`lid-z${ax}`} s={[0.035, 0.035, d + 0.035]} p={[(ax * w) / 2, h, 0]} m={m.darkSteel} shadow={false} />
+      ))}
       {[-0.22, 0.22].flatMap((x) =>
         [1, -1].map((side) => (
           <Box key={`${x}${side}`} s={[0.1, 0.12, 0.03]} p={[x, h * 0.62, side * (d / 2 + 0.02)]} m={m.hazard} shadow={false} />

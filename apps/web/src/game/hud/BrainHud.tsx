@@ -29,22 +29,22 @@ interface ChipProps {
 function Chip({ label, sensor, known, wide = false, tone = UI.text, children }: ChipProps) {
   return (
     <div
-      className={`${known ? '' : styles.unknown} flex min-w-0 flex-col justify-between rounded-md px-1.5 py-1 ${wide ? 'flex-[1.7]' : 'flex-1'}`}
+      className={`${known ? '' : styles.unknown} flex min-w-0 flex-col justify-between rounded-md px-1 py-1 ${wide ? 'flex-[1.85]' : 'flex-1'}`}
       style={{ background: known ? 'rgb(9 13 18 / 0.75)' : 'rgb(9 13 18 / 0.4)', border: `1px ${known ? 'solid' : 'dashed'} ${known ? UI.line : '#44505f'}`, height: 40 }}
     >
       <span className="text-[8px] leading-none tracking-widest" style={{ color: UI.dim }}>
         {label}
       </span>
       {known ? (
-        <span className="truncate text-[12px] font-bold leading-none tabular-nums" style={{ color: tone }}>
+        <span className="truncate text-[11px] font-bold leading-none tabular-nums" style={{ color: tone }}>
           {children}
         </span>
       ) : (
-        <span className="flex items-baseline gap-1 leading-none">
-          <span className="text-[15px] font-bold" style={{ color: '#5d6b7c' }}>
+        <span className="flex items-baseline gap-0.5 leading-none">
+          <span className="text-[13px] font-bold" style={{ color: '#6f7d8f' }}>
             ?
           </span>
-          <span className="truncate text-[8px]" style={{ color: '#5d6b7c' }}>
+          <span className="whitespace-nowrap text-[7.5px]" style={{ color: '#6f7d8f' }}>
             {sensor}
           </span>
         </span>
@@ -59,8 +59,8 @@ function Perceived({ perceived }: { perceived: Perception }) {
     <div className="flex gap-1">
       <Chip label="AHEAD" sensor="no camera" known={terrainAhead !== 'unknown'} wide>
         {terrainAhead !== 'unknown' && (
-          <span className="flex items-center gap-1">
-            <span className="inline-block h-2.5 w-2.5 shrink-0 rounded-sm" style={{ background: TERRAIN_LOOK[terrainAhead].hud }} />
+          <span className="flex items-center gap-[3px]">
+            <span className="inline-block h-2 w-2 shrink-0 rounded-sm" style={{ background: TERRAIN_LOOK[terrainAhead].hud }} />
             <span className="uppercase">{TERRAIN_LOOK[terrainAhead].label}</span>
             {terrainAheadDistanceM !== 'unknown' && <span style={{ color: UI.dim }}>{terrainAheadDistanceM.toFixed(1)}m</span>}
           </span>

@@ -42,6 +42,11 @@ export function RunHud({ mission, feed, ghosts = [] }: RunHudProps) {
             <div className="mt-1 text-[11px] font-bold uppercase tracking-widest">
               {dnf ? DNF_LABEL[dnf] : `${view.outcome?.timeS.toFixed(1) ?? '–'} s · ${Math.round(view.outcome?.score ?? 0)} pts`}
             </div>
+            {view.outcome?.why && (
+              <div className="mx-auto mt-1.5 max-w-[240px] text-[11px] leading-snug" style={{ color: UI.text }}>
+                {view.outcome.why}
+              </div>
+            )}
           </div>
         </div>
       )}

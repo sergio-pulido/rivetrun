@@ -26,7 +26,7 @@ interface Spec {
 }
 
 const SPECS: Readonly<Record<ParticleKind, Spec>> = {
-  dust: { colors: ['#e9d3a0', '#d8bf88'], gravity: -0.6, drag: 2.4, life: [0.5, 1.1], size: [0.06, 0.12], grow: 2.4, back: [0.3, 1.6], up: [0.3, 1.1], side: 0.5, bright: false },
+  dust: { colors: ['#f1e2bd', '#e3cfa0'], gravity: -0.4, drag: 2.4, life: [0.35, 0.75], size: [0.018, 0.04], grow: 2.4, back: [0.3, 1.6], up: [0.3, 1.1], side: 0.5, bright: false },
   splash: { colors: ['#d7efff', '#8fd0ff', '#ffffff'], gravity: -11, drag: 0.2, life: [0.45, 0.9], size: [0.04, 0.09], grow: 1, back: [-1.2, 1.8], up: [1.8, 4.4], side: 1.1, bright: false },
   mud: { colors: ['#4a2f1c', '#6b4428', '#35200f'], gravity: -11, drag: 0.2, life: [0.45, 0.85], size: [0.05, 0.11], grow: 1, back: [0.8, 3], up: [1.2, 3.4], side: 0.8, bright: false },
   sparks: { colors: ['#ffe9a8', '#ffb347', '#ff7a1a'], gravity: -9, drag: 0.6, life: [0.2, 0.5], size: [0.02, 0.045], grow: 1, back: [-3, 3], up: [1, 5], side: 2.2, bright: true },
@@ -77,7 +77,7 @@ export function Particles({ ref, timeScale }: ParticlesProps) {
   const pools = useMemo(() => ({ lit: createPool(CAPACITY), bright: createPool(BRIGHT_CAPACITY) }), []);
   const materials = useMemo(
     () => ({
-      lit: new MeshLambertMaterial({ flatShading: true }),
+      lit: new MeshLambertMaterial({ flatShading: true, transparent: true, opacity: 0.6, depthWrite: false }),
       bright: new MeshBasicMaterial({ toneMapped: false }),
     }),
     [],

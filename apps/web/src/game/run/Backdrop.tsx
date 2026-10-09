@@ -5,20 +5,20 @@ import { useEffect, useMemo, useRef } from 'react';
 import { AdditiveBlending, IcosahedronGeometry, MeshBasicMaterial, Shape, ShapeGeometry, type Group } from 'three';
 import type { Weather } from '@rivetrun/contracts';
 import { SKY } from '../palette';
-import { mulberry32 } from '../rng';
+import { clamp, mulberry32 } from '../rng';
 import type { TrackLayout } from '../track';
 import { glowTexture, skyTexture } from './textures';
 
-function ridgeGeometry(fromX: number, toX: number, baseY: number, height: number, seed: number): ShapeGeometry {
+/** A jagged silhouette. `feature` = width of one facet, so far ridges stay readable in a narrow view. */
+function ridgeGeometry(fromX: number, toX: number, baseY: number, height: number, feature: number, seed: number): ShapeGeometry {
   const rand = mulberry32(seed);
   const shape = new Shape();
-  shape.moveTo(fromX, baseY - 30);
-  const step = 6 + height * 0.5;
-  for (let x = fromX; x <= toX + step; x += step) {
-    const peak = Math.sin(x * 0.045 + seed) * 0.35 + Math.sin(x * 0.11 + seed * 2) * 0.2 + rand() * 0.45;
-    shape.lineTo(x, baseY + height * (0.45 + peak * 0.55));
+  shape.moveTo(fromX, baseY - 60);
+  for (let x = fromX; x <= toX + feature; x += feature) {
+    const wave = Math.sin((x / feature) * 0.9 + seed) * 0.5 + Math.sin((x / feature) * 0.37 + seed * 2) * 0.3;
+    shape.lineTo(x, baseY + height * clamp(0.5 + wave * 0.45 + (rand() - 0.5) * 0.35, 0, 1));
   }
-  shape.lineTo(toX + step, baseY - 30);
+  shape.lineTo(toX + feature, baseY - 60);
   return new ShapeGeometry(shape);
 }
 
@@ -40,6 +40,7 @@ export function Backdrop({ layout, weather }: BackdropProps) {
   const look = SKY[weather];
   const scene = useThree((state) => state.scene);
   const camera = useThree((state) => state.camera);
+  const mid = (layout.minY + layout.maxY) / 2;
   const far = useRef<Group>(null);
   const clouds = useRef<Group>(null);
 
@@ -51,16 +52,15 @@ export function Backdrop({ layout, weather }: BackdropProps) {
   }, [scene, look]);
 
   const ridges = useMemo(() => {
-    const from = -90;
-    const to = layout.lengthM + 110;
-    const base = layout.minY - 1;
-    const top = layout.maxY;
+    // The camera looks down ~15°, so the backdrop sits below track level: a valley seen from a plateau.
+    const from = -70;
+    const to = layout.lengthM + 90;
     return [
-      { z: -74, geometry: ridgeGeometry(from, to, base + 4, 9 + top, 3), color: look.hills[0] },
-      { z: -110, geometry: ridgeGeometry(from - 40, to + 40, base + 6, 17 + top, 11), color: look.hills[1] },
-      { z: -160, geometry: ridgeGeometry(from - 80, to + 80, base + 8, 30 + top, 23), color: look.hills[2] },
+      { z: -60, geometry: ridgeGeometry(from, to, mid - 8.6, 5.6, 3.2, 3), color: look.hills[0] },
+      { z: -95, geometry: ridgeGeometry(from - 20, to + 20, mid - 10.2, 6.2, 5.5, 11), color: look.hills[1] },
+      { z: -140, geometry: ridgeGeometry(from - 40, to + 40, mid - 11.2, 6.6, 9, 23), color: look.hills[2] },
     ];
-  }, [layout, look]);
+  }, [layout.lengthM, mid, look]);
   useEffect(() => () => ridges.forEach((ridge) => ridge.geometry.dispose()), [ridges]);
 
   const cloudMaterial = useMemo(
@@ -76,9 +76,9 @@ export function Backdrop({ layout, weather }: BackdropProps) {
     const rand = mulberry32(42);
     return Array.from({ length: weather === 'rain' ? 12 : 7 }, (_, i) => ({
       x: (i - 3) * 16 + rand() * 8,
-      y: 15 + rand() * 9,
-      z: -60 - rand() * 50,
-      scale: 2.4 + rand() * 2.6,
+      y: -9 + rand() * 6.5,
+      z: -168 - rand() * 16,
+      scale: 3 + rand() * 3,
     }));
   }, [weather]);
 
@@ -88,7 +88,7 @@ export function Backdrop({ layout, weather }: BackdropProps) {
     if (clouds.current) {
       const span = 16 * cloudField.length;
       const drift = (clock.elapsedTime * 0.5) % span;
-      clouds.current.position.x = camera.position.x * 0.92 + drift - span / 2 + 24;
+      clouds.current.position.x = camera.position.x * 0.94 + drift - span / 2 + 24;
     }
   });
 
@@ -100,14 +100,14 @@ export function Backdrop({ layout, weather }: BackdropProps) {
         </mesh>
       ))}
       <group ref={far}>
-        <mesh material={sunMaterial} position={[26, layout.maxY + 34, -190]}>
-          <circleGeometry args={[7, 24]} />
+        <mesh material={sunMaterial} position={[13, mid - 6.5, -190]}>
+          <circleGeometry args={[5.5, 28]} />
         </mesh>
-        <mesh material={glowMaterial} position={[26, layout.maxY + 34, -189]}>
-          <planeGeometry args={[70, 70]} />
+        <mesh material={glowMaterial} position={[13, mid - 6.5, -189]}>
+          <planeGeometry args={[46, 46]} />
         </mesh>
       </group>
-      <group ref={clouds} position={[0, layout.maxY, 0]}>
+      <group ref={clouds} position={[0, mid, 0]}>
         {cloudField.map((cloud, i) => (
           <group key={i} position={[cloud.x, cloud.y, cloud.z]} scale={[cloud.scale * 1.6, cloud.scale * 0.6, cloud.scale]}>
             {PUFFS.map(([x, y, z, r]) => (

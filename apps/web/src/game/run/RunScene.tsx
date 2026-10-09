@@ -48,7 +48,7 @@ function Tag({ text, color, y }: { text: string; color: string; y: number }) {
     () => new SpriteMaterial({ map: labelTexture(text, { color, background: 'rgba(15,20,27,0.82)', border: color }), depthTest: false, fog: false, transparent: true }),
     [text, color],
   );
-  return <sprite material={material} position={[0, y, 0]} scale={[1.5, 0.375, 1]} renderOrder={10} />;
+  return <sprite material={material} position={[0, y, 0]} scale={[1.24, 0.31, 1]} renderOrder={10} />;
 }
 
 interface PlayerProps {
@@ -68,7 +68,8 @@ function Player({ feed, build, layout, pose, timeScale, particles }: PlayerProps
   const lastDamageAt = useRef(0);
 
   useFrame((_, rawDt) => {
-    const dt = Math.min(rawDt, 0.05);
+    // Unclamped (up to 0.5 s): easing must keep up with the sim even when frames are slow.
+    const dt = Math.min(rawDt, 0.5);
     const view = feed.get();
     const state = view.state;
     const node = group.current;
@@ -132,7 +133,7 @@ function Player({ feed, build, layout, pose, timeScale, particles }: PlayerProps
     const emitter = particles.current;
     if (!emitter) return;
     const dir = state.v >= 0 ? 1 : -1;
-    const simDt = dt * (timeScale.current ?? 1);
+    const simDt = Math.min(dt, 0.05) * (timeScale.current ?? 1);
     const active: SimEffect[] = wrecked ? ['smoke'] : view.done ? [] : state.effects;
     for (const effect of active) {
       const spec = EFFECT_PARTICLES[effect];
@@ -155,7 +156,7 @@ function Player({ feed, build, layout, pose, timeScale, particles }: PlayerProps
   return (
     <group ref={group} visible={false}>
       <RobotModel build={build} drive={drive} />
-      <Tag text={POLICY_LABEL.jev} color={UI.safety} y={2.05} />
+      <Tag text={POLICY_LABEL.jev} color={UI.safety} y={1.95} />
     </group>
   );
 }
@@ -197,7 +198,7 @@ function Ghost({ trace, build, layout, pose, timeScale }: GhostProps) {
     const s = lerp(a.x, b.x, k);
     const sample = sampleTrack(layout, s);
     const wanted = (lerp(a.pitch, b.pitch, k) * Math.PI) / 180;
-    pitch.current = damp(pitch.current, wanted, 9, Math.min(rawDt, 0.05));
+    pitch.current = damp(pitch.current, wanted, 9, Math.min(rawDt, 0.5));
     node.visible = true;
     node.position.set(sample.x, sample.y + rideOffset(sample.segment, s), z);
     node.rotation.z = pitch.current;
@@ -219,9 +220,9 @@ function Ghost({ trace, build, layout, pose, timeScale }: GhostProps) {
   );
 }
 
-const VIEW_WIDTH_M = 6.4;
-const MIN_VIEW_HEIGHT_M = 9;
-const ELEVATION = (20 * Math.PI) / 180;
+const VIEW_WIDTH_M = 5.7;
+const MIN_VIEW_HEIGHT_M = 8.5;
+const ELEVATION = (15 * Math.PI) / 180;
 
 interface RigProps {
   pose: RefObject<Pose>;
@@ -237,7 +238,7 @@ function CameraRig({ pose, light, startX }: RigProps) {
   const target = useMemo(() => new Vector3(), []);
 
   useFrame((_, rawDt) => {
-    const dt = Math.min(rawDt, 0.05);
+    const dt = Math.min(rawDt, 0.5);
     const p = pose.current;
     const f = focus.current;
     const aspect = size.width / Math.max(1, size.height);
@@ -249,7 +250,7 @@ function CameraRig({ pose, light, startX }: RigProps) {
       f.y = leadY;
       f.init = true;
     }
-    f.x = damp(f.x, leadX, 5, dt);
+    f.x = Math.abs(leadX - f.x) > 6 ? leadX : damp(f.x, leadX, 6, dt);
     f.y = damp(f.y, leadY, 3.2, dt);
     f.zoom = damp(f.zoom, p.thinking ? 0.86 : 1, 5, dt);
 
@@ -257,10 +258,10 @@ function CameraRig({ pose, light, startX }: RigProps) {
     const byWidth = VIEW_WIDTH_M / (2 * Math.tan(halfV) * aspect);
     const byHeight = MIN_VIEW_HEIGHT_M / (2 * Math.tan(halfV));
     const distance = Math.max(byWidth, byHeight) * f.zoom;
-    // In portrait the HUD covers the lower third: aim below the robot so it sits in the clear band.
-    const drop = distance * Math.tan(halfV) * (portrait ? 0.34 : 0.1);
+    // In portrait the Brain HUD covers the lower third: the robot sits just above the middle.
+    const lift = distance * Math.tan(halfV) * (portrait ? 0.05 : -0.12);
     const shake = performance.now() < p.shakeUntil ? 0.09 : 0;
-    target.set(f.x + (Math.random() - 0.5) * shake, f.y - drop + 0.6 + (Math.random() - 0.5) * shake, -1.2);
+    target.set(f.x + (Math.random() - 0.5) * shake, f.y + 0.75 - lift + (Math.random() - 0.5) * shake, -1);
     camera.position.set(target.x, target.y + Math.sin(ELEVATION) * distance, target.z + Math.cos(ELEVATION) * distance);
     camera.lookAt(target);
 
@@ -304,7 +305,7 @@ export function RunScene({ mission, build, feed, ghosts = [] }: RunSceneProps) {
 
   return (
     <>
-      <fog attach="fog" args={[sky.fog, 34, 250]} />
+      <fog attach="fog" args={[sky.fog, 40, 330]} />
       <hemisphereLight args={[sky.hemiSky, sky.hemiGround, sky.hemiIntensity]} />
       <directionalLight
         ref={sun}
