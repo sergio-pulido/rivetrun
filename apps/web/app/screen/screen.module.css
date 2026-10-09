@@ -346,9 +346,18 @@
   align-items: center;
   gap: calc(var(--u) * 8);
   flex-shrink: 0;
+  min-width: 0;
+}
+/* The track picker wraps onto a second row when the missions do not fit beside Start. */
+.picks {
+  display: flex;
+  flex: 1;
+  flex-wrap: wrap;
+  gap: calc(var(--u) * 6);
+  min-width: 0;
 }
 .pick {
-  padding: calc(var(--u) * 8) calc(var(--u) * 12);
+  padding: calc(var(--u) * 6) calc(var(--u) * 10);
   border-radius: calc(var(--u) * 10);
   border: 1px solid #2a3039;
   background: var(--panel-hi);
@@ -415,6 +424,7 @@
 }
 .spacer {
   margin-left: auto;
+  flex-shrink: 0;
 }
 .alert {
   padding: calc(var(--u) * 8) calc(var(--u) * 12);

@@ -93,7 +93,7 @@ function HostBar({ snapshot, onError }: { readonly snapshot: RaceSnapshot; reado
   };
   return (
     <div className={styles.hostBar}>
-      <div className={styles.hostBar} role="radiogroup" aria-label="Track">
+      <div className={styles.picks} role="radiogroup" aria-label="Track">
         {MISSION_IDS.map((id) => (
           <button
             key={id}
