@@ -9,9 +9,12 @@ import dynamic from 'next/dynamic';
 export const RunCanvas = dynamic(() => import('./RunCanvas'), { ssr: false });
 /** Workshop turntable. Pass `build` and it updates live. */
 export const WorkshopCanvas = dynamic(() => import('./WorkshopCanvas'), { ssr: false });
+/** Big-screen attract loop: every preset replays M5 side by side. No network, no loadout, no props needed. */
+export const AttractCanvas = dynamic(() => import('./AttractCanvas'), { ssr: false });
 
 export type { RunCanvasProps } from './RunCanvas';
 export type { WorkshopCanvasProps } from './WorkshopCanvas';
+export type { AttractCanvasProps } from './AttractCanvas';
 export { createRunFeed, useRunView } from './runFeed';
 export type { RunFeed, RunView } from './runFeed';
 export { BrainHud } from './hud/BrainHud';

@@ -71,13 +71,31 @@ function Scatter({ geometry, material, items, shadow = false }: ScatterProps) {
 }
 
 const pick = <T,>(rand: () => number, list: readonly T[]): T => list[Math.floor(rand() * list.length)]!;
-/** Z bands between the lanes, so big props never sit under a robot. */
-const VERGES: ReadonlyArray<readonly [number, number]> = [
-  [0.75, 1.4],
-  [-1.15, -0.8],
-  [-3.05, -2.7],
-  [-5.1, -4.6],
-];
+const DEFAULT_LANES: readonly number[] = [LANES.player, LANES.heuristic, LANES.random];
+/** Half-width a robot needs clear around its lane centre. */
+const LANE_CLEARANCE = 0.72;
+
+/** Z bands between the lanes (and outside them), so big props never sit under a robot. */
+function vergesFor(lanes: readonly number[]): Array<readonly [number, number]> {
+  const sorted = [...lanes].sort((a, b) => b - a);
+  const front = sorted[0]!;
+  const back = sorted[sorted.length - 1]!;
+  const bands: Array<readonly [number, number]> = [];
+  if (LANES.zFront - 0.1 > front + LANE_CLEARANCE) bands.push([front + LANE_CLEARANCE, LANES.zFront - 0.1]);
+  for (let i = 0; i < sorted.length - 1; i += 1) {
+    const mid = (sorted[i]! + sorted[i + 1]!) / 2;
+    const half = Math.min(0.18, Math.max(0.04, (sorted[i]! - sorted[i + 1]!) / 2 - LANE_CLEARANCE));
+    bands.push([mid - half, mid + half]);
+  }
+  if (back - LANE_CLEARANCE > LANES.zBack + 0.1) bands.push([LANES.zBack + 0.1, back - LANE_CLEARANCE]);
+  return bands;
+}
+
+/** Painted lane lines: halfway between neighbouring lanes. */
+const lineZs = (lanes: readonly number[]): number[] => {
+  const sorted = [...lanes].sort((a, b) => b - a);
+  return sorted.slice(0, -1).map((z, i) => (z + sorted[i + 1]!) / 2);
+};
 
 interface Dressed {
   readonly tufts: Item[];
@@ -87,7 +105,9 @@ interface Dressed {
   readonly trees: Item[];
 }
 
-function dress(layout: TrackLayout): Dressed {
+function dress(layout: TrackLayout, lanes: readonly number[]): Dressed {
+  const verges = vergesFor(lanes);
+  const lines = lineZs(lanes);
   const out: Dressed = { tufts: [], blobs: [], paint: [], puddles: [], trees: [] };
   const { zFront, zBack } = LANES;
   layout.segments.forEach((segment, order) => {
@@ -99,7 +119,7 @@ function dress(layout: TrackLayout): Dressed {
     };
     const anywhere = () => zBack + 0.15 + rand() * (zFront - zBack - 0.3);
     const verge = () => {
-      const band = pick(rand, VERGES);
+      const band = pick(rand, verges);
       return band[0] + rand() * (band[1] - band[0]);
     };
     const along = () => segment.s0 + 0.2 + rand() * (length - 0.4);
@@ -154,7 +174,7 @@ function dress(layout: TrackLayout): Dressed {
     if (terrain === 'asphalt' || terrain === 'pad') {
       const paint = terrain === 'pad' ? UI.safety : '#f1f3f5';
       for (let s = segment.s0 + 0.6; s < segment.s1 - 0.5; s += 1.9) {
-        for (const z of [-0.95, -2.85]) out.paint.push({ p: at(s + 0.45, z, 0.008), s: [0.9, 0.012, 0.09], yaw: 0, slope, c: paint });
+        for (const z of lines) out.paint.push({ p: at(s + 0.45, z, 0.008), s: [0.9, 0.012, 0.09], yaw: 0, slope, c: paint });
       }
       const mid = (segment.s0 + segment.s1) / 2;
       out.paint.push({ p: at(mid, 1.3, 0.008), s: [length, 0.012, 0.1], yaw: 0, slope, c: UI.safety });
@@ -293,11 +313,13 @@ function Sign({ text, x, y, width = 2.6, color = '#0f141b', background = UI.safe
 
 interface DressingProps {
   layout: TrackLayout;
+  /** Lane centres (Z). Default: the player and the two ghost lanes. */
+  lanes?: readonly number[];
 }
 
 /** Everything that sits on the terrain: tufts, stones, paint, obstacles, signs, gates. */
-export function Dressing({ layout }: DressingProps) {
-  const dressed = useMemo(() => dress(layout), [layout]);
+export function Dressing({ layout, lanes = DEFAULT_LANES }: DressingProps) {
+  const dressed = useMemo(() => dress(layout, lanes), [layout, lanes]);
   const checker = useMemo(() => {
     const texture = checkerTexture().clone();
     texture.needsUpdate = true;

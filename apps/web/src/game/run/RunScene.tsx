@@ -1,48 +1,23 @@
 'use client';
 
-import { Environment, Lightformer } from '@react-three/drei';
 import { useFrame, useThree } from '@react-three/fiber';
-import { useEffect, useMemo, useRef, type RefObject } from 'react';
-import { SpriteMaterial, Vector3, type DirectionalLight, type Group, type PerspectiveCamera } from 'three';
+import { useMemo, useRef, type RefObject } from 'react';
+import { Vector3, type DirectionalLight, type Group, type PerspectiveCamera } from 'three';
 import type { Build, GhostTrace, Mission, Policy, SimEffect } from '@rivetrun/contracts';
 import { TUNING } from '@rivetrun/sim';
-import { LANES, POLICY_LABEL, POLICY_TINT, SKY, TERRAIN_LOOK, UI, laneZ } from '../palette';
+import { LANES, POLICY_LABEL, POLICY_TINT, TERRAIN_LOOK, UI, laneZ } from '../palette';
 import { clamp, damp, lerp } from '../rng';
 import { restDrive, type Expression, type RobotDrive } from '../robot/drive';
 import { RobotModel } from '../robot/RobotModel';
 import type { RunFeed } from '../runFeed';
-import { basinDepthAt, layoutTrack, rideOffset, sampleTrack, type LaidSegment, type TrackLayout } from '../track';
-import { Backdrop } from './Backdrop';
-import { Dressing } from './Dressing';
-import { Particles, type ParticleEmitter, type ParticleKind } from './Particles';
+import { basinDepthAt, layoutTrack, rideOffset, sampleTrack, type TrackLayout } from '../track';
+import { Particles, type ParticleEmitter } from './Particles';
 import { restPose, type Pose } from './pose';
 import { ScoutDroneRig } from './ScoutDroneRig';
-import { Terrain } from './Terrain';
-import { labelTexture } from './textures';
-import { WeatherFx } from './WeatherFx';
+import { EFFECT_PARTICLES, Tag, swimLift } from './shared';
+import { World } from './World';
 
 const SIM_DT = TUNING.dtMs / 1000;
-
-/** How far above the bed a robot under thrust cruises: mid-water, with a slow bob. */
-const swimLift = (segment: LaidSegment, s: number, t: number): number => basinDepthAt(segment, s) * 0.4 + Math.sin(t * 2.1) * 0.06;
-
-const EFFECT_PARTICLES: Readonly<Partial<Record<SimEffect, { kind: ParticleKind; rate: number; where: 'rear' | 'front' | 'top' }>>> = {
-  dust: { kind: 'dust', rate: 30, where: 'rear' },
-  splash: { kind: 'splash', rate: 46, where: 'rear' },
-  mud_spray: { kind: 'mud', rate: 38, where: 'rear' },
-  sparks: { kind: 'sparks', rate: 90, where: 'front' },
-  smoke: { kind: 'smoke', rate: 13, where: 'top' },
-  slip: { kind: 'ice', rate: 34, where: 'rear' },
-  bubbles: { kind: 'bubbles', rate: 30, where: 'rear' },
-};
-
-function Tag({ text, color, y }: { text: string; color: string; y: number }) {
-  const material = useMemo(
-    () => new SpriteMaterial({ map: labelTexture(text, { color, background: 'rgba(15,20,27,0.82)', border: color }), depthTest: false, fog: false, transparent: true }),
-    [text, color],
-  );
-  return <sprite material={material} position={[0, y, 0]} scale={[1.24, 0.31, 1]} renderOrder={10} />;
-}
 
 interface PlayerProps {
   feed: RunFeed;
@@ -301,54 +276,14 @@ export interface RunSceneProps {
 /** The 2.5D run view. Mount inside an R3F <Canvas>. Reads sim state only: no physics here. */
 export function RunScene({ mission, build, feed, ghosts = [], particleBudget = 1 }: RunSceneProps) {
   const layout = useMemo(() => layoutTrack(mission.track), [mission.track]);
-  const sky = SKY[mission.weather];
   const pose = useRef<Pose>(restPose());
   const hasDrone = build.sensors.includes('scout_drone');
   const timeScale = useRef(1);
   const particles = useRef<ParticleEmitter>(null);
   const sun = useRef<DirectionalLight>(null);
-  const scene = useThree((state) => state.scene);
-
-  useEffect(() => {
-    const light = sun.current;
-    if (!light) return undefined;
-    scene.add(light.target);
-    return () => {
-      scene.remove(light.target);
-    };
-  }, [scene]);
-
   return (
     <>
-      <fog attach="fog" args={[sky.fog, 40, 330]} />
-      <hemisphereLight args={[sky.hemiSky, sky.hemiGround, sky.hemiIntensity]} />
-      <directionalLight
-        ref={sun}
-        color={sky.sun}
-        intensity={sky.sunIntensity}
-        castShadow
-        shadow-mapSize={[1024, 1024]}
-        shadow-bias={-0.0006}
-        shadow-normalBias={0.03}
-        shadow-camera-left={-9}
-        shadow-camera-right={9}
-        shadow-camera-top={8}
-        shadow-camera-bottom={-8}
-        shadow-camera-near={1}
-        shadow-camera-far={40}
-      />
-      <directionalLight color="#cfe0ff" intensity={0.55} position={[-4, 3, 12]} />
-      <Environment resolution={64} frames={1}>
-        <color attach="background" args={[sky.mid]} />
-        <Lightformer form="rect" intensity={2.2} color={sky.horizon} position={[0, 2, -8]} scale={[30, 6, 1]} />
-        <Lightformer form="rect" intensity={1.6} color="#ffffff" position={[0, 9, 0]} rotation={[Math.PI / 2, 0, 0]} scale={[20, 20, 1]} />
-        <Lightformer form="rect" intensity={0.5} color={sky.hemiGround} position={[0, -6, 0]} rotation={[-Math.PI / 2, 0, 0]} scale={[30, 30, 1]} />
-      </Environment>
-
-      <Backdrop layout={layout} weather={mission.weather} />
-      <Terrain layout={layout} />
-      <Dressing layout={layout} />
-      <WeatherFx weather={mission.weather} budget={particleBudget} />
+      <World layout={layout} weather={mission.weather} sun={sun} budget={particleBudget} />
 
       {ghosts.map((trace) => (
         <Ghost key={trace.policy} trace={trace} build={build} layout={layout} pose={pose} timeScale={timeScale} />
