@@ -64,6 +64,8 @@ export const ACTION_PROFILES: Readonly<Record<Action, ActionProfile>> = {
   reverse: { ...DEFAULT_PROFILE, speed: -0.35 },
   climb_mode: { speed: 0.45, force: 1.6, grip: 1.5, power: 1.4, impact: 0.3, drag: 0.6 },
   deploy_winch: { speed: 0, force: 1, grip: 1, power: 0.3, impact: 0.1, drag: 1 },
+  // Gameplay v2: no jump physics yet, so it drives like cruise. Not offered by availableActions.
+  jump: { ...DEFAULT_PROFILE, speed: 0.7 },
 };
 
 const clamp = (value: number, min: number, max: number): number => Math.min(max, Math.max(min, value));

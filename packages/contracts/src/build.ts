@@ -7,7 +7,7 @@ export type Slot = z.infer<typeof SlotSchema>;
 export const SensorKindSchema = z.enum(['ultrasonic', 'imu', 'camera', 'moisture', 'scout_drone']);
 export type SensorKind = z.infer<typeof SensorKindSchema>;
 
-export const ExtraKindSchema = z.enum(['winch', 'waterproof_case', 'bumper', 'thruster_kit']);
+export const ExtraKindSchema = z.enum(['winch', 'waterproof_case', 'bumper', 'thruster_kit', 'piston_jump']);
 export type ExtraKind = z.infer<typeof ExtraKindSchema>;
 
 export const PartIdSchema = z.string().min(1).max(40);
@@ -41,6 +41,10 @@ export const PartEffectsSchema = z.object({
   waterproof: z.boolean().optional(),
   /** This extra only works when the build also has that extra (thruster kit needs the waterproof case). */
   requiresExtra: ExtraKindSchema.optional(),
+  /** Vertical launch speed of a jump, m/s (piston). */
+  jumpImpulseMps: z.number().positive().optional(),
+  /** Seconds before the part's action can be used again. */
+  cooldownS: z.number().min(0).optional(),
   /** Deepest water the part lets a sealed robot cross by swimming, cm. */
   maxSwimDepthCm: z.number().positive().optional(),
 });
@@ -66,6 +70,13 @@ export const BuildSchema = z.object({
   battery: PartIdSchema,
   sensors: z.array(PartIdSchema).max(2),
   extras: z.array(PartIdSchema).max(2),
+  // Gameplay v2 tuning. All optional: absent reproduces the part's stock behaviour.
+  /** Battery cells in series, 1S–4S. */
+  batteryCells: z.number().int().min(1).max(4).optional(),
+  /** Wheel diameter: S / M / L. */
+  wheelSizeMm: z.union([z.literal(60), z.literal(80), z.literal(100)]).optional(),
+  /** Gearing, 1 = speed … 5 = torque. */
+  gearStep: z.number().int().min(1).max(5).optional(),
 });
 export type Build = z.infer<typeof BuildSchema>;
 

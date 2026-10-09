@@ -22,6 +22,17 @@ export type Terrain = z.infer<typeof TerrainSchema>;
 export const ObstacleSchema = z.enum(['rock', 'step', 'log']);
 export type Obstacle = z.infer<typeof ObstacleSchema>;
 
+/** Height features (gameplay v2). Separate from `obstacle` so existing obstacle handling is untouched. */
+export const TrackFeatureSchema = z.discriminatedUnion('type', [
+  /** Launch ramp at the end of the segment. */
+  z.object({ type: z.literal('ramp'), launchDeg: z.number().positive().max(60), lengthM: z.number().positive() }),
+  /** Gap at the end of the segment: not cleared = the robot falls. */
+  z.object({ type: z.literal('gap'), widthM: z.number().positive() }),
+  /** Step down at the end of the segment. */
+  z.object({ type: z.literal('drop'), heightM: z.number().positive() }),
+]);
+export type TrackFeature = z.infer<typeof TrackFeatureSchema>;
+
 export const SegmentSchema = z.object({
   terrain: TerrainIdSchema,
   lengthM: z.number().positive(),
@@ -29,6 +40,8 @@ export const SegmentSchema = z.object({
   obstacle: ObstacleSchema.optional(),
   /** Water / mud depth. */
   depthCm: z.number().min(0).optional(),
+  /** Ramp, gap or drop on this segment (gameplay v2). Absent = flat rail, today's behaviour. */
+  feature: TrackFeatureSchema.optional(),
   /** Water current against the direction of travel, m/s (deep water only). */
   currentMps: z.number().min(0).optional(),
 });

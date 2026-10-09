@@ -39,6 +39,7 @@ export const ActionSchema = z.enum([
   'reverse',
   'climb_mode',
   'deploy_winch',
+  'jump',
 ]);
 export type Action = z.infer<typeof ActionSchema>;
 
@@ -104,7 +105,7 @@ export const BrainQuestionSchema = z
   });
 export type BrainQuestion = z.infer<typeof BrainQuestionSchema>;
 
-export const PolicySchema = z.enum(['jev', 'heuristic', 'random']);
+export const PolicySchema = z.enum(['jev', 'heuristic', 'random', 'human']);
 export type Policy = z.infer<typeof PolicySchema>;
 
 export const ProbabilitiesSchema = z.partialRecord(ActionSchema, z.number().min(0).max(1));
@@ -124,6 +125,20 @@ export const BrainDecisionSchema = z.object({
   model: z.string().optional(),
 });
 export type BrainDecision = z.infer<typeof BrainDecisionSchema>;
+
+/** Drive mode: what the player's thumbs are doing, sampled at 20 Hz. The sim maps it to an Action. */
+export const ControlSpecialSchema = z.enum(['jump', 'winch', 'climb']);
+export type ControlSpecial = z.infer<typeof ControlSpecialSchema>;
+
+export const ControlInputSchema = z.object({
+  /** Right half held. */
+  throttle: z.boolean(),
+  /** Left half held. */
+  brake: z.boolean(),
+  /** Action button, only for parts the build has. */
+  special: ControlSpecialSchema.optional(),
+});
+export type ControlInput = z.infer<typeof ControlInputSchema>;
 
 /** Every policy (jev, heuristic, random) implements this. */
 export interface Brain {

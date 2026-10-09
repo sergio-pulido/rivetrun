@@ -37,6 +37,12 @@ export const SimStateSchema = z.object({
   /** Damage, 0–100 %. */
   damage: z.number().min(0).max(100),
   effects: z.array(SimEffectSchema),
+  /** Height above the track surface, metres (0 or absent = on the ground). */
+  heightM: z.number().min(0).optional(),
+  /** Vertical speed, m/s, up positive (absent = 0). */
+  vy: z.number().optional(),
+  /** True between leaving the ground and landing. */
+  airborne: z.boolean().optional(),
   /** Depth of the water column at the robot, metres (0 or absent on dry ground and in shallows). */
   waterDepthM: z.number().min(0).optional(),
   /** How far the robot is below the surface, metres (0 or absent = not under water). */
@@ -130,6 +136,9 @@ export const RunEventSchema = z.discriminatedUnion('type', [
     amountPct: z.number().min(0),
     totalPct: z.number().min(0).max(100),
   }),
+  z.object({ type: z.literal('airborne'), t: z.number(), x: z.number(), v: z.number(), vy: z.number(), cause: z.enum(['ramp', 'jump', 'drop']) }),
+  z.object({ type: z.literal('landed'), t: z.number(), x: z.number(), impactMps: z.number().min(0), airtimeS: z.number().min(0), damagePct: z.number().min(0) }),
+  z.object({ type: z.literal('fell'), t: z.number(), x: z.number(), falls: z.number().int().min(1), respawnX: z.number() }),
   z.object({ type: z.literal('finish'), t: z.number(), outcome: OutcomeSchema }),
   z.object({ type: z.literal('dnf'), t: z.number(), reason: DnfReasonSchema, outcome: OutcomeSchema }),
 ]);

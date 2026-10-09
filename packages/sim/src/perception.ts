@@ -169,6 +169,7 @@ export function detectDecisionPoint(prev: RunState, next: RunState): DecisionTri
 /** Actions the build can perform (e.g. deploy_winch needs a winch). */
 export function availableActions(build: Build): Action[] {
   const hasWinch = deriveSpec(build).extras.includes('winch');
+  // 'jump' (gameplay v2) is not offered until the piston has physics behind it.
   return ALL_ACTIONS.filter((action) => action !== 'deploy_winch' || hasWinch);
 }
 

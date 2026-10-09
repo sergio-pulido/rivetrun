@@ -88,6 +88,11 @@ export const PARTS: readonly Part[] = [
     massKg: 0.12, costEur: 45, powerW: 8, unlockPoints: 0,
     effects: { extra: 'thruster_kit', requiresExtra: 'waterproof_case', maxSwimDepthCm: 120 },
   },
+  {
+    id: 'piston_jump', name: 'Piston jump', slot: 'extra', blurb: 'A spring-loaded piston kicks the robot into the air. 3 s to re-arm.',
+    massKg: 0.25, costEur: 35, powerW: 15, unlockPoints: 0,
+    effects: { extra: 'piston_jump', jumpImpulseMps: 3, cooldownS: 3 },
+  },
 ];
 
 export const PARTS_BY_ID: ReadonlyMap<PartId, Part> = new Map(PARTS.map((part) => [part.id, part]));
