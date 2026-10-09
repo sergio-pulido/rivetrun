@@ -5,7 +5,7 @@
 //   pnpm demo:stable -- --build-only build and stop (checks that committed main builds)
 // NEXT_PUBLIC_SITE_URL, when set, is used as the public URL instead of a tunnel. DEMO_PORT overrides 3001.
 import { execFileSync, spawn } from 'node:child_process';
-import { copyFileSync, existsSync, rmSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -83,14 +83,37 @@ if (flags.has('--tunnel') && !flags.has('--build-only')) {
 }
 
 // The public URL is baked into the client bundle (share links) and read at request time (QR codes).
-const env = { ...process.env, NEXT_PUBLIC_SITE_URL: siteUrl, NEXT_DIST_DIR: '.next', DEMO_COMMIT: sha };
-run('pnpm', ['exec', 'next', 'build'], web, env);
+// Each build goes to a candidate directory and only replaces the live one when it succeeds, so a commit
+// that does not build never takes the demo down: the last good build keeps being served.
+const CANDIDATE = '.next-candidate';
+const LIVE = '.next-live';
+const stamp = path.join(web, LIVE, 'DEMO_COMMIT');
+const buildEnv = { ...process.env, NEXT_PUBLIC_SITE_URL: siteUrl, NEXT_DIST_DIR: CANDIDATE };
+let served = sha;
+try {
+  rmSync(path.join(web, CANDIDATE), { recursive: true, force: true });
+  run('pnpm', ['exec', 'next', 'build'], web, buildEnv);
+  rmSync(path.join(web, LIVE), { recursive: true, force: true });
+  renameSync(path.join(web, CANDIDATE), path.join(web, LIVE));
+  writeFileSync(stamp, `${sha}\n`);
+} catch {
+  // next build has already printed the errors above.
+  if (!existsSync(stamp)) {
+    console.error(`\nCommitted main (${sha.slice(0, 7)}) does not build and there is no earlier good build to serve.`);
+    tunnel?.child.kill('SIGTERM');
+    process.exit(1);
+  }
+  served = readFileSync(stamp, 'utf8').trim();
+  console.error(`\nCommitted main (${sha.slice(0, 7)}) does NOT build (errors above). Keeping the last good build, ${served.slice(0, 7)}.`);
+  if (flags.has('--build-only')) process.exit(1);
+}
 if (flags.has('--build-only')) {
   console.log(`\nCommitted main (${sha.slice(0, 7)}) builds. Nothing was started.`);
   process.exit(0);
 }
+const env = { ...process.env, NEXT_PUBLIC_SITE_URL: siteUrl, NEXT_DIST_DIR: LIVE };
 
-console.log(`\nStable demo of ${sha.slice(0, 7)} on http://localhost:${port}${siteUrl ? `  ·  public: ${siteUrl}  ·  big screen: ${siteUrl}/screen` : ''}\n`);
+console.log(`\nStable demo of ${served.slice(0, 7)} on http://localhost:${port}${siteUrl ? `  ·  public: ${siteUrl}  ·  big screen: ${siteUrl}/screen` : ''}\n`);
 const server = spawn('pnpm', ['exec', 'next', 'start', '-H', '0.0.0.0', '-p', port], { cwd: web, env, stdio: 'inherit' });
 const stop = () => {
   server.kill('SIGTERM');
