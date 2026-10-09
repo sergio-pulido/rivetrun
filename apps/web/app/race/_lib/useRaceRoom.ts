@@ -21,8 +21,9 @@ const POLL_MS = 250;
  * Some proxies buffer event streams and never deliver them (Cloudflare quick tunnels do): when the stream
  * stays silent, the room falls back to polling the snapshot, which passes through anything.
  */
-export function useRaceRoom(code: string): RaceRoom {
-  const [room, setRoom] = useState<RaceRoom>(INITIAL);
+export function useRaceRoom(code: string, initial?: RaceSnapshot): RaceRoom {
+  // `initial` is the snapshot the server rendered the page with; the clock offset comes with the first live one.
+  const [room, setRoom] = useState<RaceRoom>(() => (initial ? { snapshot: initial, link: 'connecting', clockOffsetMs: 0 } : INITIAL));
 
   useEffect(() => {
     let closed = false;

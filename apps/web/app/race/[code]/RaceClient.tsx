@@ -1,22 +1,25 @@
 'use client';
 
-import { BuildSchema, type GhostTrace } from '@rivetrun/contracts';
+import { BuildSchema } from '@rivetrun/contracts';
 import { compileTrack, MISSIONS } from '@rivetrun/sim';
+import dynamic from 'next/dynamic';
 import Link from 'next/link';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, useSyncExternalStore } from 'react';
 import { z } from 'zod';
-import { RunCanvas } from '@/game';
-import { useRunView } from '@/game/runFeed';
 import { useRunStore } from '@/state/run';
-import { JoinResponseSchema, RaceSnapshotSchema, laneColor, rankPlayers, type RaceSnapshot } from '../_lib/protocol';
+import { JoinResponseSchema, RaceSnapshotSchema, laneColor, type RaceSnapshot } from '../_lib/protocol';
 import { Ranking } from '../_lib/Ranking';
 import { RobotGlyph } from '../_lib/RobotGlyph';
 import styles from '../_lib/race.module.css';
 import { postRaceAction, useRaceRoom, useServerNow } from '../_lib/useRaceRoom';
 import { JoinForm, type JoinRequest } from './JoinForm';
-import { useRaceRun, type RaceIdentity } from './useRaceRun';
+import type { RaceIdentity } from './useRaceRun';
 
-const NO_GHOSTS: readonly GhostTrace[] = [];
+// The 3D run view, the sim loop and three.js live in their own chunk: the join page stays light and the
+// chunk is fetched in the background once the player has a seat (see the preload effect below).
+const loadRaceRun = () => import('./RaceRun');
+const RaceRun = dynamic(loadRaceRun, { ssr: false, loading: () => <LoadingGame note="Loading the 3D view…" /> });
+
 const IdentitySchema = z.object({
   playerId: z.string(),
   token: z.string(),
@@ -45,6 +48,27 @@ function saveIdentity(code: string, identity: RaceIdentity | null): void {
   }
 }
 
+const subscribeNever = (): (() => void) => () => undefined;
+/** False in the server HTML and until React has hydrated the page. */
+const useHydrated = (): boolean =>
+  useSyncExternalStore(
+    subscribeNever,
+    () => true,
+    () => false,
+  );
+
+/** Shown by the server HTML until the page is interactive, and while the 3D chunk downloads. */
+function LoadingGame({ code, note }: { readonly code?: string; readonly note: string }) {
+  return (
+    <main className="mx-auto flex min-h-dvh max-w-md flex-col items-center justify-center gap-4 px-4 py-6 text-center" aria-busy="true">
+      {code ? <p className="rr-label text-blueprint">Room Race · {code}</p> : null}
+      <span className="h-10 w-10 animate-spin rounded-full border-4 border-slate-line border-t-safety" aria-hidden="true" />
+      <p className="font-mono text-2xl font-black text-safety">Loading game…</p>
+      <p className="text-sm text-slate-300">{note}</p>
+    </main>
+  );
+}
+
 function Frame({ children }: { readonly children: React.ReactNode }) {
   return <main className="mx-auto flex min-h-dvh max-w-md flex-col justify-center gap-4 px-4 py-6">{children}</main>;
 }
@@ -64,8 +88,15 @@ function Countdown({ snapshot, now }: { readonly snapshot: RaceSnapshot; readonl
   );
 }
 
-export function RaceClient({ code }: { readonly code: string }) {
-  const { snapshot, link, clockOffsetMs } = useRaceRoom(code);
+interface RaceClientProps {
+  readonly code: string;
+  /** Snapshot the server rendered the page with. */
+  readonly initial: RaceSnapshot;
+}
+
+export function RaceClient({ code, initial }: RaceClientProps) {
+  const hydrated = useHydrated();
+  const { snapshot, link, clockOffsetMs } = useRaceRoom(code, initial);
   const now = useServerNow(clockOffsetMs, 200);
   const build = useRunStore((store) => store.build);
   const priority = useRunStore((store) => store.priority);
@@ -115,8 +146,13 @@ export function RaceClient({ code }: { readonly code: string }) {
     [code, build],
   );
 
-  const feed = useRaceRun(snapshot, seated ? identity : null, priority, clockOffsetMs);
-  const view = useRunView(feed);
+  // A seat means a race is coming: fetch the 3D chunk now, while the player waits in the lobby.
+  useEffect(() => {
+    if (seated) void loadRaceRun().catch(() => undefined);
+  }, [seated]);
+
+  // Server HTML and the moments before hydration: nothing here is clickable yet, so say so.
+  if (!hydrated) return <LoadingGame code={code} note="On a slow connection this takes a few seconds. Stay on this page." />;
 
   if (link === 'missing') {
     return (
@@ -142,9 +178,8 @@ export function RaceClient({ code }: { readonly code: string }) {
   const mission = MISSIONS[snapshot.missionId];
   const trackLengthM = compileTrack(mission.track).lengthM;
   const me = seated ? snapshot.players.find((player) => player.id === identity.playerId) : undefined;
-  const racing = snapshot.status === 'racing' || snapshot.status === 'finished';
 
-  if (!me) {
+  if (!me || !identity) {
     if (snapshot.status === 'lobby') {
       return (
         <Frame>
@@ -194,51 +229,15 @@ export function RaceClient({ code }: { readonly code: string }) {
     );
   }
 
-  if (snapshot.status === 'countdown') return <Countdown snapshot={snapshot} now={now} />;
-
-  const place = rankPlayers(snapshot.players).findIndex((player) => player.id === me.id) + 1;
-  const over = snapshot.status === 'finished';
-  // Once this robot's run has ended, the HUD makes room for the result card.
-  const showResult = over || (view.done && me.done);
-  const outcome = view.outcome;
+  // From the countdown on, the run component is mounted so the sim starts exactly on the start signal.
   return (
-    <main className="relative h-dvh w-full overflow-hidden bg-slate-ink">
-      {racing ? <RunCanvas mission={mission} build={me.build} feed={feed} ghosts={NO_GHOSTS} hud={!showResult} /> : null}
-
-      {showResult ? (
-        <div className="absolute inset-x-3 top-1/2 mx-auto max-w-md -translate-y-1/2">
-          <div className="rr-panel rr-pop p-4">
-            <p className="rr-label text-blueprint">{over ? 'Final order' : 'You are done. Others are still racing.'}</p>
-            <div className="mt-1 flex items-end justify-between gap-3">
-              <p className="font-mono text-5xl font-black leading-none text-safety">
-                P{place}
-                <span className="ml-2 text-base font-bold text-dim">of {snapshot.players.length}</span>
-              </p>
-              <p className={`text-right font-mono text-sm font-bold ${me.finished ? 'text-ok' : 'text-bad'}`}>
-                {me.finished ? 'FINISHED' : 'DID NOT FINISH'}
-                {outcome ? <span className="block text-xs font-normal text-dim">{Math.round(outcome.score)} pts · dmg {Math.round(outcome.damagePct)} %</span> : null}
-              </p>
-            </div>
-            {outcome?.why ? <p className="mt-2 text-sm text-slate-200">{outcome.why}</p> : null}
-            <div className="mt-3 max-h-[38vh] overflow-y-auto">
-              <Ranking players={snapshot.players} trackLengthM={trackLengthM} meId={me.id} />
-            </div>
-            <p className="mt-3 text-center font-mono text-xs text-dim">
-              {over ? 'Stay here: the host can start the next race.' : 'Times are wall-clock: Jev’s thinking counts.'}
-            </p>
-          </div>
+    <>
+      <RaceRun snapshot={snapshot} identity={identity} me={me} priority={priority} clockOffsetMs={clockOffsetMs} />
+      {snapshot.status === 'countdown' ? (
+        <div className="fixed inset-0 z-10 bg-slate-ink">
+          <Countdown snapshot={snapshot} now={now} />
         </div>
-      ) : (
-        /* Mini live ranking, under the top bar. */
-        <div className="pointer-events-none absolute right-2.5 w-44" style={{ top: 'calc(max(10px, env(safe-area-inset-top)) + 126px)' }}>
-          <div className="rounded-lg border border-slate-line bg-slate-ink/85 p-1.5 backdrop-blur">
-            <p className="rr-label mb-1 px-1">
-              P{place} of {snapshot.players.length}
-            </p>
-            <Ranking players={snapshot.players} trackLengthM={trackLengthM} meId={me.id} limit={3} />
-          </div>
-        </div>
-      )}
-    </main>
+      ) : null}
+    </>
   );
 }
