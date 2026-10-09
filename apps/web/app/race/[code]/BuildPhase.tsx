@@ -72,7 +72,7 @@ export function BuildPhase({ mission, build, ready, secondsLeft, onChange }: Bui
     list.includes(id) ? list.filter((item) => item !== id) : list.length < max ? [...list, id] : [...list];
 
   return (
-    <main className="mx-auto flex min-h-dvh max-w-md flex-col gap-3 px-3 pb-32 pt-3">
+    <main className="mx-auto flex min-h-dvh max-w-md flex-col gap-3 px-3 pb-40 pt-3">
       <header className="flex items-end justify-between gap-3">
         <div className="min-w-0">
           <p className="rr-label text-blueprint">Build phase · {mission.name}</p>
@@ -194,6 +194,13 @@ export function BuildPhase({ mission, build, ready, secondsLeft, onChange }: Bui
       {/* Pinned to the viewport: with a 45 s timer running, the cost and READY must never be below the fold. */}
       <div className="fixed inset-x-0 bottom-0 z-10 border-t border-slate-line bg-slate-ink/95 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2 backdrop-blur">
         <div className="mx-auto flex max-w-md flex-col gap-2">
+          {/* The first warning rides in the bar: a player who never scrolls still sees it before READY. */}
+          {warnings[0] ? (
+            <p role="status" className="truncate rounded-md border border-warn/50 bg-warn/10 px-2 py-1 text-[12px] text-amber-100">
+              ⚠ {warnings[0]}
+              {warnings.length > 1 ? ` · +${warnings.length - 1} more below` : ''}
+            </p>
+          ) : null}
           <div className="flex items-center justify-between font-mono text-xs">
             <span className={over ? 'font-bold text-bad' : 'text-slate-200'}>
               €{cost} of €{budget}
@@ -211,6 +218,8 @@ export function BuildPhase({ mission, build, ready, secondsLeft, onChange }: Bui
             className={`rr-btn text-lg ${ready ? 'rr-btn-secondary' : 'rr-btn-primary'}`}
           >
             {over ? 'Over budget: remove a part' : ready ? 'Ready ✓ · tap to keep building' : 'Ready'}
+            {/* The timer stays in view when the header has scrolled away. */}
+            <span className={`ml-2 font-mono text-base tabular-nums ${secondsLeft <= 10 ? 'font-black' : 'font-normal opacity-80'}`}>· {secondsLeft} s</span>
           </button>
         </div>
       </div>
