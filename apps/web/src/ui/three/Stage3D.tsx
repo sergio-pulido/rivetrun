@@ -7,6 +7,12 @@ const IDLE_TIMEOUT_MS = 2000;
 /** Browsers without requestIdleCallback (Safari) wait this long after load instead. */
 const NO_IDLE_API_DELAY_MS = 600;
 const FADE_MS = 450;
+/**
+ * IntersectionObserver and requestIdleCallback are delivered with rendering, so a page that is not being
+ * rendered when it loads (an embedded or occluded webview) can wait on them forever. Past this delay the
+ * stage measures itself instead and loads if it is inside the viewport.
+ */
+const STALL_FALLBACK_MS = 2500;
 
 interface Connection {
   readonly saveData?: boolean;
@@ -35,7 +41,8 @@ interface Stage3DProps {
 
 /**
  * Keeps three.js off the critical path. The page paints and hydrates with a drawn placeholder; the 3D chunk is
- * requested only after the window has loaded, the stage is on screen and the main thread has gone idle.
+ * requested only after the window has loaded, the stage is on screen and the main thread has gone idle
+ * (or, when the browser never reports either, a short while after load if the stage is in the viewport).
  */
 export function Stage3D({ children, placeholder, loadingLabel, className = '', placeholderClassName = 'inset-0' }: Stage3DProps) {
   const stage = useRef<HTMLDivElement>(null);
@@ -49,7 +56,12 @@ export function Stage3D({ children, placeholder, loadingLabel, className = '', p
     let idle: number | undefined;
     let timer: ReturnType<typeof setTimeout> | undefined;
     let observer: IntersectionObserver | undefined;
+    let stall: ReturnType<typeof setTimeout> | undefined;
     const load = (): void => setPhase((current) => (current === 'waiting' ? 'loading' : current));
+    const loadIfOnScreen = (): void => {
+      const rect = stage.current?.getBoundingClientRect();
+      if (rect && rect.bottom > 0 && rect.top < window.innerHeight) load();
+    };
     const whenIdle = (): void => {
       if (typeof window.requestIdleCallback === 'function') idle = window.requestIdleCallback(load, { timeout: IDLE_TIMEOUT_MS });
       else timer = setTimeout(load, NO_IDLE_API_DELAY_MS);
@@ -63,6 +75,7 @@ export function Stage3D({ children, placeholder, loadingLabel, className = '', p
         whenIdle();
       });
       observer.observe(node);
+      stall = setTimeout(loadIfOnScreen, STALL_FALLBACK_MS);
     };
     if (document.readyState === 'complete') whenVisible();
     else window.addEventListener('load', whenVisible, { once: true });
@@ -71,6 +84,7 @@ export function Stage3D({ children, placeholder, loadingLabel, className = '', p
       observer?.disconnect();
       if (idle !== undefined) window.cancelIdleCallback(idle);
       if (timer !== undefined) clearTimeout(timer);
+      if (stall !== undefined) clearTimeout(stall);
     };
   }, []);
 
@@ -97,7 +111,7 @@ export function Stage3D({ children, placeholder, loadingLabel, className = '', p
             <button type="button" onClick={() => setPhase('loading')} className="rr-btn rr-btn-secondary !min-h-11 !rounded-xl !text-xs">
               Load the 3D view
             </button>
-          ) : (
+          ) : phase === 'ready' ? null : (
             <span className={`rr-label ${phase === 'loading' ? 'rr-blink' : ''}`}>{phase === 'loading' ? loadingLabel : '3D view'}</span>
           )}
         </div>
