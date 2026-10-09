@@ -10,6 +10,12 @@ MK-II v2 is a **buildable rover**: every visible piece is either a catalog part 
 
 The MK-II replaces the procedural robot only if a real phone holds **≥ 50 fps on `/run/M7`** by **Sat 12:00**. Otherwise the procedural robot stays for the demo and the MK-II is not enabled. Until then it is behind a flag and the procedural robot is the default and the fallback.
 
+### Running the gate test
+
+The adapter is in the game already, off by default. On the phone, open `/run/M7?robot=mk2&fps=1` once: `robot=mk2` switches that device to the MK-II (remembered; `?robot=procedural` switches back) and `fps=1` shows a frame-rate badge (`?fps=0` hides it). The badge shows the last second and the worst second after a 3 s warm-up, and turns green at ≥ 50. Play the mission through once in Drive mode; the gate is the **worst** value. Ghost robots stay on the cheap procedural model either way.
+
+If a module file is missing, slow (3 s) or broken, that robot is drawn procedurally and the badge says `MK-II not loaded: procedural`: a number taken in that state does not count. A first visit on a cold cache can hit the 3 s limit; reload once and the files come from cache.
+
 ## Files
 
 - Location: `apps/web/public/models/rivet-mk-ii/` (served by the app; nothing is fetched from another host).

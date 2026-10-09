@@ -10,6 +10,8 @@ import { RobotContext, locomotionGeometry, restDrive, type Expression, type Robo
 import { Face } from './Face';
 import { Locomotion } from './Locomotion';
 import { MaterialsContext, ghostMaterials, robotMaterials } from './materials';
+import { mk2Requested } from './mk2/flag';
+import { Mk2Parts, useMk2Modules } from './mk2/Mk2Parts';
 
 export interface RobotModelProps {
   build: Build;
@@ -58,6 +60,9 @@ export function RobotModel({ build, drive, state, action, expression, dnf = fals
   const lite = ghostTint !== undefined;
   const materials = useMemo(() => (ghostTint ? ghostMaterials(ghostTint) : robotMaterials()), [ghostTint]);
   const context = useMemo<RobotContextValue>(() => ({ drive: active, popIn, lite, droneAway }), [active, popIn, lite, droneAway]);
+  // The MK-II asset, when this device opted in and every module of the build loaded in time. Ghosts stay
+  // on the cheap procedural model; so does any robot whose assets are missing, slow or broken.
+  const mk2 = useMk2Modules(build, !lite && mk2Requested());
 
   useFrame(({ clock }) => {
     const node = sway.current;
@@ -76,6 +81,10 @@ export function RobotModel({ build, drive, state, action, expression, dnf = fals
         {/* Shared materials and geometries must survive unmounts. */}
         <group dispose={null}>
           <group ref={sway}>
+            {mk2 ? (
+              <Mk2Parts modules={mk2} droneAway={droneAway} />
+            ) : (
+              <>
             <Locomotion key={build.locomotion} id={build.locomotion} />
             <group position={[0, geo.deckY, 0]}>
               <Chassis key={`chassis-${build.locomotion}`} geo={geo} floor={floor} />
@@ -85,6 +94,8 @@ export function RobotModel({ build, drive, state, action, expression, dnf = fals
               <Face floor={floor} />
               <Attachments sensors={build.sensors} extras={build.extras} floor={floor} />
             </group>
+              </>
+            )}
           </group>
         </group>
       </RobotContext.Provider>

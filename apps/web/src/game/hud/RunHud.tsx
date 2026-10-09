@@ -9,6 +9,7 @@ import { useRunHaptics } from '../drive/haptics';
 import { DNF_LABEL, POLICY_LABEL, UI } from '../palette';
 import { useRunView, type RunFeed } from '../runFeed';
 import { BrainHud } from './BrainHud';
+import { FpsBadge } from './FpsBadge';
 import styles from './hud.module.css';
 import { TopBar } from './TopBar';
 
@@ -176,6 +177,9 @@ export function RunHud({ mission, feed, ghosts = [], drive, build }: RunHudProps
         <div className="relative">
           <TopBar mission={mission} state={view.state} ghosts={ghosts} />
           <MuteButton />
+        </div>
+        <div>
+          <FpsBadge />
         </div>
         <div className="mt-2.5 flex justify-center">
           {driving && ghosts[0] ? (
