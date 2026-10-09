@@ -14,7 +14,8 @@ export function shareText(episode: Episode): string {
 /** Web Share API when the browser has it; otherwise the text and URL go to the clipboard. */
 export async function share(episode: Episode): Promise<ShareOutcome> {
   const text = shareText(episode);
-  const url = window.location.origin;
+  // The public demo URL when one is configured at build time, so a link shared from localhost still works.
+  const url = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, '') || window.location.origin;
   try {
     if (typeof navigator.share === 'function') {
       await navigator.share({ title: 'RivetRun', text, url });

@@ -2,94 +2,163 @@
 
 import type { LeaderboardEntry } from '@rivetrun/contracts';
 import Link from 'next/link';
+import { useState } from 'react';
+import { MISSION_IDS, MISSIONS } from '@rivetrun/sim';
+import { useProgressStore } from '@/state/progress';
+import { Icon } from '@/ui/Icon';
+import { Stars } from '@/ui/Stars';
 import { POLICY_LABEL, formatDamage, formatScore, formatTime } from './_lib/format';
-import { LiveBadge } from './_lib/LiveBadge';
-import { useLeaderboard } from './_lib/useLeaderboard';
+import { useLeaderboard, type LeaderboardFeed } from './_lib/useLeaderboard';
 
-const RANK_PLATE = [
-  'bg-safety text-slate-ink',
-  'bg-slate-200 text-slate-ink',
-  'bg-amber-700 text-amber-50',
-] as const;
+const COLUMNS = 'grid grid-cols-[34px_1fr_74px_56px] items-center gap-1.5 px-2.5';
+const PODIUM = 3;
+const ROOM = MISSIONS.M5;
 
-function Row({ entry }: { readonly entry: LeaderboardEntry }) {
-  const plate = RANK_PLATE[entry.rank - 1] ?? 'bg-slate-ink text-slate-300 border border-slate-line';
+type Tab = 'room' | 'mine';
+
+function Live({ status }: { readonly status: LeaderboardFeed['status'] }) {
+  const live = status === 'live';
   return (
-    <li className="flex items-center gap-3 rounded-lg border border-slate-line bg-slate-panel/95 px-3 py-2.5 shadow-[inset_0_1px_0_rgb(255_255_255/0.05)]">
-      <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-md font-mono text-lg font-black ${plate}`}>
-        {entry.rank}
+    <span className={`flex w-11 shrink-0 items-center justify-end gap-1.5 font-mono text-[10px] font-medium ${live ? 'text-cyan' : 'text-muted'}`}>
+      <span className={`h-2 w-2 rounded-full ${live ? 'rr-blink bg-cyan' : 'bg-muted'}`} />
+      {status === 'loading' ? '···' : live ? 'LIVE' : 'OFF'}
+    </span>
+  );
+}
+
+function Row({ entry, mine = false }: { readonly entry: LeaderboardEntry; readonly mine?: boolean }) {
+  return (
+    <li className={`${COLUMNS} h-11 rounded-[10px] border ${mine ? 'h-[46px] border-cyan bg-cyan/10' : 'border-[#1E232A] bg-panel-3'}`}>
+      <span className={`font-mono text-sm font-semibold tabular-nums ${mine ? 'text-cyan' : entry.rank <= PODIUM ? 'text-orange' : 'text-muted'}`}>{entry.rank}</span>
+      <span className="flex min-w-0 flex-col">
+        <span className="truncate text-sm font-semibold leading-tight">{entry.nickname}</span>
+        <span className={`truncate font-mono text-[10px] ${mine ? 'text-cyan-muted' : 'text-[#8A929C]'}`}>
+          {POLICY_LABEL[entry.policy]} · dmg {formatDamage(entry.damagePct)}
+        </span>
       </span>
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-base font-bold leading-tight">{entry.nickname}</p>
-        <p className="mt-0.5 flex flex-wrap items-center gap-x-2 font-mono text-[11px] text-slate-400">
-          <span className="rounded border border-blueprint/50 px-1 text-blueprint">{POLICY_LABEL[entry.policy]}</span>
-          <span>{formatTime(entry.timeS)}</span>
-          <span>dmg {formatDamage(entry.damagePct)}</span>
-        </p>
-      </div>
-      <span className="font-mono text-2xl font-black tabular-nums text-safety">{formatScore(entry.score)}</span>
+      <span className="text-right font-mono text-xs tabular-nums text-text-2">{formatTime(entry.timeS)}</span>
+      <span className="text-right font-mono text-sm font-semibold tabular-nums">{formatScore(entry.score)}</span>
     </li>
   );
 }
 
-function EmptyState({ loading }: { readonly loading: boolean }) {
+function RoomBoard({ feed }: { readonly feed: LeaderboardFeed }) {
+  const leader = feed.entries[0];
   return (
-    <div className="rounded-lg border border-dashed border-slate-line bg-slate-panel/70 p-6 text-center">
-      <p className="font-mono text-xs tracking-widest text-blueprint">{loading ? 'READING THE BOARD' : 'BOARD IS EMPTY'}</p>
-      <p className="mt-2 text-lg font-bold">{loading ? 'One moment…' : 'No runs submitted yet.'}</p>
-      {!loading && <p className="mt-1 text-sm text-slate-400">Finish the Room Challenge and submit a nickname to take the first plate.</p>}
-    </div>
-  );
-}
-
-export function LeaderboardClient() {
-  const feed = useLeaderboard('M5');
-  return (
-    <main className="mx-auto flex min-h-dvh max-w-md flex-col px-4 pb-28 pt-4">
-      <header className="flex items-center gap-3">
-        <Link
-          href="/"
-          aria-label="Back to home"
-          className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg border border-slate-line bg-slate-panel text-xl font-bold active:translate-y-px"
-        >
-          ←
-        </Link>
-        <div className="min-w-0">
-          <p className="font-mono text-[11px] tracking-widest text-blueprint">M5 · RAIN · EVERY TERRAIN</p>
-          <h1 className="font-mono text-2xl font-black leading-tight tracking-tight text-safety">Room Challenge</h1>
+    <>
+      <section className="flex items-center justify-between gap-3 rounded-2xl border border-[#3A2A1C] bg-[#17120D] p-3.5">
+        <div className="flex min-w-0 flex-col gap-[3px]">
+          <span className="font-mono text-[10px] font-medium tracking-[1.5px] text-orange-soft">{ROOM.id} · SAME SEED FOR EVERYONE</span>
+          <span className="font-display text-xl font-bold leading-tight">{leader ? 'Score to beat' : 'Nobody on the board'}</span>
+          <span className="truncate text-xs text-[#B8C0C9]">
+            Rain · every terrain{leader ? ` · held by ${leader.nickname}` : ' · the first run takes it'}
+          </span>
         </div>
-      </header>
+        <span className="font-mono text-[40px] font-semibold leading-none tabular-nums text-orange">{leader ? formatScore(leader.score) : '—'}</span>
+      </section>
 
-      <div className="hazard mt-4 h-1.5 rounded-full" />
-
-      <div className="mt-3 flex items-center justify-between text-sm">
-        <LiveBadge feed={feed} className="text-base" />
-        <span className="font-mono text-xs text-slate-400">
-          {feed.episodes === null ? '—' : feed.episodes} episodes logged
-        </span>
+      <div className={`${COLUMNS} font-mono text-[9px] font-medium tracking-[1px] text-faint`}>
+        <span>#</span>
+        <span>PILOT · BRAIN</span>
+        <span className="text-right">TIME</span>
+        <span className="text-right">SCORE</span>
       </div>
 
-      <p className="mt-3 text-sm text-slate-300">Same track and same seed for everyone. Best score per nickname, top 20.</p>
-
-      <section className="mt-4 flex-1" aria-live="polite">
+      <section aria-live="polite">
         {feed.entries.length === 0 ? (
-          <EmptyState loading={feed.status === 'loading'} />
+          <p className="rounded-[10px] border border-dashed border-line-3 px-3 py-5 text-center text-[13px] text-muted">
+            {feed.status === 'loading' ? 'Reading the board.' : 'No runs submitted yet. Finish the Room Challenge and submit a nickname.'}
+          </p>
         ) : (
-          <ol className="flex flex-col gap-2">
+          <ol className="flex flex-col gap-1.5">
             {feed.entries.map((entry) => (
               <Row key={`${entry.rank}-${entry.nickname}`} entry={entry} />
             ))}
           </ol>
         )}
       </section>
+    </>
+  );
+}
 
-      <div className="fixed inset-x-0 bottom-0 border-t border-slate-line bg-slate-ink/95 px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 backdrop-blur">
-        <Link
-          href="/run/M5"
-          className="mx-auto flex min-h-14 max-w-md items-center justify-center rounded-lg bg-safety text-lg font-black text-slate-ink shadow-[0_4px_0_#b3460a] active:translate-y-0.5 active:shadow-[0_2px_0_#b3460a]"
-        >
-          Run the Room Challenge
+/** The player's own best run per mission, from this browser's saved progress. */
+function MyRuns() {
+  const best = useProgressStore((store) => store.best);
+  const runs = useProgressStore((store) => store.runs);
+  return (
+    <>
+      <p className="font-mono text-[10px] font-medium tracking-[1px] text-faint">
+        BEST PER MISSION · {runs} {runs === 1 ? 'RUN' : 'RUNS'} ON THIS DEVICE
+      </p>
+      <ol className="flex flex-col gap-1.5">
+        {MISSION_IDS.map((id) => {
+          const mine = best[id];
+          return (
+            <li key={id} className="rounded-[10px] border border-[#1E232A] bg-panel-3">
+              <Link href={`/brief/${id}`} className={`${COLUMNS} h-11`}>
+                <span className="font-mono text-sm font-semibold text-muted">{id.slice(1)}</span>
+                <span className="truncate text-sm font-semibold">{MISSIONS[id].name}</span>
+                <span className="flex justify-end">
+                  <Stars count={mine?.stars ?? 0} size={13} />
+                </span>
+                <span className="text-right font-mono text-sm font-semibold tabular-nums">{mine ? formatScore(mine.score) : '—'}</span>
+              </Link>
+            </li>
+          );
+        })}
+      </ol>
+    </>
+  );
+}
+
+export function LeaderboardClient() {
+  const feed = useLeaderboard('M5');
+  const nickname = useProgressStore((store) => store.nickname);
+  const [tab, setTab] = useState<Tab>('room');
+  const mine = nickname ? feed.entries.find((entry) => entry.nickname.toLowerCase() === nickname.toLowerCase()) : undefined;
+
+  return (
+    <main className="mx-auto flex min-h-dvh max-w-[430px] flex-col gap-3 px-4 pb-44 pt-[max(18px,env(safe-area-inset-top))]">
+      <header className="flex h-11 shrink-0 items-center justify-between">
+        <Link href="/" aria-label="Back to home" className="rr-iconbtn">
+          <Icon name="back" />
         </Link>
+        <h1 className="font-display text-[17px] font-bold tracking-[3px]">LEADERBOARD</h1>
+        <Live status={feed.status} />
+      </header>
+
+      <div className="flex gap-1.5 rounded-xl border border-line bg-panel-2 p-1" role="group" aria-label="Board">
+        {(
+          [
+            ['room', 'Room Challenge'],
+            ['mine', 'My runs'],
+          ] as const
+        ).map(([id, label]) => (
+          <button
+            key={id}
+            type="button"
+            aria-pressed={tab === id}
+            onClick={() => setTab(id)}
+            className={`h-[38px] flex-1 rounded-[9px] font-display text-[13px] uppercase tracking-[1px] ${tab === id ? 'bg-orange font-bold text-on-orange' : 'font-semibold text-muted'}`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {tab === 'room' ? <RoomBoard feed={feed} /> : <MyRuns />}
+
+      <div className="fixed inset-x-0 bottom-0 border-t border-[#222831] bg-ground">
+        <div className="mx-auto flex max-w-[430px] flex-col gap-2.5 px-4 pb-[max(18px,env(safe-area-inset-bottom))] pt-3">
+          {mine && tab === 'room' ? (
+            <ol>
+              <Row entry={mine} mine />
+            </ol>
+          ) : null}
+          <Link href={`/brief/${ROOM.id}`} className="rr-btn rr-btn-primary !text-[15px]">
+            {mine ? 'Take another shot' : 'Run the Room Challenge'}
+          </Link>
+        </div>
       </div>
     </main>
   );

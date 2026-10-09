@@ -1,5 +1,5 @@
-import type { Build, Mission, Part, Preset, SensorKind } from '@rivetrun/contracts';
-import { PARTS_BY_ID, PRESETS, TERRAIN_IDS, TUNING, deriveSpec } from '@rivetrun/sim';
+import { ActionSchema, type Action, type Build, type Mission, type Part, type Preset, type SensorKind } from '@rivetrun/contracts';
+import { PARTS, PARTS_BY_ID, PRESETS, TERRAIN_IDS, TUNING, availableActions, deriveSpec } from '@rivetrun/sim';
 
 export const BUDGET_EUR = TUNING.defaultBudgetEur;
 /** Heaviest build the parts list allows, rounded up: the full scale of the mass bar. */
@@ -95,4 +95,57 @@ export function missionWarnings(mission: Mission, build: Build): readonly string
     segments.some((segment) => segment.terrain === 'ice' || segment.terrain === 'mud') && !has('imu') ? 'Slippery ground: no IMU, the AI cannot feel slip' : null,
     !has('camera') ? 'No camera: the AI learns each terrain only on entry' : null,
   ].flatMap((line) => (line ? [line] : []));
+}
+
+export interface BuildProperty {
+  readonly label: string;
+  readonly value: string;
+}
+
+/** The six numbers of the Assembly sheet, derived from the build by the sim. */
+export function buildProperties(build: Build): readonly BuildProperty[] {
+  const spec = deriveSpec(build);
+  const torque = PARTS_BY_ID.get(build.motor)?.effects.torqueNm;
+  return [
+    { label: 'Mass', value: `${spec.massKg.toFixed(2)} kg` },
+    { label: 'Cost', value: `€${spec.costEur} / €${BUDGET_EUR}` },
+    { label: 'Power draw', value: `${Math.round((spec.motorPowerW + spec.basePowerW) * 10) / 10} W` },
+    { label: 'Battery', value: `${spec.capacityWh} Wh` },
+    { label: 'Top speed', value: `${spec.topSpeedMps} m/s` },
+    { label: 'Torque', value: torque === undefined ? 'unknown' : `${torque} N·m` },
+  ];
+}
+
+export interface Unlock {
+  readonly label: string;
+  readonly on: boolean;
+  /** The part that would turn it on. */
+  readonly needs?: string;
+}
+
+/** Every action the brain could be offered, and whether this build offers it. */
+export function buildActions(build: Build): readonly Unlock[] {
+  const offered = availableActions(build);
+  return ActionSchema.options.map((action: Action) => ({
+    label: action,
+    on: offered.includes(action),
+    ...(offered.includes(action) ? {} : { needs: 'Winch' }),
+  }));
+}
+
+/** Every sense a sensor can give the brain, and whether this build has it. */
+export function buildSenses(build: Build): readonly Unlock[] {
+  const spec = deriveSpec(build);
+  const sensors = PARTS.filter((part) => part.slot === 'sensor' && part.effects.sensor);
+  // The drone and the camera feed the same field: one "terrain ahead" entry, at the longer range.
+  const terrainRange = spec.sensorRangeM.scout_drone ?? spec.sensorRangeM.camera;
+  const rows = sensors
+    .filter((part) => part.effects.sensor !== 'scout_drone')
+    .map((part): Unlock => {
+      const kind = part.effects.sensor!;
+      const range = kind === 'camera' ? terrainRange : spec.sensorRangeM[kind];
+      const what = kind === 'imu' ? 'slip and tilt' : kind === 'camera' ? 'terrain ahead' : kind === 'ultrasonic' ? 'obstacles' : 'water depth';
+      return range === undefined ? { label: what, on: false, needs: part.name } : { label: range > 0 ? `${what} ${range} m` : what, on: true };
+    });
+  return rows;
 }
