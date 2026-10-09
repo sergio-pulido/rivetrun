@@ -1,5 +1,5 @@
 import { GhostTraceSchema, type Build, type GhostTrace, type Mission } from '@rivetrun/contracts';
-import { heuristicBrain, runHeadless } from '@rivetrun/sim';
+import { driveSeed, heuristicBrain, runHeadless } from '@rivetrun/sim';
 
 /** How long Deploy waits for the precomputed Jev ghost before racing the heuristic instead. */
 const GHOST_WAIT_MS = 1500;
@@ -10,7 +10,7 @@ export interface RivalGhost {
   readonly fallbacks?: number;
 }
 
-interface GhostRequest {
+export interface GhostRequest {
   readonly mission: Mission;
   readonly seed: number;
   readonly build: Build;
@@ -20,8 +20,8 @@ interface GhostRequest {
 
 const count = (value: unknown): number | undefined => (typeof value === 'number' && Number.isFinite(value) ? value : undefined);
 
-/** GET /api/ghost: the Jev run for this mission, build, seed and briefing, computed and cached on the server. */
-async function fetchJevGhost(request: GhostRequest, signal: AbortSignal): Promise<RivalGhost | null> {
+/** The exact URL both the prefetch and the run use, so they hit the same server cache entry. */
+export function ghostUrl(request: GhostRequest): string {
   const params = new URLSearchParams({
     mission: request.mission.id,
     seed: String(request.seed),
@@ -29,7 +29,20 @@ async function fetchJevGhost(request: GhostRequest, signal: AbortSignal): Promis
     priority: String(request.priority),
   });
   if (request.briefing) params.set('briefing', request.briefing);
-  const response = await fetch(`/api/ghost?${params.toString()}`, { signal });
+  return `/api/ghost?${params.toString()}`;
+}
+
+/**
+ * Starts the server's Jev run for this loadout ahead of Deploy (it takes several seconds).
+ * Call from the Brief whenever mission, build, priority or briefing settle. Never throws.
+ */
+export function prefetchRivalGhost(request: Omit<GhostRequest, 'seed'>): void {
+  void fetch(ghostUrl({ ...request, seed: driveSeed(request.mission) })).catch(() => undefined);
+}
+
+/** GET /api/ghost: the Jev run for this mission, build, seed and briefing, computed and cached on the server. */
+async function fetchJevGhost(request: GhostRequest, signal: AbortSignal): Promise<RivalGhost | null> {
+  const response = await fetch(ghostUrl(request), { signal });
   if (response.status !== 200) return null;
   const body: unknown = await response.json();
   // Accepts the trace itself or an envelope `{ ghost, decisions?, fallbacks? }`.
