@@ -347,10 +347,12 @@ export interface RunSceneProps {
   particleBudget?: number;
   /** Drive mode: the player's controls (tag reads YOU, wider view, no decision zoom; the one ghost is the rival). */
   hands?: DriveInput;
+  /** Running late: skip the reflection environment and draw with plain lights. */
+  plain?: boolean;
 }
 
 /** The 2.5D run view. Mount inside an R3F <Canvas>. Reads sim state only: no physics here. */
-export function RunScene({ mission, build, feed, ghosts = [], particleBudget = 1, hands }: RunSceneProps) {
+export function RunScene({ mission, build, feed, ghosts = [], particleBudget = 1, hands, plain = false }: RunSceneProps) {
   const layout = useMemo(() => layoutTrack(mission.track), [mission.track]);
   const pose = useRef<Pose>(restPose());
   const hasDrone = build.sensors.includes('scout_drone');
@@ -359,7 +361,7 @@ export function RunScene({ mission, build, feed, ghosts = [], particleBudget = 1
   const sun = useRef<DirectionalLight>(null);
   return (
     <>
-      <World layout={layout} weather={mission.weather} sun={sun} budget={particleBudget} />
+      <World layout={layout} weather={mission.weather} sun={sun} budget={particleBudget} plain={plain} />
 
       {ghosts.map((trace) => (
         <Ghost key={trace.policy} trace={trace} build={build} layout={layout} pose={pose} timeScale={timeScale} driving={hands !== undefined} />

@@ -1,0 +1,23 @@
+// Loading tips, from docs/inputs/tips.json ("tips"). Shown while a 3D scene is getting ready.
+export const TIPS: readonly string[] = [
+  'Tracks grip mud better than wheels, but lose speed on asphalt.',
+  'Off-road wheels handle grass and rock better than standard wheels.',
+  'Standard wheels are lightweight and fast on asphalt.',
+  "Sand creates rolling resistance. More speed isn't always better.",
+  'Mud reduces traction. Tracks help your robot keep moving.',
+  'Ice has very low friction. Use slow_down before losing control.',
+  'Rock increases impact risk. Braking before obstacles can save your robot.',
+  'Water damages unprotected electronics. Equip waterproof_case.',
+  'Deep Water (M6) requires thruster_kit and waterproof_case.',
+  "Tracks can't cross M6's deep water. Underwater propulsion is essential.",
+  'The thruster_kit consumes extra power while moving underwater.',
+  'The motor_light favors speed. The motor_torque favors difficult terrain.',
+  'A larger battery adds energy capacity, but also adds weight.',
+  'Ultrasonic sensors measure distance to nearby obstacles.',
+  'The imu helps your brain understand slopes and robot motion.',
+  'The moisture_probe measures moisture, not every terrain type.',
+  'The camera provides visual sensing, but your brain acts on supplied observations.',
+  'Deploy the winch with deploy_winch when an anchor is available.',
+  'Use climb_mode when your robot needs controlled, high-load movement.',
+  'Brain Duel compares Jev, heuristic, and random policies on the same track.',
+];

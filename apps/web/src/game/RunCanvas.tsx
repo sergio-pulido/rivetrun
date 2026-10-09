@@ -1,7 +1,6 @@
 'use client';
 
-import { Canvas } from '@react-three/fiber';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo } from 'react';
 import type { Build, GhostTrace, Mission } from '@rivetrun/contracts';
 import { DEFAULT_PRESET_ID, MISSIONS, PRESETS } from '@rivetrun/sim';
 import { useRunAudio } from './audio/useRunAudio';
@@ -10,6 +9,7 @@ import { createFakeRun, fakeGhostTrace } from './fakeRun';
 import { RunHud } from './hud/RunHud';
 import { UI } from './palette';
 import { quality } from './quality';
+import { SceneFrame } from './SceneFrame';
 import { RunScene } from './run/RunScene';
 import { createRunFeed, type RunFeed } from './runFeed';
 
@@ -34,6 +34,11 @@ export interface RunCanvasProps {
    * single entry of `ghosts` (policy 'jev', or 'heuristic' when Jev's ghost was not ready): it is labelled from its policy.
    */
   drive?: DriveInput;
+  /**
+   * Called once when the scene has drawn its first frame (or has been given up on after 15 s).
+   * Start the run from here if the first seconds must not be missed on a slow phone.
+   */
+  onReady?: () => void;
 }
 
 const DEMO_RESTART_MS = 4200;
@@ -71,36 +76,28 @@ function useDemoRun(mission: Mission, build: Build, enabled: boolean): { feed: R
 }
 
 /** The run view: R3F canvas with the 2.5D scene plus the HUD overlay. Fills its parent. */
-export default function RunCanvas({ mission = MISSIONS.M5, build = PRESETS[DEFAULT_PRESET_ID].build, feed, ghosts, hud = true, drive }: RunCanvasProps) {
+export default function RunCanvas({ mission = MISSIONS.M5, build = PRESETS[DEFAULT_PRESET_ID].build, feed, ghosts, hud = true, drive, onReady }: RunCanvasProps) {
   const demo = useDemoRun(mission, build, feed === undefined);
   const activeFeed = feed ?? demo.feed;
   const activeGhosts = ghosts ?? demo.ghosts;
-  const [lost, setLost] = useState(false);
   useRunAudio(activeFeed, build);
   const tier = quality();
 
   return (
     <div className="relative h-full w-full overflow-hidden" style={{ background: UI.ink }}>
-      <Canvas
-        shadows
-        dpr={[1, tier.maxDpr]}
+      <SceneFrame
+        label="Building the track"
+        tips
         camera={{ fov: 38, near: 0.5, far: 420, position: [0, 6, 20] }}
-        gl={{ antialias: true, powerPreference: 'high-performance' }}
-        style={{ position: 'absolute', inset: 0, touchAction: 'none' }}
+        canvasStyle={{ touchAction: 'none' }}
+        onReady={onReady}
         onCreated={({ gl, scene }) => {
-          gl.domElement.addEventListener('webglcontextlost', () => setLost(true));
-          gl.domElement.addEventListener('webglcontextrestored', () => setLost(false));
           // Dev only: read draw calls from the console (window.__rivetrun.info.render.calls).
           if (process.env.NODE_ENV !== 'production') (window as unknown as { __rivetrun?: unknown }).__rivetrun = { info: gl.info, scene };
         }}
       >
-        <RunScene mission={mission} build={build} feed={activeFeed} ghosts={activeGhosts} particleBudget={tier.particles} hands={drive} />
-      </Canvas>
-      {lost && (
-        <div className="absolute inset-0 flex items-center justify-center font-mono text-xs" style={{ color: UI.dim }}>
-          3D view paused — reload to resume
-        </div>
-      )}
+        {(plain) => <RunScene mission={mission} build={build} feed={activeFeed} ghosts={activeGhosts} particleBudget={tier.particles} hands={drive} plain={plain} />}
+      </SceneFrame>
       {hud && <RunHud mission={mission} feed={activeFeed} ghosts={activeGhosts} drive={drive} build={build} />}
     </div>
   );

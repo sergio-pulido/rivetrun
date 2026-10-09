@@ -4,13 +4,14 @@
 // loaded with next/dynamic and ssr: false. In-canvas pieces (RobotModel, RunScene,
 // WorkshopScene) live in '@/game/scene' so they stay out of server bundles.
 import dynamic from 'next/dynamic';
+import { AttractLoading, RunLoading } from './loaders';
 
 /** Run view (scene + HUD). No `feed` prop ⇒ self-driving demo on a fake run. */
-export const RunCanvas = dynamic(() => import('./RunCanvas'), { ssr: false });
+export const RunCanvas = dynamic(() => import('./RunCanvas'), { ssr: false, loading: RunLoading });
 /** Workshop turntable. Pass `build` and it updates live. */
 export const WorkshopCanvas = dynamic(() => import('./WorkshopCanvas'), { ssr: false });
 /** Big-screen attract loop: every preset replays M5 side by side. No network, no loadout, no props needed. */
-export const AttractCanvas = dynamic(() => import('./AttractCanvas'), { ssr: false });
+export const AttractCanvas = dynamic(() => import('./AttractCanvas'), { ssr: false, loading: AttractLoading });
 
 export type { RunCanvasProps } from './RunCanvas';
 export type { WorkshopCanvasProps } from './WorkshopCanvas';
@@ -22,6 +23,9 @@ export type { BrainHudProps } from './hud/BrainHud';
 export { TopBar } from './hud/TopBar';
 export type { TopBarProps } from './hud/TopBar';
 export { RunHud } from './hud/RunHud';
+// The loading cover every 3D view shows until its first frame; use it for your own lazy 3D too.
+export { SceneLoader } from './SceneLoader';
+export type { SceneLoaderProps } from './SceneLoader';
 // Drive mode (gameplay v2): the player's controls. Create one per run, pass it to RunCanvas, sample it in the sim loop.
 export { createDriveInput } from './drive/driveInput';
 export type { DriveInput, DriveInputState } from './drive/driveInput';

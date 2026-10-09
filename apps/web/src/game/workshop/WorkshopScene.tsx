@@ -9,6 +9,7 @@ import { UI } from '../palette';
 import { damp } from '../rng';
 import { Bake } from '../robot/bake';
 import { restDrive, type RobotDrive } from '../robot/drive';
+import { Reflections } from '../run/Reflections';
 import { robotMaterials } from '../robot/materials';
 import { Box, Cyl } from '../robot/primitives';
 import { RobotModel } from '../robot/RobotModel';
@@ -133,10 +134,12 @@ export interface WorkshopSceneProps {
   build: Build;
   /** Turntable speed, rad/s. Drag horizontally to spin it by hand. */
   spin?: number;
+  /** Running late: skip the reflection environment and draw with plain lights. */
+  plain?: boolean;
 }
 
 /** Robot on a turntable over a blueprint sheet. Swap the build and parts pop in live. Mount inside a <Canvas>. */
-export function WorkshopScene({ build, spin = 0.45 }: WorkshopSceneProps) {
+export function WorkshopScene({ build, spin = 0.45, plain = false }: WorkshopSceneProps) {
   const gl = useThree((state) => state.gl);
   const table = useRef<Group>(null);
   const drive = useRef<RobotDrive>(restDrive());
@@ -216,12 +219,14 @@ export function WorkshopScene({ build, spin = 0.45 }: WorkshopSceneProps) {
       />
       <directionalLight position={[-5, 3, -5]} intensity={1.5} color={UI.blueprint} />
       <pointLight position={[0, 0.5, 2.6]} intensity={5} color={UI.safety} distance={6} />
+      <Reflections plain={plain}>
       <Environment resolution={64} frames={1}>
         <color attach="background" args={['#16202c']} />
         <Lightformer form="rect" intensity={3} color="#ffffff" position={[0, 6, 0]} rotation={[Math.PI / 2, 0, 0]} scale={[10, 10, 1]} />
         <Lightformer form="rect" intensity={2} color={UI.blueprint} position={[-6, 2, -4]} scale={[6, 4, 1]} />
         <Lightformer form="rect" intensity={1.5} color={UI.safety} position={[6, 1, 3]} scale={[4, 3, 1]} />
       </Environment>
+      </Reflections>
 
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.001, 0]} material={sheet}>
         <planeGeometry args={[MAT_SIZE, MAT_SIZE]} />

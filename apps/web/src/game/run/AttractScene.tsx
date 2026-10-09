@@ -221,10 +221,12 @@ export interface AttractSceneProps {
   /** Playback rate against sim time. */
   speed?: number;
   particleBudget?: number;
+  /** Running late: skip the reflection environment and draw with plain lights. */
+  plain?: boolean;
 }
 
 /** Attract loop: recorded runs of several builds on one track, side by side on their own lanes. Mount inside a <Canvas>. */
-export function AttractScene({ mission, entries, clock, speed = 1, particleBudget = 1 }: AttractSceneProps) {
+export function AttractScene({ mission, entries, clock, speed = 1, particleBudget = 1, plain = false }: AttractSceneProps) {
   const layout = useMemo(() => layoutTrack(mission.track), [mission.track]);
   const lanes = useMemo(() => attractLanes(entries.length), [entries.length]);
   const slots = useMemo<Slot[]>(() => entries.map(() => ({ x: 0, y: 0, endedAt: null })), [entries]);
@@ -235,7 +237,7 @@ export function AttractScene({ mission, entries, clock, speed = 1, particleBudge
 
   return (
     <>
-      <World layout={layout} weather={mission.weather} sun={sun} budget={particleBudget} shadowSpan={16} lanes={lanes} />
+      <World layout={layout} weather={mission.weather} sun={sun} budget={particleBudget} shadowSpan={16} lanes={lanes} plain={plain} />
       {entries.map((entry, i) => (
         <Replay key={entry.id} entry={entry} z={lanes[i]!} layout={layout} clock={clock} slot={slots[i]!} speed={speed} particles={particles} />
       ))}

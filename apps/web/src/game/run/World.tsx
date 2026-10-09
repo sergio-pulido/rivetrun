@@ -9,6 +9,7 @@ import { SKY } from '../palette';
 import type { TrackLayout } from '../track';
 import { Backdrop } from './Backdrop';
 import { Dressing } from './Dressing';
+import { Reflections } from './Reflections';
 import { Features } from './Features';
 import { Terrain } from './Terrain';
 import { WeatherFx } from './WeatherFx';
@@ -24,10 +25,12 @@ interface WorldProps {
   shadowSpan?: number;
   /** Lane centres (Z). Paint lines and big props stay between them. */
   lanes?: readonly number[];
+  /** Running late: no reflection environment, plain lights only. */
+  plain?: boolean;
 }
 
 /** Everything that is not a robot: fog, lights, reflections, backdrop, the track strip and its dressing, weather. */
-export function World({ layout, weather, sun, budget = 1, shadowSpan = 9, lanes }: WorldProps) {
+export function World({ layout, weather, sun, budget = 1, shadowSpan = 9, lanes, plain = false }: WorldProps) {
   const sky = SKY[weather];
   const scene = useThree((state) => state.scene);
 
@@ -60,12 +63,14 @@ export function World({ layout, weather, sun, budget = 1, shadowSpan = 9, lanes 
         shadow-camera-far={40}
       />
       <directionalLight color="#cfe0ff" intensity={0.55} position={[-4, 3, 12]} />
+      <Reflections plain={plain}>
       <Environment resolution={64} frames={1}>
         <color attach="background" args={[sky.mid]} />
         <Lightformer form="rect" intensity={2.2} color={sky.horizon} position={[0, 2, -8]} scale={[30, 6, 1]} />
         <Lightformer form="rect" intensity={1.6} color="#ffffff" position={[0, 9, 0]} rotation={[Math.PI / 2, 0, 0]} scale={[20, 20, 1]} />
         <Lightformer form="rect" intensity={0.5} color={sky.hemiGround} position={[0, -6, 0]} rotation={[-Math.PI / 2, 0, 0]} scale={[30, 30, 1]} />
       </Environment>
+      </Reflections>
 
       <Backdrop layout={layout} weather={weather} />
       <Terrain layout={layout} />

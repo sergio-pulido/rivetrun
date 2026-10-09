@@ -122,7 +122,14 @@ function dress(layout: TrackLayout, lanes: readonly number[]): Dressed {
       const band = pick(rand, verges);
       return band[0] + rand() * (band[1] - band[0]);
     };
-    const along = () => segment.s0 + 0.2 + rand() * (length - 0.4);
+    const gap = segment.gap;
+    // Nothing grows or lies over a gap: a pick that lands on the hole moves just past it.
+    const along = () => {
+      const s = segment.s0 + 0.2 + rand() * (length - 0.4);
+      return gap && s > gap.s0 - 0.15 && s < gap.s1 + 0.15 ? Math.min(segment.s1 - 0.1, gap.s1 + 0.15 + rand() * 0.6) : s;
+    };
+    // Paint stops at the hole too.
+    const solid: Array<readonly [number, number]> = gap ? [[segment.s0, gap.s0], [gap.s1, segment.s1]] : [[segment.s0, segment.s1]];
     const slope = segment.slopeRad;
     const terrain = segment.pad ? 'pad' : segment.terrain;
 
@@ -173,12 +180,15 @@ function dress(layout: TrackLayout, lanes: readonly number[]): Dressed {
     }
     if (terrain === 'asphalt' || terrain === 'pad') {
       const paint = terrain === 'pad' ? UI.safety : '#f1f3f5';
-      for (let s = segment.s0 + 0.6; s < segment.s1 - 0.5; s += 1.9) {
-        for (const z of lines) out.paint.push({ p: at(s + 0.45, z, 0.008), s: [0.9, 0.012, 0.09], yaw: 0, slope, c: paint });
+      for (const [from, to] of solid) {
+        if (to - from < 0.05) continue;
+        for (let s = from + 0.6; s < to - 1.0; s += 1.9) {
+          for (const z of lines) out.paint.push({ p: at(s + 0.45, z, 0.008), s: [0.9, 0.012, 0.09], yaw: 0, slope, c: paint });
+        }
+        const mid = (from + to) / 2;
+        out.paint.push({ p: at(mid, 1.3, 0.008), s: [to - from, 0.012, 0.1], yaw: 0, slope, c: UI.safety });
+        out.paint.push({ p: at(mid, -4.95, 0.008), s: [to - from, 0.012, 0.1], yaw: 0, slope, c: '#f1f3f5' });
       }
-      const mid = (segment.s0 + segment.s1) / 2;
-      out.paint.push({ p: at(mid, 1.3, 0.008), s: [length, 0.012, 0.1], yaw: 0, slope, c: UI.safety });
-      out.paint.push({ p: at(mid, -4.95, 0.008), s: [length, 0.012, 0.1], yaw: 0, slope, c: '#f1f3f5' });
     }
     if (terrain === 'water') {
       // Reeds where the water meets dry ground (not where two water segments join).

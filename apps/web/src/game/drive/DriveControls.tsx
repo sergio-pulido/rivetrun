@@ -217,12 +217,24 @@ export function DriveControls({ drive, feed, build }: DriveControlsProps) {
                 transform="rotate(-90 44 44)"
               />
             </svg>
-            <span className="relative flex flex-col items-center gap-0.5">
-              <span className="text-[15px] font-bold leading-none tracking-[1.5px]">{SPECIAL_LABEL[special]}</span>
-              <span className="font-mono text-[9px] leading-none tracking-[1px]" style={{ color: UI.dim }}>
-                {cooling ? `${((cooldownMs - sinceJump) / 1000).toFixed(1)} s` : special === 'climb' ? (input.climb ? 'ON' : 'OFF') : special === 'winch' ? 'HOLD' : airborne ? 'AIR' : 'READY'}
+            {cooling ? (
+              // Re-arming: the seconds left are the headline, so a jump spent on a log is felt before the gap.
+              <span className="relative flex flex-col items-center gap-0.5">
+                <span className="font-mono text-[24px] font-semibold leading-none tabular-nums" style={{ color: UI.safetyHi }}>
+                  {((cooldownMs - sinceJump) / 1000).toFixed(1)}
+                </span>
+                <span className="font-mono text-[9px] leading-none tracking-[1px]" style={{ color: UI.dim }}>
+                  s · JUMP
+                </span>
               </span>
-            </span>
+            ) : (
+              <span className="relative flex flex-col items-center gap-0.5">
+                <span className="text-[15px] font-bold leading-none tracking-[1.5px]">{SPECIAL_LABEL[special]}</span>
+                <span className="font-mono text-[9px] leading-none tracking-[1px]" style={{ color: UI.dim }}>
+                  {special === 'climb' ? (input.climb ? 'ON' : 'OFF') : special === 'winch' ? 'HOLD' : airborne ? 'AIR' : 'READY'}
+                </span>
+              </span>
+            )}
           </button>
 
           {!driven && (

@@ -1,0 +1,46 @@
+/* Loading and fallback states of a 3D scene: never a black box. */
+
+.cover {
+  background-color: #0e1013;
+  background-image:
+    linear-gradient(to right, rgb(59 130 196 / 0.1) 1px, transparent 1px),
+    linear-gradient(to bottom, rgb(59 130 196 / 0.1) 1px, transparent 1px),
+    radial-gradient(ellipse 70% 45% at 50% 40%, rgb(63 208 224 / 0.12), transparent 70%);
+  background-size:
+    24px 24px,
+    24px 24px,
+    100% 100%;
+  transition: opacity 320ms ease-out;
+}
+
+.spinner {
+  animation: spin 1.1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.tip {
+  animation: tip 380ms ease-out both;
+}
+
+@keyframes tip {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spinner,
+  .tip {
+    animation: none;
+  }
+}

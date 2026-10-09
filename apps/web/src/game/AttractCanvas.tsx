@@ -1,11 +1,12 @@
 'use client';
 
-import { Canvas } from '@react-three/fiber';
 import { useEffect, useRef, useState, type RefObject } from 'react';
 import type { GhostTrace, Mission } from '@rivetrun/contracts';
 import { MISSIONS, PRESETS, heuristicBrain, runHeadless } from '@rivetrun/sim';
 import { DNF_LABEL, UI } from './palette';
 import { quality } from './quality';
+import { SceneFrame } from './SceneFrame';
+import { SceneLoader } from './SceneLoader';
 import { AttractScene, type AttractClock, type AttractEntry } from './run/AttractScene';
 
 /** One colour per lane, front to back. */
@@ -18,6 +19,8 @@ export interface AttractCanvasProps {
   speed?: number;
   /** Legend with each robot's progress and result. Turn it off to draw your own chrome. */
   legend?: boolean;
+  /** Called once when the replay has drawn its first frame. */
+  onReady?: () => void;
 }
 
 /** Recorded headless runs of every preset with the heuristic brain: deterministic, instant, offline. */
@@ -67,22 +70,25 @@ function progressAt(trace: GhostTrace, t: number, lengthM: number): number {
 /** Who is where: one row per robot, updated a few times a second from the replay clock. */
 function Legend({ mission, entries, clock }: { mission: Mission; entries: readonly AttractEntry[]; clock: RefObject<AttractClock> }) {
   const [t, setT] = useState(0);
-  // Sized for a 1080p wall display as well as a laptop: the panel grows with the viewport.
+  // Sized from the stage it sits in (a wall display, a laptop, or a panel inside the lobby), not from the window.
+  const panel = useRef<HTMLDivElement>(null);
   const [zoom, setZoom] = useState(1);
   useEffect(() => {
     const id = window.setInterval(() => setT(clock.current.t), 200);
-    const fit = () => setZoom(Math.min(2, Math.max(1, window.innerWidth / 1000)));
+    const stage = panel.current?.parentElement;
+    const fit = () => setZoom(Math.min(2, Math.max(0.6, (stage?.clientWidth ?? window.innerWidth) / 1000)));
     fit();
-    window.addEventListener('resize', fit);
+    const observer = stage && typeof ResizeObserver === 'function' ? new ResizeObserver(fit) : null;
+    if (stage) observer?.observe(stage);
     return () => {
       window.clearInterval(id);
-      window.removeEventListener('resize', fit);
+      observer?.disconnect();
     };
   }, [clock]);
   const lengthM = mission.track.segments.reduce((sum, segment) => sum + segment.lengthM, 0);
 
   return (
-    <div className="pointer-events-none absolute bottom-4 left-4 w-[320px] rounded-2xl px-4 py-3" style={{ zoom, background: 'rgb(14 16 19 / 0.86)', border: '1px solid #262b33', color: UI.text }}>
+    <div ref={panel} className="pointer-events-none absolute bottom-4 left-4 w-[320px] rounded-2xl px-4 py-3" style={{ zoom, background: 'rgb(14 16 19 / 0.86)', border: '1px solid #262b33', color: UI.text }}>
       <div className="flex items-baseline justify-between">
         <span className="font-display text-[15px] font-bold tracking-[2px]" style={{ color: UI.cyan }}>
           ONE BRAIN · {entries.length} BODIES
@@ -127,24 +133,21 @@ function Legend({ mission, entries, clock }: { mission: Mission; entries: readon
  * Attract mode for the big screen: every preset replays the same track side by side, on a loop.
  * Self-contained: no network, no saved loadout, no sound. Fills its parent; built for landscape.
  */
-export default function AttractCanvas({ mission = MISSIONS.M5, speed = 1, legend = true }: AttractCanvasProps) {
+export default function AttractCanvas({ mission = MISSIONS.M5, speed = 1, legend = true, onReady }: AttractCanvasProps) {
   const entries = useAttractEntries(mission);
   const clock = useRef<AttractClock>({ t: 0, loop: 0 });
   const tier = quality();
 
   return (
     <div className="relative h-full w-full overflow-hidden" style={{ background: UI.ink }}>
+      {/* Recording the replays is quick, but the cover is up from the very first paint. */}
+      {entries === null && <SceneLoader label="Warming up the replay" tips />}
+      {entries && entries.length === 0 && <SceneLoader failed="Replay unavailable" tips={false} />}
       {entries && entries.length > 0 && (
         <>
-          <Canvas
-            shadows
-            dpr={[1, tier.maxDpr]}
-            camera={{ fov: 38, near: 0.5, far: 420, position: [0, 6, 24] }}
-            gl={{ antialias: true, powerPreference: 'high-performance' }}
-            style={{ position: 'absolute', inset: 0, touchAction: 'none' }}
-          >
-            <AttractScene mission={mission} entries={entries} clock={clock} speed={speed} particleBudget={tier.particles} />
-          </Canvas>
+          <SceneFrame label="Warming up the replay" tips camera={{ fov: 38, near: 0.5, far: 420, position: [0, 6, 24] }} canvasStyle={{ touchAction: 'none' }} onReady={onReady}>
+            {(plain) => <AttractScene mission={mission} entries={entries} clock={clock} speed={speed} particleBudget={tier.particles} plain={plain} />}
+          </SceneFrame>
           {legend && <Legend mission={mission} entries={entries} clock={clock} />}
         </>
       )}
