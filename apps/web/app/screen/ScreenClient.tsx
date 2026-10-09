@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { POLICY_LABEL, formatDamage, formatScore, formatTime } from '../leaderboard/_lib/format';
 import { useLeaderboard } from '../leaderboard/_lib/useLeaderboard';
 import { RaceSnapshotSchema } from '../race/_lib/protocol';
+import { AppHeader } from '@/ui/AppHeader';
 import { Side } from './Side';
 import styles from './screen.module.css';
 
@@ -39,6 +40,7 @@ export function ScreenClient({ siteUrl }: { readonly siteUrl: string }) {
   return (
     <div className={styles.stage}>
       <div className={styles.board}>
+        <AppHeader variant="logo" className={`${styles.logo} min-h-0!`} />
         <div className={styles.main}>
           <div className={styles.header}>
             <div className={styles.titleRow}>

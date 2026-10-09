@@ -2,14 +2,17 @@
 
 import type { GhostTrace } from '@rivetrun/contracts';
 import { compileTrack, MISSIONS } from '@rivetrun/sim';
-import { useEffect, useMemo } from 'react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { useEffect, useMemo, useState } from 'react';
 import { DriveControls } from '@/game/drive/DriveControls';
 import { createDriveInput } from '@/game/drive/driveInput';
 import { useRunHaptics } from '@/game/drive/haptics';
 import RunCanvas from '@/game/RunCanvas';
+import { AppHeader } from '@/ui/AppHeader';
 import { createRunFeed, useRunView } from '@/game/runFeed';
 import { startHumanRun } from '../_lib/humanRun';
-import { formatRaceTime, rankPlayers, resultText, type RacePlayer, type RaceSnapshot } from '../_lib/protocol';
+import { duelVerdict, formatRaceTime, rankPlayers, resultText, type RacePlayer, type RaceSnapshot } from '../_lib/protocol';
 import { Ranking } from '../_lib/Ranking';
 import type { RaceSeat } from '../_lib/report';
 
@@ -55,6 +58,45 @@ function useDrive(snapshot: RaceSnapshot, seat: RaceSeat, me: RacePlayer, clockO
 }
 
 /**
+ * What next, under the final result. The seat survives the race, so "Race again" needs no rejoin: this page
+ * switches to the lobby by itself when the host reopens the room. If the room is gone, it goes to the code form.
+ */
+function AfterRace({ code }: { readonly code: string }) {
+  const router = useRouter();
+  const [waiting, setWaiting] = useState(false);
+  const raceAgain = (): void => {
+    setWaiting(true);
+    fetch(`/api/race/${code}`, { cache: 'no-store' })
+      .then((response) => {
+        if (response.status === 404) router.push('/race');
+      })
+      .catch(() => undefined); // Offline for a moment: stay seated; the room view reconnects on its own.
+  };
+  return (
+    <div className="mt-3 flex flex-col gap-2">
+      <div className="grid grid-cols-2 gap-2">
+        <Link href="/" className="rr-btn rr-btn-secondary">
+          Play solo
+        </Link>
+        <button type="button" onClick={raceAgain} className="rr-btn rr-btn-primary" aria-pressed={waiting}>
+          Race again
+        </button>
+      </div>
+      <p role="status" className="text-center font-mono text-[11px] text-dim">
+        {waiting
+          ? 'You keep your seat. This page switches by itself when the host reopens the room.'
+          : 'Your seat is kept: Race again waits here for the host to reopen the room.'}
+      </p>
+      {waiting ? (
+        <Link href="/race" className="text-center font-mono text-xs text-led underline">
+          Join a different room instead
+        </Link>
+      ) : null}
+    </div>
+  );
+}
+
+/**
  * The heavy half of the phone's race page: the run (sim driveController + the game's drive controls) and the 3D view.
  * Loaded on demand by RaceClient (next/dynamic), so three.js is never part of the join page.
  * Everything about the result (place, RACE TIME, DNF reason) is read from the server snapshot.
@@ -71,6 +113,7 @@ export default function RaceRun({ snapshot, seat, me, now, clockOffsetMs }: Race
   const localDone = view.done;
   const official = me.done;
 
+  const verdict = over ? duelVerdict(snapshot.players) : null;
   const elapsedMs = snapshot.startAt === null ? 0 : Math.max(0, now - snapshot.startAt);
   const closesInS = snapshot.closesAt === null ? null : Math.max(0, Math.ceil((snapshot.closesAt - now) / 1000));
   const state = view.state;
@@ -117,9 +160,18 @@ export default function RaceRun({ snapshot, seat, me, now, clockOffsetMs }: Race
         </div>
       ) : null}
 
+      {/* Results only: the app header returns once the race is over. */}
+      {over ? (
+        <div className="absolute inset-x-0 top-0 z-30 bg-slate-ink/85 px-4 pb-1 backdrop-blur" style={{ paddingTop: 'max(8px, env(safe-area-inset-top))' }}>
+          <div className="mx-auto max-w-md">
+            <AppHeader back="/race" label="Room Race" />
+          </div>
+        </div>
+      ) : null}
+
       {/* Result card: flat, centred, and only ever the server's numbers. */}
       {localDone || official || over ? (
-        <div className="absolute inset-0 z-20 flex items-center justify-center p-3">
+        <div className={`absolute inset-0 z-20 flex items-center justify-center p-3 ${over ? 'pt-16' : ''}`}>
           <div className="rr-panel max-h-full w-full max-w-md overflow-y-auto p-4">
             {!official ? (
               <>
@@ -145,12 +197,20 @@ export default function RaceRun({ snapshot, seat, me, now, clockOffsetMs }: Race
             {closesInS !== null && !over ? (
               <p className="mt-3 rounded-md bg-safety px-2 py-1 text-center font-mono text-xs font-black text-slate-deep">RACE CLOSES IN {closesInS} s</p>
             ) : null}
-            <div className="mt-3 max-h-[40vh] overflow-y-auto">
+            <div className="mt-3 max-h-[34vh] overflow-y-auto">
               <Ranking players={snapshot.players} trackLengthM={trackLengthM} meId={me.id} />
             </div>
-            <p className="mt-3 text-center font-mono text-[11px] text-dim">
-              {over ? 'Stay here: the host can start the next race.' : 'Race time is wall-clock from the start signal, the same on every screen.'}
-            </p>
+            {verdict ? (
+              <p className={`mt-3 rounded-lg border px-3 py-2 text-sm ${verdict.winner === 'jev' ? 'border-led/60 bg-led/10' : 'border-safety/60 bg-safety/10'}`}>
+                <strong className={`font-mono tracking-wider ${verdict.winner === 'jev' ? 'text-led' : 'text-safety'}`}>{verdict.headline}</strong>
+                <span className="text-slate-200"> · {verdict.detail}</span>
+              </p>
+            ) : null}
+            {over ? (
+              <AfterRace code={snapshot.code} />
+            ) : (
+              <p className="mt-3 text-center font-mono text-[11px] text-dim">Race time is wall-clock from the start signal, the same on every screen.</p>
+            )}
           </div>
         </div>
       ) : null}

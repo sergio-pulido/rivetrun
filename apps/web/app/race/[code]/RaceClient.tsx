@@ -7,6 +7,7 @@ import Link from 'next/link';
 import { useCallback, useEffect, useState, useSyncExternalStore } from 'react';
 import { z } from 'zod';
 import { useRunStore } from '@/state/run';
+import { AppHeader } from '@/ui/AppHeader';
 import { buildName } from '@/ui/buildStats';
 import { JoinResponseSchema, RaceSnapshotSchema, laneColor, type RaceSnapshot } from '../_lib/protocol';
 import { Ranking } from '../_lib/Ranking';
@@ -66,14 +67,23 @@ function LoadingGame({ code, note }: { readonly code?: string; readonly note: st
   );
 }
 
-function Frame({ children }: { readonly children: React.ReactNode }) {
-  return <main className="mx-auto flex min-h-dvh max-w-md flex-col justify-center gap-4 px-4 py-6">{children}</main>;
+/**
+ * Lobby-side screens (join, waiting, watching, room not found): the app header on top, content centred below.
+ * `header={false}` for the countdown: BUILD, countdown and the race itself run without the app chrome.
+ */
+function Frame({ children, header = true }: { readonly children: React.ReactNode; readonly header?: boolean }) {
+  return (
+    <main className="mx-auto flex min-h-dvh max-w-md flex-col px-4 pb-6 pt-3">
+      {header ? <AppHeader back="/race" label="Room Race" /> : null}
+      <div className="flex flex-1 flex-col justify-center gap-4 py-3">{children}</div>
+    </main>
+  );
 }
 
 function Countdown({ snapshot, now }: { readonly snapshot: RaceSnapshot; readonly now: number }) {
   const seconds = Math.max(1, Math.ceil(((snapshot.startAt ?? now) - now) / 1000));
   return (
-    <Frame>
+    <Frame header={false}>
       <p className="rr-label text-center text-blueprint">
         {MISSIONS[snapshot.missionId].name} · {snapshot.players.length} robots
       </p>
@@ -199,6 +209,14 @@ export function RaceClient({ code, initial }: RaceClientProps) {
         <p className="text-sm text-slate-300">You can join as soon as the host opens the next race. This page updates by itself.</p>
         <div className="rr-panel p-3">
           <Ranking players={snapshot.players} trackLengthM={trackLengthM} />
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          <Link href="/" className="rr-btn rr-btn-secondary">
+            Play solo
+          </Link>
+          <Link href="/race" className="rr-btn rr-btn-secondary">
+            Another room
+          </Link>
         </div>
       </Frame>
     );

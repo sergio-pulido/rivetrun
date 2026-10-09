@@ -5,6 +5,7 @@ import { compileTrack, MISSION_IDS, MISSIONS, PRESETS } from '@rivetrun/sim';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { AttractCanvas } from '@/game';
+import { AppHeader } from '@/ui/AppHeader';
 import { duelVerdict, MAX_BOTS, rankPlayers, resultText, type RaceSnapshot } from '../race/_lib/protocol';
 import { postRaceAction, useRaceRoom, useServerNow } from '../race/_lib/useRaceRoom';
 import { RaceTrack } from './RaceTrack';
@@ -140,6 +141,7 @@ export function RaceScreen({ code, siteUrl }: RaceScreenProps) {
     return (
       <div className={styles.stage}>
         <div className={styles.board} style={{ gridTemplateColumns: 'minmax(0, 1fr)' }}>
+          <AppHeader variant="logo" className={`${styles.logo} min-h-0!`} />
           <div className={styles.notice}>
             {link === 'missing' ? 'This room is closed.' : 'Opening the room…'}
             {link === 'missing' ? (
@@ -177,6 +179,7 @@ export function RaceScreen({ code, siteUrl }: RaceScreenProps) {
   return (
     <div className={styles.stage}>
       <div className={styles.board}>
+        <AppHeader variant="logo" className={`${styles.logo} min-h-0!`} />
         <div className={styles.main}>
           <div className={styles.header}>
             <div className={styles.titleRow}>
@@ -184,7 +187,10 @@ export function RaceScreen({ code, siteUrl }: RaceScreenProps) {
               <span className={styles.title}>
                 {hasJev ? 'HUMANS vs JEV' : 'ROOM RACE'} · {link === 'reconnecting' ? 'RECONNECTING' : STATUS_TITLE[status]}
               </span>
-              <span className={styles.chip}>{status === 'lobby' ? `${mission.id} · ${mission.name} · ${mission.weather}` : mission.name}</span>
+              <span className={styles.chip}>
+                {mission.id} · {mission.name}
+                {status === 'lobby' ? ` · ${mission.weather}` : ''}
+              </span>
             </div>
             <div className={styles.controls}>
               {status === 'lobby' ? (

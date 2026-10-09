@@ -25,6 +25,7 @@
 }
 
 .board {
+  position: relative;
   width: calc(var(--u) * 1280);
   height: calc(var(--u) * 720);
   box-sizing: border-box;
@@ -95,11 +96,13 @@
   font-family: var(--data);
   font-size: calc(var(--u) * 13);
   color: #c9ced6;
-  white-space: nowrap;
   text-transform: uppercase;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  /* Never truncated: a long mission name wraps onto a second line inside the header's height. */
+  white-space: normal;
+  line-height: 1.2;
+  text-align: center;
+  min-width: min-content;
+  flex-shrink: 1;
 }
 .clock {
   font-family: var(--data);
@@ -712,4 +715,14 @@
   font-size: calc(var(--u) * 12);
   color: #c9ced6;
   flex-shrink: 0;
+}
+
+/* App logo: sits in the board's top padding strip (28 design px), so it never overlaps the header row,
+   the lanes, the live order or the QR block. */
+.logo {
+  position: absolute;
+  top: calc(var(--u) * 14);
+  left: calc(var(--u) * 32);
+  transform: translateY(-50%);
+  opacity: 0.9;
 }

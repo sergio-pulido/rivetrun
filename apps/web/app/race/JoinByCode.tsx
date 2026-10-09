@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { AppHeader } from '@/ui/AppHeader';
 import { RACE_CODE_LENGTH } from './_lib/protocol';
 
 interface JoinByCodeProps {
@@ -14,8 +15,9 @@ interface JoinByCodeProps {
  */
 export function JoinByCode({ code = '', error }: JoinByCodeProps) {
   return (
-    <main className="mx-auto flex min-h-dvh max-w-md flex-col justify-center gap-5 px-4 py-6">
-      <div>
+    <main className="mx-auto flex min-h-dvh max-w-md flex-col gap-5 px-4 pb-6 pt-3">
+      <AppHeader back="/" label="Room Race" />
+      <div className="mt-auto">
         <p className="rr-label text-blueprint">Room Race</p>
         <h1 className="mt-2 font-mono text-3xl font-black leading-tight text-safety">Enter the room code</h1>
         <p className="mt-2 text-sm text-slate-300">It is the four letters on the big screen. Everyone races the same track at the same time.</p>
@@ -46,7 +48,7 @@ export function JoinByCode({ code = '', error }: JoinByCodeProps) {
           Join the room
         </button>
       </form>
-      <Link href="/" className="rr-btn rr-btn-secondary">
+      <Link href="/" className="rr-btn rr-btn-secondary mb-auto">
         Back to home
       </Link>
     </main>
