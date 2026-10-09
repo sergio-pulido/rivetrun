@@ -67,13 +67,20 @@ function Order({ snapshot }: { readonly snapshot: RaceSnapshot }) {
 }
 
 function HostBar({ snapshot, bots, onError }: { readonly snapshot: RaceSnapshot; readonly bots: JevBots; readonly onError: (message: string | null) => void }) {
-  const [missionId, setMissionId] = useState<MissionId>(snapshot.missionId);
+  // The pick lives in the room, so the header, the lanes and every phone show the chosen track at once.
+  const missionId = snapshot.missionId;
+  const setMissionId = (id: MissionId): void => {
+    onError(null);
+    postRaceAction(snapshot.code, { action: 'mission', missionId: id }).catch((cause: unknown) =>
+      onError(cause instanceof Error ? cause.message : 'Could not change the track.'),
+    );
+  };
   const [starting, setStarting] = useState(false);
   const start = async (): Promise<void> => {
     setStarting(true);
     onError(null);
     try {
-      await postRaceAction(snapshot.code, { action: 'start', missionId });
+      await postRaceAction(snapshot.code, { action: 'start' });
     } catch (cause) {
       onError(cause instanceof Error ? cause.message : 'Could not start the race.');
     } finally {

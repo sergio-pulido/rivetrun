@@ -239,6 +239,12 @@ function start(room: Room, action: Act<'start'>, now: number): RaceResult<null> 
   return done(null);
 }
 
+function setMission(room: Room, action: Act<'mission'>): RaceResult<null> {
+  if (room.status !== 'lobby') return fail(409, 'The track can only be changed in the lobby.');
+  room.missionId = action.missionId;
+  return done(null);
+}
+
 function setBuild(room: Room, action: Act<'build'>): RaceResult<null> {
   const player = room.players.get(action.playerId);
   if (!player || room.tokens.get(action.playerId) !== action.token) return fail(403, 'Unknown player.');
@@ -302,8 +308,10 @@ export function applyAction(code: string, action: RaceAction): RaceResult<JoinRe
         ? addBot(room, action)
         : action.action === 'remove'
           ? remove(room, action)
-          : action.action === 'start'
-            ? start(room, action, now)
+          : action.action === 'mission'
+            ? setMission(room, action)
+            : action.action === 'start'
+              ? start(room, action, now)
             : action.action === 'build'
               ? setBuild(room, action)
               : action.action === 'reset'

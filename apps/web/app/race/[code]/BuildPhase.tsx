@@ -1,7 +1,7 @@
 'use client';
 
 import type { Build, Mission, Part, Slot } from '@rivetrun/contracts';
-import { buildIssues, compileTrack, PARTS, PRESETS, TUNING } from '@rivetrun/sim';
+import { BUILD_TUNING, buildIssues, compileTrack, PARTS, predictStats, PRESETS, TUNING } from '@rivetrun/sim';
 import { TERRAIN_LOOK } from '@/game/palette';
 import { MAX_EXTRAS, MAX_SENSORS, missionWarnings, sameBuild } from '@/ui/buildStats';
 
@@ -19,6 +19,17 @@ const SHORT_NAME: Readonly<Record<string, string>> = {
   scout_drone: 'Drone',
 };
 const label = (part: Part): string => SHORT_NAME[part.id] ?? part.name;
+
+// Build tuning (docs/GAMEPLAY_V2.md). A build that arrives tuned from the solo Workshop shows its values here,
+// so nothing the player cannot see rides into the race.
+const CELLS = [1, 2, 3, 4] as const;
+const WHEELS = [
+  { mm: 60, label: 'S' },
+  { mm: 80, label: 'M' },
+  { mm: 100, label: 'L' },
+] as const;
+const GEARS = [1, 2, 3, 4, 5] as const;
+const STOCK = { cells: BUILD_TUNING.stockCells, wheelMm: BUILD_TUNING.stockWheelMm, gear: BUILD_TUNING.stockGear } as const;
 
 interface BuildPhaseProps {
   readonly mission: Mission;
@@ -48,9 +59,10 @@ function Choice({ on, disabled, onClick, children }: { on: boolean; disabled?: b
 /** The compact workshop phones show for 45 s before the start: presets, one row per slot, cost and warnings. */
 export function BuildPhase({ mission, build, ready, secondsLeft, onChange }: BuildPhaseProps) {
   const world = compileTrack(mission.track);
-  const parts = PARTS.filter((part) => [build.locomotion, build.motor, build.battery, ...build.sensors, ...build.extras].includes(part.id));
-  const cost = parts.reduce((sum, part) => sum + part.costEur, 0);
-  const mass = parts.reduce((sum, part) => sum + part.massKg, 0);
+  // The sim's own numbers: chassis, cells, wheel size and gearing included, the same as the Workshop shows.
+  const stats = predictStats(build);
+  const cost = stats.costEur;
+  const mass = stats.massKg;
   const budget = TUNING.defaultBudgetEur;
   const over = cost > budget;
   // The player drives, so warnings about what the AI can sense do not apply here.
@@ -107,6 +119,38 @@ export function BuildPhase({ mission, build, ready, secondsLeft, onChange }: Bui
             </div>
           </div>
         ))}
+        <div className="grid grid-cols-[4fr_3fr] gap-2">
+          <div>
+            <p className="rr-label mb-1.5">Cells</p>
+            <div className="flex gap-1">
+              {CELLS.map((cells) => (
+                <Choice key={cells} on={(build.batteryCells ?? STOCK.cells) === cells} onClick={() => set({ ...build, batteryCells: cells })}>
+                  {cells}S
+                </Choice>
+              ))}
+            </div>
+          </div>
+          <div>
+            <p className="rr-label mb-1.5">Wheel size</p>
+            <div className="flex gap-1">
+              {WHEELS.map((wheel) => (
+                <Choice key={wheel.mm} on={(build.wheelSizeMm ?? STOCK.wheelMm) === wheel.mm} onClick={() => set({ ...build, wheelSizeMm: wheel.mm })}>
+                  {wheel.label}
+                </Choice>
+              ))}
+            </div>
+          </div>
+        </div>
+        <div>
+          <p className="rr-label mb-1.5">Gearing · speed ← → torque</p>
+          <div className="flex gap-1">
+            {GEARS.map((gear) => (
+              <Choice key={gear} on={(build.gearStep ?? STOCK.gear) === gear} onClick={() => set({ ...build, gearStep: gear })}>
+                {gear}
+              </Choice>
+            ))}
+          </div>
+        </div>
         <div>
           <p className="rr-label mb-1.5">Extras · up to {MAX_EXTRAS}</p>
           <div className="grid grid-cols-3 gap-1.5">
@@ -144,7 +188,9 @@ export function BuildPhase({ mission, build, ready, secondsLeft, onChange }: Bui
           €{cost} of €{budget}
           {over ? ' · over budget' : ''}
         </span>
-        <span className="text-dim">{mass.toFixed(1)} kg</span>
+        <span className="text-dim">
+          top {stats.topSpeedMps.toFixed(1)} m/s · climbs {Math.round(stats.maxClimbDeg)}° · {mass.toFixed(1)} kg
+        </span>
       </div>
       {warnings.length > 0 ? (
         <ul className="rounded-lg border border-warn/50 bg-warn/10 px-3 py-2 text-[13px] text-amber-100">

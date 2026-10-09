@@ -113,6 +113,8 @@ export const RaceActionSchema = z.discriminatedUnion('action', [
   z.object({ action: z.literal('addBot'), build: BuildSchema, briefing: BriefingSchema.optional() }),
   /** Host: remove a player or a bot before the race. */
   z.object({ action: z.literal('remove'), playerId: z.string() }),
+  /** Host: pick the track in the lobby, so every screen shows it before the BUILD phase. */
+  z.object({ action: z.literal('mission'), missionId: MissionIdSchema }),
   /** Host: open the BUILD phase (lobby), or skip the rest of it (build). */
   z.object({ action: z.literal('start'), missionId: MissionIdSchema.optional() }),
   /** Player: change the build and/or lock it in, in the lobby or the BUILD phase. */
