@@ -32,23 +32,25 @@ const expectError = async (response: Response, status: number, code: string): Pr
   expect(body.code).toBe(code);
 };
 
-describe('API routes (scaffold)', () => {
-  it('POST /api/decide: 400 on invalid JSON or shape, 501 on a valid question', async () => {
+describe('API routes', () => {
+  it('POST /api/decide: 400 on invalid JSON or shape, 503 without JEV_API_KEY', async () => {
+    delete process.env.JEV_API_KEY;
     await expectError(await decide(post('/api/decide', '{not json')), 400, 'bad_request');
     await expectError(await decide(post('/api/decide', JSON.stringify({ missionId: 'M9' }))), 400, 'bad_request');
-    await expectError(await decide(post('/api/decide', JSON.stringify(question))), 501, 'not_implemented');
+    await expectError(await decide(post('/api/decide', JSON.stringify(question))), 503, 'upstream_error');
   });
 
   it('POST /api/runs: 400 on an invalid episode', async () => {
     await expectError(await runs(post('/api/runs', JSON.stringify({ nickname: 'ada', episode: {} }))), 400, 'bad_request');
   });
 
-  it('GET /api/leaderboard: 400 on an unknown mission, 501 otherwise (default M5)', async () => {
+  it('GET /api/leaderboard: 400 on an unknown mission, entries otherwise (default M5)', async () => {
     await expectError(await leaderboard(new Request('http://localhost/api/leaderboard?mission=M9')), 400, 'bad_request');
-    await expectError(await leaderboard(new Request('http://localhost/api/leaderboard')), 501, 'not_implemented');
+    const response = await leaderboard(new Request('http://localhost/api/leaderboard'));
+    expect(await response.json()).toEqual({ missionId: 'M5', entries: [] });
   });
 
-  it('GET /api/stats: 501', async () => {
-    await expectError(await stats(), 501, 'not_implemented');
+  it('GET /api/stats: episode count', async () => {
+    expect(await (await stats()).json()).toEqual({ episodes: 0 });
   });
 });

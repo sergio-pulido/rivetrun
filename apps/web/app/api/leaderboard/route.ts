@@ -1,12 +1,15 @@
-import { LeaderboardQuerySchema } from '@rivetrun/contracts';
-import { notImplemented, parseWith } from '@/api/respond';
+import { LeaderboardQuerySchema, type LeaderboardResponse } from '@rivetrun/contracts';
+import { parseWith } from '@/api/respond';
+import { leaderboard } from '../_lib/store';
 
 export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
 
-// GET /api/leaderboard?mission=M5 — top 20, best per nickname. Scaffold: validates, then 501.
+// GET /api/leaderboard?mission=M5 — top 20, best per nickname. In-memory.
 export async function GET(request: Request): Promise<Response> {
   const mission = new URL(request.url).searchParams.get('mission') ?? undefined;
   const parsed = parseWith(LeaderboardQuerySchema, { mission });
   if (!parsed.ok) return parsed.response;
-  return notImplemented('GET /api/leaderboard');
+  const missionId = parsed.data.mission;
+  return Response.json({ missionId, entries: leaderboard(missionId) } satisfies LeaderboardResponse);
 }
