@@ -4,12 +4,13 @@ import { useEffect, useState } from 'react';
 
 const easeOut = (t: number): number => 1 - (1 - t) ** 3;
 
-/** Animates a number from 0 to target. Lands exactly on target; skips straight there with reduced motion. */
+/** Animates a number from 0 to target. Lands exactly on target; skips straight there with reduced motion or in a hidden tab. */
 export function useCountUp(target: number, durationMs = 900): number {
   const [value, setValue] = useState(0);
 
   useEffect(() => {
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    // A background tab gets no animation frames: land on the number instead of showing 0 until it is looked at.
+    if (document.visibilityState === 'hidden' || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
       setValue(target);
       return;
     }

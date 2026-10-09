@@ -4,13 +4,13 @@ import Link from 'next/link';
 import { useState } from 'react';
 import type { Part } from '@rivetrun/contracts';
 import { PRESETS, buildIssues } from '@rivetrun/sim';
-import { WorkshopCanvas } from '@/game';
 import { useBuildStore } from '@/state/build';
 import { isUnlocked, useProgressStore } from '@/state/progress';
 import { useWorkshopUi } from '@/state/workshop';
 import { BUDGET_EUR, buildStats, sameBuild } from '@/ui/buildStats';
 import { Icon } from '@/ui/Icon';
 import { Shell } from '@/ui/Shell';
+import { Bench3D } from '@/ui/three/Bench3D';
 import { PartCard } from './PartCard';
 import { SLOTS, fitted, partsIn, withPart } from './slots';
 
@@ -41,11 +41,12 @@ export function Workshop({ models }: WorkshopProps) {
   const issues = buildIssues(build);
 
   const act = (part: Part): void => {
-    if (!isUnlocked(unlocked, part.id) && !unlock(part.id)) {
+    const wasLocked = !isUnlocked(unlocked, part.id);
+    if (wasLocked && !unlock(part.id)) {
       setNotice(`${part.name} needs ${part.unlockPoints - points} more points. Finish runs to earn them.`);
       return;
     }
-    setNotice(null);
+    setNotice(wasLocked ? `${part.name} unlocked for ${part.unlockPoints} points and fitted.` : null);
     if (!fittedIds.includes(part.id)) setBuild(withPart(build, part));
   };
 
@@ -78,10 +79,7 @@ export function Workshop({ models }: WorkshopProps) {
       }
     >
       <section className="rr-stage h-[270px] shrink-0">
-        <span className="rr-label rr-blink pointer-events-none absolute inset-0 grid place-items-center">Powering up the bench</span>
-        <div className="absolute inset-x-0 bottom-7 top-0">
-          <WorkshopCanvas build={build} />
-        </div>
+        <Bench3D build={build} className="bottom-7" />
         <button type="button" onClick={() => setSlot('sensor')} className={`${CALLOUT} right-3 top-[18px] text-[#CFE9EE]`}>
           <span className={`${DOT} bg-cyan text-on-cyan`}>1</span>SENSORS
         </button>
@@ -157,6 +155,13 @@ export function Workshop({ models }: WorkshopProps) {
           {line}
         </p>
       ))}
+
+      {partsIn(slot).some((part) => !isUnlocked(unlocked, part.id)) ? (
+        <p className="flex items-center justify-between font-mono text-[10px] font-medium tracking-[1px] text-muted">
+          <span>LOCKED PARTS COST POINTS FROM RUNS</span>
+          <span className="tabular-nums text-orange-soft">{points.toLocaleString('en-US')} PTS</span>
+        </p>
+      ) : null}
 
       <section role="tabpanel" className="grid grid-cols-2 gap-2.5">
         {partsIn(slot).map((part) => (

@@ -1,7 +1,6 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
 import type { Build } from '@rivetrun/contracts';
 import { PARTS_BY_ID } from '@rivetrun/sim';
 import { useBuildStore } from '@/state/build';
@@ -9,6 +8,8 @@ import { buildActions, buildProperties, buildSenses } from '@/ui/buildStats';
 import { Icon } from '@/ui/Icon';
 import { Shell } from '@/ui/Shell';
 import { ExplodedCanvas } from '@/ui/three';
+import { StackSketch } from '@/ui/three/sketches';
+import { Stage3D } from '@/ui/three/Stage3D';
 import { explodedLayers, screenTop, type LayerKey } from '@/ui/three/exploded';
 
 const STAGE_HEIGHT = 290;
@@ -33,7 +34,6 @@ export function Assembly() {
   const missionId = useBuildStore((store) => store.missionId);
   const text = layerText(build);
   const layers = explodedLayers(build);
-  const [ready, setReady] = useState(false);
 
   return (
     <Shell
@@ -47,10 +47,9 @@ export function Assembly() {
       }
     >
       <section className="rr-stage shrink-0 !bg-stage" style={{ height: STAGE_HEIGHT }} aria-label={`Exploded view in five layers: ${layers.map((layer) => text[layer.key].title.toLowerCase()).join(', ')}`}>
-        {ready ? null : <span className="rr-label rr-blink pointer-events-none absolute inset-y-0 left-0 grid w-[55%] place-items-center">Pulling it apart</span>}
-        <div className="absolute inset-0">
-          <ExplodedCanvas build={build} onReady={() => setReady(true)} />
-        </div>
+        <Stage3D loadingLabel="Pulling it apart" placeholder={<StackSketch height={225} />} placeholderClassName="inset-y-0 left-0 right-[45%]">
+          {(onReady) => <ExplodedCanvas build={build} onReady={onReady} />}
+        </Stage3D>
         <ol className="pointer-events-none absolute inset-y-0 right-0 w-[45%]">
           {layers.map((layer, index) => (
             <li key={layer.key} className="absolute inset-x-0 flex -translate-y-1/2 items-center gap-1.5 pr-2.5" style={{ top: `${screenTop(build, layer.anchorY) * 100}%` }}>

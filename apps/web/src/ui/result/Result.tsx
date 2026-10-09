@@ -5,6 +5,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { MISSION_IDS, MISSIONS, whyLine } from '@rivetrun/sim';
 import { DNF_LABEL } from '@/game/palette';
 import { useBuildStore } from '@/state/build';
+import { buildStats } from '@/ui/buildStats';
 import { LOCKED_PARTS, isUnlocked, useProgressStore } from '@/state/progress';
 import { useRunStore, type RunResult } from '@/state/run';
 import { Icon, type IconName } from '@/ui/Icon';
@@ -12,11 +13,10 @@ import { Shell } from '@/ui/Shell';
 import { Stars } from '@/ui/Stars';
 import { DuelTable } from './DuelTable';
 import { ScoreBreakdown } from './ScoreBreakdown';
-import { downloadEpisode, share } from './share';
+import { downloadEpisode, share, type ShareResult } from './share';
 import { SubmitRun } from './SubmitRun';
 import { useCountUp } from './useCountUp';
 
-const SHARE_NOTE = { shared: null, copied: 'Copied to the clipboard.', failed: 'Sharing is blocked in this browser.' } as const;
 
 const TILE = 'flex h-[52px] flex-col items-center justify-center gap-0.5 rounded-xl border border-line-3 font-mono text-[10px] font-medium tracking-[1px] text-text active:bg-panel-2';
 
@@ -69,7 +69,9 @@ function Summary({ result }: { readonly result: RunResult }) {
   const briefing = useBuildStore((store) => store.briefing);
   const award = useProgressStore((store) => store.award);
   const [earned, setEarned] = useState(0);
-  const [shareNote, setShareNote] = useState<string | null>(null);
+  const [shared, setShared] = useState<ShareResult | null>(null);
+  // Retry deploys the robot on the bench now, which may have changed since this run.
+  const overBudgetEur = buildStats(useBuildStore((store) => store.build)).overBudgetEur;
   const tenths = useCountUp(Math.round(outcome.timeS * 10));
   const percent = useCountUp(Math.round(outcome.progressFraction * 100));
   const next = MISSION_IDS[MISSION_IDS.indexOf(mission.id) + 1];
@@ -137,9 +139,15 @@ function Summary({ result }: { readonly result: RunResult }) {
       ) : null}
 
       <nav className="mt-auto grid grid-cols-4 gap-2 pt-1" aria-label="After the run">
-        <Link href={`/run/${mission.id}`} className={TILE}>
-          <Tile icon="retry">RETRY</Tile>
-        </Link>
+        {overBudgetEur > 0 ? (
+          <Link href="/workshop" className={`${TILE} !border-bad/60 !text-bad`} title={`The robot on the bench is €${overBudgetEur} over budget`}>
+            <Tile icon="retry">OVER €{overBudgetEur}</Tile>
+          </Link>
+        ) : (
+          <Link href={`/run/${mission.id}`} className={TILE}>
+            <Tile icon="retry">RETRY</Tile>
+          </Link>
+        )}
         <Link href="/workshop" className={`${TILE} ${outcome.finished ? '' : '!border-orange !text-orange-soft'}`}>
           <Tile icon="wrench">UPGRADE</Tile>
         </Link>
@@ -147,7 +155,7 @@ function Summary({ result }: { readonly result: RunResult }) {
           type="button"
           className={TILE}
           onClick={() => {
-            void share(episode).then((kind) => setShareNote(SHARE_NOTE[kind]));
+            void share(episode).then(setShared);
           }}
         >
           <Tile icon="share">SHARE</Tile>
@@ -156,10 +164,24 @@ function Summary({ result }: { readonly result: RunResult }) {
           <Tile icon="download">EPISODE</Tile>
         </button>
       </nav>
-      {shareNote ? (
+      {shared?.outcome === 'copied' ? (
         <p role="status" className="text-center font-mono text-[11px] text-muted">
-          {shareNote}
+          Copied to the clipboard.
         </p>
+      ) : null}
+      {shared?.outcome === 'manual' ? (
+        <label className="flex flex-col gap-1.5">
+          <span role="status" className="font-mono text-[11px] text-muted">
+            This browser won&apos;t share or copy for you. Select the text and copy it:
+          </span>
+          <textarea
+            readOnly
+            rows={3}
+            value={shared.message}
+            onFocus={(event) => event.target.select()}
+            className="resize-none rounded-xl border border-line-3 bg-panel-2 px-3 py-2 text-[13px] leading-snug outline-none focus:border-orange"
+          />
+        </label>
       ) : null}
     </main>
   );

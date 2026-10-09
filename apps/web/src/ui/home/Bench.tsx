@@ -1,11 +1,11 @@
 'use client';
 
 import { TUNING } from '@rivetrun/sim';
-import { WorkshopCanvas } from '@/game';
 import { POLICY_LABEL } from '@/game/palette';
 import { useBuildStore } from '@/state/build';
 import { useRunStore } from '@/state/run';
 import { buildName } from '@/ui/buildStats';
+import { Bench3D } from '@/ui/three/Bench3D';
 
 /** The last decision of the last run, when there is one in memory. */
 function useLastDecision(): { head: string; body: string } {
@@ -24,10 +24,7 @@ export function Bench() {
   const last = useLastDecision();
   return (
     <div className="relative h-[270px] shrink-0 overflow-hidden rounded-[18px] border border-[#262B33] bg-panel">
-      <span className="rr-label rr-blink pointer-events-none absolute inset-0 grid place-items-center">Powering up the bench</span>
-      <div className="absolute inset-0 top-6">
-        <WorkshopCanvas build={build} spin={0.5} />
-      </div>
+      <Bench3D build={build} spin={0.5} className="top-6" />
       <span className="pointer-events-none absolute left-[18px] top-4 max-w-[45%] font-mono text-[11px] font-medium uppercase leading-snug tracking-[1.5px] text-muted">
         Bench · {buildName(build)}
       </span>

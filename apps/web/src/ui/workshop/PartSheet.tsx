@@ -9,6 +9,7 @@ import { isUnlocked, useProgressStore } from '@/state/progress';
 import { useWorkshopUi } from '@/state/workshop';
 import { Icon } from '@/ui/Icon';
 import { PartCanvas } from '@/ui/three';
+import { Stage3D } from '@/ui/three/Stage3D';
 import { PartGlyph } from './PartGlyph';
 import { brainGets, specTiles } from './partInfo';
 import type { RealPartView } from './realParts';
@@ -91,7 +92,6 @@ export function PartSheet({ part, real }: PartSheetProps) {
   const unlock = useProgressStore((store) => store.unlock);
   const setSlot = useWorkshopUi((store) => store.setSlot);
   const [notice, setNotice] = useState<string | null>(null);
-  const [ready, setReady] = useState(false);
 
   const gets = brainGets(part);
   const shelf = partsIn(part.slot);
@@ -123,14 +123,9 @@ export function PartSheet({ part, real }: PartSheetProps) {
       </header>
 
       <section className="rr-stage h-[230px] shrink-0 !bg-stage [background-size:16px_16px]">
-        {ready ? null : (
-          <div className="pointer-events-none absolute inset-0 grid place-items-center opacity-25">
-            <PartGlyph id={part.id} width={220} />
-          </div>
-        )}
-        <div className="absolute inset-0">
-          <PartCanvas part={part} onReady={() => setReady(true)} />
-        </div>
+        <Stage3D loadingLabel="Loading the part" placeholder={<PartGlyph id={part.id} width={200} className="opacity-70" />}>
+          {(onReady) => <PartCanvas part={part} onReady={onReady} />}
+        </Stage3D>
         <span className="rr-label pointer-events-none absolute left-3 top-3 max-w-[70%] truncate !text-[#8FB8D6]">{real?.model ?? SLOT_NAME[part.slot]}</span>
         <span className="rr-label pointer-events-none absolute bottom-3 right-3 !text-[#8FB8D6]">
           {part.massKg < 1 ? `${Math.round(part.massKg * 1000)} g` : `${part.massKg} kg`}
