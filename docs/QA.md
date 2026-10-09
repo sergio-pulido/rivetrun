@@ -9,8 +9,9 @@ Status: **OPEN** = reproduces now · **FIXED** = fix retested in the browser · 
 | # | Owner | Status | What | Repro |
 |---|---|---|---|---|
 | R12 | human check | OPEN (needs one look on a real phone or a visible tab) | The 3D bench on Home and in the Workshop stayed on its drawn placeholder ("POWERING UP THE BENCH") after a hard load. ui found and fixed two causes (trigger waited on IntersectionObserver + requestIdleCallback, which a non-rendering page never delivers; placeholder faded out before the 3D had drawn). Neither the sim nor the ui session can confirm the result: both test panes are hidden and get no animation frames. | Hard-load `/` and `/workshop` on a phone or a visible Chrome tab. Expected: 3D within about a second. In a hidden pane the drawn robot stays up indefinitely with an unsized canvas — that is the no-frames state, not a failure. |
-| R13 | game | OPEN (cosmetic) | Grass tufts are drawn inside the dark gap pit, along one wall. | `/run/M7`, first gap after the ramp. |
-| R14 | sim | OPEN (design) | M7: the log sits 4 m before the bare 0.9 m gap and the piston re-arms in 3 s, so hopping the log costs the gap jump. Hint requested from game (re-arm seconds on the JUMP button). | `/run/M7` with a piston build, jump the log at 2 m/s. |
+| R13 | game | REPORTED FIXED (38c5f76) | Grass tufts were drawn inside the dark gap pit. Pit seen dark on `/run/M7` after the fix; too small in the retest screenshot to confirm the tufts are gone. | `/run/M7`, first gap after the ramp. |
+| R14 | game | FIXED | M7: hopping the log leaves no piston for the bare gap, and nothing said so. The JUMP button now shows the re-arm time large while cooling (seen: "2.3 s · JUMP"). The track is unchanged. | `/run/M7` with a piston build, press jump. |
+| R18 | human | OPEN (blocks phone testing on the dev server) | Phones on the LAN may not load the dev app: the laptop's address is now 192.168.0.14 (the `/screen` QR points there) but `apps/web/next.config.ts` `allowedDevOrigins` lists only 10.194.73.231, 127.0.0.1, `*.local`, `*.trycloudflare.com`. Reported by game; partly reproduced with curl: a dev chunk requested from 192.168.0.14 with an `Origin` or cross-site header returns 403, without them 200. Not confirmed on a phone. | From a phone on the same wifi open `http://192.168.0.14:3000/`. If it never becomes interactive, add `'192.168.0.14'` to `allowedDevOrigins` and restart `pnpm dev`, or use the tunnel / `pnpm demo:stable`. |
 
 ## Retests — 10 Oct
 
@@ -29,11 +30,10 @@ What could be tested: hard loads (full navigation) of `/`, `/workshop`, `/run/M1
 
 | Route | Result on hard load |
 |---|---|
-| `/run/M1` | FIXED. Two causes found. (a) game: `RunScene.tsx` was briefly uncompilable mid-edit (duplicate `FALL_MS` / `HEIGHT_SCALE`), confirmed by the game session, never committed. (b) sim: the run started as soon as the code was ready, so while the 3D chunk was still loading the clock ran over a dark screen (measured: canvas unsized for ~4 s, timer already at 00:05). Now the robot waits on the start line with the clock at 00:00.0 under the game session's "BUILDING THE TRACK" overlay, and the run starts two frames after the canvas is sized (`app/run/[mission]/sceneReady.ts`, commit `ba3a9b3`). Retested: clock held for ~4 s, then a full Drive run finished normally (20.6 s). |
-| `/run/M7` | PASS. Scene fully drawn at the 5 s mark. |
-| `/` | See R12: placeholder only after 8 s, no canvas. Not black. |
-| `/workshop` | See R12: placeholder only after 8 s, no canvas. Not black. |
-| `/screen` | PASS for the leaderboard view (no 3D on it). The attract replay in the Room Race lobby was black once during the mid-edit window above and rendered on the next visit. |
+| `/run/M1` | FIXED, retested twice. Causes: (a) game: `RunScene.tsx` was briefly uncompilable mid-edit (duplicate `FALL_MS` / `HEIGHT_SCALE`), never committed; (b) game: nothing covered a canvas between mount and its first drawn frame — fixed in 38c5f76 with a loading cover ("BUILDING THE TRACK" + a tip) kept up until the first frame, a plain-lights fallback and a message on a crash or lost context; (c) sim: the run started before the scene was visible, so the clock ran over the cover (measured ~4 s; game measured 1.9 s). The run page now starts the controller from `RunCanvas`'s `onReady` (first drawn frame, or 15 s if the view is given up on), with the robot on the start line and the clock at 00:00.0 until then. Retest on `/run/M7`, hard load: cover with clock 00:00.0 for 5 s, then the scene and a normal run. |
+| `/` | Not black: drawn robot + "POWERING UP THE BENCH" for the 6 s watched, no 3D. This is the expected no-frames state in a hidden pane (R12): needs the human check. |
+| `/workshop` | Same as `/`. |
+| `/screen` | PASS. Leaderboard view has no 3D. Room Race lobby: the attract replay rendered within 6 s of creating the room (four robots on the M5 start line, rain). |
 
 ## Gameplay v2 pass — 10 Oct
 

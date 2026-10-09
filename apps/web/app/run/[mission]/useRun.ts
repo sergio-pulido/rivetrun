@@ -8,7 +8,6 @@ import { createClientBrain } from '@/brain/clientBrain';
 import { createDriveInput, createRunFeed, type DriveInput, type RunFeed } from '@/game';
 import { useRunStore, type GhostResult } from '@/state/run';
 import { loadRivalGhost } from './ghost';
-import { sceneReady } from './sceneReady';
 
 /** Time the finish / crash stays on screen before the Result page. */
 const RESULT_DELAY_MS = 3200;
@@ -28,6 +27,8 @@ export interface RunSession {
   readonly ghosts: readonly GhostTrace[];
   /** The player's controls in Drive mode; undefined when Jev drives. */
   readonly drive: DriveInput | undefined;
+  /** Pass to RunCanvas: it calls this at the first drawn frame, and the clock starts then. */
+  readonly onSceneReady: () => void;
   readonly error: string | null;
 }
 
@@ -71,6 +72,14 @@ export function useRun(options: RunOptions): RunSession {
   const router = useRouter();
   const feed = useMemo(() => createRunFeed(), []);
   const drive = useMemo(() => (mode === 'drive' ? createDriveInput() : undefined), [mode]);
+  // Resolved by the canvas at its first drawn frame (it gives up and calls anyway after 15 s).
+  const scene = useMemo(() => {
+    let ready: () => void = () => undefined;
+    const drawn = new Promise<void>((resolve) => {
+      ready = resolve;
+    });
+    return { drawn, ready };
+  }, []);
   const [ghosts, setGhosts] = useState<readonly GhostTrace[]>([]);
   const [error, setError] = useState<string | null>(null);
 
@@ -96,7 +105,7 @@ export function useRun(options: RunOptions): RunSession {
       // The clock starts when the player can see the track, not when the code is ready.
       // Until then the robot waits on the start line.
       feed.push({ type: 'frame', state: createRun(config).sim });
-      await sceneReady(() => cancelled);
+      await scene.drawn;
       if (cancelled) return;
       const episode: Episode = await controller.start();
       drive?.release();
@@ -115,7 +124,7 @@ export function useRun(options: RunOptions): RunSession {
       drive?.release();
       if (timer !== undefined) clearTimeout(timer);
     };
-  }, [mission, build, priority, briefing, mode, drive, feed, router]);
+  }, [mission, build, priority, briefing, mode, drive, feed, router, scene]);
 
-  return { feed, ghosts, drive, error };
+  return { feed, ghosts, drive, error, onSceneReady: scene.ready };
 }

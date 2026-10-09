@@ -13,11 +13,11 @@ export function RunClient({ missionId }: { readonly missionId: MissionId }) {
   const priority = useRunStore((store) => store.priority);
   const briefing = useBuildStore((store) => store.briefing);
   const mode = useBuildStore((store) => store.mode);
-  const { feed, ghosts, drive, error } = useRun({ mission, build, priority, briefing, mode });
+  const { feed, ghosts, drive, error, onSceneReady } = useRun({ mission, build, priority, briefing, mode });
 
   return (
     <main className="relative h-dvh w-full overflow-hidden bg-slate-ink">
-      <RunCanvas mission={mission} build={build} feed={feed} ghosts={ghosts} drive={drive} />
+      <RunCanvas mission={mission} build={build} feed={feed} ghosts={ghosts} drive={drive} onReady={onSceneReady} />
       {error ? (
         <div className="absolute inset-x-4 top-1/2 rounded-lg border border-red-500/60 bg-slate-panel p-4 text-center text-sm text-red-300">
           The run could not start: {error}
