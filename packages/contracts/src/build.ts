@@ -7,7 +7,7 @@ export type Slot = z.infer<typeof SlotSchema>;
 export const SensorKindSchema = z.enum(['ultrasonic', 'imu', 'camera', 'moisture', 'scout_drone']);
 export type SensorKind = z.infer<typeof SensorKindSchema>;
 
-export const ExtraKindSchema = z.enum(['winch', 'waterproof_case', 'bumper']);
+export const ExtraKindSchema = z.enum(['winch', 'waterproof_case', 'bumper', 'thruster_kit']);
 export type ExtraKind = z.infer<typeof ExtraKindSchema>;
 
 export const PartIdSchema = z.string().min(1).max(40);
@@ -37,6 +37,10 @@ export const PartEffectsSchema = z.object({
   /** Multiplier on impact damage (bumper = 0.5). */
   impactDamageFactor: z.number().min(0).max(1).optional(),
   waterproof: z.boolean().optional(),
+  /** This extra only works when the build also has that extra (thruster kit needs the waterproof case). */
+  requiresExtra: ExtraKindSchema.optional(),
+  /** Deepest water the part lets a sealed robot cross by swimming, cm. */
+  maxSwimDepthCm: z.number().positive().optional(),
 });
 export type PartEffects = z.infer<typeof PartEffectsSchema>;
 

@@ -40,7 +40,7 @@ export type Track = z.infer<typeof TrackSchema>;
 export const WeatherSchema = z.enum(['clear', 'rain', 'cold']);
 export type Weather = z.infer<typeof WeatherSchema>;
 
-export const MissionIdSchema = z.enum(['M1', 'M2', 'M3', 'M4', 'M5']);
+export const MissionIdSchema = z.enum(['M1', 'M2', 'M3', 'M4', 'M5', 'M6']);
 export type MissionId = z.infer<typeof MissionIdSchema>;
 
 export const SeedSchema = z.number().int().min(0).max(0xffffffff);

@@ -19,7 +19,7 @@ describe('sim data (v0) matches contracts', () => {
     }
     expect(new Set(PARTS.map((p) => p.id)).size).toBe(PARTS.length);
     const count = (slot: string) => PARTS.filter((p) => p.slot === slot).length;
-    expect([count('locomotion'), count('motor'), count('battery'), count('sensor'), count('extra')]).toEqual([3, 2, 2, 5, 3]);
+    expect([count('locomotion'), count('motor'), count('battery'), count('sensor'), count('extra')]).toEqual([3, 2, 2, 5, 4]);
   });
 
   it('has presets that are valid, unlocked from the start and within budget', () => {
@@ -36,8 +36,8 @@ describe('sim data (v0) matches contracts', () => {
     }
   });
 
-  it('has five valid missions; only M5 has a fixed seed and a leaderboard', () => {
-    expect(MISSION_IDS).toEqual(['M1', 'M2', 'M3', 'M4', 'M5']);
+  it('has six valid missions; only M5 has a fixed seed and a leaderboard', () => {
+    expect(MISSION_IDS).toEqual(['M1', 'M2', 'M3', 'M4', 'M5', 'M6']);
     for (const mission of Object.values(MISSIONS)) {
       expect(MissionSchema.safeParse(mission).success, mission.id).toBe(true);
       expect(mission.fixedSeed !== undefined, mission.id).toBe(mission.id === 'M5');

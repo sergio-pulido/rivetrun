@@ -37,6 +37,19 @@ export function compileTrack(track: Track): World {
   return { segments, obstacles, lengthM: cursor };
 }
 
+/** Deep water starts beyond this depth: wheels and tracks lose the bottom. */
+export const DEEP_WATER_CM = 25;
+/** Deep channels slope down and back up over this distance at each end. */
+export const SHORE_RAMP_M = 1.5;
+
+/** Water / mud depth under x, cm. Shallow segments are flat; deep water ramps in and out at the shores. */
+export function waterDepthCmAt(segment: WorldSegment, xM: number): number {
+  if (segment.depthCm <= DEEP_WATER_CM) return segment.depthCm;
+  const fromShore = Math.min(xM - segment.startM, segment.endM - xM);
+  const ramp = Math.min(1, Math.max(0, fromShore / SHORE_RAMP_M));
+  return DEEP_WATER_CM + (segment.depthCm - DEEP_WATER_CM) * ramp;
+}
+
 /** Index of the segment containing x, searching from a hint. Clamped to the track. */
 export function segmentIndexAt(world: World, xM: number, hint = 0): number {
   const last = world.segments.length - 1;

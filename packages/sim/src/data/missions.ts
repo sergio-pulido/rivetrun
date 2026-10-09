@@ -72,6 +72,21 @@ export const MISSIONS: Readonly<Record<MissionId, Mission>> = {
       ],
     },
   },
+  M6: {
+    id: 'M6', name: 'Deep Water', description: 'A beach, a wade, then a 90 cm channel. Seal the robot and fit thrusters, or sink.',
+    weather: 'clear', starThreshold: 650, leaderboard: false,
+    track: {
+      segments: [
+        { terrain: 'asphalt', lengthM: 6, slopeDeg: 0 },
+        { terrain: 'sand', lengthM: 8, slopeDeg: -3 },
+        { terrain: 'water', lengthM: 5, slopeDeg: 0, depthCm: 15 },
+        { terrain: 'water', lengthM: 14, slopeDeg: 0, depthCm: 90 },
+        { terrain: 'sand', lengthM: 8, slopeDeg: 4 },
+        { terrain: 'grass', lengthM: 5, slopeDeg: 0, obstacle: 'log' },
+        { terrain: 'asphalt', lengthM: 5, slopeDeg: 0 },
+      ],
+    },
+  },
 };
 
 export const MISSION_IDS = Object.keys(MISSIONS) as readonly MissionId[];

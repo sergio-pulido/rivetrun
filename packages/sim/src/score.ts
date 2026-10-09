@@ -26,6 +26,15 @@ export function why(state: RunState): string {
 
   const slope = state.world.segments[state.segmentIndex]!.slopeDeg;
   if (state.dnfReason === 'stuck' && slope >= 5 && !has('imu')) return `Stuck on a ${slope}° ${terrain} slope — no IMU to feel the tilt`;
+  const here = state.world.segments[state.segmentIndex]!;
+  if (state.dnfReason === 'stuck' && here.terrain === 'water' && here.depthCm > 25) {
+    return spec.maxSwimDepthCm > 0
+      ? `Sank in ${here.depthCm} cm of water — too deep even for thrusters`
+      : `Sank in ${here.depthCm} cm of water — sealed, but no thruster kit to swim`;
+  }
+  if (state.dnfReason === 'damage' && here.terrain === 'water' && here.depthCm > 25 && !spec.waterproof) {
+    return `Flooded in ${here.depthCm} cm of water — no waterproof case`;
+  }
   if (state.dnfReason === 'stuck') return `Bogged down on ${terrain} — ${spec.locomotionName.toLowerCase()} could not grip`;
   if (state.dnfReason === 'battery') return `Battery died on ${terrain} at ${Math.round((sim.x / state.world.lengthM) * 100)}% of the track`;
   if (state.dnfReason === 'timeout') return `Ran out of time on ${terrain}`;

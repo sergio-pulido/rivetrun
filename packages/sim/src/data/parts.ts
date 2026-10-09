@@ -83,6 +83,11 @@ export const PARTS: readonly Part[] = [
     massKg: 0.3, costEur: 20, powerW: 0, unlockPoints: 0,
     effects: { extra: 'bumper', impactDamageFactor: 0.5 },
   },
+  {
+    id: 'thruster_kit', name: 'Thruster kit', slot: 'extra', blurb: 'Twin thrusters: a sealed robot cruises under water up to 120 cm deep. Needs the waterproof case.',
+    massKg: 0.12, costEur: 45, powerW: 8, unlockPoints: 0,
+    effects: { extra: 'thruster_kit', requiresExtra: 'waterproof_case', maxSwimDepthCm: 120 },
+  },
 ];
 
 export const PARTS_BY_ID: ReadonlyMap<PartId, Part> = new Map(PARTS.map((part) => [part.id, part]));

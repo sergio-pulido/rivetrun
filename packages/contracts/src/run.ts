@@ -12,7 +12,7 @@ import {
 import { BuildSchema } from './build';
 import { EnvironmentSchema, MissionIdSchema, SeedSchema, TerrainIdSchema } from './world';
 
-export const SimEffectSchema = z.enum(['dust', 'splash', 'mud_spray', 'sparks', 'slip', 'smoke', 'winch']);
+export const SimEffectSchema = z.enum(['dust', 'splash', 'mud_spray', 'sparks', 'slip', 'smoke', 'winch', 'bubbles']);
 export type SimEffect = z.infer<typeof SimEffectSchema>;
 
 /**
@@ -37,6 +37,12 @@ export const SimStateSchema = z.object({
   /** Damage, 0–100 %. */
   damage: z.number().min(0).max(100),
   effects: z.array(SimEffectSchema),
+  /** Depth of the water column at the robot, metres (0 or absent on dry ground and in shallows). */
+  waterDepthM: z.number().min(0).optional(),
+  /** How far the robot is below the surface, metres (0 or absent = not under water). */
+  submergedDepthM: z.number().min(0).optional(),
+  /** True while the thruster kit is propelling the robot under water. */
+  thrusting: z.boolean().optional(),
 });
 export type SimState = z.infer<typeof SimStateSchema>;
 
