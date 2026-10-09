@@ -114,6 +114,7 @@ Implement (React Three Fiber + drei, portrait 390×844 first, DPR ≤1.5, one sh
 - RunScene: 2.5D side view. Terrain strip extruded from segments with distinct materials (asphalt, grass, sand, mud gloss, ice sheen, water surface, rocks). Slopes. Camera follows the Jev robot smoothly.
 - Ghosts: two translucent, desaturated RobotModels on parallel lanes, labelled HEURISTIC and RANDOM, interpolated from GhostTrace frames by sim time.
 - Juice with instanced particles: dust on sand, splash on water, sparks on impact, slip wobble on ice, smoke as damage rises (Jev robot only).
+- Personality: LED-eye face reacting to the last decision (squint on brake, wide on accelerate, X eyes on DNF), wobble on slip, parts fly off and bounce on DNF.
 - WorkshopScene: robot on a workbench, slow turntable, blueprint-grid floor; exports a hook to highlight a slot.
 - Brain HUD (DOM overlay): perceived state summary (unknown shown as "?"), option bars with %, chosen action highlighted, JEV or FALLBACK, latency ms. Slow-mo vignette while a decision is pending. Top bar: time, battery, damage.
 - No page scroll. 60 fps target on a mid-range phone.
@@ -136,7 +137,7 @@ Own: apps/web/app/** pages and layouts (not app/api), apps/web/src/ui/**, global
 Implement
 - Home, Workshop, Brief, Result, Leaderboard, /screen exactly as in the spec's "Screens" section.
 - Workshop: slot picker around the WorkshopCanvas, presets, budget/mass bars, stat bars, locked parts with point cost.
-- Result: score breakdown, stars, Brain Duel table (Jev / Heuristic / Random from the Episode outcome + the two GhostTrace outcomes; stubbed until integration), "why" line, Retry / Upgrade / Submit (nickname) / Download episode (JSON).
+- Result: score breakdown, stars, Brain Duel table (Jev / Heuristic / Random from the Episode outcome + the two GhostTrace outcomes; stubbed until integration), "why" line, Retry / Upgrade / Submit (nickname) / Share (Web Share API, fallback copy) / Download episode (JSON).
 - /screen: auto-refresh every 5 s, QR to the site URL generated client-side.
 - Progression (points, unlocked parts) in localStorage, wrapped in try/catch; the game works without it.
 - First-time path: Home → Play → M1 with the All-rounder preset, zero choices before the first run.
@@ -149,8 +150,11 @@ Route to: Claude Code · Model tier: Sonnet · Effort: M · Touches: apps/web/ap
 
 ---
 
+## Tonight milestone
+- ~22:15 session: integrate-m1 wires sim + render + ui for M1 with heuristicBrain (Jev if brain merged). Deployed URL plays M1 end to end on a phone before 23:00. If it slips, it is the first job on Saturday.
+
 ## Saturday (prompts written in the morning against what merged)
-- 08:00 integration: merge sim → brain → render → ui; on run start call runHeadless for heuristic + random and pass ghosts to RunCanvas; wire runController + clientBrain.
+- 08:00 integration (remaining): merge sim → brain → render → ui; on run start call runHeadless for heuristic + random and pass ghosts to RunCanvas; wire runController + clientBrain.
 - balance: agent runs packages/sim/scripts/balance.ts in a loop and tunes src/data until each mission has a clear "right build".
 - benchmark: full run of packages/brain/scripts/benchmark.ts → docs/BENCHMARK.md.
 - qa: Playwright on mobile viewports, slow network, Jev down (fallback path).
