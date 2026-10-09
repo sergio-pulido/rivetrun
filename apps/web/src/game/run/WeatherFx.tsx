@@ -13,10 +13,13 @@ const STREAK = new BoxGeometry(1, 1, 1);
 
 interface WeatherFxProps {
   weather: Weather;
+  /** 0–1: fraction of the streaks / flakes to draw. */
+  budget?: number;
 }
 
 /** Rain streaks or drifting snow in a box that follows the camera. */
-export function WeatherFx({ weather }: WeatherFxProps) {
+export function WeatherFx({ weather, budget = 1 }: WeatherFxProps) {
+  const count = Math.round(COUNT * budget);
   const mesh = useRef<InstancedMesh>(null);
   const camera = useThree((state) => state.camera);
   const snow = weather === 'cold';
@@ -32,7 +35,7 @@ export function WeatherFx({ weather }: WeatherFxProps) {
     if (!node) return;
     const t = clock.elapsedTime;
     const fall = snow ? 1.6 : 19;
-    for (let i = 0; i < COUNT; i += 1) {
+    for (let i = 0; i < count; i += 1) {
       const [a, b, c] = seeds[i]!;
       const y = BOX_Y - ((b * BOX_Y + t * fall * (0.7 + a * 0.6)) % BOX_Y);
       const sway = snow ? Math.sin(t * 1.3 + i) * 0.5 : -(BOX_Y - y) * 0.12;
@@ -46,5 +49,5 @@ export function WeatherFx({ weather }: WeatherFxProps) {
   });
 
   if (weather === 'clear') return null;
-  return <instancedMesh ref={mesh} args={[STREAK, material, COUNT]} frustumCulled={false} />;
+  return <instancedMesh key={count} ref={mesh} args={[STREAK, material, count]} frustumCulled={false} />;
 }

@@ -3,6 +3,7 @@
 import { useFrame } from '@react-three/fiber';
 import { useContext, useRef, type ReactNode } from 'react';
 import type { Group, Mesh } from 'three';
+import { BAKE_STOP, Bake } from './bake';
 import { RobotContext } from './drive';
 import { useMats } from './materials';
 import { Part } from './Part';
@@ -42,14 +43,14 @@ function Camera({ floor }: AttachmentProps) {
     <Part position={[0.56, 0.2, -0.16]} floor={floor + 0.1}>
       <Box s={[0.07, 0.4, 0.07]} p={[0, 0.2, 0]} m={m.print} />
       <Box s={[0.14, 0.05, 0.12]} p={[0, 0.02, 0]} m={m.printDark} />
-      <group ref={pan} position={[0, 0.46, 0]}>
+      <Bake ref={pan} position={[0, 0.46, 0]}>
         <Box s={[0.14, 0.12, 0.16]} p={[0, -0.02, 0]} m={m.servo} />
         <Box s={[0.03, 0.24, 0.24]} p={[0.09, 0.08, 0]} m={m.pcb} />
         <Box s={[0.05, 0.11, 0.11]} p={[0.12, 0.1, 0]} m={m.chip} />
         <Cyl rad={0.05} h={0.08} axis="x" p={[0.17, 0.1, 0]} m={m.chip} seg={12} />
         <Cyl rad={0.03} h={0.085} axis="x" p={[0.172, 0.1, 0]} m={m.ledBlue} seg={10} shadow={false} />
         <Box s={[0.02, 0.2, 0.1]} p={[0.07, -0.04, 0]} m={m.label} shadow={false} />
-      </group>
+      </Bake>
     </Part>
   );
 }
@@ -104,17 +105,17 @@ function Winch({ floor }: AttachmentProps) {
   return (
     <Part position={[0.66, 0.04, 0.16]} floor={floor + 0.1}>
       <Box s={[0.22, 0.05, 0.36]} p={[0, 0.025, 0]} m={m.printDark} />
-      <group ref={drum} position={[0, 0.17, 0]}>
+      <Bake ref={drum} position={[0, 0.17, 0]}>
         <Cyl rad={0.085} h={0.24} axis="z" m={m.cable} seg={12} />
         <Cyl rad={0.14} h={0.03} axis="z" p={[0, 0, 0.13]} m={m.print} seg={8} />
         <Cyl rad={0.14} h={0.03} axis="z" p={[0, 0, -0.13]} m={m.print} seg={8} />
-      </group>
+      </Bake>
       <Box s={[0.16, 0.14, 0.12]} p={[-0.14, 0.12, -0.1]} m={m.servo} />
-      <group ref={hook} position={[0.2, 0.08, 0]}>
+      <group ref={hook} position={[0.2, 0.08, 0]} userData={BAKE_STOP}>
         <Box s={[0.14, 0.02, 0.02]} p={[-0.06, 0.04, 0]} r={[0, 0, -0.6]} m={m.cable} shadow={false} />
         <mesh geometry={HALF_RING} material={m.finRed} scale={0.05} position={[0.02, -0.03, 0]} castShadow />
       </group>
-      <group ref={cable} position={[0.06, 0.2, 0]} rotation={[0, 0, 0.16]} visible={false}>
+      <group ref={cable} position={[0.06, 0.2, 0]} rotation={[0, 0, 0.16]} visible={false} userData={BAKE_STOP}>
         <Box s={[3.2, 0.018, 0.018]} p={[1.6, 0, 0]} m={m.cable} shadow={false} />
         <mesh geometry={HALF_RING} material={m.finRed} scale={0.06} position={[3.24, 0, 0]} />
       </group>

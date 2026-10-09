@@ -4,16 +4,17 @@ import { useFrame } from '@react-three/fiber';
 import { useContext, useRef } from 'react';
 import { DoubleSide, MeshBasicMaterial, MeshStandardMaterial, type Group } from 'three';
 import { UI } from '../palette';
+import { BAKE_STOP, Bake } from './bake';
 import { RobotContext } from './drive';
-import { useMats } from './materials';
+import { useMats, withBakeKey } from './materials';
 import { Part } from './Part';
 import { Box, Cyl, SPHERE } from './primitives';
 
-const SHELL = new MeshStandardMaterial({ color: '#23272e', roughness: 0.45, metalness: 0.3 });
-const ARM = new MeshStandardMaterial({ color: '#5b6470', roughness: 0.5, metalness: 0.4 });
+const SHELL = withBakeKey(new MeshStandardMaterial({ color: '#23272e', roughness: 0.45, metalness: 0.3 }), 'metal');
+const ARM = withBakeKey(new MeshStandardMaterial({ color: '#5b6470', roughness: 0.5, metalness: 0.4 }), 'metal');
 const LENS = new MeshStandardMaterial({ color: '#141518', roughness: 0.15, metalness: 0.6 });
 const DISC = new MeshBasicMaterial({ color: '#c9d6e6', transparent: true, opacity: 0.32, depthWrite: false, side: DoubleSide });
-const TRIM = new MeshBasicMaterial({ color: UI.cyan, toneMapped: false });
+const TRIM = withBakeKey(new MeshBasicMaterial({ color: UI.cyan, toneMapped: false }), 'glow');
 const BEACON = new MeshBasicMaterial({ color: UI.safety, toneMapped: false });
 
 const ROTOR_OFFSET = 0.2;
@@ -39,7 +40,7 @@ export function DroneModel() {
   });
 
   return (
-    <group dispose={null}>
+    <Bake>
       <Box s={[0.26, 0.1, 0.2]} m={SHELL} />
       <Box s={[0.27, 0.016, 0.21]} p={[0, 0.012, 0]} m={TRIM} shadow={false} />
       <Box s={[0.14, 0.03, 0.12]} p={[-0.02, 0.06, 0]} m={ARM} />
@@ -51,6 +52,7 @@ export function DroneModel() {
           <Cyl rad={ROTOR_RADIUS} h={0.004} p={[0, 0.05, 0]} m={DISC} seg={18} shadow={false} />
           <group
             position={[0, 0.052, 0]}
+            userData={BAKE_STOP}
             ref={(node) => {
               blades.current[i] = node;
             }}
@@ -68,7 +70,7 @@ export function DroneModel() {
       {[1, -1].map((side) => (
         <Box key={side} s={[0.22, 0.014, 0.014]} p={[0, -0.09, side * 0.11]} m={ARM} shadow={false} />
       ))}
-    </group>
+    </Bake>
   );
 }
 

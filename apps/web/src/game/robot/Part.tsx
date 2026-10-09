@@ -3,6 +3,7 @@
 import { useFrame } from '@react-three/fiber';
 import { useContext, useRef, type ReactNode } from 'react';
 import type { Group } from 'three';
+import { bakeRootData, useBake } from './bake';
 import { RobotContext } from './drive';
 import type { V3 } from './primitives';
 
@@ -32,6 +33,7 @@ const POP_S = 0.38;
 export function Part({ children, position = [0, 0, 0], rotation = [0, 0, 0], floor = -0.4 }: PartProps) {
   const context = useContext(RobotContext);
   const group = useRef<Group>(null);
+  useBake(group);
   const pop = useRef(context?.popIn ? 0 : 1);
   const flight = useRef<Flight>({ active: false, vx: 0, vy: 0, vz: 0, wx: 0, wy: 0, wz: 0, delay: 0 });
 
@@ -93,7 +95,7 @@ export function Part({ children, position = [0, 0, 0], rotation = [0, 0, 0], flo
   });
 
   return (
-    <group ref={group} position={position as [number, number, number]} rotation={rotation as [number, number, number]} scale={context?.popIn ? 0.001 : 1}>
+    <group ref={group} position={position as [number, number, number]} rotation={rotation as [number, number, number]} scale={context?.popIn ? 0.001 : 1} userData={bakeRootData}>
       {children}
     </group>
   );

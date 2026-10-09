@@ -1,10 +1,18 @@
 import { createContext, useContext } from 'react';
 import { MeshBasicMaterial, MeshStandardMaterial, type Material } from 'three';
 
-const std = (color: string, roughness: number, metalness = 0, extra: Partial<MeshStandardMaterial> = {}): MeshStandardMaterial =>
-  Object.assign(new MeshStandardMaterial({ color, roughness, metalness }), extra);
+/** bakeKey: which merged material class a part joins (see bake.tsx). Transparent parts stay on their own. */
+export const withBakeKey = <T extends Material>(material: T, key: string): T => {
+  material.userData.bakeKey = key;
+  return material;
+};
 
-const glow = (color: string): MeshBasicMaterial => new MeshBasicMaterial({ color, toneMapped: false });
+const std = (color: string, roughness: number, metalness = 0, extra: Partial<MeshStandardMaterial> = {}): MeshStandardMaterial => {
+  const material = Object.assign(new MeshStandardMaterial({ color, roughness, metalness }), extra);
+  return extra.transparent ? material : withBakeKey(material, metalness >= 0.2 ? 'metal' : 'matte');
+};
+
+const glow = (color: string): MeshBasicMaterial => withBakeKey(new MeshBasicMaterial({ color, toneMapped: false }), 'glow');
 
 /** Shared maker-part materials. One instance each, reused by every robot. */
 function createMaterials() {
@@ -66,6 +74,10 @@ export function ghostMaterials(tint: string): RobotMaterials {
     color: tint, emissive: tint, emissiveIntensity: 0.05, roughness: 0.8, transparent: true, opacity: 0.42, depthWrite: false,
   });
   const lit = new MeshBasicMaterial({ color: tint, transparent: true, opacity: 0.8, toneMapped: false });
+  // Ghost parts merge too, but keep their own translucent material (no shared vertex-colour target).
+  withBakeKey(body, `ghost:${tint}:body`);
+  withBakeKey(dark, `ghost:${tint}:dark`);
+  withBakeKey(lit, `ghost:${tint}:lit`);
   const base = robotMaterials();
   const darkKeys = new Set<string>(['rubber', 'rubberLight', 'servo', 'chip', 'head', 'screen', 'wireBlack']);
   const entries = Object.keys(base).map((key) => [key, key.startsWith('led') ? lit : darkKeys.has(key) ? dark : body]);

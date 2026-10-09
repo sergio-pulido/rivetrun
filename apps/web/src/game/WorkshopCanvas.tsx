@@ -3,7 +3,7 @@
 import { Canvas } from '@react-three/fiber';
 import type { Build } from '@rivetrun/contracts';
 import { DEFAULT_PRESET_ID, PRESETS } from '@rivetrun/sim';
-import { MAX_DPR } from './RunCanvas';
+import { quality } from './quality';
 import { WorkshopScene } from './workshop/WorkshopScene';
 
 export interface WorkshopCanvasProps {
@@ -17,7 +17,7 @@ export default function WorkshopCanvas({ build = PRESETS[DEFAULT_PRESET_ID].buil
   return (
     <Canvas
       shadows
-      dpr={[1, MAX_DPR]}
+      dpr={[1, quality().maxDpr]}
       camera={{ fov: 34, near: 0.2, far: 60, position: [0, 3, 7] }}
       gl={{ antialias: true, alpha: true }}
       // pan-y: vertical swipes still scroll the page; horizontal drags spin the turntable.

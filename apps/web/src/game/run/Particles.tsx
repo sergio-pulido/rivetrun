@@ -69,13 +69,17 @@ interface ParticlesProps {
   ref: Ref<ParticleEmitter>;
   /** Slow-mo: particles follow sim time. */
   timeScale: RefObject<number>;
+  /** 0–1: scales pool sizes and every emission (0.5 on weak devices). */
+  budget?: number;
 }
 
 /** Instanced low-poly particles: dust, splash, mud, sparks, smoke, ice chips. Two draw calls. */
-export function Particles({ ref, timeScale }: ParticlesProps) {
+export function Particles({ ref, timeScale, budget = 1 }: ParticlesProps) {
   const lit = useRef<InstancedMesh>(null);
   const bright = useRef<InstancedMesh>(null);
-  const pools = useMemo(() => ({ lit: createPool(CAPACITY), bright: createPool(BRIGHT_CAPACITY) }), []);
+  const sizes = useMemo(() => ({ lit: Math.round(CAPACITY * budget), bright: Math.round(BRIGHT_CAPACITY * budget) }), [budget]);
+  const pools = useMemo(() => ({ lit: createPool(sizes.lit), bright: createPool(sizes.bright) }), [sizes]);
+  const carry = useRef(0);
   const materials = useMemo(
     () => ({
       lit: new MeshLambertMaterial({ flatShading: true, transparent: true, opacity: 0.6, depthWrite: false }),
@@ -91,7 +95,11 @@ export function Particles({ ref, timeScale }: ParticlesProps) {
       const pool = spec.bright ? pools.bright : pools.lit;
       const mesh = spec.bright ? bright.current : lit.current;
       if (!mesh) return;
-      for (let n = 0; n < count; n += 1) {
+      // Fractional budgets accumulate, so a stream of single particles still thins out evenly.
+      carry.current += count * budget;
+      const spawn = Math.floor(carry.current);
+      carry.current -= spawn;
+      for (let n = 0; n < spawn; n += 1) {
         const i = pool.cursor;
         pool.cursor = (pool.cursor + 1) % pool.capacity;
         pool.kind[i] = kind;
@@ -109,7 +117,7 @@ export function Particles({ ref, timeScale }: ParticlesProps) {
       }
       if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
     },
-  }), [pools, scratch]);
+  }), [pools, scratch, budget]);
 
   useFrame((_, rawDt) => {
     const dt = Math.min(rawDt, 0.05) * (timeScale.current ?? 1);
@@ -152,8 +160,8 @@ export function Particles({ ref, timeScale }: ParticlesProps) {
 
   return (
     <>
-      <instancedMesh ref={lit} args={[SHAPE, materials.lit, CAPACITY]} frustumCulled={false} />
-      <instancedMesh ref={bright} args={[SHAPE, materials.bright, BRIGHT_CAPACITY]} frustumCulled={false} />
+      <instancedMesh key={`lit${sizes.lit}`} ref={lit} args={[SHAPE, materials.lit, sizes.lit]} frustumCulled={false} />
+      <instancedMesh key={`bright${sizes.bright}`} ref={bright} args={[SHAPE, materials.bright, sizes.bright]} frustumCulled={false} />
     </>
   );
 }

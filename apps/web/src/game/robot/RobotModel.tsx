@@ -77,7 +77,7 @@ export function RobotModel({ build, drive, state, action, expression, dnf = fals
             <Locomotion key={build.locomotion} id={build.locomotion} />
             <group position={[0, geo.deckY, 0]}>
               <Chassis key={`chassis-${build.locomotion}`} geo={geo} floor={floor} />
-              <Motors key={`${build.motor}-${build.locomotion}`} id={build.motor} geo={geo} floor={floor} />
+              {!lite && <Motors key={`${build.motor}-${build.locomotion}`} id={build.motor} geo={geo} floor={floor} />}
               <Battery key={build.battery} id={build.battery} floor={floor} />
               <Controller floor={floor} />
               <Face floor={floor} />

@@ -3,6 +3,7 @@
 import { useFrame } from '@react-three/fiber';
 import { useContext, useMemo, useRef } from 'react';
 import { ExtrudeGeometry, Object3D, Path, Shape, type Group, type InstancedMesh } from 'three';
+import { BAKE_TAG, Bake } from './bake';
 import { RobotContext, locomotionGeometry } from './drive';
 import { useMats } from './materials';
 import { Part } from './Part';
@@ -11,6 +12,7 @@ import { Box, Cyl } from './primitives';
 const SIDES = [1, -1] as const;
 const AXLES = [1, -1] as const;
 const KNOBS = Array.from({ length: 14 }, (_, i) => (i / 14) * Math.PI * 2);
+const KNOBS_LITE = KNOBS.filter((_, i) => i % 2 === 0);
 const SPOKES = Array.from({ length: 5 }, (_, i) => (i / 5) * Math.PI * 2);
 const SLOTS = Array.from({ length: 3 }, (_, i) => (i / 3) * Math.PI * 2);
 
@@ -40,7 +42,7 @@ function StreetWheels() {
           slot += 1;
           return (
             <Part key={`${ax}${side}`} position={[ax * halfBase, radius, side * halfTrack]} floor={radius * 0.5}>
-              <group
+              <Bake
                 ref={(node) => {
                   wheels.current[index] = node;
                 }}
@@ -58,7 +60,7 @@ function StreetWheels() {
                     shadow={false}
                   />
                 ))}
-              </group>
+              </Bake>
             </Part>
           );
         }),
@@ -82,13 +84,13 @@ function OffroadWheels() {
           slot += 1;
           return (
             <Part key={`${ax}${side}`} position={[ax * halfBase, radius, side * halfTrack]} floor={radius * 0.5}>
-              <group
+              <Bake
                 ref={(node) => {
                   wheels.current[index] = node;
                 }}
               >
                 <Cyl rad={radius * 0.93} h={0.26} axis="z" m={m.rubber} seg={18} />
-                {KNOBS.map((angle, i) => (
+                {(lite ? KNOBS_LITE : KNOBS).map((angle, i) => (
                   <Box
                     key={angle}
                     s={[0.1, 0.075, lite ? 0.27 : 0.12]}
@@ -111,7 +113,7 @@ function OffroadWheels() {
                   />
                 ))}
                 <Cyl rad={0.055} h={0.31} axis="z" m={m.steel} seg={8} />
-              </group>
+              </Bake>
             </Part>
           );
         }),
@@ -210,7 +212,7 @@ function Tracks() {
     <>
       {SIDES.map((side, sideIndex) => (
         <Part key={side} position={[0, radius, side * halfTrack]} floor={radius}>
-          <mesh geometry={belt} material={m.rubber} castShadow={!context?.lite} />
+          <mesh geometry={belt} material={m.rubber} castShadow={!context?.lite} userData={BAKE_TAG} />
           <instancedMesh
             ref={(node) => {
               cleats.current[sideIndex] = node;
@@ -222,7 +224,7 @@ function Tracks() {
             <boxGeometry args={[0.05, 0.05, BELT_WIDTH + 0.03]} />
           </instancedMesh>
           {AXLES.map((ax, axleIndex) => (
-            <group
+            <Bake
               key={ax}
               position={[ax * halfBase, 0, 0]}
               ref={(node) => {
@@ -234,7 +236,7 @@ function Tracks() {
               {SLOTS.map((angle) => (
                 <Box key={angle} s={[0.1, 0.04, BELT_WIDTH - 0.02]} p={[Math.cos(angle) * 0.1, Math.sin(angle) * 0.1, 0]} r={[0, 0, angle]} m={m.chip} shadow={false} />
               ))}
-            </group>
+            </Bake>
           ))}
           {[-0.3, 0, 0.3].map((x) => (
             <Cyl key={x} rad={0.085} h={BELT_WIDTH - 0.06} axis="z" p={[x, -radius + 0.13, 0]} m={m.darkSteel} seg={10} />

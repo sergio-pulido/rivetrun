@@ -7,10 +7,11 @@ import { DEFAULT_PRESET_ID, MISSIONS, PRESETS } from '@rivetrun/sim';
 import { createFakeRun, fakeGhostTrace } from './fakeRun';
 import { RunHud } from './hud/RunHud';
 import { UI } from './palette';
+import { quality } from './quality';
 import { RunScene } from './run/RunScene';
 import { createRunFeed, type RunFeed } from './runFeed';
 
-/** Mobile performance budget from the spec. */
+/** Mobile performance budget from the spec. Weak devices drop to 1 (see quality.ts). */
 export const MAX_DPR = 1.5;
 
 export interface RunCanvasProps {
@@ -67,21 +68,24 @@ export default function RunCanvas({ mission = MISSIONS.M5, build = PRESETS[DEFAU
   const activeFeed = feed ?? demo.feed;
   const activeGhosts = ghosts ?? demo.ghosts;
   const [lost, setLost] = useState(false);
+  const tier = quality();
 
   return (
     <div className="relative h-full w-full overflow-hidden" style={{ background: UI.ink }}>
       <Canvas
         shadows
-        dpr={[1, MAX_DPR]}
+        dpr={[1, tier.maxDpr]}
         camera={{ fov: 38, near: 0.5, far: 420, position: [0, 6, 20] }}
         gl={{ antialias: true, powerPreference: 'high-performance' }}
         style={{ position: 'absolute', inset: 0, touchAction: 'none' }}
-        onCreated={({ gl }) => {
+        onCreated={({ gl, scene }) => {
           gl.domElement.addEventListener('webglcontextlost', () => setLost(true));
           gl.domElement.addEventListener('webglcontextrestored', () => setLost(false));
+          // Dev only: read draw calls from the console (window.__rivetrun.info.render.calls).
+          if (process.env.NODE_ENV !== 'production') (window as unknown as { __rivetrun?: unknown }).__rivetrun = { info: gl.info, scene };
         }}
       >
-        <RunScene mission={mission} build={build} feed={activeFeed} ghosts={activeGhosts} />
+        <RunScene mission={mission} build={build} feed={activeFeed} ghosts={activeGhosts} particleBudget={tier.particles} />
       </Canvas>
       {lost && (
         <div className="absolute inset-0 flex items-center justify-center font-mono text-xs" style={{ color: UI.dim }}>

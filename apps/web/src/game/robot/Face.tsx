@@ -5,6 +5,7 @@ import { useContext, useMemo, useRef } from 'react';
 import { MeshBasicMaterial, type Group, type Mesh } from 'three';
 import { UI } from '../palette';
 import { damp } from '../rng';
+import { Bake } from './bake';
 import { RobotContext, type Expression } from './drive';
 import { useMats } from './materials';
 import { Part } from './Part';
@@ -157,7 +158,7 @@ export function Face({ floor }: FaceProps) {
     <Part position={[0.04, 0.19, 0]} floor={floor + 0.15}>
       <Box s={[0.16, 0.12, 0.2]} p={[0, 0.06, 0]} m={m.servo} />
       <Cyl rad={0.035} h={0.36} p={[0, 0.3, 0]} m={m.steel} seg={8} />
-      <group ref={head} position={[0, 0.56, 0]} rotation={[0, BASE_YAW, 0]}>
+      <Bake ref={head} position={[0, 0.56, 0]} rotation={[0, BASE_YAW, 0]}>
         <Box s={[0.52, 0.34, 0.26]} m={m.head} />
         <Box s={[0.56, 0.06, 0.3]} p={[0, 0.17, 0]} m={m.print} />
         <Box s={[0.04, 0.2, 0.1]} p={[0.28, 0, 0]} m={m.print} />
@@ -179,7 +180,7 @@ export function Face({ floor }: FaceProps) {
         </mesh>
         <Cyl rad={0.012} h={0.26} p={[-0.18, 0.32, -0.06]} m={m.steel} seg={5} />
         <mesh ref={tip} geometry={SPHERE} material={m.ledOrange} scale={0.035} position={[-0.18, 0.46, -0.06]} />
-      </group>
+      </Bake>
     </Part>
   );
 }

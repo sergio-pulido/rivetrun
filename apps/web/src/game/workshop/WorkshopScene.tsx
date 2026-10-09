@@ -7,6 +7,7 @@ import { CanvasTexture, MeshBasicMaterial, SRGBColorSpace, type Group, type Pers
 import type { Build } from '@rivetrun/contracts';
 import { UI } from '../palette';
 import { damp } from '../rng';
+import { Bake } from '../robot/bake';
 import { restDrive, type RobotDrive } from '../robot/drive';
 import { robotMaterials } from '../robot/materials';
 import { Box, Cyl } from '../robot/primitives';
@@ -233,6 +234,7 @@ export function WorkshopScene({ build, spin = 0.45 }: WorkshopSceneProps) {
 
       <group ref={table} rotation={[0, -0.6, 0]}>
         <group dispose={null}>
+          <Bake>
           <Cyl rad={1.62} h={0.06} p={[0, 0.03, 0]} m={m.darkSteel} seg={48} />
           <Cyl rad={1.5} h={0.1} p={[0, 0.05, 0]} m={m.servo} seg={48} />
           <Cyl rad={1.38} h={0.11} p={[0, 0.055, 0]} m={m.head} seg={48} />
@@ -246,6 +248,7 @@ export function WorkshopScene({ build, spin = 0.45 }: WorkshopSceneProps) {
               shadow={false}
             />
           ))}
+          </Bake>
         </group>
         <group position={[0, 0.11, 0]}>
           <RobotModel build={build} drive={drive} popIn />

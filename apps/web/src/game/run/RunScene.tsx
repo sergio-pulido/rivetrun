@@ -279,10 +279,12 @@ export interface RunSceneProps {
   feed: RunFeed;
   /** Brain Duel traces (HEURISTIC, RANDOM), each on its own lane. */
   ghosts?: readonly GhostTrace[];
+  /** 0–1: particle and weather budget (0.5 on weak devices). */
+  particleBudget?: number;
 }
 
 /** The 2.5D run view. Mount inside an R3F <Canvas>. Reads sim state only: no physics here. */
-export function RunScene({ mission, build, feed, ghosts = [] }: RunSceneProps) {
+export function RunScene({ mission, build, feed, ghosts = [], particleBudget = 1 }: RunSceneProps) {
   const layout = useMemo(() => layoutTrack(mission.track), [mission.track]);
   const sky = SKY[mission.weather];
   const pose = useRef<Pose>(restPose());
@@ -331,14 +333,14 @@ export function RunScene({ mission, build, feed, ghosts = [] }: RunSceneProps) {
       <Backdrop layout={layout} weather={mission.weather} />
       <Terrain layout={layout} />
       <Dressing layout={layout} />
-      <WeatherFx weather={mission.weather} />
+      <WeatherFx weather={mission.weather} budget={particleBudget} />
 
       {ghosts.map((trace) => (
         <Ghost key={trace.policy} trace={trace} build={build} layout={layout} pose={pose} timeScale={timeScale} />
       ))}
       <Player feed={feed} build={build} layout={layout} pose={pose} timeScale={timeScale} particles={particles} />
       {hasDrone && <ScoutDroneRig feed={feed} layout={layout} pose={pose} />}
-      <Particles ref={particles} timeScale={timeScale} />
+      <Particles ref={particles} timeScale={timeScale} budget={particleBudget} />
       <CameraRig pose={pose} light={sun} startX={0} wide={hasDrone} />
     </>
   );
