@@ -1,10 +1,12 @@
 'use client';
 
 import type { LeaderboardEntry } from '@rivetrun/contracts';
-import type { ReactNode } from 'react';
+import { useRouter } from 'next/navigation';
+import { useState, type ReactNode } from 'react';
 import { POLICY_LABEL, formatDamage, formatScore, formatTime } from '../leaderboard/_lib/format';
 import { LiveBadge } from '../leaderboard/_lib/LiveBadge';
 import { useLeaderboard } from '../leaderboard/_lib/useLeaderboard';
+import { RaceSnapshotSchema } from '../race/_lib/protocol';
 
 const ROWS_PER_COLUMN = 10;
 
@@ -79,6 +81,33 @@ interface ScreenClientProps {
   readonly qr: ReactNode;
 }
 
+/** Opens a Room Race room and switches this screen to it. */
+function RoomRaceButton() {
+  const router = useRouter();
+  const [state, setState] = useState<'idle' | 'opening' | 'failed'>('idle');
+  const open = async (): Promise<void> => {
+    setState('opening');
+    try {
+      const response = await fetch('/api/race', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+      if (!response.ok) throw new Error(`create room responded ${response.status}`);
+      const room = RaceSnapshotSchema.parse(await response.json());
+      router.push(`/screen?room=${room.code}`);
+    } catch {
+      setState('failed');
+    }
+  };
+  return (
+    <button
+      type="button"
+      onClick={() => void open()}
+      disabled={state === 'opening'}
+      className="rr-btn rr-btn-primary px-[1.6vw] text-[clamp(1rem,1.5vw,2rem)]"
+    >
+      {state === 'opening' ? 'Opening…' : state === 'failed' ? 'Could not open a room. Retry' : 'Start a Room Race'}
+    </button>
+  );
+}
+
 export function ScreenClient({ siteUrl, qr }: ScreenClientProps) {
   const feed = useLeaderboard('M5');
   const top = feed.entries[0];
@@ -93,7 +122,10 @@ export function ScreenClient({ siteUrl, qr }: ScreenClientProps) {
             Room Challenge
           </h1>
         </div>
-        <LiveBadge feed={feed} className="text-[clamp(1rem,1.5vw,2rem)]" />
+        <div className="flex items-center gap-[1.4vw]">
+          <LiveBadge feed={feed} className="text-[clamp(1rem,1.5vw,2rem)]" />
+          <RoomRaceButton />
+        </div>
       </header>
 
       <div className="hazard h-[0.8vh] min-h-1.5 shrink-0 rounded-full" />
