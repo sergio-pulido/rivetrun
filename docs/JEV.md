@@ -131,3 +131,9 @@ Exact JSON error body schema: UNKNOWN (docs say only "a JSON body describing wha
 - Error body schema.
 - Whether responses are deterministic for identical requests.
 - CORS behaviour (irrelevant for us: calls are server-side only).
+
+## Measured on 2026-10-09 (live calls, `jev-1.13.0`)
+- The documented request/response shape works as written above; the API reports model `jev-1.13.0`.
+- Latency over 844 benchmark decisions (6 runs in flight, no cache): p50 376 ms, p95 479 ms, max 816 ms. See `docs/BENCHMARK.md`.
+- First question wording made Jev park in front of hazards (it chose `brake` at 77–90 % when stopped before shallow water or facing a rock), which ended runs as `stuck`. The tuned wording in `packages/brain/src/index.ts` states the goal (reach the finish), gives a literal rule per priority band and names a level for every number. `pnpm --filter @rivetrun/brain tune` replays the 6 test states.
+- Option order: asking the same 6 states with the options reversed did not change the selected action; probabilities moved by up to about 20 points on close calls.

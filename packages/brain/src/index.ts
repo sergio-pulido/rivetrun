@@ -42,7 +42,7 @@ export interface JevRequest {
   readonly model: string;
   readonly state: {
     readonly perceived: Perception;
-    readonly robot: BrainQuestion['status'];
+    readonly robot: BrainQuestion['status'] & { readonly motion: 'stopped' | 'moving' };
   };
   readonly questions: {
     readonly action: {
@@ -60,14 +60,17 @@ const assertServer = (): void => {
 };
 
 const ACTION_MEANING: Readonly<Record<Action, string>> = {
-  cruise: 'Hold the current speed.',
-  accelerate: 'Speed up.',
-  slow_down: 'Reduce speed.',
-  brake: 'Stop.',
-  reverse: 'Back up.',
-  climb_mode: 'Low gear, high torque for slopes and steps.',
-  deploy_winch: 'Pull the robot forward with the winch.',
+  cruise: 'Keep driving at the current pace.',
+  accelerate: 'Drive faster.',
+  slow_down: 'Keep driving forward, slower and more carefully.',
+  brake: 'Stop and wait. The robot does not advance.',
+  reverse: 'Drive backwards, away from the finish.',
+  climb_mode: 'Keep driving forward in low gear with high torque (slopes, steps, rough ground).',
+  deploy_winch: 'Pull the robot forward with the winch (when wheels slip or the robot is bogged down).',
 };
+
+const STOPPED_SPEED_MPS = 0.1;
+const STALL_PROGRESS_M = 0.15;
 
 const round = (value: number, digits: number): number => {
   const factor = 10 ** digits;
@@ -75,27 +78,27 @@ const round = (value: number, digits: number): number => {
 };
 
 // Jev reads named buckets better than raw numbers (docs/JEV.md, jaggedness), so every number gets one.
-const damageBucket = (pct: number): string => (pct <= 0 ? 'none' : pct < 3 ? 'light' : pct < 10 ? 'moderate' : 'heavy');
+const damageBucket = (pct: number): string =>
+  pct < 1 ? 'negligible' : pct < 4 ? 'light' : pct < 12 ? 'moderate' : 'heavy';
 const energyBucket = (pct: number): string => (pct < 0.5 ? 'low' : pct < 1.5 ? 'medium' : 'high');
 const progressBucket = (m: number, best: number): string => {
-  if (m <= 0) return m < 0 ? 'backwards' : 'none';
+  if (m < 0) return 'backwards, loses ground';
+  if (m < STALL_PROGRESS_M) return 'none, the robot stays where it is';
   if (best <= 0) return 'some';
   const share = m / best;
-  return share >= 0.9 ? 'best' : share >= 0.5 ? 'good' : 'little';
+  return share >= 0.9 ? 'most' : share >= 0.6 ? 'good' : share >= 0.3 ? 'some' : 'little';
 };
 
-const priorityText = (priority: number): string => {
-  const label =
-    priority <= 0.2
-      ? 'pure speed: maximise progress, accept damage and energy use'
-      : priority < 0.4
-        ? 'mostly speed: prefer progress, avoid only heavy damage'
-        : priority <= 0.6
-          ? 'balanced: trade progress against damage evenly'
-          : priority < 0.8
-            ? 'mostly safety: avoid damage, accept slower progress'
-            : 'pure safety: minimise damage first, progress second';
-  return `${round(priority, 2)} on a scale from 0 (pure speed) to 1 (pure safety), i.e. ${label}`;
+/** The exact rule Jev applies, stated literally (docs/JEV.md: literal reading). */
+const priorityRule = (priority: number): string => {
+  const value = round(priority, 2);
+  if (priority <= 0.25) {
+    return `The player priority is ${value} on a scale from 0 (pure speed) to 1 (pure safety): SPEED. Pick the option with the most progress unless its damage is heavy.`;
+  }
+  if (priority < 0.75) {
+    return `The player priority is ${value} on a scale from 0 (pure speed) to 1 (pure safety): BALANCED. Pick the option with the most progress among those with negligible or light damage.`;
+  }
+  return `The player priority is ${value} on a scale from 0 (pure speed) to 1 (pure safety): SAFETY. Pick the option with the most progress among those with negligible damage; if none has negligible damage, pick the one with the least damage that still moves forward.`;
 };
 
 const describeOption = (action: Action, entry: LookaheadEntry | undefined, bestProgress: number): string => {
@@ -118,18 +121,24 @@ export function buildJevRequest(question: BrainQuestion, model: string = JEV_MOD
   const criteria = Object.fromEntries(
     question.options.map((action) => [action, describeOption(action, byAction.get(action), bestProgress)]),
   );
+  const stopped = Math.abs(question.status.speedMps) < STOPPED_SPEED_MPS;
   return {
     model,
-    state: { perceived: question.perceived, robot: question.status },
+    state: {
+      perceived: question.perceived,
+      robot: { ...question.status, motion: stopped ? 'stopped' : 'moving' },
+    },
     questions: {
       [QUESTION_ID]: {
         type: 'choice',
         instructions:
-          'Which driving action should the robot take for the next 1.5 seconds? ' +
-          `The player priority is ${priorityText(question.priority)}. ` +
-          'Each option states its predicted outcome from a forward simulation on the sensor readings in `perceived`; ' +
-          'a reading of "unknown" means the robot has no sensor for it, so the prediction may miss that hazard. ' +
-          '`robot` is the current speed, battery and damage. Pick the option that best serves the player priority.',
+          'A robot is racing along a track and must reach the finish line; a robot that stops or goes backwards never finishes and loses the race. ' +
+          'Which driving action should it take for the next 1.5 seconds? ' +
+          'Each option states its predicted progress, damage and energy from a forward simulation, each with a named level in brackets. ' +
+          'Damage is cumulative and the robot is only destroyed at 100 %, so negligible damage is acceptable. ' +
+          `${priorityRule(question.priority)} ` +
+          'Options with no progress or backwards progress are only correct when every forward option has heavy damage. ' +
+          '`perceived` holds the sensor readings ("unknown" means no sensor for that reading); `robot` is the current speed, battery, damage and motion.',
         criteria,
       },
     },

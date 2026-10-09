@@ -32,7 +32,7 @@ describe('brain', () => {
   it('builds one choice question: options with lookahead numbers, priority in the instructions', () => {
     const request = buildJevRequest(question);
     expect(request.model).toBe(JEV_MODEL_ID);
-    expect(request.state).toEqual({ perceived: question.perceived, robot: question.status });
+    expect(request.state).toEqual({ perceived: question.perceived, robot: { ...question.status, motion: 'moving' } });
     expect(Object.keys(request.questions.action.criteria)).toEqual(question.options);
     expect(request.questions.action.criteria.cruise).toContain('progress 2.1 m');
     expect(request.questions.action.instructions).toContain('0.8');
