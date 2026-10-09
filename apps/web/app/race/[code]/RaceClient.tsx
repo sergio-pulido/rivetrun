@@ -1,36 +1,33 @@
 'use client';
 
-import { BuildSchema } from '@rivetrun/contracts';
+import type { Build } from '@rivetrun/contracts';
 import { compileTrack, MISSIONS } from '@rivetrun/sim';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { useCallback, useEffect, useState, useSyncExternalStore } from 'react';
 import { z } from 'zod';
 import { useRunStore } from '@/state/run';
+import { buildName } from '@/ui/buildStats';
 import { JoinResponseSchema, RaceSnapshotSchema, laneColor, type RaceSnapshot } from '../_lib/protocol';
 import { Ranking } from '../_lib/Ranking';
 import { RobotGlyph } from '../_lib/RobotGlyph';
 import styles from '../_lib/race.module.css';
 import { postRaceAction, useRaceRoom, useServerNow } from '../_lib/useRaceRoom';
-import { JoinForm, type JoinRequest } from './JoinForm';
-import type { RaceIdentity } from './useRaceRun';
+import type { RaceSeat } from '../_lib/report';
+import { BuildPhase } from './BuildPhase';
+import { JoinForm } from './JoinForm';
 
 // The 3D run view, the sim loop and three.js live in their own chunk: the join page stays light and the
 // chunk is fetched in the background once the player has a seat (see the preload effect below).
 const loadRaceRun = () => import('./RaceRun');
 const RaceRun = dynamic(loadRaceRun, { ssr: false, loading: () => <LoadingGame note="Loading the 3D view…" /> });
 
-const IdentitySchema = z.object({
-  playerId: z.string(),
-  token: z.string(),
-  build: BuildSchema,
-  briefing: z.string().optional(),
-});
+const IdentitySchema = z.object({ playerId: z.string(), token: z.string() });
 
 const storageKey = (code: string): string => `rivetrun.race.${code}`;
 
 // Session storage keeps the seat across a reload; it can be unavailable (private mode), so every access is guarded.
-function loadIdentity(code: string): RaceIdentity | null {
+function loadIdentity(code: string): RaceSeat | null {
   try {
     const parsed = IdentitySchema.safeParse(JSON.parse(sessionStorage.getItem(storageKey(code)) ?? 'null'));
     return parsed.success ? parsed.data : null;
@@ -39,7 +36,7 @@ function loadIdentity(code: string): RaceIdentity | null {
   }
 }
 
-function saveIdentity(code: string, identity: RaceIdentity | null): void {
+function saveIdentity(code: string, identity: RaceSeat | null): void {
   try {
     if (identity) sessionStorage.setItem(storageKey(code), JSON.stringify(identity));
     else sessionStorage.removeItem(storageKey(code));
@@ -83,7 +80,7 @@ function Countdown({ snapshot, now }: { readonly snapshot: RaceSnapshot; readonl
       <p key={seconds} className={`${styles.count} text-center font-mono text-[42vw] font-black leading-none text-safety`}>
         {seconds}
       </p>
-      <p className="text-center text-lg font-bold">Hands off. Jev is driving.</p>
+      <p className="text-center text-lg font-bold">Thumbs ready. Hold the right side to go.</p>
     </Frame>
   );
 }
@@ -99,8 +96,7 @@ export function RaceClient({ code, initial }: RaceClientProps) {
   const { snapshot, link, clockOffsetMs } = useRaceRoom(code, initial);
   const now = useServerNow(clockOffsetMs, 200);
   const build = useRunStore((store) => store.build);
-  const priority = useRunStore((store) => store.priority);
-  const [identity, setIdentity] = useState<RaceIdentity | null>(null);
+  const [identity, setIdentity] = useState<RaceSeat | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -127,14 +123,12 @@ export function RaceClient({ code, initial }: RaceClientProps) {
   }, [identity, snapshotLoaded, seated, code]);
 
   const join = useCallback(
-    async ({ nickname, briefing }: JoinRequest): Promise<void> => {
+    async (nickname: string): Promise<void> => {
       setBusy(true);
       setError(null);
       try {
-        const response = JoinResponseSchema.parse(
-          await postRaceAction(code, { action: 'join', nickname, build, briefing: briefing || undefined }),
-        );
-        const next: RaceIdentity = { ...response, build, briefing: briefing || undefined };
+        const response = JoinResponseSchema.parse(await postRaceAction(code, { action: 'join', nickname, build }));
+        const next: RaceSeat = { playerId: response.playerId, token: response.token };
         saveIdentity(code, next);
         setIdentity(next);
       } catch (cause) {
@@ -144,6 +138,17 @@ export function RaceClient({ code, initial }: RaceClientProps) {
       }
     },
     [code, build],
+  );
+
+  // BUILD phase edits go straight to the room, which holds the build every screen shows.
+  const changeBuild = useCallback(
+    (next: Build, ready: boolean): void => {
+      if (!identity) return;
+      postRaceAction(code, { action: 'build', ...identity, build: next, ready }).catch((cause: unknown) =>
+        setError(cause instanceof Error ? cause.message : 'Could not save the build.'),
+      );
+    },
+    [code, identity],
   );
 
   // A seat means a race is coming: fetch the 3D chunk now, while the player waits in the lobby.
@@ -180,10 +185,10 @@ export function RaceClient({ code, initial }: RaceClientProps) {
   const me = seated ? snapshot.players.find((player) => player.id === identity.playerId) : undefined;
 
   if (!me || !identity) {
-    if (snapshot.status === 'lobby') {
+    if (snapshot.status === 'lobby' || snapshot.status === 'build') {
       return (
         <Frame>
-          <JoinForm code={code} build={build} busy={busy} error={error} onJoin={(request) => void join(request)} />
+          <JoinForm code={code} build={build} busy={busy} error={error} onJoin={(nickname) => void join(nickname)} />
         </Frame>
       );
     }
@@ -208,7 +213,7 @@ export function RaceClient({ code, initial }: RaceClientProps) {
           <RobotGlyph build={me.build} color={laneColor(me.lane)} className="h-16 w-auto shrink-0" />
           <div className="min-w-0">
             <p className="rr-label">Lane {me.lane + 1}</p>
-            <p className="mt-1 text-sm text-slate-200">{me.briefing ? `“${me.briefing}”` : 'No briefing: Jev follows your priority slider.'}</p>
+            <p className="mt-1 text-sm text-slate-200">{buildName(me.build)} · you drive it</p>
           </div>
         </div>
         <div className="rr-panel p-3">
@@ -229,12 +234,17 @@ export function RaceClient({ code, initial }: RaceClientProps) {
     );
   }
 
+  if (snapshot.status === 'build') {
+    const secondsLeft = Math.max(0, Math.ceil(((snapshot.buildEndsAt ?? now) - now) / 1000));
+    return <BuildPhase mission={mission} build={me.build} ready={me.ready} secondsLeft={secondsLeft} onChange={changeBuild} />;
+  }
+
   // From the countdown on, the run component is mounted so the sim starts exactly on the start signal.
   return (
     <>
-      <RaceRun snapshot={snapshot} identity={identity} me={me} priority={priority} clockOffsetMs={clockOffsetMs} />
+      <RaceRun snapshot={snapshot} seat={identity} me={me} now={now} clockOffsetMs={clockOffsetMs} />
       {snapshot.status === 'countdown' ? (
-        <div className="fixed inset-0 z-10 bg-slate-ink">
+        <div className="fixed inset-0 z-30 bg-slate-ink">
           <Countdown snapshot={snapshot} now={now} />
         </div>
       ) : null}

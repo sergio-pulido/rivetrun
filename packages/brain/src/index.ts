@@ -67,6 +67,7 @@ const ACTION_MEANING: Readonly<Record<Action, string>> = {
   reverse: 'Drive backwards, away from the finish.',
   climb_mode: 'Keep driving forward in low gear with high torque (slopes, steps, rough ground).',
   deploy_winch: 'Pull the robot forward with the winch (when wheels slip or the robot is bogged down).',
+  jump: 'Fire the piston: the robot hops into the air while it keeps its forward speed (clears a gap or a low obstacle; no traction and no braking until it lands).',
 };
 
 const STOPPED_SPEED_MPS = 0.1;

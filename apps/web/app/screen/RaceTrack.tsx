@@ -1,7 +1,7 @@
 import { BRIEFING_PRESETS, type Mission, type TerrainId } from '@rivetrun/contracts';
 import { compileTrack, type World } from '@rivetrun/sim';
-import { DNF_LABEL } from '@/game/palette';
-import type { RacePlayer } from '../race/_lib/protocol';
+import { matchPreset } from '@/ui/buildStats';
+import { resultText, type RacePlayer, type RaceStatus } from '../race/_lib/protocol';
 import styles from './screen.module.css';
 
 // Swap point: when `RaceCanvas` lands in @/game, render it here from the same props
@@ -40,26 +40,35 @@ function stripGradient(world: World): string {
   return `linear-gradient(90deg, ${stops.join(', ')})`;
 }
 
-/** "tracks · Careful": locomotion plus the briefing preset (or custom / none). */
+const JEV_COLOR = '#3FD0E0';
+const HUMAN_COLOR = '#FF7A1A';
+const OUT_COLOR = '#5B6470';
+
+/** Humans: "tracks · Mud Crawler". Jev bots: "JEV · Daredevil". */
 function buildLine(player: RacePlayer): string {
+  if (player.kind === 'jev') {
+    const preset = BRIEFING_PRESETS.find((candidate) => candidate.text === player.briefing);
+    return `AI · ${preset ? preset.name : player.briefing ? 'custom brief' : 'no brief'}`;
+  }
   const locomotion = LOCOMOTION_LABEL[player.build.locomotion] ?? player.build.locomotion;
-  const preset = BRIEFING_PRESETS.find((candidate) => candidate.text === player.briefing);
-  return `${locomotion} · ${preset ? preset.name : player.briefing ? 'custom brief' : 'no brief'}`;
+  return `${locomotion} · ${matchPreset(player.build)?.name ?? 'custom'}`;
 }
 
-function chip(player: RacePlayer, racing: boolean): { text: string; tone: string } {
-  if (player.done && player.finished) {
-    return { text: `FINISH · ${((player.raceMs ?? 0) / 1000).toFixed(1)} s`, tone: styles.actionDone! };
-  }
+/** The chip next to the robot. Results use the same words as every other screen (resultText). */
+function chip(player: RacePlayer, status: RaceStatus, trackLengthM: number): { text: string; tone: string } {
   if (player.done) {
-    return { text: `DNF · ${player.dnfReason ? DNF_LABEL[player.dnfReason].toLowerCase() : 'out'}`, tone: styles.actionOut! };
+    const text = resultText(player, trackLengthM);
+    return player.finished ? { text: `FINISH · ${text}`, tone: styles.actionDone! } : { text, tone: styles.actionOut! };
   }
+  if (status === 'build') return player.ready ? { text: 'ready ✓', tone: styles.actionDone! } : { text: 'building…', tone: '' };
+  if (status === 'lobby' || status === 'countdown') return { text: 'on the grid', tone: '' };
+  if (player.silent) return { text: 'signal lost', tone: styles.actionOut! };
   if (player.thinking) return { text: 'jev thinking…', tone: styles.actionThinking! };
   if (player.lastAction) {
     const pct = player.lastActionP === null ? '' : ` ${Math.round(player.lastActionP * 100)}%`;
     return { text: `${player.lastAction}${pct}`, tone: '' };
   }
-  return { text: racing ? 'starting…' : 'on the grid', tone: '' };
+  return { text: 'starting…', tone: '' };
 }
 
 function Robot({ color, tracks }: { readonly color: string; readonly tracks: boolean }) {
@@ -90,12 +99,11 @@ function Robot({ color, tracks }: { readonly color: string; readonly tracks: boo
 interface RaceTrackProps {
   readonly mission: Mission;
   readonly players: readonly RacePlayer[];
-  /** False in the lobby: robots wait on the start line. */
-  readonly racing: boolean;
+  readonly status: RaceStatus;
 }
 
-/** One lane per pilot: name and build on the left, the robot with its last-action chip on the terrain strip. */
-export function RaceTrack({ mission, players, racing }: RaceTrackProps) {
+/** One lane per pilot: name and build on the left, the robot with its last-action chip on the terrain strip. Humans orange, Jev bots cyan. */
+export function RaceTrack({ mission, players, status }: RaceTrackProps) {
   const world = compileTrack(mission.track);
   const terrains = [...new Set(world.segments.map((segment) => segment.terrain))].join(' · ');
   const lanes = [...players].sort((a, b) => a.lane - b.lane);
@@ -118,18 +126,20 @@ export function RaceTrack({ mission, players, racing }: RaceTrackProps) {
         {lanes.map((player) => {
           const out = player.done && !player.finished;
           const at = Math.min(1, Math.max(0, player.x / world.lengthM));
-          const { text, tone } = chip(player, racing);
+          const { text, tone } = chip(player, status, world.lengthM);
           return (
             <div key={player.id} className={`${styles.lane} ${out ? styles.laneOut : ''}`} style={{ ['--h' as string]: height }}>
               <div className={styles.pilot}>
-                <span className={styles.nick}>{player.nickname}</span>
+                <span className={styles.nick} style={player.kind === 'jev' ? { color: JEV_COLOR } : undefined}>
+                  {player.nickname}
+                </span>
                 {dense ? null : <span className={styles.build}>{buildLine(player)}</span>}
               </div>
               <div className={styles.road}>
                 <div className={styles.terrain} style={{ background: gradient }} />
                 <div className={styles.finish} />
                 <div className={styles.runner} style={{ ['--at' as string]: at }}>
-                  <Robot color={out ? '#5B6470' : '#FF7A1A'} tracks={player.build.locomotion === 'tracks'} />
+                  <Robot color={out ? OUT_COLOR : player.kind === 'jev' ? JEV_COLOR : HUMAN_COLOR} tracks={player.build.locomotion === 'tracks'} />
                   <span className={`${styles.action} ${tone} ${at > CHIP_FLIP ? styles.actionLeft : ''}`}>{text}</span>
                 </div>
               </div>

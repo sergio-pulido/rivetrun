@@ -1,23 +1,33 @@
 import type { MissionId } from '@rivetrun/contracts';
 import {
+  BUILD_MS,
+  CLOSE_AFTER_LEADER_MS,
   COUNTDOWN_MS,
+  GONE_MS,
+  MAX_BOTS,
   MAX_PLAYERS,
   RACE_CODE_LENGTH,
   RACE_TIMEOUT_MS,
+  SILENT_MS,
   type JoinResponse,
   type RaceAction,
+  type RaceDnf,
   type RacePlayer,
   type RaceSnapshot,
   type RaceStatus,
 } from '../../race/_lib/protocol';
+import { addRun } from './store';
 
 // In-memory rooms (docs/FAST_MODE.md): lost when the Next server restarts.
+// This module decides every result: finish times are stamped here, and a race closes here.
 interface Room {
   readonly code: string;
   missionId: MissionId;
   seed: number;
   status: RaceStatus;
+  buildEndsAt: number | null;
   startAt: number | null;
+  closesAt: number | null;
   raceNo: number;
   /** Bumped on every change; SSE streams send a snapshot when it moves. */
   version: number;
@@ -25,21 +35,23 @@ interface Room {
   readonly tokens: Map<string, string>;
   /** Server epoch ms of each player's last state post in the current race. */
   readonly lastSeen: Map<string, number>;
+  /** Players whose Episode of the current race is already logged. */
+  readonly logged: Set<string>;
   readonly createdAt: number;
 }
 
+type Act<K extends RaceAction['action']> = Extract<RaceAction, { action: K }>;
 export type RaceResult<T> = { ok: true; data: T } | { ok: false; status: number; error: string };
 
 const ROOM_TTL_MS = 3 * 60 * 60 * 1000;
-/** A phone that stops reporting for this long mid-race (closed tab, lost signal) is scored as a DNF. */
-const SILENT_DNF_MS = 8000;
 // No I or O: they read as 1 and 0 on a projector.
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
 
-const holder = globalThis as typeof globalThis & { __rivetrunRooms?: Map<string, Room> };
-const rooms: Map<string, Room> = (holder.__rivetrunRooms ??= new Map());
+const holder = globalThis as typeof globalThis & { __rivetrunRoomsV2?: Map<string, Room> };
+const rooms: Map<string, Room> = (holder.__rivetrunRoomsV2 ??= new Map());
 
 const fail = (status: number, error: string): { ok: false; status: number; error: string } => ({ ok: false, status, error });
+const done = <T>(data: T): RaceResult<T> => ({ ok: true, data });
 const newSeed = (): number => Math.floor(Math.random() * 0xffffffff) >>> 0;
 
 const newCode = (): string => {
@@ -49,7 +61,7 @@ const newCode = (): string => {
   }
 };
 
-const freshPlayer = (player: RacePlayer): RacePlayer => ({
+const onGrid = (player: RacePlayer): RacePlayer => ({
   ...player,
   x: 0,
   v: 0,
@@ -58,6 +70,7 @@ const freshPlayer = (player: RacePlayer): RacePlayer => ({
   lastAction: null,
   lastActionP: null,
   thinking: false,
+  silent: false,
   done: false,
   finished: false,
   dnfReason: null,
@@ -65,28 +78,70 @@ const freshPlayer = (player: RacePlayer): RacePlayer => ({
   score: null,
 });
 
-/** Time-driven transitions: countdown → racing at startAt, racing → finished when all are done or on timeout. */
+const update = (room: Room, player: RacePlayer, patch: Partial<RacePlayer>): void => {
+  room.players.set(player.id, { ...player, ...patch });
+  room.version += 1;
+};
+
+function beginCountdown(room: Room, now: number): void {
+  room.status = 'countdown';
+  room.buildEndsAt = null;
+  room.startAt = now + COUNTDOWN_MS;
+  room.closesAt = null;
+  room.lastSeen.clear();
+  room.logged.clear();
+  for (const player of room.players.values()) room.players.set(player.id, onGrid(player));
+  room.version += 1;
+}
+
+/** Ends the race: everyone still driving gets a DNF with the reason only the room knows. */
+function closeRace(room: Room, now: number): void {
+  for (const player of room.players.values()) {
+    if (player.done) continue;
+    const reason: RaceDnf = player.silent ? 'disconnected' : 'race_closed';
+    room.players.set(player.id, { ...player, v: 0, thinking: false, done: true, finished: false, dnfReason: reason, raceMs: now - (room.startAt ?? now) });
+  }
+  room.status = 'finished';
+  room.version += 1;
+}
+
+/** Time-driven transitions. Called on every read and write, so results never depend on who is watching. */
 function advance(room: Room, now: number): void {
+  if (room.status === 'build' && room.buildEndsAt !== null) {
+    const humans = [...room.players.values()].filter((player) => player.kind === 'human');
+    const allReady = humans.length > 0 && humans.every((player) => player.ready);
+    if (now >= room.buildEndsAt || allReady) beginCountdown(room, now);
+  }
   if (room.status === 'countdown' && room.startAt !== null && now >= room.startAt) {
     room.status = 'racing';
     room.version += 1;
   }
   if (room.status === 'racing' && room.startAt !== null) {
     for (const player of room.players.values()) {
-      const seen = room.lastSeen.get(player.id) ?? room.startAt;
-      if (!player.done && now - seen > SILENT_DNF_MS) {
-        room.players.set(player.id, { ...player, v: 0, thinking: false, done: true, finished: false, dnfReason: 'timeout', raceMs: now - room.startAt });
-        room.version += 1;
-      }
+      if (player.done) continue;
+      const silent = now - (room.lastSeen.get(player.id) ?? room.startAt) > SILENT_MS;
+      if (silent !== player.silent) update(room, player, { silent, thinking: silent ? false : player.thinking });
     }
     const players = [...room.players.values()];
-    const allDone = players.length > 0 && players.every((player) => player.done);
-    if (allDone || now - room.startAt > RACE_TIMEOUT_MS) {
-      room.status = 'finished';
-      room.version += 1;
-    }
+    // The room waits for every device that is still reporting; one that has been gone for GONE_MS no longer holds it open.
+    const waitingFor = players.filter((player) => !player.done && now - (room.lastSeen.get(player.id) ?? room.startAt!) <= GONE_MS);
+    const closeAt = Math.min(room.closesAt ?? Infinity, room.startAt + RACE_TIMEOUT_MS);
+    if (players.length === 0 || waitingFor.length === 0 || now >= closeAt) closeRace(room, now);
   }
 }
+
+const toSnapshot = (room: Room, now: number): RaceSnapshot => ({
+  code: room.code,
+  missionId: room.missionId,
+  seed: room.seed,
+  status: room.status,
+  buildEndsAt: room.buildEndsAt,
+  startAt: room.startAt,
+  closesAt: room.status === 'racing' ? room.closesAt : null,
+  serverNow: now,
+  raceNo: room.raceNo,
+  players: [...room.players.values()],
+});
 
 export function createRoom(missionId: MissionId): RaceSnapshot {
   const now = Date.now();
@@ -96,28 +151,20 @@ export function createRoom(missionId: MissionId): RaceSnapshot {
     missionId,
     seed: newSeed(),
     status: 'lobby',
+    buildEndsAt: null,
     startAt: null,
+    closesAt: null,
     raceNo: 0,
     version: 0,
     players: new Map(),
     tokens: new Map(),
     lastSeen: new Map(),
+    logged: new Set(),
     createdAt: now,
   };
   rooms.set(room.code, room);
   return toSnapshot(room, now);
 }
-
-const toSnapshot = (room: Room, now: number): RaceSnapshot => ({
-  code: room.code,
-  missionId: room.missionId,
-  seed: room.seed,
-  status: room.status,
-  startAt: room.startAt,
-  serverNow: now,
-  raceNo: room.raceNo,
-  players: [...room.players.values()],
-});
 
 /** Current snapshot plus the version it was built from, or null when the room does not exist. */
 export function readRoom(code: string): { snapshot: RaceSnapshot; version: number } | null {
@@ -128,52 +175,96 @@ export function readRoom(code: string): { snapshot: RaceSnapshot; version: numbe
   return { snapshot: toSnapshot(room, now), version: room.version };
 }
 
-function join(room: Room, action: Extract<RaceAction, { action: 'join' }>): RaceResult<JoinResponse> {
-  if (room.status !== 'lobby') return fail(409, 'The race has already started. Join the next one.');
-  if (room.players.size >= MAX_PLAYERS) return fail(409, `The room is full (${MAX_PLAYERS} robots).`);
-  const taken = [...room.players.values()].some((p) => p.nickname.toLowerCase() === action.nickname.toLowerCase());
-  if (taken) return fail(409, 'That nickname is already in the room.');
-  const lanes = new Set([...room.players.values()].map((p) => p.lane));
+const freeLane = (room: Room): number => {
+  const lanes = new Set([...room.players.values()].map((player) => player.lane));
   let lane = 0;
   while (lanes.has(lane)) lane += 1;
+  return lane;
+};
+
+function seatPlayer(room: Room, fields: Pick<RacePlayer, 'nickname' | 'kind' | 'build' | 'briefing'>): JoinResponse {
   const playerId = crypto.randomUUID();
   const token = crypto.randomUUID();
-  room.players.set(
-    playerId,
-    freshPlayer({ id: playerId, nickname: action.nickname, build: action.build, briefing: action.briefing || undefined, lane } as RacePlayer),
-  );
+  room.players.set(playerId, onGrid({ ...fields, id: playerId, ready: fields.kind === 'jev', lane: freeLane(room) } as RacePlayer));
   room.tokens.set(playerId, token);
-  return { ok: true, data: { playerId, token } };
+  return { playerId, token, nickname: fields.nickname };
 }
 
-function start(room: Room, action: Extract<RaceAction, { action: 'start' }>, now: number): RaceResult<null> {
+const canSeat = (room: Room): RaceResult<null> => {
+  if (room.status !== 'lobby' && room.status !== 'build') return fail(409, 'The race has already started. Join the next one.');
+  if (room.players.size >= MAX_PLAYERS) return fail(409, `The room is full (${MAX_PLAYERS} robots).`);
+  return done(null);
+};
+
+function join(room: Room, action: Act<'join'>): RaceResult<JoinResponse> {
+  const open = canSeat(room);
+  if (!open.ok) return open;
+  const taken = [...room.players.values()].some((player) => player.nickname.toLowerCase() === action.nickname.toLowerCase());
+  if (taken) return fail(409, 'That nickname is already in the room.');
+  return done(seatPlayer(room, { nickname: action.nickname, kind: 'human', build: action.build, briefing: undefined }));
+}
+
+function addBot(room: Room, action: Act<'addBot'>): RaceResult<JoinResponse> {
+  const open = canSeat(room);
+  if (!open.ok) return open;
+  const bots = [...room.players.values()].filter((player) => player.kind === 'jev');
+  if (bots.length >= MAX_BOTS) return fail(409, `At most ${MAX_BOTS} JEV bots per room.`);
+  const names = new Set(bots.map((bot) => bot.nickname));
+  const nickname = ['JEV-1', 'JEV-2', 'JEV-3'].find((name) => !names.has(name)) ?? 'JEV';
+  return done(seatPlayer(room, { nickname, kind: 'jev', build: action.build, briefing: action.briefing || undefined }));
+}
+
+function remove(room: Room, action: Act<'remove'>): RaceResult<null> {
+  if (room.status !== 'lobby' && room.status !== 'build') return fail(409, 'Players can only be removed before the race.');
+  room.players.delete(action.playerId);
+  room.tokens.delete(action.playerId);
+  return done(null);
+}
+
+function start(room: Room, action: Act<'start'>, now: number): RaceResult<null> {
+  if (room.status === 'build') {
+    beginCountdown(room, now); // The host skips the rest of the BUILD phase.
+    return done(null);
+  }
   if (room.status !== 'lobby') return fail(409, 'The race is already running.');
   if (room.players.size === 0) return fail(409, 'Nobody has joined yet.');
   if (action.missionId) room.missionId = action.missionId;
   room.seed = newSeed();
   room.raceNo += 1;
-  room.status = 'countdown';
-  room.startAt = now + COUNTDOWN_MS;
-  room.lastSeen.clear();
-  for (const [id, player] of room.players) room.players.set(id, freshPlayer(player));
-  return { ok: true, data: null };
+  room.status = 'build';
+  room.buildEndsAt = now + BUILD_MS;
+  room.startAt = null;
+  room.closesAt = null;
+  for (const player of room.players.values()) room.players.set(player.id, onGrid({ ...player, ready: player.kind === 'jev' }));
+  return done(null);
+}
+
+function setBuild(room: Room, action: Act<'build'>): RaceResult<null> {
+  const player = room.players.get(action.playerId);
+  if (!player || room.tokens.get(action.playerId) !== action.token) return fail(403, 'Unknown player.');
+  if (room.status !== 'lobby' && room.status !== 'build') return fail(409, 'The build is locked: the race has started.');
+  room.players.set(player.id, { ...player, build: action.build, ready: room.status === 'build' && action.ready });
+  return done(null);
 }
 
 function reset(room: Room): RaceResult<null> {
   room.status = 'lobby';
+  room.buildEndsAt = null;
   room.startAt = null;
-  for (const [id, player] of room.players) room.players.set(id, freshPlayer(player));
-  return { ok: true, data: null };
+  room.closesAt = null;
+  for (const player of room.players.values()) room.players.set(player.id, onGrid({ ...player, ready: player.kind === 'jev' }));
+  return done(null);
 }
 
-function report(room: Room, action: Extract<RaceAction, { action: 'state' }>, now: number): RaceResult<null> {
+function report(room: Room, action: Act<'state'>, now: number): RaceResult<null> {
   const player = room.players.get(action.playerId);
   if (!player || room.tokens.get(action.playerId) !== action.token) return fail(403, 'Unknown player.');
-  // Late posts from a previous race, or after this robot's run ended, are dropped.
-  if (action.raceNo !== room.raceNo || room.status !== 'racing' || player.done || room.startAt === null) {
-    return { ok: true, data: null };
-  }
+  // Posts from a previous race, after the race closed, or after this robot's result is final are dropped:
+  // the result the room already published stands.
+  if (action.raceNo !== room.raceNo || room.status !== 'racing' || player.done || room.startAt === null) return done(null);
+
   room.lastSeen.set(player.id, now);
+  const raceMs = now - room.startAt;
   room.players.set(player.id, {
     ...player,
     x: action.x,
@@ -183,13 +274,20 @@ function report(room: Room, action: Extract<RaceAction, { action: 'state' }>, no
     lastAction: action.lastAction,
     lastActionP: action.lastActionP,
     thinking: action.thinking && !action.done,
+    silent: false,
     done: action.done,
     finished: action.done && action.finished,
-    dnfReason: action.done && !action.finished ? action.dnfReason : null,
-    raceMs: action.done ? now - room.startAt : null,
+    dnfReason: action.done && !action.finished ? (action.dnfReason ?? 'stuck') : null,
+    raceMs: action.done ? raceMs : null,
     score: action.done ? action.score : null,
   });
-  return { ok: true, data: null };
+  if (action.done && action.finished && room.closesAt === null) room.closesAt = now + CLOSE_AFTER_LEADER_MS;
+  if (action.done && action.episode && !room.logged.has(player.id)) {
+    // Room Race runs count as episodes, like a run submitted from the Result screen.
+    room.logged.add(player.id);
+    addRun(player.nickname, action.episode);
+  }
+  return done(null);
 }
 
 export function applyAction(code: string, action: RaceAction): RaceResult<JoinResponse | null> {
@@ -197,14 +295,20 @@ export function applyAction(code: string, action: RaceAction): RaceResult<JoinRe
   if (!room) return fail(404, 'No such room.');
   const now = Date.now();
   advance(room, now);
-  const result =
+  const result: RaceResult<JoinResponse | null> =
     action.action === 'join'
       ? join(room, action)
-      : action.action === 'start'
-        ? start(room, action, now)
-        : action.action === 'reset'
-          ? reset(room)
-          : report(room, action, now);
+      : action.action === 'addBot'
+        ? addBot(room, action)
+        : action.action === 'remove'
+          ? remove(room, action)
+          : action.action === 'start'
+            ? start(room, action, now)
+            : action.action === 'build'
+              ? setBuild(room, action)
+              : action.action === 'reset'
+                ? reset(room)
+                : report(room, action, now);
   if (result.ok) {
     room.version += 1;
     advance(room, now);

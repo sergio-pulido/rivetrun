@@ -658,3 +658,58 @@
   font-weight: 600;
   color: var(--muted);
 }
+
+/* Room Race v2 */
+.buttonJev {
+  background: #0c1a1d;
+  border-color: var(--cyan);
+  color: #bfeff5;
+  box-shadow: 0 calc(var(--u) * 4) 0 #07080a;
+  font-size: calc(var(--u) * 15);
+  height: calc(var(--u) * 44);
+  padding: 0 calc(var(--u) * 16);
+}
+.closing {
+  padding: calc(var(--u) * 6) calc(var(--u) * 12);
+  border-radius: calc(var(--u) * 10);
+  background: var(--orange);
+  color: #0e1013;
+  font-family: var(--data);
+  font-size: calc(var(--u) * 14);
+  font-weight: 600;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.verdict {
+  margin: 0;
+  padding: calc(var(--u) * 10) calc(var(--u) * 16);
+  border-radius: calc(var(--u) * 12);
+  border: 1px solid var(--orange);
+  background: #17120d;
+  font-family: var(--display);
+  font-size: calc(var(--u) * 22);
+  color: var(--text);
+  flex-shrink: 0;
+}
+.verdict strong {
+  color: var(--orange);
+  letter-spacing: calc(var(--u) * 2);
+}
+.verdictJev {
+  border-color: var(--cyan);
+  background: #0c1a1d;
+}
+.verdictJev strong {
+  color: var(--cyan);
+}
+.alertInfo {
+  margin: 0;
+  padding: calc(var(--u) * 8) calc(var(--u) * 12);
+  border-radius: calc(var(--u) * 10);
+  border: 1px solid #2a3039;
+  background: var(--panel-hi);
+  font-family: var(--data);
+  font-size: calc(var(--u) * 12);
+  color: #c9ced6;
+  flex-shrink: 0;
+}

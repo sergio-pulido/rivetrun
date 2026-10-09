@@ -1,15 +1,15 @@
 'use client';
 
 import type { MissionId } from '@rivetrun/contracts';
-import { MISSION_IDS, MISSIONS } from '@rivetrun/sim';
+import { compileTrack, MISSION_IDS, MISSIONS, PRESETS } from '@rivetrun/sim';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { AttractCanvas } from '@/game';
-import { DNF_LABEL } from '@/game/palette';
-import { rankPlayers, type RacePlayer, type RaceSnapshot } from '../race/_lib/protocol';
+import { duelVerdict, MAX_BOTS, rankPlayers, resultText, type RaceSnapshot } from '../race/_lib/protocol';
 import { postRaceAction, useRaceRoom, useServerNow } from '../race/_lib/useRaceRoom';
 import { RaceTrack } from './RaceTrack';
 import { Side, useEpisodeCount } from './Side';
+import { useJevBots, type JevBots } from './useJevBots';
 import styles from './screen.module.css';
 
 interface RaceScreenProps {
@@ -18,7 +18,7 @@ interface RaceScreenProps {
   readonly siteUrl: string;
 }
 
-const STATUS_TITLE = { lobby: 'LOBBY', countdown: 'GET READY', racing: 'LIVE', finished: 'FINISH' } as const;
+const STATUS_TITLE = { lobby: 'LOBBY', build: 'BUILD', countdown: 'GET READY', racing: 'LIVE', finished: 'FINISH' } as const;
 const ORDER_ROW_MAX = 30;
 const ORDER_ROW_MIN = 20;
 /** A full room does not fit the panel: it lists the front of the field and counts the rest. */
@@ -34,51 +34,39 @@ function clock(ms: number): string {
   return `${String(minutes).padStart(2, '0')}:${seconds.toFixed(1).padStart(4, '0')}`;
 }
 
-/** Measured gaps only: metres behind the leader while racing, seconds behind the winner once finished. */
-function gapText(player: RacePlayer, leader: RacePlayer, racing: boolean): string {
-  if (player.done && !player.finished) return 'DNF';
-  if (player.finished && player.raceMs !== null) {
-    if (player.id === leader.id || leader.raceMs === null) return `${(player.raceMs / 1000).toFixed(1)} s`;
-    return `+${((player.raceMs - leader.raceMs) / 1000).toFixed(1)} s`;
-  }
-  if (!racing) return 'ready';
-  if (player.id === leader.id) return 'leader';
-  if (leader.finished) return 'racing';
-  return `+${Math.max(0, leader.x - player.x).toFixed(1)} m`;
-}
-
+/** The room's order, in the same words as on every phone (resultText). */
 function Order({ snapshot }: { readonly snapshot: RaceSnapshot }) {
   const ranked = rankPlayers(snapshot.players);
-  const leader = ranked[0];
-  const racing = snapshot.status === 'racing' || snapshot.status === 'finished';
+  const trackLengthM = compileTrack(MISSIONS[snapshot.missionId].track).lengthM;
+  const before = snapshot.status === 'lobby' || snapshot.status === 'build' || snapshot.status === 'countdown';
   const shown = ranked.slice(0, ORDER_ROWS_MAX);
   const row = Math.max(ORDER_ROW_MIN, Math.min(ORDER_ROW_MAX, Math.floor(ORDER_HEIGHT / Math.max(1, shown.length)) - 6));
   return (
     <div className={styles.orderPanel}>
       <span className={styles.label}>
-        {snapshot.status === 'finished' ? 'Finish order' : snapshot.status === 'lobby' ? 'On the grid' : 'Live order'}
+        {snapshot.status === 'finished' ? 'Finish order · race time' : before ? 'On the grid' : 'Live order'}
       </span>
-      {!leader ? <span className={styles.orderEmpty}>Nobody yet.</span> : null}
-      {leader
-        ? shown.map((player, index) => {
-            const out = player.done && !player.finished;
-            return (
-              <div key={player.id} className={styles.orderRow} style={{ ['--row' as string]: row }}>
-                <span className={`${styles.pos} ${out ? styles.posOut : index < 3 ? styles.posTop : ''}`}>{out ? '—' : index + 1}</span>
-                <span className={styles.orderNick}>{player.nickname}</span>
-                <span className={styles.gap} title={out && player.dnfReason ? DNF_LABEL[player.dnfReason] : undefined}>
-                  {gapText(player, leader, racing)}
-                </span>
-              </div>
-            );
-          })
-        : null}
+      {ranked.length === 0 ? <span className={styles.orderEmpty}>Nobody yet.</span> : null}
+      {shown.map((player, index) => {
+        const out = player.done && !player.finished;
+        return (
+          <div key={player.id} className={styles.orderRow} style={{ ['--row' as string]: row }}>
+            <span className={`${styles.pos} ${out ? styles.posOut : index < 3 ? styles.posTop : ''}`}>{out ? '—' : index + 1}</span>
+            <span className={styles.orderNick} style={player.kind === 'jev' ? { color: '#3FD0E0' } : undefined}>
+              {player.nickname}
+            </span>
+            <span className={styles.gap}>
+              {before ? (player.kind === 'jev' ? 'AI' : snapshot.status === 'build' ? (player.ready ? 'ready ✓' : 'building') : 'ready') : resultText(player, trackLengthM)}
+            </span>
+          </div>
+        );
+      })}
       {ranked.length > shown.length ? <span className={styles.orderEmpty}>+ {ranked.length - shown.length} more behind</span> : null}
     </div>
   );
 }
 
-function HostBar({ snapshot, onError }: { readonly snapshot: RaceSnapshot; readonly onError: (message: string | null) => void }) {
+function HostBar({ snapshot, bots, onError }: { readonly snapshot: RaceSnapshot; readonly bots: JevBots; readonly onError: (message: string | null) => void }) {
   const [missionId, setMissionId] = useState<MissionId>(snapshot.missionId);
   const [starting, setStarting] = useState(false);
   const start = async (): Promise<void> => {
@@ -91,6 +79,15 @@ function HostBar({ snapshot, onError }: { readonly snapshot: RaceSnapshot; reado
     } finally {
       setStarting(false);
     }
+  };
+  const botsInRoom = snapshot.players.filter((player) => player.kind === 'jev');
+  const addBot = (): void => {
+    onError(null);
+    bots.add(PRESETS.all_rounder.build).catch((cause: unknown) => onError(cause instanceof Error ? cause.message : 'Could not add a JEV bot.'));
+  };
+  const removeBot = (): void => {
+    const last = botsInRoom[botsInRoom.length - 1];
+    if (last) bots.remove(last.id).catch((cause: unknown) => onError(cause instanceof Error ? cause.message : 'Could not remove the bot.'));
   };
   return (
     <div className={styles.hostBar}>
@@ -108,13 +105,16 @@ function HostBar({ snapshot, onError }: { readonly snapshot: RaceSnapshot; reado
           </button>
         ))}
       </div>
-      <button
-        type="button"
-        onClick={() => void start()}
-        disabled={snapshot.players.length === 0 || starting}
-        className={`${styles.button} ${styles.spacer}`}
-      >
-        {starting ? 'Starting…' : 'Start the race'}
+      <button type="button" onClick={addBot} disabled={botsInRoom.length >= MAX_BOTS} className={`${styles.button} ${styles.buttonJev}`}>
+        + JEV bot
+      </button>
+      {botsInRoom.length > 0 ? (
+        <button type="button" onClick={removeBot} className={`${styles.button} ${styles.buttonGhost}`} aria-label="Remove the last JEV bot">
+          − bot
+        </button>
+      ) : null}
+      <button type="button" onClick={() => void start()} disabled={snapshot.players.length === 0 || starting} className={styles.button}>
+        {starting ? 'Opening…' : 'Open build phase'}
       </button>
     </div>
   );
@@ -125,6 +125,7 @@ export function RaceScreen({ code, siteUrl }: RaceScreenProps) {
   const { snapshot, link, clockOffsetMs } = useRaceRoom(code);
   const now = useServerNow(clockOffsetMs);
   const episodes = useEpisodeCount();
+  const bots = useJevBots(snapshot, clockOffsetMs);
   const [error, setError] = useState<string | null>(null);
   const joinUrl = `${siteUrl}/race/${code}`;
 
@@ -148,7 +149,14 @@ export function RaceScreen({ code, siteUrl }: RaceScreenProps) {
   const mission = MISSIONS[snapshot.missionId];
   const status = snapshot.status;
   const racing = status === 'racing' || status === 'finished';
-  // The clock stops on the last result once the race is over.
+  const hasJev = snapshot.players.some((player) => player.kind === 'jev');
+  const buildLeftS = Math.max(0, Math.ceil(((snapshot.buildEndsAt ?? now) - now) / 1000));
+  const closesInS = snapshot.closesAt === null ? null : Math.max(0, Math.ceil((snapshot.closesAt - now) / 1000));
+  const verdict = status === 'finished' ? duelVerdict(snapshot.players) : null;
+  const skipBuild = (): void => {
+    postRaceAction(code, { action: 'start' }).catch((cause: unknown) => setError(cause instanceof Error ? cause.message : 'Could not start the race.'));
+  };
+  // RACE TIME: wall-clock from the start signal. The clock stops on the last result once the race is over.
   const lastEndMs = Math.max(0, ...snapshot.players.map((player) => player.raceMs ?? 0));
   const elapsedMs = status === 'racing' && snapshot.startAt !== null ? now - snapshot.startAt : status === 'finished' ? lastEndMs : 0;
   const countdown = Math.max(1, Math.ceil(((snapshot.startAt ?? now) - now) / 1000));
@@ -166,10 +174,10 @@ export function RaceScreen({ code, siteUrl }: RaceScreenProps) {
           <div className={styles.header}>
             <div className={styles.titleRow}>
               <span className={`${styles.dot} ${status === 'racing' ? '' : styles.dotIdle}`} />
-              <span className={styles.title}>ROOM RACE · {link === 'reconnecting' ? 'RECONNECTING' : STATUS_TITLE[status]}</span>
-              <span className={styles.chip}>
-                {status === 'finished' ? mission.name : `${mission.id} · ${mission.name} · ${mission.weather}`}
+              <span className={styles.title}>
+                {hasJev ? 'HUMANS vs JEV' : 'ROOM RACE'} · {link === 'reconnecting' ? 'RECONNECTING' : STATUS_TITLE[status]}
               </span>
+              <span className={styles.chip}>{status === 'lobby' ? `${mission.id} · ${mission.name} · ${mission.weather}` : mission.name}</span>
             </div>
             <div className={styles.controls}>
               {status === 'lobby' ? (
@@ -177,7 +185,16 @@ export function RaceScreen({ code, siteUrl }: RaceScreenProps) {
                   Leaderboard
                 </button>
               ) : null}
-              {status === 'countdown' || status === 'racing' ? (
+              {status === 'build' ? (
+                <>
+                  <button type="button" className={`${styles.button} ${styles.buttonCompact}`} onClick={skipBuild}>
+                    Start now
+                  </button>
+                  <span className={styles.clock}>{buildLeftS} s</span>
+                </>
+              ) : null}
+              {closesInS !== null ? <span className={styles.closing}>RACE CLOSES IN {closesInS} s</span> : null}
+              {status === 'build' || status === 'countdown' || status === 'racing' ? (
                 <button type="button" className={`${styles.button} ${styles.buttonGhost}`} onClick={reset}>
                   Abort
                 </button>
@@ -197,6 +214,13 @@ export function RaceScreen({ code, siteUrl }: RaceScreenProps) {
             </p>
           ) : null}
 
+          {verdict ? (
+            <p className={`${styles.verdict} ${verdict.winner === 'jev' ? styles.verdictJev : ''}`}>
+              <strong>{verdict.headline}</strong> · {verdict.detail}
+            </p>
+          ) : null}
+          {status === 'build' ? <p className={styles.alertInfo}>BUILD PHASE · phones are rebuilding for {mission.name}. The race starts when everyone is ready or the timer runs out.</p> : null}
+
           <div className={styles.trackArea}>
             {status === 'lobby' && snapshot.players.length === 0 ? (
               // Nobody on the grid yet: the presets replay the track on a loop until the first robot joins.
@@ -206,7 +230,7 @@ export function RaceScreen({ code, siteUrl }: RaceScreenProps) {
               </div>
             ) : (
               <div className={styles.main}>
-                <RaceTrack mission={mission} players={snapshot.players} racing={racing} />
+                <RaceTrack mission={mission} players={snapshot.players} status={status} />
               </div>
             )}
             {status === 'countdown' ? (
@@ -218,11 +242,11 @@ export function RaceScreen({ code, siteUrl }: RaceScreenProps) {
             ) : null}
           </div>
 
-          {status === 'lobby' ? <HostBar snapshot={snapshot} onError={setError} /> : null}
+          {status === 'lobby' ? <HostBar snapshot={snapshot} bots={bots} onError={setError} /> : null}
         </div>
 
         <Side
-          joinLabel={status === 'lobby' ? 'SCAN TO JOIN' : 'JOIN THE NEXT RACE'}
+          joinLabel={status === 'lobby' || status === 'build' ? 'SCAN TO JOIN' : 'JOIN THE NEXT RACE'}
           joinCode={code}
           joinUrl={joinUrl}
           episodes={episodes}
