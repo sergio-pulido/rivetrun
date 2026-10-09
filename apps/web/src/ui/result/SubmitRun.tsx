@@ -49,20 +49,16 @@ export function SubmitRun({ episode, leaderboard }: { readonly episode: Episode;
 
   if (status.kind === 'done') {
     return (
-      <section className="rr-panel flex items-center gap-3 border-ok/50 p-3">
-        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-ok text-slate-deep">
-          <Icon name="check" />
+      <section className="flex h-12 items-center gap-2.5 rounded-xl border border-cyan-line bg-cyan-deep px-3">
+        <Icon name="check" size={18} className="shrink-0 text-cyan" />
+        <span className="min-w-0 flex-1 truncate font-mono text-[13px]">
+          {nickname}
+          {status.rank !== null ? <span className="text-cyan"> · rank #{status.rank}</span> : null}
+          <span className="text-cyan-muted"> · {episode.decisions.length} decisions logged</span>
         </span>
-        <div className="min-w-0 flex-1">
-          <div className="text-sm font-semibold">
-            Logged as {nickname}
-            {status.rank !== null ? <span className="text-safety"> · rank #{status.rank}</span> : null}
-          </div>
-          <div className="font-mono text-[11px] text-dim">Episode saved with all {episode.decisions.length} decisions.</div>
-        </div>
         {leaderboard ? (
-          <Link href="/leaderboard" className="rr-btn rr-btn-secondary !min-h-11 shrink-0 !rounded-xl !px-3 text-sm">
-            Board
+          <Link href="/leaderboard" className="shrink-0 font-mono text-[11px] font-medium tracking-[1px] text-orange-soft">
+            BOARD
           </Link>
         ) : null}
       </section>
@@ -70,11 +66,11 @@ export function SubmitRun({ episode, leaderboard }: { readonly episode: Episode;
   }
 
   return (
-    <form onSubmit={onSubmit} className="rr-panel p-3" noValidate>
-      <label htmlFor="nickname" className="rr-label">
-        {leaderboard ? 'Put this run on the leaderboard' : 'Log this episode'}
-      </label>
-      <div className="mt-2 flex gap-2">
+    <form onSubmit={onSubmit} noValidate>
+      <div className="flex gap-2">
+        <label htmlFor="nickname" className="sr-only">
+          Nickname
+        </label>
         <input
           id="nickname"
           name="nickname"
@@ -88,10 +84,10 @@ export function SubmitRun({ episode, leaderboard }: { readonly episode: Episode;
           autoCapitalize="none"
           spellCheck={false}
           placeholder="nickname"
-          className="h-[52px] min-w-0 flex-1 rounded-xl border border-slate-line bg-slate-deep px-3.5 font-mono text-base outline-none placeholder:text-slate-600 focus:border-safety"
+          className="h-12 min-w-0 flex-1 rounded-xl border border-line-3 bg-panel-2 px-3 font-mono text-sm outline-none placeholder:text-faint focus:border-orange"
         />
-        <button type="submit" disabled={status.kind === 'sending'} className="rr-btn rr-btn-primary shrink-0 !px-5">
-          {status.kind === 'sending' ? 'Sending…' : 'Submit'}
+        <button type="submit" disabled={status.kind === 'sending'} className="rr-btn rr-btn-primary !min-h-12 shrink-0 !rounded-xl">
+          {status.kind === 'sending' ? 'Sending' : 'Submit'}
         </button>
       </div>
       {status.kind === 'error' ? (

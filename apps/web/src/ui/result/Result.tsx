@@ -1,14 +1,13 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { MISSION_IDS, MISSIONS, whyLine } from '@rivetrun/sim';
 import { DNF_LABEL } from '@/game/palette';
 import { useBuildStore } from '@/state/build';
-import { useProgressStore } from '@/state/progress';
+import { LOCKED_PARTS, isUnlocked, useProgressStore } from '@/state/progress';
 import { useRunStore, type RunResult } from '@/state/run';
-import { buildName } from '@/ui/buildStats';
-import { Icon } from '@/ui/Icon';
+import { Icon, type IconName } from '@/ui/Icon';
 import { Shell } from '@/ui/Shell';
 import { Stars } from '@/ui/Stars';
 import { DuelTable } from './DuelTable';
@@ -19,21 +18,47 @@ import { useCountUp } from './useCountUp';
 
 const SHARE_NOTE = { shared: null, copied: 'Copied to the clipboard.', failed: 'Sharing is blocked in this browser.' } as const;
 
+const TILE = 'flex h-[52px] flex-col items-center justify-center gap-0.5 rounded-xl border border-line-3 font-mono text-[10px] font-medium tracking-[1px] text-text active:bg-panel-2';
+
+function Tile({ icon, children }: { icon: IconName; children: ReactNode }) {
+  return (
+    <>
+      <Icon name={icon} size={18} />
+      {children}
+    </>
+  );
+}
+
 function NoRun() {
   const missionId = useBuildStore((store) => store.missionId);
   return (
-    <Shell back="/" kicker="Result" title="No run yet">
-      <section className="rr-panel mt-6 flex flex-col items-center gap-4 p-6 text-center">
-        <span className="grid h-14 w-14 place-items-center rounded-full border border-slate-line text-safety">
-          <Icon name="flag" size={26} />
-        </span>
-        <p className="text-[15px] leading-snug text-slate-300">Results live here after a run. They are kept in memory, so a page reload clears them.</p>
+    <Shell back="/" title="Result">
+      <section className="rr-card mt-6 flex flex-col items-center gap-4 p-6 text-center">
+        <p className="text-[15px] leading-snug text-text-2">Results live here after a run. They are kept in memory, so a page reload clears them.</p>
         <Link href={`/run/${missionId}`} className="rr-btn rr-btn-primary w-full">
-          <Icon name="play" size={18} />
-          Run {missionId}
+          Run mission 0{missionId.slice(1)}
+          <Icon name="next" size={18} />
         </Link>
       </section>
     </Shell>
+  );
+}
+
+/** Points banked by this run and how far they go towards the cheapest part still locked. */
+function PointsRow({ earned }: { readonly earned: number }) {
+  const points = useProgressStore((store) => store.points);
+  const unlocked = useProgressStore((store) => store.unlocked);
+  const next = [...LOCKED_PARTS].filter((part) => !isUnlocked(unlocked, part.id)).sort((a, b) => a.unlockPoints - b.unlockPoints)[0];
+  return (
+    <div className="flex items-center gap-2.5">
+      <span className="font-mono text-[13px] font-semibold text-orange-soft">+{earned} PTS</span>
+      <div className="rr-meter !h-1.5 flex-1">
+        <span style={{ width: `${next ? Math.min(100, (points / next.unlockPoints) * 100) : 100}%`, backgroundColor: 'var(--color-orange)' }} />
+      </div>
+      <span className="font-mono text-[11px] tabular-nums text-muted">
+        {next ? `${next.name} ${Math.min(points, next.unlockPoints)}/${next.unlockPoints}` : `${points.toLocaleString('en-US')} pts banked`}
+      </span>
+    </div>
   );
 }
 
@@ -41,10 +66,12 @@ function Summary({ result }: { readonly result: RunResult }) {
   const { episode } = result;
   const { outcome } = episode;
   const mission = MISSIONS[result.missionId];
+  const briefing = useBuildStore((store) => store.briefing);
   const award = useProgressStore((store) => store.award);
   const [earned, setEarned] = useState(0);
   const [shareNote, setShareNote] = useState<string | null>(null);
-  const score = useCountUp(outcome.score);
+  const tenths = useCountUp(Math.round(outcome.timeS * 10));
+  const percent = useCountUp(Math.round(outcome.progressFraction * 100));
   const next = MISSION_IDS[MISSION_IDS.indexOf(mission.id) + 1];
   const headline = outcome.finished ? 'Finished' : outcome.dnfReason ? DNF_LABEL[outcome.dnfReason] : 'Did not finish';
 
@@ -55,96 +82,86 @@ function Summary({ result }: { readonly result: RunResult }) {
   }, [award, episode]);
 
   return (
-    <Shell
-      back="/"
-      kicker={`${mission.id} · result`}
-      title={mission.name}
-      footer={
-        <div className="grid grid-cols-2 gap-2.5">
-          <Link href="/workshop" className={`rr-btn ${outcome.finished ? 'rr-btn-secondary' : 'rr-btn-primary'}`}>
-            <Icon name="wrench" size={18} />
-            Upgrade
-          </Link>
-          <Link href={`/run/${mission.id}`} className={`rr-btn ${outcome.finished ? 'rr-btn-primary' : 'rr-btn-secondary'}`}>
-            <Icon name="retry" size={18} />
-            Retry
-          </Link>
+    <main className="mx-auto flex min-h-dvh max-w-[430px] flex-col gap-3 px-4 pb-[max(18px,env(safe-area-inset-bottom))] pt-[max(22px,env(safe-area-inset-top))]">
+      <header className="rr-rise relative flex flex-col items-center gap-1">
+        <Link href="/" aria-label="Home" className="rr-iconbtn absolute right-0 top-0">
+          <Icon name="close" />
+        </Link>
+        <span className="font-mono text-[11px] font-medium uppercase tracking-[2px] text-muted">
+          Mission 0{mission.id.slice(1)} · {mission.name}
+        </span>
+        <h1 className={`font-display text-xl font-bold uppercase tracking-[4px] ${outcome.finished ? 'text-orange' : 'text-bad'}`}>{headline}</h1>
+        <span className="font-mono text-[54px] font-semibold leading-none tabular-nums">
+          {outcome.finished ? (tenths / 10).toFixed(1) : percent}
+          <span className="text-[22px] text-muted">{outcome.finished ? ' s' : ' % of track'}</span>
+        </span>
+        <div className="mt-1">
+          <Stars count={outcome.stars} size={30} animate />
         </div>
-      }
-    >
-      <section className="rr-panel rr-rise relative overflow-hidden p-4 text-center">
-        <div className={`absolute inset-x-0 top-0 h-1.5 ${outcome.finished ? 'bg-ok' : 'rr-hazard'}`} />
-        <div className={`rr-label mt-2 !text-xs ${outcome.finished ? '!text-ok' : '!text-bad'}`}>{headline}</div>
-        <div className="mt-3 flex items-end justify-center gap-2 leading-none">
-          <span className="font-mono text-[64px] font-bold tabular-nums tracking-tight text-safety drop-shadow-[0_0_24px_rgb(255_106_19/0.45)]">{score}</span>
-          <span className="pb-2.5 font-mono text-sm text-dim">pts</span>
-        </div>
-        <div className="mt-3 flex justify-center">
-          <Stars count={outcome.stars} size={34} animate />
-        </div>
-        <p className="mt-2 font-mono text-[10px] text-dim">
-          1★ finish · 2★ at {mission.starThreshold} pts · 3★ with zero damage
-        </p>
-        <p className="mt-3.5 rounded-xl border border-slate-line bg-slate-deep/70 px-3 py-2.5 text-[15px] font-medium leading-snug">{whyLine(episode)}</p>
-        <div className="mt-3 flex flex-wrap items-center justify-center gap-1.5">
-          <span className="rr-chip">{buildName(episode.build)}</span>
-          <span className="rr-chip">€{outcome.costEur}</span>
-          {earned > 0 ? (
-            <span className="rr-chip !border-safety/50 !text-safety-hi">
-              <Icon name="bolt" size={12} />+{earned} pts banked
-            </span>
-          ) : null}
-        </div>
-      </section>
+      </header>
 
-      <div className="rr-rise" style={{ ['--i' as string]: 1 }}>
-        <DuelTable episode={episode} ghosts={result.ghosts} />
-      </div>
+      <p className="rr-rise rounded-[14px] border border-line bg-panel-2 px-3 py-2.5 text-[13px] leading-snug text-[#D7DBE0]" style={{ ['--i' as string]: 1 }}>
+        <span className="font-mono text-[10px] font-medium tracking-[1.5px] text-orange-soft">WHY · </span>
+        {whyLine(episode)}
+        {outcome.finished && outcome.stars < 3 ? (
+          <span className="text-muted">
+            {' '}
+            {outcome.stars < 2 ? `Second star: ${mission.starThreshold} points.` : 'Third star: finish with zero damage.'}
+          </span>
+        ) : null}
+      </p>
 
       <div className="rr-rise" style={{ ['--i' as string]: 2 }}>
-        <ScoreBreakdown outcome={outcome} />
+        <DuelTable episode={episode} ghosts={result.ghosts} briefing={briefing} />
       </div>
 
       <div className="rr-rise" style={{ ['--i' as string]: 3 }}>
+        <ScoreBreakdown outcome={outcome} />
+      </div>
+
+      <div className="rr-rise" style={{ ['--i' as string]: 4 }}>
+        <PointsRow earned={earned} />
+      </div>
+
+      <div className="rr-rise" style={{ ['--i' as string]: 5 }}>
         <SubmitRun episode={episode} leaderboard={mission.leaderboard} />
       </div>
 
-      <div className="rr-rise grid grid-cols-2 gap-2.5" style={{ ['--i' as string]: 4 }}>
+      {next && outcome.finished ? (
+        <Link href={`/brief/${next}`} className="flex items-center justify-between rounded-xl border border-dashed border-line-3 px-3 py-2.5 text-xs text-[#B8C0C9]">
+          <span>
+            Next: <span className="font-mono text-text">MISSION 0{next.slice(1)}</span> · {MISSIONS[next].name}
+          </span>
+          <Icon name="next" size={16} className="text-orange" />
+        </Link>
+      ) : null}
+
+      <nav className="mt-auto grid grid-cols-4 gap-2 pt-1" aria-label="After the run">
+        <Link href={`/run/${mission.id}`} className={TILE}>
+          <Tile icon="retry">RETRY</Tile>
+        </Link>
+        <Link href="/workshop" className={`${TILE} ${outcome.finished ? '' : '!border-orange !text-orange-soft'}`}>
+          <Tile icon="wrench">UPGRADE</Tile>
+        </Link>
         <button
           type="button"
-          className="rr-btn rr-btn-secondary text-sm"
+          className={TILE}
           onClick={() => {
             void share(episode).then((kind) => setShareNote(SHARE_NOTE[kind]));
           }}
         >
-          <Icon name="share" size={18} />
-          Share
+          <Tile icon="share">SHARE</Tile>
         </button>
-        <button type="button" className="rr-btn rr-btn-secondary text-sm" onClick={() => downloadEpisode(episode)}>
-          <Icon name="download" size={18} />
-          Episode JSON
+        <button type="button" className={TILE} onClick={() => downloadEpisode(episode)}>
+          <Tile icon="download">EPISODE</Tile>
         </button>
-      </div>
+      </nav>
       {shareNote ? (
-        <p role="status" className="-mt-1 text-center font-mono text-[11px] text-dim">
+        <p role="status" className="text-center font-mono text-[11px] text-muted">
           {shareNote}
         </p>
       ) : null}
-
-      {next && outcome.finished ? (
-        <Link href={`/brief/${next}`} className="rr-panel flex items-center justify-between gap-3 p-3 active:translate-y-0.5">
-          <span>
-            <span className="rr-label">Next mission</span>
-            <span className="mt-1.5 block text-base font-semibold">
-              {next} · {MISSIONS[next].name}
-            </span>
-          </span>
-          <span className="text-safety">
-            <Icon name="next" size={22} />
-          </span>
-        </Link>
-      ) : null}
-    </Shell>
+    </main>
   );
 }
 

@@ -2,35 +2,47 @@ import type { ReactNode } from 'react';
 
 const PATHS = {
   play: <path d="M7 4.5v15l13-7.5z" fill="currentColor" stroke="none" />,
-  back: <path d="M15 5l-7 7 7 7" />,
-  next: <path d="M9 5l7 7-7 7" />,
-  wrench: <path d="M14.5 6.5a4 4 0 0 0-5.3 5.1L4 16.8 7.2 20l5.2-5.2a4 4 0 0 0 5.1-5.3l-2.6 2.6-2.2-.6-.6-2.2z" />,
+  back: <path d="M15 6l-6 6 6 6" />,
+  next: (
+    <>
+      <path d="M5 12h14" />
+      <path d="M13 6l6 6-6 6" />
+    </>
+  ),
+  wrench: <path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.5 2.5-2.5-.5-.5-2.5z" />,
   trophy: (
     <>
-      <path d="M8 4h8v5a4 4 0 0 1-8 0z" />
-      <path d="M8 6H5a3 3 0 0 0 3 4M16 6h3a3 3 0 0 1-3 4M12 13v4M8.5 20h7M10 17h4" />
+      <path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0z" />
+      <path d="M17 5h3v2a3 3 0 0 1-3 3M7 5H4v2a3 3 0 0 0 3 3" />
     </>
   ),
   flag: <path d="M6 21V4M6 5h11l-2.5 3.5L17 12H6" />,
   bolt: <path d="M13 3L5 13.5h6L10 21l8-10.5h-6z" />,
   lock: (
     <>
-      <rect x="5.5" y="10.5" width="13" height="9.5" rx="2" />
-      <path d="M8.5 10.5V8a3.5 3.5 0 0 1 7 0v2.5" />
+      <rect x="5" y="11" width="14" height="10" rx="2" />
+      <path d="M8 11V7a4 4 0 0 1 8 0v4" />
     </>
   ),
-  check: <path d="M5 12.5l4.5 4.5L19 7.5" />,
-  retry: <path d="M19 12a7 7 0 1 1-2.3-5.2M19 4v4h-4" />,
+  check: <path d="M5 12l5 5L20 7" />,
+  retry: (
+    <>
+      <path d="M3 12a9 9 0 1 0 3-6.7" />
+      <path d="M3 4v5h5" />
+    </>
+  ),
   share: (
     <>
-      <path d="M12 15V4M8 7.5L12 4l4 3.5" />
-      <path d="M6 11v8h12v-8" />
+      <circle cx="18" cy="5" r="3" />
+      <circle cx="6" cy="12" r="3" />
+      <circle cx="18" cy="19" r="3" />
+      <path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4" />
     </>
   ),
   download: (
     <>
-      <path d="M12 4v11M8 11.5l4 3.5 4-3.5" />
-      <path d="M5 19.5h14" />
+      <path d="M12 3v12M7 10l5 5 5-5" />
+      <path d="M5 21h14" />
     </>
   ),
   eye: (
@@ -53,8 +65,8 @@ const PATHS = {
   ),
   rain: (
     <>
-      <path d="M7 14.5a4 4 0 0 1 .6-7.9 5 5 0 0 1 9.6 1.2 3.4 3.4 0 0 1-.2 6.7z" />
-      <path d="M8.5 17.5l-1 3M12.5 17.5l-1 3M16.5 17.5l-1 3" />
+      <path d="M7 15a5 5 0 1 1 9.6-2H18a3 3 0 0 1 0 6H8" />
+      <path d="M9 21l1-2M14 21l1-2" />
     </>
   ),
   cold: <path d="M12 2.5v19M4 7l16 10M20 7L4 17M9.5 4l2.5 2 2.5-2M9.5 20l2.5-2 2.5 2" />,
@@ -66,11 +78,12 @@ const PATHS = {
   ),
   users: (
     <>
-      <circle cx="9" cy="8.5" r="3" />
-      <path d="M3.5 19a5.5 5.5 0 0 1 11 0M15.5 5.8a3 3 0 0 1 0 5.6M17 14.2a5.5 5.5 0 0 1 3.5 4.8" />
+      <circle cx="9" cy="8" r="3" />
+      <circle cx="17" cy="9" r="2.5" />
+      <path d="M3 20a6 6 0 0 1 12 0M15 20a4.5 4.5 0 0 1 6.5-4" />
     </>
   ),
-  star: <path d="M12 2.8l2.8 6 6.5.8-4.8 4.5 1.3 6.5L12 17.3l-5.8 3.3 1.3-6.5L2.7 9.6l6.5-.8z" fill="currentColor" stroke="none" />,
+  star: <path d="M12 2l3 6.5 7 .8-5.2 4.8 1.4 7L12 17.6 5.8 21.1l1.4-7L2 9.3l7-.8z" fill="currentColor" stroke="none" />,
   wheel: (
     <>
       <circle cx="12" cy="12" r="8.5" />
@@ -108,6 +121,16 @@ const PATHS = {
       <path d="M10 2.8v3.7M14 2.8v3.7M10 17.5v3.7M14 17.5v3.7M2.8 10h3.7M2.8 14h3.7M17.5 10h3.7M17.5 14h3.7" />
     </>
   ),
+  close: <path d="M6 6l12 12M18 6L6 18" />,
+  external: (
+    <>
+      <path d="M7 17L17 7" />
+      <path d="M8 7h9v9" />
+    </>
+  ),
+  starOutline: <path d="M12 2l3 6.5 7 .8-5.2 4.8 1.4 7L12 17.6 5.8 21.1l1.4-7L2 9.3l7-.8z" strokeWidth="1.5" />,
+  home: <path d="M4 11l8-7 8 7M6 10v10h12V10" />,
+  layers: <path d="M12 3l9 5-9 5-9-5zM3 13l9 5 9-5M3 17.5l9 5 9-5" />,
 } as const satisfies Record<string, ReactNode>;
 
 export type IconName = keyof typeof PATHS;
@@ -127,7 +150,7 @@ export function Icon({ name, size = 20, className }: IconProps) {
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
-      strokeWidth="1.8"
+      strokeWidth="2"
       strokeLinecap="round"
       strokeLinejoin="round"
       aria-hidden="true"

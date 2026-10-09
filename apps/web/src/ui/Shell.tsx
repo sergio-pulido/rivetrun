@@ -1,40 +1,49 @@
 import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { Icon } from './Icon';
-import { PointsChip } from './PointsChip';
 
 interface ShellProps {
-  /** Where the back key goes. */
-  readonly back: string;
-  /** Silk-screen line above the title, e.g. "M1 · MISSION BRIEF". */
-  readonly kicker: string;
+  /** Where the back key goes. Omit for screens that close instead (part sheet, result). */
+  readonly back?: string;
+  /** Centred in the top bar: display caps by default. */
   readonly title: string;
+  /** Mono data-label style title (mission number, part counter). */
+  readonly titleStyle?: 'display' | 'label';
+  /** Right end of the top bar, 44 px tall. Defaults to an empty spacer so the title stays centred. */
+  readonly right?: ReactNode;
   readonly children: ReactNode;
-  /** Pinned to the bottom of the screen: the screen's main action. */
+  /** Pinned to the bottom of the screen: the screen's main actions. */
   readonly footer?: ReactNode;
+  /** Home draws on the blueprint grid; every other screen is plain ground. */
+  readonly className?: string;
 }
 
-/** Shared frame for every screen after Home: back key, title block, points, pinned action bar. */
-export function Shell({ back, kicker, title, children, footer }: ShellProps) {
+/** Shared frame of every screen: 44 px top bar (back, title, one slot), 16 px gutters, pinned action bar. */
+export function Shell({ back, title, titleStyle = 'display', right, children, footer, className = '' }: ShellProps) {
   return (
-    <main className="mx-auto flex min-h-dvh max-w-md flex-col px-4 pt-[max(12px,env(safe-area-inset-top))]">
-      <header className="flex items-center gap-3 pb-3">
-        <Link
-          href={back}
-          aria-label="Back"
-          className="rr-btn rr-btn-secondary !min-h-11 w-11 shrink-0 !rounded-xl !px-0"
+    <main className={`mx-auto flex min-h-dvh max-w-[430px] flex-col px-4 pt-[max(18px,env(safe-area-inset-top))] ${className}`}>
+      <header className="flex h-11 shrink-0 items-center justify-between gap-3">
+        {back ? (
+          <Link href={back} aria-label="Back" className="rr-iconbtn">
+            <Icon name="back" />
+          </Link>
+        ) : (
+          <span className="w-11 shrink-0" />
+        )}
+        <h1
+          className={
+            titleStyle === 'display'
+              ? 'truncate font-display text-[17px] font-bold uppercase tracking-[3px]'
+              : 'truncate font-mono text-[11px] font-medium uppercase tracking-[2px] text-muted'
+          }
         >
-          <Icon name="back" />
-        </Link>
-        <div className="min-w-0 flex-1">
-          <div className="rr-label !text-safety">{kicker}</div>
-          <h1 className="mt-1 truncate text-xl font-bold leading-tight tracking-tight">{title}</h1>
-        </div>
-        <PointsChip />
+          {title}
+        </h1>
+        {right ?? <span className="w-11 shrink-0" />}
       </header>
-      <div className="flex flex-1 flex-col gap-3 pb-4">{children}</div>
+      <div className="flex flex-1 flex-col gap-3 pb-4 pt-3">{children}</div>
       {footer ? (
-        <div className="sticky bottom-0 z-20 -mx-4 bg-gradient-to-t from-slate-ink via-slate-ink/95 to-transparent px-4 pb-[max(14px,env(safe-area-inset-bottom))] pt-5">
+        <div className="sticky bottom-0 z-20 -mx-4 bg-gradient-to-t from-ground from-70% to-transparent px-4 pb-[max(18px,env(safe-area-inset-bottom))] pt-4">
           {footer}
         </div>
       ) : null}

@@ -1,28 +1,30 @@
 import type { Metadata, Viewport } from 'next';
-import { JetBrains_Mono, Space_Grotesk } from 'next/font/google';
+import { Chakra_Petch, IBM_Plex_Mono, IBM_Plex_Sans } from 'next/font/google';
 import type { ReactNode } from 'react';
 import { StoreSync } from '@/ui/StoreSync';
 import './globals.css';
 
-const display = Space_Grotesk({ subsets: ['latin'], variable: '--font-display', display: 'swap' });
-const code = JetBrains_Mono({ subsets: ['latin'], variable: '--font-code', display: 'swap' });
+// Design v1: Chakra Petch (display), IBM Plex Sans (body), IBM Plex Mono (data).
+const chakra = Chakra_Petch({ subsets: ['latin'], weight: ['500', '600', '700'], variable: '--font-chakra', display: 'swap' });
+const plexSans = IBM_Plex_Sans({ subsets: ['latin'], weight: ['400', '500', '600'], variable: '--font-plex-sans', display: 'swap' });
+const plexMono = IBM_Plex_Mono({ subsets: ['latin'], weight: ['500', '600'], variable: '--font-plex-mono', display: 'swap' });
 
 export const metadata: Metadata = {
   title: 'RivetRun',
-  description: 'You build the body. AI drives it.',
+  description: 'Build the body. Brief the brain. Watch it drive.',
 };
 
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
   viewportFit: 'cover',
-  themeColor: '#0f141b',
+  themeColor: '#0e1013',
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="en" className={`${display.variable} ${code.variable}`}>
-      <body className="blueprint min-h-dvh font-sans antialiased">
+    <html lang="en" className={`${chakra.variable} ${plexSans.variable} ${plexMono.variable}`}>
+      <body className="min-h-dvh bg-ground font-sans text-text antialiased">
         <StoreSync />
         {children}
       </body>

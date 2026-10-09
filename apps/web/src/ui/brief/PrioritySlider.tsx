@@ -2,39 +2,33 @@
 
 import { useBuildStore } from '@/state/build';
 
-const describe = (priority: number): { label: string; note: string } => {
-  if (priority < 0.35) return { label: 'Speed first', note: 'The AI accepts damage and battery drain to save seconds.' };
-  if (priority > 0.65) return { label: 'Safety first', note: 'The AI gives up time to protect the robot.' };
-  return { label: 'Balanced', note: 'The AI weighs time against damage evenly.' };
-};
-
-/** The one instruction the player gives the AI: 0 = speed, 1 = safety. */
+/** The priority the brain weighs every decision with: 0 = speed, 1 = safety. */
 export function PrioritySlider() {
   const priority = useBuildStore((store) => store.priority);
   const setPriority = useBuildStore((store) => store.setPriority);
-  const { label, note } = describe(priority);
+  const percent = Math.round(priority * 100);
+  const valueText = percent < 35 ? 'Speed first' : percent > 65 ? 'Safety first' : 'Balanced';
   return (
-    <div>
-      <div className="flex items-baseline justify-between">
-        <h2 className="rr-label">Orders for the AI</h2>
-        <span className="text-sm font-semibold">{label}</span>
+    <section className="flex flex-col gap-1">
+      <div className="flex justify-between font-mono text-[11px] font-medium tracking-[1px]">
+        <span className="text-orange-soft">SPEED</span>
+        <label htmlFor="priority" className="text-muted">
+          PRIORITY · {valueText.toUpperCase()}
+        </label>
+        <span className="text-cyan">SAFETY</span>
       </div>
       <input
+        id="priority"
         type="range"
         min={0}
-        max={1}
-        step={0.05}
-        value={priority}
-        onChange={(event) => setPriority(Number(event.target.value))}
-        aria-label="Priority: speed to safety"
-        aria-valuetext={label}
-        className="rr-range mt-1"
+        max={100}
+        step={5}
+        value={percent}
+        onChange={(event) => setPriority(Number(event.target.value) / 100)}
+        aria-valuetext={valueText}
+        className="rr-range"
+        style={{ ['--fill' as string]: `${percent}%` }}
       />
-      <div className="flex justify-between font-mono text-[10px] font-bold uppercase tracking-widest">
-        <span className="text-safety">Speed</span>
-        <span className="text-led">Safety</span>
-      </div>
-      <p className="mt-2 text-[13px] leading-snug text-dim">{note}</p>
-    </div>
+    </section>
   );
 }

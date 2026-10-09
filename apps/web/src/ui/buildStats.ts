@@ -36,6 +36,7 @@ const SENSOR_SEES: Readonly<Record<SensorKind, string>> = {
   ultrasonic: 'obstacles',
   imu: 'slip and tilt',
   moisture: 'water and mud depth',
+  scout_drone: 'the next terrain change up to 15 m ahead',
 };
 
 const clamp01 = (value: number): number => Math.min(1, Math.max(0, value));
