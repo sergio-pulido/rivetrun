@@ -208,6 +208,8 @@ const VIEW_WIDTH_M = 5.7;
 const VIEW_WIDTH_DRONE_M = 6.7;
 const MIN_VIEW_HEIGHT_M = 8.5;
 const ELEVATION = (15 * Math.PI) / 180;
+/** Width of the Brain sheet in the HUD (max-w-[430px]): the camera keeps the robot clear of it in landscape. */
+const HUD_SHEET_WIDTH_PX = 430;
 
 interface RigProps {
   pose: RefObject<Pose>;
@@ -230,7 +232,18 @@ function CameraRig({ pose, light, startX, wide }: RigProps) {
     const f = focus.current;
     const aspect = size.width / Math.max(1, size.height);
     const portrait = aspect < 1;
-    const leadX = (p.ready ? p.x : startX) + (portrait ? (wide ? 1.35 : 0.75) : 2.4) + clamp(p.v * 0.25, -0.5, 0.9);
+    f.zoom = damp(f.zoom, p.thinking ? 0.86 : 1, 5, dt);
+    const halfV = (camera.fov * Math.PI) / 360;
+    const byWidth = (wide ? VIEW_WIDTH_DRONE_M : VIEW_WIDTH_M) / (2 * Math.tan(halfV) * aspect);
+    const byHeight = MIN_VIEW_HEIGHT_M / (2 * Math.tan(halfV));
+    const distance = Math.max(byWidth, byHeight) * f.zoom;
+
+    // Landscape (laptop, big screen): the Brain sheet sits bottom-centre, so park the robot left of it.
+    const viewWidthM = 2 * distance * Math.tan(halfV) * aspect;
+    const sheetLeftPx = (size.width - Math.min(HUD_SHEET_WIDTH_PX, size.width)) / 2;
+    const robotPx = clamp(sheetLeftPx - 130, size.width * 0.12, size.width * 0.36);
+    const lead = portrait ? (wide ? 1.35 : 0.75) : (0.5 - robotPx / size.width) * viewWidthM;
+    const leadX = (p.ready ? p.x : startX) + lead + clamp(p.v * 0.25, -0.5, 0.9);
     const leadY = p.ready ? p.y : 0;
     if (!f.init) {
       f.x = leadX;
@@ -239,12 +252,7 @@ function CameraRig({ pose, light, startX, wide }: RigProps) {
     }
     f.x = Math.abs(leadX - f.x) > 6 ? leadX : damp(f.x, leadX, 6, dt);
     f.y = damp(f.y, leadY, 3.2, dt);
-    f.zoom = damp(f.zoom, p.thinking ? 0.86 : 1, 5, dt);
 
-    const halfV = (camera.fov * Math.PI) / 360;
-    const byWidth = (wide ? VIEW_WIDTH_DRONE_M : VIEW_WIDTH_M) / (2 * Math.tan(halfV) * aspect);
-    const byHeight = MIN_VIEW_HEIGHT_M / (2 * Math.tan(halfV));
-    const distance = Math.max(byWidth, byHeight) * f.zoom;
     // In portrait the Brain sheet covers the lower ~42 %: the robot sits in the clear band above it.
     const lift = distance * Math.tan(halfV) * (portrait ? 0.2 : -0.12);
     const shake = performance.now() < p.shakeUntil ? 0.09 : 0;

@@ -41,6 +41,7 @@ const LOOKS: Readonly<Record<Expression, Look>> = {
   reverse: look({ dx: -0.035, h: 0.08, mouthW: 0.05, yaw: -0.15 }),
   climb_mode: look({ h: 0.06, tilt: 0.38, color: '#ffa23d', mouthW: 0.12 }),
   deploy_winch: look({ h: 0.07, tilt: 0.3, color: '#ffd166', mouthW: 0.05, mouthH: 0.04 }),
+  jump: look({ w: 0.1, h: 0.16, mouthW: 0.05, mouthH: 0.06, color: '#8dfcff', yaw: 0.6 }),
   thinking: look({ w: 0.05, h: 0.05, color: '#ffffff', mouthW: 0.035, yaw: 0.1 }),
   slip: look({ w: 0.09, h: 0.09, color: '#ffe066', mouthW: 0.06, mouthH: 0.05 }),
   hurt: look({ shape: 'wince', color: '#ff7a5c', mouthW: 0.07, mouthH: 0.04 }),

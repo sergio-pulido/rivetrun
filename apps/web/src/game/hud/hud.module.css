@@ -81,13 +81,14 @@
   animation: stamp 0.45s cubic-bezier(0.2, 1.5, 0.4, 1) both;
 }
 
+/* Result cards stay flat in screen space, in portrait and landscape: the pop is scale only, never a tilt. */
 @keyframes stamp {
   from {
-    transform: rotate(-7deg) scale(2.4);
+    transform: scale(2.4);
     opacity: 0;
   }
   to {
-    transform: rotate(-7deg) scale(1);
+    transform: scale(1);
     opacity: 1;
   }
 }

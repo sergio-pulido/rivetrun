@@ -57,12 +57,15 @@ export const ACTION_LABEL: Readonly<Record<Action, string>> = {
   reverse: 'Reverse',
   climb_mode: 'Climb mode',
   deploy_winch: 'Deploy winch',
+  jump: 'Jump',
 };
 
 export const POLICY_LABEL: Readonly<Record<Policy, string>> = {
   jev: 'JEV',
   heuristic: 'HEURISTIC',
   random: 'RANDOM',
+  // Drive mode: a person at the controls.
+  human: 'YOU',
 };
 
 /** Ghost tints: pale and desaturated so the player robot stays the hero. */
@@ -70,6 +73,7 @@ export const POLICY_TINT: Readonly<Record<Policy, string>> = {
   jev: '#ff7a1a',
   heuristic: '#9fd8ef',
   random: '#cdb4f0',
+  human: '#ff7a1a',
 };
 
 export const DNF_LABEL: Readonly<Record<DnfReason, string>> = {
@@ -88,7 +92,8 @@ export const LANES = {
   zBack: -5.2,
 } as const;
 
-export const laneZ = (policy: Policy): number => (policy === 'jev' ? LANES.player : LANES[policy]);
+/** Jev and a human driver both take the player lane; the two reference brains get the ghost lanes. */
+export const laneZ = (policy: Policy): number => (policy === 'heuristic' || policy === 'random' ? LANES[policy] : LANES.player);
 
 export interface SkyLook {
   readonly top: string;

@@ -72,6 +72,10 @@ function reduce(view: RunView, event: RunEvent): RunView {
     case 'dnf':
       return { ...view, pending: null, outcome: event.outcome, dnfReason: event.reason, done: true };
     case 'terrainEnter':
+    // Gameplay v2 air events: the scene reads height from SimState; nothing to reduce yet.
+    case 'airborne':
+    case 'landed':
+    case 'fell':
       return view;
   }
 }
