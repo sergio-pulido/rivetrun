@@ -9,6 +9,7 @@ import { SKY } from '../palette';
 import type { TrackLayout } from '../track';
 import { Backdrop } from './Backdrop';
 import { Dressing } from './Dressing';
+import { Features } from './Features';
 import { Terrain } from './Terrain';
 import { WeatherFx } from './WeatherFx';
 
@@ -69,6 +70,7 @@ export function World({ layout, weather, sun, budget = 1, shadowSpan = 9, lanes 
       <Backdrop layout={layout} weather={weather} />
       <Terrain layout={layout} />
       <Dressing layout={layout} lanes={lanes} />
+      <Features layout={layout} />
       <WeatherFx weather={weather} budget={budget} />
     </>
   );

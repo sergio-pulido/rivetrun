@@ -6,6 +6,7 @@ import type {
   BrainDecision,
   BrainQuestion,
   Build,
+  ControlInput,
   DecisionTrigger,
   DnfReason,
   GhostTrace,
@@ -86,6 +87,13 @@ interface Core {
   effects: SimEffect[];
   hit: Set<number>;
   damageEvent: number;
+  /** Fake airtime, so the controls and the landing effects can be tried before the sim has them. */
+  h: number;
+  vy: number;
+  airborne: boolean;
+  airtimeS: number;
+  /** Set on the step the robot touches down. */
+  landedMps: number;
 }
 
 interface World {
@@ -116,6 +124,24 @@ const segmentOf = (world: World, index: number): Segment => world.mission.track.
 
 function stepCore(world: World, core: Core): void {
   const { caps } = world;
+  core.landedMps = 0;
+  if (core.airborne) {
+    // Ballistic: no traction, no throttle.
+    core.h += core.vy * DT;
+    core.vy -= 9.81 * DT;
+    core.x += core.v * DT;
+    core.t += DT;
+    core.airtimeS += DT;
+    core.damageEvent = 0;
+    core.effects = [];
+    if (core.h <= 0) {
+      core.landedMps = Math.abs(core.vy);
+      core.h = 0;
+      core.vy = 0;
+      core.airborne = false;
+    }
+    return;
+  }
   const index = indexAt(world, core.x);
   const segment = segmentOf(world, index);
   const terrain = TERRAINS[segment.terrain];
@@ -177,12 +203,13 @@ function simStateOf(world: World, core: Core): SimState {
     x: core.x,
     v: core.v,
     slopeDeg: segment.slopeDeg,
-    pitch: segment.slopeDeg,
+    pitch: core.airborne ? clamp(core.vy * 5, -20, 20) : segment.slopeDeg,
     wheelSpin: core.wheelSpin,
     terrain: segment.terrain,
     battery: core.battery,
     damage: core.damage,
     effects: core.effects,
+    ...(core.airborne ? { heightM: core.h, vy: core.vy, airborne: true } : {}),
   };
 }
 
@@ -319,7 +346,7 @@ function trigger(world: World, core: Core, memo: TriggerMemo): DecisionTrigger |
 
 const freshCore = (): Core => ({
   t: 0, x: 0, v: 0, battery: 100, damage: 0, action: 'cruise', slipPct: 0, stuckS: 0, wheelSpin: 0,
-  effects: [], hit: new Set(), damageEvent: 0,
+  effects: [], hit: new Set(), damageEvent: 0, h: 0, vy: 0, airborne: false, airtimeS: 0, landedMps: 0,
 });
 
 const freshMemo = (): TriggerMemo => ({ lastT: -1, aheadFor: -1, enteredFor: -1, obstacleFor: -1, slipAt: -9 });
@@ -368,6 +395,10 @@ export interface FakeRunOptions {
   readonly seed?: number;
   /** 0 = speed, 1 = safety. */
   readonly priority?: number;
+  /** Drive mode: sampled once per tick instead of asking a brain (pass `drive.read`). */
+  readonly control?: () => ControlInput;
+  /** false = no slow-mo while a decision is pending (the Jev ghost of Drive mode). */
+  readonly slowMo?: boolean;
 }
 
 export interface FakeRun {
@@ -376,7 +407,7 @@ export interface FakeRun {
 }
 
 /** Wall-clock fake run with pending decisions, slow-mo, latency and the odd fallback. */
-export function createFakeRun({ mission, build, onEvent, seed = 1, priority = 0.5 }: FakeRunOptions): FakeRun {
+export function createFakeRun({ mission, build, onEvent, seed = 1, priority = 0.5, control, slowMo = true }: FakeRunOptions): FakeRun {
   const world = worldOf(mission, build);
   const rand = mulberry32(seed);
   const core = freshCore();
@@ -405,10 +436,21 @@ export function createFakeRun({ mission, build, onEvent, seed = 1, priority = 0.
     const dtWall = Math.min(0.1, (time - last) / 1000);
     last = time;
     if (pending && time >= pendingUntil) resolve();
-    budget += dtWall * (pending ? TUNING.decision.slowMoFactor : 1);
+    budget += dtWall * (pending && slowMo ? TUNING.decision.slowMoFactor : 1);
     while (budget >= DT) {
       budget -= DT;
-      const why = pending ? null : trigger(world, core, memo);
+      if (control) {
+        // A person at the controls: pedals map onto the same actions a brain would pick.
+        const input = control();
+        core.action = input.brake ? 'brake' : input.special === 'winch' ? 'deploy_winch' : input.special === 'climb' ? 'climb_mode' : input.throttle ? 'accelerate' : 'cruise';
+        if (input.special === 'jump' && !core.airborne) {
+          core.airborne = true;
+          core.vy = 3;
+          core.airtimeS = 0;
+          onEvent({ type: 'airborne', t: core.t, x: core.x, v: core.v, vy: core.vy, cause: 'jump' });
+        }
+      }
+      const why = pending || control ? null : trigger(world, core, memo);
       if (why) {
         memo.lastT = core.t;
         const question = questionOf(world, core, why, priority, rand);
@@ -425,6 +467,7 @@ export function createFakeRun({ mission, build, onEvent, seed = 1, priority = 0.
       if (core.damageEvent > 0) {
         onEvent({ type: 'damage', t: core.t, cause: 'impact', amountPct: core.damageEvent, totalPct: core.damage });
       }
+      if (core.landedMps > 0) onEvent({ type: 'landed', t: core.t, x: core.x, impactMps: core.landedMps, airtimeS: core.airtimeS, damagePct: 0 });
       const reason = endReason(world, core);
       if (reason) {
         resolve();

@@ -25,6 +25,10 @@ export interface RunView {
   } | null;
   readonly decisionCount: number;
   readonly lastDamage: { readonly cause: DamageCause; readonly amountPct: number; readonly at: number } | null;
+  /** Last touchdown after airtime (gameplay v2): drives landing dust, shake and haptics. */
+  readonly lastLanding: { readonly impactMps: number; readonly airtimeS: number; readonly damagePct: number; readonly at: number } | null;
+  /** Last fall into a gap: the robot respawns at `respawnX`. */
+  readonly lastFall: { readonly falls: number; readonly respawnX: number; readonly at: number } | null;
   readonly outcome: Outcome | null;
   readonly dnfReason: DnfReason | null;
   readonly done: boolean;
@@ -37,6 +41,8 @@ const EMPTY: RunView = {
   decision: null,
   decisionCount: 0,
   lastDamage: null,
+  lastLanding: null,
+  lastFall: null,
   outcome: null,
   dnfReason: null,
   done: false,
@@ -71,11 +77,13 @@ function reduce(view: RunView, event: RunEvent): RunView {
       return { ...view, pending: null, outcome: event.outcome, done: true };
     case 'dnf':
       return { ...view, pending: null, outcome: event.outcome, dnfReason: event.reason, done: true };
-    case 'terrainEnter':
-    // Gameplay v2 air events: the scene reads height from SimState; nothing to reduce yet.
-    case 'airborne':
     case 'landed':
+      return { ...view, lastLanding: { impactMps: event.impactMps, airtimeS: event.airtimeS, damagePct: event.damagePct, at: now() } };
     case 'fell':
+      return { ...view, lastFall: { falls: event.falls, respawnX: event.respawnX, at: now() } };
+    // Height while airborne comes with every frame (SimState.heightM): nothing to keep from these.
+    case 'terrainEnter':
+    case 'airborne':
       return view;
   }
 }

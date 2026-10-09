@@ -215,6 +215,35 @@ function ThrusterKit({ floor }: AttachmentProps) {
   );
 }
 
+/** Spring-loaded piston under the chassis: the foot punches down when the robot leaves the ground. */
+function PistonJump({ floor }: AttachmentProps) {
+  const m = useMats();
+  const context = useContext(RobotContext);
+  const rod = useRef<Group>(null);
+  const kick = useRef({ value: 0, wasAirborne: false });
+  useFrame((_, dt) => {
+    const airborne = context?.drive.current.airborne ?? false;
+    const k = kick.current;
+    if (airborne && !k.wasAirborne) k.value = 1;
+    k.wasAirborne = airborne;
+    k.value = Math.max(0, k.value - Math.min(dt, 0.05) * 3.2);
+    // Full stroke reaches the ground; it retracts while the robot is still in the air.
+    if (rod.current) rod.current.position.y = -0.1 - k.value * (Math.abs(floor) - 0.22);
+  });
+  return (
+    <Part position={[-0.05, -0.04, 0]} floor={floor + 0.12}>
+      <Cyl rad={0.1} h={0.14} p={[0, -0.07, 0]} m={m.print} seg={12} />
+      <Cyl rad={0.108} h={0.03} p={[0, -0.02, 0]} m={m.finRed} seg={12} shadow={false} />
+      <Cyl rad={0.108} h={0.025} p={[0, -0.13, 0]} m={m.darkSteel} seg={12} shadow={false} />
+      <Box s={[0.34, 0.04, 0.1]} p={[0, 0.0, 0]} m={m.printDark} />
+      <group ref={rod} position={[0, -0.1, 0]} userData={BAKE_STOP}>
+        <Cyl rad={0.035} h={0.34} p={[0, 0.03, 0]} m={m.steel} seg={8} />
+        <Cyl rad={0.1} h={0.035} p={[0, -0.15, 0]} m={m.rubber} seg={12} />
+      </group>
+    </Part>
+  );
+}
+
 const SENSOR_PARTS: Readonly<Record<string, (props: AttachmentProps) => ReactNode>> = {
   ultrasonic: Ultrasonic,
   camera: Camera,
@@ -228,6 +257,7 @@ const EXTRA_PARTS: Readonly<Record<string, (props: AttachmentProps) => ReactNode
   waterproof_case: WaterproofCase,
   bumper: Bumper,
   thruster_kit: ThrusterKit,
+  piston_jump: PistonJump,
 };
 
 interface AttachmentsProps {

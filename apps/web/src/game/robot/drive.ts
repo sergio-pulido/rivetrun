@@ -17,10 +17,12 @@ export interface RobotDrive {
   winch: boolean;
   /** Thruster kit is pushing the robot under water. */
   thrusting: boolean;
+  /** Off the ground (ramp, jump or drop). */
+  airborne: boolean;
 }
 
 export const restDrive = (): RobotDrive => ({
-  wheelSpin: 0, speed: 0, slip: 0, expression: 'idle', dnf: false, winch: false, thrusting: false,
+  wheelSpin: 0, speed: 0, slip: 0, expression: 'idle', dnf: false, winch: false, thrusting: false, airborne: false,
 });
 
 export interface RobotContextValue {

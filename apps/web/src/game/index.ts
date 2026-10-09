@@ -22,6 +22,12 @@ export type { BrainHudProps } from './hud/BrainHud';
 export { TopBar } from './hud/TopBar';
 export type { TopBarProps } from './hud/TopBar';
 export { RunHud } from './hud/RunHud';
+// Drive mode (gameplay v2): the player's controls. Create one per run, pass it to RunCanvas, sample it in the sim loop.
+export { createDriveInput } from './drive/driveInput';
+export type { DriveInput, DriveInputState } from './drive/driveInput';
+export { DriveControls } from './drive/DriveControls';
+export type { DriveControlsProps } from './drive/DriveControls';
+export { haptic } from './drive/haptics';
 export { createFakeRun, fakeGhostTrace } from './fakeRun';
 // Procedural sound (Web Audio, no assets). The run view wires itself; other screens can fire one-shots.
 export { initAudio, isMuted, play as playSfx, setMuted, toggleMute } from './audio/sfx';

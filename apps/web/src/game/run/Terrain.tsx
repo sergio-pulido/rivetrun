@@ -5,7 +5,7 @@ import { useEffect, useMemo, useRef } from 'react';
 import { Color, MeshBasicMaterial, MeshStandardMaterial, PlaneGeometry, type BufferGeometry, type Mesh } from 'three';
 import type { TerrainId } from '@rivetrun/contracts';
 import { LANES, TERRAIN_LOOK } from '../palette';
-import { basinCuts, basinDepthAt, type LaidSegment, type TrackLayout } from '../track';
+import { floorCuts, floorDepthAt, type LaidSegment, type TrackLayout } from '../track';
 import { QuadBuilder, type P2 } from './quads';
 import { earthTexture, padTexture, terrainTexture } from './textures';
 
@@ -34,11 +34,11 @@ interface Span {
 
 /** Splits a segment into straight spans; water gets ramps down into its basin. */
 function spansOf(segment: LaidSegment): Span[] {
-  const cuts = basinCuts(segment);
+  const cuts = floorCuts(segment);
   const at = (s: number) => {
     const f = (s - segment.s0) / (segment.s1 - segment.s0);
     const line = segment.y0 + (segment.y1 - segment.y0) * f;
-    return { x: segment.x0 + (segment.x1 - segment.x0) * f, line, y: line - basinDepthAt(segment, s) };
+    return { x: segment.x0 + (segment.x1 - segment.x0) * f, line, y: line - floorDepthAt(segment, s) };
   };
   return cuts.slice(0, -1).map((s, i) => {
     const a = at(s);
@@ -92,6 +92,14 @@ function buildTerrain(layout: TrackLayout): Built {
         undefined,
         [lipColor, lipColor, lipColor, lipColor],
       );
+      if (segment.gap && (span.lineA - ay > 0.01 || span.lineB - by > 0.01)) {
+        // Far wall of a gap's pit: dark earth, so the hole never shows the sky through it.
+        waterWall.quad(
+          [ax, ay, zBack + 0.01], [bx, by, zBack + 0.01], [bx, span.lineB, zBack + 0.01], [ax, span.lineA, zBack + 0.01],
+          undefined,
+          ['#17100b', '#17100b', '#3a2a1d', '#3a2a1d'],
+        );
+      }
       if (segment.basin > 0) {
         const surfaceA = span.lineA - WATER_DROP;
         const surfaceB = span.lineB - WATER_DROP;

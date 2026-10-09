@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from 'react';
 import type { Build, GhostTrace, Mission } from '@rivetrun/contracts';
 import { DEFAULT_PRESET_ID, MISSIONS, PRESETS } from '@rivetrun/sim';
 import { useRunAudio } from './audio/useRunAudio';
+import type { DriveInput } from './drive/driveInput';
 import { createFakeRun, fakeGhostTrace } from './fakeRun';
 import { RunHud } from './hud/RunHud';
 import { UI } from './palette';
@@ -27,6 +28,13 @@ export interface RunCanvasProps {
   ghosts?: readonly GhostTrace[];
   /** Hide the DOM overlay (top bar + Brain HUD) to supply your own. */
   hud?: boolean;
+  /**
+   * Drive mode: the player's controls, from `createDriveInput()`. The sim samples `drive.read()` each tick;
+   * the canvas shows the touch controls instead of the Brain sheet and tags the robot YOU.
+   */
+  drive?: DriveInput;
+  /** Drive mode: Jev's live run on the same build, seed and track (a second RunFeed). Drawn as a ghost labelled JEV. */
+  rival?: RunFeed;
 }
 
 const DEMO_RESTART_MS = 4200;
@@ -64,7 +72,7 @@ function useDemoRun(mission: Mission, build: Build, enabled: boolean): { feed: R
 }
 
 /** The run view: R3F canvas with the 2.5D scene plus the HUD overlay. Fills its parent. */
-export default function RunCanvas({ mission = MISSIONS.M5, build = PRESETS[DEFAULT_PRESET_ID].build, feed, ghosts, hud = true }: RunCanvasProps) {
+export default function RunCanvas({ mission = MISSIONS.M5, build = PRESETS[DEFAULT_PRESET_ID].build, feed, ghosts, hud = true, drive, rival }: RunCanvasProps) {
   const demo = useDemoRun(mission, build, feed === undefined);
   const activeFeed = feed ?? demo.feed;
   const activeGhosts = ghosts ?? demo.ghosts;
@@ -87,14 +95,14 @@ export default function RunCanvas({ mission = MISSIONS.M5, build = PRESETS[DEFAU
           if (process.env.NODE_ENV !== 'production') (window as unknown as { __rivetrun?: unknown }).__rivetrun = { info: gl.info, scene };
         }}
       >
-        <RunScene mission={mission} build={build} feed={activeFeed} ghosts={activeGhosts} particleBudget={tier.particles} />
+        <RunScene mission={mission} build={build} feed={activeFeed} ghosts={activeGhosts} particleBudget={tier.particles} hands={drive} rival={rival} />
       </Canvas>
       {lost && (
         <div className="absolute inset-0 flex items-center justify-center font-mono text-xs" style={{ color: UI.dim }}>
           3D view paused — reload to resume
         </div>
       )}
-      {hud && <RunHud mission={mission} feed={activeFeed} ghosts={activeGhosts} />}
+      {hud && <RunHud mission={mission} feed={activeFeed} ghosts={activeGhosts} drive={drive} rival={rival} build={build} />}
     </div>
   );
 }

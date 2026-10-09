@@ -70,7 +70,7 @@ export const POLICY_LABEL: Readonly<Record<Policy, string>> = {
 
 /** Ghost tints: pale and desaturated so the player robot stays the hero. */
 export const POLICY_TINT: Readonly<Record<Policy, string>> = {
-  jev: '#ff7a1a',
+  jev: '#6fdcea',
   heuristic: '#9fd8ef',
   random: '#cdb4f0',
   human: '#ff7a1a',

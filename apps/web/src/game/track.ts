@@ -2,6 +2,32 @@ import type { Obstacle, TerrainId, Track } from '@rivetrun/contracts';
 import { SHORE_RAMP_M, compileTrack, waterDepthCmAt, type WorldSegment } from '@rivetrun/sim';
 import { clamp } from './rng';
 
+/**
+ * Sim metres of height → world units. The robot is drawn several times larger than its real hull,
+ * so a true-scale hop would barely clear its own axles: height is doubled to read as a jump.
+ * Distance along the track is never scaled, so where a jump lands is exact.
+ */
+export const HEIGHT_SCALE = 2;
+/** A drop is drawn as a ledge with an approach incline this long (the sim keeps the base line flat). */
+export const DROP_APPROACH_M = 1.8;
+/** How deep a gap is drawn. */
+export const PIT_DEPTH = 2.6;
+const PIT_WALL_M = 0.04;
+
+/** A kicker ramp or a drop's approach: a straight incline from 0 at s0 to `rise` world units at s1. */
+export interface Incline {
+  readonly s0: number;
+  readonly s1: number;
+  readonly rise: number;
+  readonly kind: 'ramp' | 'drop';
+}
+
+/** A hole in the track. */
+export interface Gap {
+  readonly s0: number;
+  readonly s1: number;
+}
+
 /** One piece of laid-out track in world space (X = along the track, Y = up). */
 export interface LaidSegment {
   /** Index in mission.track.segments, or −1 for the start / finish pads. */
@@ -23,10 +49,17 @@ export interface LaidSegment {
   /** This end of the water meets dry ground (a short beach) rather than more water. */
   readonly dryIn: boolean;
   readonly dryOut: boolean;
+  /** A gap inside this segment. */
+  readonly gap?: Gap;
+  /** The approach to a drop ends at this segment's end: robots ride up it (the sim has them at height 0 until the edge). */
+  readonly ledge?: Incline;
 }
 
 export interface TrackLayout {
   readonly segments: readonly LaidSegment[];
+  /** Kicker ramps and drop approaches, for the wedge props. */
+  readonly inclines: readonly Incline[];
+  readonly gaps: readonly Gap[];
   readonly lengthM: number;
   readonly minY: number;
   readonly maxY: number;
@@ -53,6 +86,16 @@ export function basinUnits(depthCm: number): number {
 export function layoutTrack(track: Track): TrackLayout {
   const segments: LaidSegment[] = [];
   const world = compileTrack(track);
+  // Positions come resolved from the sim: ramps end at their segment's end, gaps and drops start theirs.
+  const inclines: Incline[] = [];
+  const gaps: Gap[] = [];
+  for (const feature of world.features) {
+    if (feature.type === 'ramp') inclines.push({ s0: feature.startM, s1: feature.endM, rise: feature.heightM * HEIGHT_SCALE, kind: 'ramp' });
+    if (feature.type === 'gap') gaps.push({ s0: feature.startM, s1: feature.endM });
+    if (feature.type === 'drop' && feature.startM > 0) {
+      inclines.push({ s0: Math.max(0, feature.startM - DROP_APPROACH_M), s1: feature.startM, rise: feature.heightM * HEIGHT_SCALE, kind: 'drop' });
+    }
+  }
   let s = 0;
   let x = 0;
   let y = 0;
@@ -74,6 +117,8 @@ export function layoutTrack(track: Track): TrackLayout {
       water: wet ? (world.segments[index] ?? null) : null,
       dryIn: wet && track.segments[index - 1]?.terrain !== 'water',
       dryOut: wet && track.segments[index + 1]?.terrain !== 'water',
+      gap: gaps.find((gap) => gap.s0 >= s - 0.001 && gap.s0 < s + segment.lengthM),
+      ledge: inclines.find((incline) => incline.kind === 'drop' && Math.abs(incline.s1 - (s + segment.lengthM)) < 0.001),
     });
     s += segment.lengthM;
     x = x1;
@@ -82,7 +127,7 @@ export function layoutTrack(track: Track): TrackLayout {
     maxY = Math.max(maxY, y);
   });
   segments.push({ index: -1, terrain: 'asphalt', pad: true, s0: s, s1: s + PAD_AFTER_M, x0: x, y0: y, x1: x + PAD_AFTER_M, y1: y, slopeRad: 0, ...DRY });
-  return { segments, lengthM: s, minY, maxY };
+  return { segments, inclines, gaps, lengthM: s, minY, maxY };
 }
 
 export function segmentAt(layout: TrackLayout, s: number): LaidSegment {
@@ -106,6 +151,21 @@ export function basinDepthAt(segment: LaidSegment, s: number): number {
   const beachIn = segment.dryIn ? clamp((at - segment.s0) / BEACH_M, 0, 1) : 1;
   const beachOut = segment.dryOut ? clamp((segment.s1 - at) / BEACH_M, 0, 1) : 1;
   return basinUnits(waterDepthCmAt(segment.water, at)) * Math.min(beachIn, beachOut);
+}
+
+/** How far the drawn floor is below the track line at s: a water bed or the pit of a gap. */
+export function floorDepthAt(segment: LaidSegment, s: number): number {
+  const gap = segment.gap;
+  const pit = gap ? PIT_DEPTH * clamp(Math.min(s - gap.s0, gap.s1 - s) / PIT_WALL_M, 0, 1) : 0;
+  return basinDepthAt(segment, s) + pit;
+}
+
+/** Track distances where the drawn floor changes slope (water beds, gap walls). */
+export function floorCuts(segment: LaidSegment): number[] {
+  const gap = segment.gap;
+  const walls = gap ? [gap.s0, gap.s0 + PIT_WALL_M, gap.s1 - PIT_WALL_M, gap.s1].filter((cut) => cut > segment.s0 && cut < segment.s1) : [];
+  const cuts = [...basinCuts(segment), ...walls].sort((a, b) => a - b);
+  return cuts.filter((cut, i) => i === 0 || cut - cuts[i - 1]! > 0.001);
 }
 
 /** Track distances where the bed of a water segment changes slope: enough to draw it with straight spans. */
@@ -146,6 +206,9 @@ export function rideOffset(segment: LaidSegment, s: number): number {
   const depth = basinDepthAt(segment, s);
   // On the bed: wheels stay a touch proud of it in a shallow wade.
   let offset = -Math.max(depth - 0.08, depth * 0.85);
+  // Up the approach to a drop: the sim only lifts the robot at the edge, so the climb is drawn here.
+  const ledge = segment.ledge;
+  if (ledge && s > ledge.s0) offset += ledge.rise * clamp((s - ledge.s0) / Math.max(0.01, ledge.s1 - ledge.s0), 0, 1);
   if (segment.terrain === 'mud' && !segment.pad) {
     offset -= 0.07 * clamp(Math.min(s - segment.s0, segment.s1 - s) / 0.6, 0, 1);
   }

@@ -39,10 +39,12 @@ export interface TopBarProps {
   mission: Mission;
   state: SimState | null;
   ghosts?: readonly GhostTrace[];
+  /** Live rivals on the strip (Drive mode: Jev's run), as track distance + colour. */
+  rivals?: ReadonlyArray<{ readonly x: number; readonly color: string }>;
 }
 
 /** Time, battery, damage and the terrain strip with the player and the ghosts on it. */
-export function TopBar({ mission, state, ghosts = [] }: TopBarProps) {
+export function TopBar({ mission, state, ghosts = [], rivals = [] }: TopBarProps) {
   const total = mission.track.segments.reduce((sum, segment) => sum + segment.lengthM, 0);
   const t = state?.t ?? 0;
   const battery = state?.battery ?? 100;
@@ -73,6 +75,9 @@ export function TopBar({ mission, state, ghosts = [] }: TopBarProps) {
             className="absolute top-px h-3 w-3 -translate-x-1/2 rounded-full"
             style={{ left: at(ghostX(trace, t)), background: POLICY_TINT[trace.policy], opacity: 0.6 }}
           />
+        ))}
+        {rivals.map((rival, i) => (
+          <span key={i} className="absolute top-px h-3 w-3 -translate-x-1/2 rounded-full" style={{ left: at(rival.x), background: rival.color, opacity: 0.85, transition: 'left 80ms linear' }} />
         ))}
         <span
           className="absolute top-0 box-border h-3.5 w-3.5 -translate-x-1/2 rounded-full"

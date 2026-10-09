@@ -1,9 +1,12 @@
 'use client';
 
 import { useState } from 'react';
-import type { GhostTrace, Mission, SimState } from '@rivetrun/contracts';
+import type { Build, GhostTrace, Mission, SimState } from '@rivetrun/contracts';
 import { isMuted, toggleMute } from '../audio/sfx';
-import { DNF_LABEL, UI } from '../palette';
+import { DriveControls } from '../drive/DriveControls';
+import type { DriveInput } from '../drive/driveInput';
+import { useRunHaptics } from '../drive/haptics';
+import { ACTION_LABEL, DNF_LABEL, UI } from '../palette';
 import { useRunView, type RunFeed } from '../runFeed';
 import { BrainHud } from './BrainHud';
 import styles from './hud.module.css';
@@ -13,6 +16,12 @@ export interface RunHudProps {
   mission: Mission;
   feed: RunFeed;
   ghosts?: readonly GhostTrace[];
+  /** Drive mode: the player's controls. Swaps the Brain sheet for the touch controls. */
+  drive?: DriveInput;
+  /** Drive mode: Jev's live run, shown as a gap chip and a marker on the strip. */
+  rival?: RunFeed;
+  /** Needed in Drive mode: which action-button parts the robot has. */
+  build?: Build;
 }
 
 /** Sound on / off. The choice persists (sfx.ts keeps it in localStorage). */
@@ -94,26 +103,55 @@ function Underwater({ state }: { state: SimState | null }) {
   );
 }
 
+/** Drive mode: how far ahead or behind Jev is right now, and what it is doing. */
+function RivalChip({ rival, meX }: { rival: RunFeed; meX: number }) {
+  const view = useRunView(rival);
+  if (!view.state) return null;
+  const gap = view.state.x - meX;
+  const decision = view.decision?.decision;
+  const fallback = decision?.fallback === true;
+  const status = view.dnfReason ? DNF_LABEL[view.dnfReason].toUpperCase() : view.done ? 'FINISHED' : `${Math.abs(gap).toFixed(1)} m ${gap >= 0 ? 'AHEAD' : 'BEHIND'}`;
+  return (
+    <span className="whitespace-nowrap rounded-full px-3 py-1.5 font-mono text-[10px] leading-none tracking-[1px]" style={{ border: `1px solid ${fallback ? UI.bad : UI.cyan}`, background: 'rgb(8 24 27 / 0.85)', color: UI.cyanText }}>
+      <span style={{ color: fallback ? UI.bad : UI.cyan, fontWeight: 600 }}>{fallback ? 'JEV · FALLBACK' : 'JEV'}</span> {status}
+      {decision && !view.done ? <span style={{ color: UI.dim }}> · {ACTION_LABEL[decision.selected].toLowerCase()}</span> : null}
+    </span>
+  );
+}
+
 /** DOM overlay for the run view: top bar, slow-mo pill + cyan frame, end stamp and the Brain sheet. */
-export function RunHud({ mission, feed, ghosts = [] }: RunHudProps) {
+export function RunHud({ mission, feed, ghosts = [], drive, rival, build }: RunHudProps) {
   const view = useRunView(feed);
-  const thinking = view.pending !== null;
+  const rivalView = useRunView(rival ?? feed);
+  const driving = drive !== undefined;
+  // Drive mode has no slow-mo: the player is the one deciding.
+  const thinking = view.pending !== null && !driving;
+  useRunHaptics(feed, driving);
   const dnf = view.dnfReason;
 
   return (
     <div className="pointer-events-none absolute inset-0 select-none overflow-hidden">
       <Underwater state={view.state} />
       <div className={`${styles.frame} absolute inset-0`} style={{ opacity: thinking ? 1 : 0 }} />
+      {drive && build ? (
+        <div className="pointer-events-auto absolute inset-0">
+          <DriveControls drive={drive} feed={feed} build={build} />
+        </div>
+      ) : null}
 
       <div className="absolute inset-x-0 top-0 mx-auto max-w-[430px] px-3" style={{ paddingTop: 'max(14px, env(safe-area-inset-top))' }}>
         <div className="relative">
-          <TopBar mission={mission} state={view.state} ghosts={ghosts} />
+          <TopBar mission={mission} state={view.state} ghosts={ghosts} rivals={rival && rivalView.state ? [{ x: rivalView.state.x, color: UI.cyan }] : []} />
           <MuteButton />
         </div>
         <div className="mt-2.5 flex justify-center">
-          <span className={`${styles.pill} whitespace-nowrap px-3 py-1.5 font-mono text-[10px] leading-none`} style={{ opacity: thinking ? 1 : 0 }}>
-            SLOW-MO · JEV IS DECIDING
-          </span>
+          {rival ? (
+            <RivalChip rival={rival} meX={view.state?.x ?? 0} />
+          ) : (
+            <span className={`${styles.pill} whitespace-nowrap px-3 py-1.5 font-mono text-[10px] leading-none`} style={{ opacity: thinking ? 1 : 0 }}>
+              SLOW-MO · JEV IS DECIDING
+            </span>
+          )}
         </div>
       </div>
 
@@ -136,9 +174,11 @@ export function RunHud({ mission, feed, ghosts = [] }: RunHudProps) {
         </div>
       )}
 
-      <div className="absolute inset-x-0 bottom-0 mx-auto max-w-[430px]">
-        <BrainHud pending={view.pending} last={view.decision} decisionCount={view.decisionCount} />
-      </div>
+      {!driving && (
+        <div className="absolute inset-x-0 bottom-0 mx-auto max-w-[430px]">
+          <BrainHud pending={view.pending} last={view.decision} decisionCount={view.decisionCount} />
+        </div>
+      )}
     </div>
   );
 }
