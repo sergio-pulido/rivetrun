@@ -4,7 +4,7 @@ import { useFrame } from '@react-three/fiber';
 import { useImperativeHandle, useMemo, useRef, type Ref, type RefObject } from 'react';
 import { Color, IcosahedronGeometry, MeshBasicMaterial, MeshLambertMaterial, Object3D, type InstancedMesh } from 'three';
 
-export type ParticleKind = 'dust' | 'splash' | 'mud' | 'sparks' | 'smoke' | 'ice' | 'confetti';
+export type ParticleKind = 'dust' | 'splash' | 'mud' | 'sparks' | 'smoke' | 'ice' | 'confetti' | 'bubbles' | 'current';
 
 export interface ParticleEmitter {
   /** dir: +1 when the robot moves forward (spray goes backwards). */
@@ -32,6 +32,9 @@ const SPECS: Readonly<Record<ParticleKind, Spec>> = {
   sparks: { colors: ['#ffe9a8', '#ffb347', '#ff7a1a'], gravity: -9, drag: 0.6, life: [0.2, 0.5], size: [0.02, 0.045], grow: 1, back: [-3, 3], up: [1, 5], side: 2.2, bright: true },
   smoke: { colors: ['#2a2d33', '#474b53', '#1b1d21'], gravity: 1.3, drag: 1.2, life: [1, 1.9], size: [0.09, 0.16], grow: 3, back: [0.1, 0.7], up: [0.5, 1.2], side: 0.3, bright: false },
   confetti: { colors: ['#ff6a13', '#5ef2ff', '#ffe066', '#ffffff', '#5dff8a'], gravity: -3.2, drag: 1.6, life: [1.3, 2.4], size: [0.03, 0.06], grow: 1, back: [-2.6, 2.6], up: [3, 7], side: 2, bright: true },
+  bubbles: { colors: ['#e6fbff', '#bdeefa', '#ffffff'], gravity: 2.4, drag: 1.6, life: [0.7, 1.4], size: [0.025, 0.06], grow: 1.5, back: [0.2, 1.2], up: [0.2, 0.9], side: 0.35, bright: true },
+  // Silt carried by a current: drifts against the direction of travel, no gravity.
+  current: { colors: ['#bfe9f5', '#8fd0e6'], gravity: 0, drag: 0, life: [1.1, 1.9], size: [0.018, 0.035], grow: 1, back: [1.3, 2.4], up: [-0.08, 0.08], side: 0.05, bright: true },
   ice: { colors: ['#ffffff', '#d6f1ff'], gravity: -8, drag: 0.4, life: [0.25, 0.55], size: [0.025, 0.05], grow: 1, back: [1.5, 4.2], up: [0.3, 1.3], side: 0.5, bright: false },
 };
 

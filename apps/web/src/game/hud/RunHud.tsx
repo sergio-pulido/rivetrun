@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import type { GhostTrace, Mission } from '@rivetrun/contracts';
+import type { GhostTrace, Mission, SimState } from '@rivetrun/contracts';
 import { isMuted, toggleMute } from '../audio/sfx';
 import { DNF_LABEL, UI } from '../palette';
 import { useRunView, type RunFeed } from '../runFeed';
@@ -35,6 +35,65 @@ function MuteButton() {
   );
 }
 
+const GAUGE_STEP_M = 0.3;
+const GAUGE_HEIGHT_PX = 150;
+
+/**
+ * Under water (docs/design/v1/RunDeep.dc.html): a blue tint that deepens as the robot goes under,
+ * and a depth scale with the robot's own depth marked. Fades out on dry ground and in a wade.
+ */
+function Underwater({ state }: { state: SimState | null }) {
+  const submerged = state?.submergedDepthM ?? 0;
+  const column = state?.waterDepthM ?? 0;
+  const under = submerged >= 0.1;
+  const max = Math.max(1.2, Math.ceil(column / GAUGE_STEP_M) * GAUGE_STEP_M);
+  const ticks = Array.from({ length: Math.round(max / GAUGE_STEP_M) + 1 }, (_, i) => i * GAUGE_STEP_M);
+  return (
+    <>
+      <div
+        className="absolute inset-0"
+        style={{
+          background: 'linear-gradient(180deg, rgb(8 50 70 / 0) 8%, rgb(8 50 70 / 0.3) 40%, rgb(4 27 36 / 0.5) 100%)',
+          opacity: Math.min(1, submerged / 0.4),
+          transition: 'opacity 400ms ease-out',
+        }}
+      />
+      <div
+        className="absolute right-3 rounded-xl font-mono"
+        style={{
+          top: '29%',
+          height: GAUGE_HEIGHT_PX + 24,
+          width: 58,
+          background: 'rgb(6 27 36 / 0.72)',
+          border: '1px solid #16404b',
+          opacity: under ? 1 : 0,
+          transition: 'opacity 300ms ease-out',
+        }}
+      >
+        <div className="absolute right-2.5 w-0.5" style={{ top: 12, height: GAUGE_HEIGHT_PX, background: '#3f6e7a' }} />
+        {ticks.map((tick) => (
+          <div key={tick} className="absolute right-2.5 flex items-center gap-1" style={{ top: 12 + (tick / max) * GAUGE_HEIGHT_PX - 5 }}>
+            <span className="text-[9px] leading-[10px]" style={{ color: '#9fcfd9' }}>
+              {tick.toFixed(1)}
+            </span>
+            <span className="h-0.5 w-2.5" style={{ background: '#3f6e7a' }} />
+          </div>
+        ))}
+        {/* The robot's own depth: tag and pointer sit outside the scale, to its left. */}
+        <div
+          className="absolute flex items-center gap-1"
+          style={{ right: 62, top: 12 + (Math.min(submerged, max) / max) * GAUGE_HEIGHT_PX - 11, transition: 'top 150ms linear' }}
+        >
+          <span className="whitespace-nowrap rounded-lg px-2 py-1 text-[10px] leading-[12px]" style={{ border: `1px solid ${UI.cyan}`, background: 'rgb(6 27 36 / 0.9)', color: UI.cyanText }}>
+            {submerged.toFixed(1)} m
+          </span>
+          <span style={{ width: 0, height: 0, borderTop: '6px solid transparent', borderBottom: '6px solid transparent', borderLeft: `9px solid ${UI.cyan}` }} />
+        </div>
+      </div>
+    </>
+  );
+}
+
 /** DOM overlay for the run view: top bar, slow-mo pill + cyan frame, end stamp and the Brain sheet. */
 export function RunHud({ mission, feed, ghosts = [] }: RunHudProps) {
   const view = useRunView(feed);
@@ -43,6 +102,7 @@ export function RunHud({ mission, feed, ghosts = [] }: RunHudProps) {
 
   return (
     <div className="pointer-events-none absolute inset-0 select-none overflow-hidden">
+      <Underwater state={view.state} />
       <div className={`${styles.frame} absolute inset-0`} style={{ opacity: thinking ? 1 : 0 }} />
 
       <div className="absolute inset-x-0 top-0 mx-auto max-w-[430px] px-3" style={{ paddingTop: 'max(14px, env(safe-area-inset-top))' }}>

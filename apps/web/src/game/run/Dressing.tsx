@@ -16,7 +16,7 @@ import {
 } from 'three';
 import { LANES, UI } from '../palette';
 import { mulberry32 } from '../rng';
-import { OBSTACLE_HEIGHT, obstacleS, sampleTrack, type LaidSegment, type TrackLayout } from '../track';
+import { OBSTACLE_HEIGHT, basinDepthAt, obstacleS, sampleTrack, type LaidSegment, type TrackLayout } from '../track';
 import { checkerTexture, hazardTexture, labelTexture } from './textures';
 
 interface Item {
@@ -161,11 +161,27 @@ function dress(layout: TrackLayout): Dressed {
       out.paint.push({ p: at(mid, -4.95, 0.008), s: [length, 0.012, 0.1], yaw: 0, slope, c: '#f1f3f5' });
     }
     if (terrain === 'water') {
+      // Reeds where the water meets dry ground (not where two water segments join).
+      const shores = [
+        ...(segment.dryIn ? [segment.s0 + 0.25] : []),
+        ...(segment.dryOut ? [segment.s1 - 0.65] : []),
+      ];
       for (let i = 0; i < 5; i += 1) {
         const z = verge();
-        for (const s of [segment.s0 + 0.25 + rand() * 0.4, segment.s1 - 0.25 - rand() * 0.4]) {
+        for (const shore of shores) {
           const h = 0.5 + rand() * 0.5;
-          out.tufts.push({ p: at(s, z), s: [0.03, h, 0.03], yaw: 0, slope: 0, tilt: (rand() - 0.5) * 0.3, c: pick(rand, ['#5f8a3a', '#7aa64a']) });
+          out.tufts.push({ p: at(shore + rand() * 0.4, z), s: [0.03, h, 0.03], yaw: 0, slope: 0, tilt: (rand() - 0.5) * 0.3, c: pick(rand, ['#5f8a3a', '#7aa64a']) });
+        }
+      }
+      // Deep water: weed and rocks on the bed.
+      if (segment.basin > 1) {
+        const onBed = (s: number, z: number, lift = 0) => at(s, z, lift - basinDepthAt(segment, s));
+        for (let i = 0; i < length * 1.6; i += 1) {
+          out.tufts.push({ p: onBed(along(), anywhere()), s: [0.05, 0.35 + rand() * 0.9, 0.05], yaw: rand() * 6, slope: 0, tilt: (rand() - 0.5) * 0.5, c: pick(rand, ['#2e7d5b', '#3f9a6a', '#256650']) });
+        }
+        for (let i = 0; i < length * 0.7; i += 1) {
+          const r = 0.12 + rand() * 0.24;
+          out.blobs.push({ p: onBed(along(), verge(), r * 0.4), s: [r * 1.3, r, r * 1.1], yaw: rand() * 6, slope: 0, tilt: rand(), c: pick(rand, ['#3d4450', '#59606a', '#2e3328']) });
         }
       }
     }
@@ -212,11 +228,13 @@ function ObstacleProp({ layout, segment }: { layout: TrackLayout; segment: LaidS
   }, [segment.s0]);
   if (!kind) return null;
   const sample = sampleTrack(layout, obstacleS(segment));
+  // Debris in a water segment lies on the bed, under the surface.
+  const bed = basinDepthAt(segment, obstacleS(segment));
   const depth = LANES.zFront - LANES.zBack;
   const midZ = (LANES.zFront + LANES.zBack) / 2;
   const h = OBSTACLE_HEIGHT[kind];
   return (
-    <group position={[sample.x, sample.y, 0]} rotation={[0, 0, segment.slopeRad]}>
+    <group position={[sample.x, sample.y - bed, 0]} rotation={[0, 0, segment.slopeRad]}>
       {kind === 'step' && (
         <>
           <mesh geometry={BOX} position={[0, h / 2, midZ]} scale={[0.55, h, depth - 0.1]} castShadow receiveShadow>

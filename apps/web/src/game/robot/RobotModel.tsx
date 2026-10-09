@@ -48,6 +48,7 @@ export function RobotModel({ build, drive, state, action, expression, dnf = fals
       expression: dnf ? 'dnf' : (expression ?? (slipping ? 'slip' : (action ?? 'idle'))),
       dnf,
       winch: state?.effects.includes('winch') ?? false,
+      thrusting: state?.thrusting ?? false,
     };
   }, [drive, state, action, expression, dnf]);
 

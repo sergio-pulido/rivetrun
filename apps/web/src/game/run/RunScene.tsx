@@ -11,7 +11,7 @@ import { clamp, damp, lerp } from '../rng';
 import { restDrive, type Expression, type RobotDrive } from '../robot/drive';
 import { RobotModel } from '../robot/RobotModel';
 import type { RunFeed } from '../runFeed';
-import { layoutTrack, rideOffset, sampleTrack, type TrackLayout } from '../track';
+import { basinDepthAt, layoutTrack, rideOffset, sampleTrack, type LaidSegment, type TrackLayout } from '../track';
 import { Backdrop } from './Backdrop';
 import { Dressing } from './Dressing';
 import { Particles, type ParticleEmitter, type ParticleKind } from './Particles';
@@ -23,6 +23,9 @@ import { WeatherFx } from './WeatherFx';
 
 const SIM_DT = TUNING.dtMs / 1000;
 
+/** How far above the bed a robot under thrust cruises: mid-water, with a slow bob. */
+const swimLift = (segment: LaidSegment, s: number, t: number): number => basinDepthAt(segment, s) * 0.4 + Math.sin(t * 2.1) * 0.06;
+
 const EFFECT_PARTICLES: Readonly<Partial<Record<SimEffect, { kind: ParticleKind; rate: number; where: 'rear' | 'front' | 'top' }>>> = {
   dust: { kind: 'dust', rate: 30, where: 'rear' },
   splash: { kind: 'splash', rate: 46, where: 'rear' },
@@ -30,6 +33,7 @@ const EFFECT_PARTICLES: Readonly<Partial<Record<SimEffect, { kind: ParticleKind;
   sparks: { kind: 'sparks', rate: 90, where: 'front' },
   smoke: { kind: 'smoke', rate: 13, where: 'top' },
   slip: { kind: 'ice', rate: 34, where: 'rear' },
+  bubbles: { kind: 'bubbles', rate: 30, where: 'rear' },
 };
 
 function Tag({ text, color, y }: { text: string; color: string; y: number }) {
@@ -56,8 +60,9 @@ function Player({ feed, build, layout, pose, timeScale, particles }: PlayerProps
   const budget = useRef<Partial<Record<SimEffect, number>>>({});
   const lastDamageAt = useRef(0);
   const celebrated = useRef(false);
+  const swim = useRef(0);
 
-  useFrame((_, rawDt) => {
+  useFrame(({ clock }, rawDt) => {
     // Unclamped (up to 0.5 s): easing must keep up with the sim even when frames are slow.
     const dt = Math.min(rawDt, 0.5);
     const view = feed.get();
@@ -83,7 +88,8 @@ function Player({ feed, build, layout, pose, timeScale, particles }: PlayerProps
     p.thinking = view.pending !== null;
     const sample = sampleTrack(layout, p.s);
     p.x = sample.x;
-    p.y = sample.y + rideOffset(sample.segment, p.s);
+    swim.current = damp(swim.current, state.thrusting ? 1 : 0, 2.5, dt);
+    p.y = sample.y + rideOffset(sample.segment, p.s) + swim.current * swimLift(sample.segment, p.s, clock.elapsedTime);
     p.ready = true;
 
     const hop = (rideOffset(sample.segment, p.s + 0.25) - rideOffset(sample.segment, p.s - 0.25)) * 1.1;
@@ -122,6 +128,7 @@ function Player({ feed, build, layout, pose, timeScale, particles }: PlayerProps
     d.expression = expression;
     d.dnf = wrecked;
     d.winch = state.effects.includes('winch') && !view.done;
+    d.thrusting = state.thrusting === true && !view.done;
 
     const emitter = particles.current;
     if (!emitter) return;
@@ -136,9 +143,14 @@ function Player({ feed, build, layout, pose, timeScale, particles }: PlayerProps
       budget.current[effect] = owed - count;
       if (count === 0) continue;
       const x = spec.where === 'rear' ? p.x - dir * 0.55 : spec.where === 'front' ? p.x + 0.7 : p.x - 0.1;
-      const y = spec.where === 'top' ? p.y + 0.8 : p.y + 0.06;
+      const y = spec.where === 'top' ? p.y + 0.8 : effect === 'bubbles' ? p.y + 0.5 : p.y + 0.06;
       const color = effect === 'dust' ? TERRAIN_LOOK[state.terrain].dust : undefined;
       emitter.emit(spec.kind, x, y, LANES.player + (Math.random() < 0.5 ? 0.5 : -0.5), count, dir, color);
+    }
+    // A current: specks streaming past the robot through the water column.
+    if ((state.waterCurrentMps ?? 0) > 0 && !view.done && Math.random() < simDt * 22 * (state.waterCurrentMps ?? 0)) {
+      const column = basinDepthAt(sample.segment, p.s);
+      emitter.emit('current', p.x + 1 + Math.random() * 3.5, sample.y - Math.random() * column * 0.9, LANES.zFront - Math.random() * 3, 1, 1);
     }
     // A little kick-up even when the sim reports no effect, so fast driving reads as fast.
     if (active.length === 0 && Math.abs(state.v) > 1.4 && !view.done && Math.random() < simDt * 9) {
@@ -168,10 +180,11 @@ function Ghost({ trace, build, layout, pose, timeScale }: GhostProps) {
   const drive = useRef<RobotDrive>(restDrive());
   const cursor = useRef(0);
   const pitch = useRef(0);
+  const swim = useRef(0);
   const policy: Policy = trace.policy;
   const z = laneZ(policy);
 
-  useFrame((_, rawDt) => {
+  useFrame(({ clock }, rawDt) => {
     const node = group.current;
     const frames = trace.frames;
     if (!node) return;
@@ -193,7 +206,8 @@ function Ghost({ trace, build, layout, pose, timeScale }: GhostProps) {
     const wanted = (lerp(a.pitch, b.pitch, k) * Math.PI) / 180;
     pitch.current = damp(pitch.current, wanted, 9, Math.min(rawDt, 0.5));
     node.visible = true;
-    node.position.set(sample.x, sample.y + rideOffset(sample.segment, s), z);
+    swim.current = damp(swim.current, a.thrusting ? 1 : 0, 2.5, Math.min(rawDt, 0.5));
+    node.position.set(sample.x, sample.y + rideOffset(sample.segment, s) + swim.current * swimLift(sample.segment, s, clock.elapsedTime + 1.3), z);
     node.rotation.z = pitch.current;
     const d = drive.current;
     const slipping = a.effects.includes('slip');
@@ -203,6 +217,7 @@ function Ghost({ trace, build, layout, pose, timeScale }: GhostProps) {
     d.dnf = ended && !trace.outcome.finished;
     d.expression = d.dnf ? 'dnf' : ended ? 'finish' : slipping ? 'slip' : 'cruise';
     d.winch = false;
+    d.thrusting = a.thrusting === true && !ended;
   });
 
   return (

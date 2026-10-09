@@ -172,6 +172,49 @@ function Bumper({ floor }: AttachmentProps) {
   );
 }
 
+const BLADES = [0, 1, 2].map((i) => (i / 3) * Math.PI * 2);
+
+/** Twin ducted thrusters on the rear: dark shrouds with a cyan lip, props that spin up under water. */
+function ThrusterKit({ floor }: AttachmentProps) {
+  const m = useMats();
+  const context = useContext(RobotContext);
+  const props = useRef<Array<Group | null>>([]);
+  const speed = useRef(2);
+  useFrame((_, dt) => {
+    const step = Math.min(dt, 0.05);
+    speed.current += ((context?.drive.current.thrusting ? 34 : 2) - speed.current) * Math.min(1, step * 4);
+    props.current.forEach((prop, i) => {
+      if (prop) prop.rotation.x += speed.current * step * (i === 0 ? 1 : -1);
+    });
+  });
+  return (
+    <Part position={[-0.97, -0.04, 0]} floor={floor + 0.12}>
+      <Box s={[0.14, 0.07, 0.62]} p={[0.12, 0.04, 0]} m={m.print} />
+      {[0.23, -0.23].map((z, i) => (
+        <group key={z} position={[0, 0, z]}>
+          <Cyl rad={0.15} h={0.26} axis="x" m={m.servo} seg={16} />
+          <Cyl rad={0.158} h={0.03} axis="x" p={[-0.125, 0, 0]} m={m.ledCyan} seg={16} shadow={false} />
+          <Cyl rad={0.158} h={0.02} axis="x" p={[0.12, 0, 0]} m={m.print} seg={16} shadow={false} />
+          <Cyl rad={0.12} h={0.01} axis="x" p={[-0.136, 0, 0]} m={m.chip} seg={14} shadow={false} />
+          <Box s={[0.07, 0.1, 0.06]} p={[0.06, 0.17, 0]} m={m.printDark} />
+          <group
+            position={[-0.145, 0, 0]}
+            userData={BAKE_STOP}
+            ref={(node) => {
+              props.current[i] = node;
+            }}
+          >
+            <Cyl rad={0.03} h={0.03} axis="x" m={m.steel} seg={8} shadow={false} />
+            {BLADES.map((angle) => (
+              <Box key={angle} s={[0.012, 0.1, 0.035]} p={[0, Math.cos(angle) * 0.06, Math.sin(angle) * 0.06]} r={[angle, 0, 0]} m={m.steel} shadow={false} />
+            ))}
+          </group>
+        </group>
+      ))}
+    </Part>
+  );
+}
+
 const SENSOR_PARTS: Readonly<Record<string, (props: AttachmentProps) => ReactNode>> = {
   ultrasonic: Ultrasonic,
   camera: Camera,
@@ -184,6 +227,7 @@ const EXTRA_PARTS: Readonly<Record<string, (props: AttachmentProps) => ReactNode
   winch: Winch,
   waterproof_case: WaterproofCase,
   bumper: Bumper,
+  thruster_kit: ThrusterKit,
 };
 
 interface AttachmentsProps {

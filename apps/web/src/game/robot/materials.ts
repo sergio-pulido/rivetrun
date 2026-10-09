@@ -50,6 +50,7 @@ function createMaterials() {
     ledRed: glow('#ff4d3d'),
     ledOrange: glow('#ffa23d'),
     ledBlue: glow('#5ea8ff'),
+    ledCyan: glow('#3fd0e0'),
   } satisfies Record<string, Material>;
 }
 

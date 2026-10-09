@@ -2,10 +2,10 @@
 
 import { useFrame } from '@react-three/fiber';
 import { useEffect, useMemo, useRef } from 'react';
-import { MeshBasicMaterial, MeshStandardMaterial, PlaneGeometry, type BufferGeometry, type Mesh } from 'three';
+import { Color, MeshBasicMaterial, MeshStandardMaterial, PlaneGeometry, type BufferGeometry, type Mesh } from 'three';
 import type { TerrainId } from '@rivetrun/contracts';
 import { LANES, TERRAIN_LOOK } from '../palette';
-import { basinDepthAt, type LaidSegment, type TrackLayout } from '../track';
+import { basinCuts, basinDepthAt, type LaidSegment, type TrackLayout } from '../track';
 import { QuadBuilder, type P2 } from './quads';
 import { earthTexture, padTexture, terrainTexture } from './textures';
 
@@ -13,6 +13,13 @@ const CUT_DEPTH = 16;
 const LIP = 0.24;
 const FILLER_M = 60;
 const WATER_DROP = 0.06;
+const WATER_TOP = new Color('#49b3e6');
+const WATER_DEEP = new Color('#0a3550');
+const WALL_TOP = new Color('#1f7088');
+const WALL_DEEP = new Color('#0b2c36');
+const scratch = new Color();
+/** Water gets darker with depth (0 at the surface → fully dark ~3 units down). */
+const shade = (top: Color, deep: Color, depth: number): string => `#${scratch.copy(top).lerp(deep, Math.min(1, Math.max(0, depth / 3))).getHexString()}`;
 
 interface Span {
   readonly segment: LaidSegment;
@@ -27,7 +34,7 @@ interface Span {
 
 /** Splits a segment into straight spans; water gets ramps down into its basin. */
 function spansOf(segment: LaidSegment): Span[] {
-  const cuts = segment.basin > 0 ? [segment.s0, segment.s0 + 0.9, segment.s1 - 0.9, segment.s1] : [segment.s0, segment.s1];
+  const cuts = basinCuts(segment);
   const at = (s: number) => {
     const f = (s - segment.s0) / (segment.s1 - segment.s0);
     const line = segment.y0 + (segment.y1 - segment.y0) * f;
@@ -45,6 +52,7 @@ interface Built {
   readonly cut: BufferGeometry;
   readonly lip: BufferGeometry;
   readonly waterFront: BufferGeometry | null;
+  readonly waterWall: BufferGeometry | null;
   readonly waters: readonly LaidSegment[];
 }
 
@@ -63,6 +71,7 @@ function buildTerrain(layout: TrackLayout): Built {
   const cut = new QuadBuilder();
   const lip = new QuadBuilder();
   const waterFront = new QuadBuilder();
+  const waterWall = new QuadBuilder();
 
   for (const segment of all) {
     const key = segment.pad ? 'pad' : segment.terrain;
@@ -84,8 +93,28 @@ function buildTerrain(layout: TrackLayout): Built {
         [lipColor, lipColor, lipColor, lipColor],
       );
       if (segment.basin > 0) {
+        const surfaceA = span.lineA - WATER_DROP;
+        const surfaceB = span.lineB - WATER_DROP;
+        const depthA = surfaceA - ay;
+        const depthB = surfaceB - by;
+        // Aquarium cut: the water column seen from the side, darker towards the bed.
         waterFront.quad(
-          [ax, ay, zFront + 0.03], [bx, by, zFront + 0.03], [bx, span.lineB - WATER_DROP, zFront + 0.03], [ax, span.lineA - WATER_DROP, zFront + 0.03],
+          [ax, ay, zFront + 0.03], [bx, by, zFront + 0.03], [bx, surfaceB, zFront + 0.03], [ax, surfaceA, zFront + 0.03],
+          undefined,
+          [shade(WATER_TOP, WATER_DEEP, depthA), shade(WATER_TOP, WATER_DEEP, depthB), shade(WATER_TOP, WATER_DEEP, 0), shade(WATER_TOP, WATER_DEEP, 0)],
+        );
+        // Far wall of the basin, so deep water never shows the sky behind it.
+        waterWall.quad(
+          [ax, ay, zBack + 0.01], [bx, by, zBack + 0.01], [bx, surfaceB, zBack + 0.01], [ax, surfaceA, zBack + 0.01],
+          undefined,
+          [shade(WALL_TOP, WALL_DEEP, depthA), shade(WALL_TOP, WALL_DEEP, depthB), shade(WALL_TOP, WALL_DEEP, 0), shade(WALL_TOP, WALL_DEEP, 0)],
+        );
+        // Bright surface line along the cut.
+        const foam = '#c9f3f8';
+        lip.quad(
+          [ax, surfaceA - 0.05, zFront + 0.045], [bx, surfaceB - 0.05, zFront + 0.045], [bx, surfaceB + 0.02, zFront + 0.045], [ax, surfaceA + 0.02, zFront + 0.045],
+          undefined,
+          [foam, foam, foam, foam],
         );
       }
     }
@@ -96,6 +125,7 @@ function buildTerrain(layout: TrackLayout): Built {
     cut: cut.build(),
     lip: lip.build(),
     waterFront: waterFront.empty ? null : waterFront.build(),
+    waterWall: waterWall.empty ? null : waterWall.build(),
     waters: layout.segments.filter((segment) => segment.basin > 0),
   };
 }
@@ -166,7 +196,8 @@ export function Terrain({ layout }: TerrainProps) {
       tops: new Map(built.tops.map((top) => [top.key, topMaterial(top.terrain)])),
       cut: new MeshStandardMaterial({ map: earthTexture(), roughness: 1 }),
       lip: new MeshStandardMaterial({ vertexColors: true, roughness: 0.9 }),
-      waterFront: new MeshBasicMaterial({ color: '#2a86cf', transparent: true, opacity: 0.6 }),
+      waterFront: new MeshBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.48, depthWrite: false }),
+      waterWall: new MeshBasicMaterial({ vertexColors: true }),
     }),
     [built],
   );
@@ -174,9 +205,9 @@ export function Terrain({ layout }: TerrainProps) {
   useEffect(
     () => () => {
       built.tops.forEach((top) => top.geometry.dispose());
-      [built.cut, built.lip, built.waterFront].forEach((geometry) => geometry?.dispose());
+      [built.cut, built.lip, built.waterFront, built.waterWall].forEach((geometry) => geometry?.dispose());
       materials.tops.forEach((material) => material.dispose());
-      [materials.cut, materials.lip, materials.waterFront].forEach((material) => material.dispose());
+      [materials.cut, materials.lip, materials.waterFront, materials.waterWall].forEach((material) => material.dispose());
     },
     [built, materials],
   );
@@ -188,7 +219,8 @@ export function Terrain({ layout }: TerrainProps) {
       ))}
       <mesh geometry={built.cut} material={materials.cut} />
       <mesh geometry={built.lip} material={materials.lip} />
-      {built.waterFront && <mesh geometry={built.waterFront} material={materials.waterFront} />}
+      {built.waterWall && <mesh geometry={built.waterWall} material={materials.waterWall} />}
+      {built.waterFront && <mesh geometry={built.waterFront} material={materials.waterFront} renderOrder={4} />}
       {built.waters.map((segment) => (
         <WaterSheet key={segment.s0} segment={segment} />
       ))}
