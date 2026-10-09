@@ -9,7 +9,7 @@ import { z } from 'zod';
 import { useRunStore } from '@/state/run';
 import { AppHeader } from '@/ui/AppHeader';
 import { buildName } from '@/ui/buildStats';
-import { JoinResponseSchema, RaceSnapshotSchema, laneColor, type RaceSnapshot } from '../_lib/protocol';
+import { JoinResponseSchema, RaceSnapshotSchema, ROOM_FULL_MESSAGE, laneColor, roomFull, type RaceSnapshot } from '../_lib/protocol';
 import { Ranking } from '../_lib/Ranking';
 import { RobotGlyph } from '../_lib/RobotGlyph';
 import styles from '../_lib/race.module.css';
@@ -195,7 +195,32 @@ export function RaceClient({ code, initial }: RaceClientProps) {
   const me = seated ? snapshot.players.find((player) => player.id === identity.playerId) : undefined;
 
   if (!me || !identity) {
-    if (snapshot.status === 'lobby' || snapshot.status === 'build') {
+    const open = snapshot.status === 'lobby' || snapshot.status === 'build';
+    if (open && roomFull(snapshot)) {
+      // Every seat is taken: this phone watches. The view updates by itself, and a freed seat brings the form back.
+      return (
+        <Frame>
+          <p className="rr-label text-blueprint">Room Race · {code}</p>
+          <h1 className="font-mono text-3xl font-black leading-tight text-safety">{ROOM_FULL_MESSAGE}</h1>
+          <p className="text-sm text-slate-300">
+            All {snapshot.seats} seats are taken. You can follow the race from here, or join when a seat opens.
+          </p>
+          <div className="rr-panel p-3">
+            <p className="rr-label mb-2">On the grid</p>
+            <Ranking players={snapshot.players} trackLengthM={trackLengthM} />
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <Link href="/" className="rr-btn rr-btn-secondary">
+              Play solo
+            </Link>
+            <Link href="/race" className="rr-btn rr-btn-secondary">
+              Another room
+            </Link>
+          </div>
+        </Frame>
+      );
+    }
+    if (open) {
       return (
         <Frame>
           <JoinForm code={code} build={build} busy={busy} error={error} onJoin={(nickname) => void join(nickname)} />

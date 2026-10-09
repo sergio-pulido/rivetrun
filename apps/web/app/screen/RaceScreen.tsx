@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { AttractCanvas } from '@/game';
 import { AppHeader } from '@/ui/AppHeader';
-import { duelVerdict, MAX_BOTS, rankPlayers, resultText, type RaceSnapshot } from '../race/_lib/protocol';
+import { duelVerdict, MAX_BOTS, rankPlayers, resultText, SEAT_OPTIONS, seatsTaken, type RaceSnapshot } from '../race/_lib/protocol';
 import { postRaceAction, useRaceRoom, useServerNow } from '../race/_lib/useRaceRoom';
 import { RaceTrack } from './RaceTrack';
 import { Side, useEpisodeCount } from './Side';
@@ -76,6 +76,13 @@ function HostBar({ snapshot, bots, onError }: { readonly snapshot: RaceSnapshot;
       onError(cause instanceof Error ? cause.message : 'Could not change the track.'),
     );
   };
+  const taken = seatsTaken(snapshot);
+  const setSeats = (seats: number): void => {
+    onError(null);
+    postRaceAction(snapshot.code, { action: 'seats', seats }).catch((cause: unknown) =>
+      onError(cause instanceof Error ? cause.message : 'Could not change the seats.'),
+    );
+  };
   const [starting, setStarting] = useState(false);
   const start = async (): Promise<void> => {
     setStarting(true);
@@ -110,6 +117,22 @@ function HostBar({ snapshot, bots, onError }: { readonly snapshot: RaceSnapshot;
             className={`${styles.pick} ${missionId === id ? styles.pickOn : ''}`}
           >
             {id} {MISSIONS[id].name}
+          </button>
+        ))}
+      </div>
+      <div className={styles.hostBar} role="radiogroup" aria-label="Human seats">
+        <span className={styles.pickLabel}>Seats</span>
+        {SEAT_OPTIONS.map((seats) => (
+          <button
+            key={seats}
+            type="button"
+            role="radio"
+            aria-checked={snapshot.seats === seats}
+            disabled={seats < taken}
+            onClick={() => setSeats(seats)}
+            className={`${styles.pick} ${snapshot.seats === seats ? styles.pickOn : ''}`}
+          >
+            {seats}
           </button>
         ))}
       </div>
@@ -263,6 +286,7 @@ export function RaceScreen({ code, siteUrl }: RaceScreenProps) {
           joinCode={code}
           joinUrl={joinUrl}
           episodes={episodes}
+          seats={`${seatsTaken(snapshot)}/${snapshot.seats}`}
           stat={`${snapshot.players.length} in the room`}
         >
           <Order snapshot={snapshot} />

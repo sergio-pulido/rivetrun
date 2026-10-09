@@ -5,7 +5,8 @@ import {
   COUNTDOWN_MS,
   GONE_MS,
   MAX_BOTS,
-  MAX_PLAYERS,
+  DEFAULT_SEATS,
+  ROOM_FULL_MESSAGE,
   RACE_CODE_LENGTH,
   RACE_TIMEOUT_MS,
   SILENT_MS,
@@ -29,6 +30,8 @@ interface Room {
   startAt: number | null;
   closesAt: number | null;
   raceNo: number;
+  /** Human seats the host opened. Bots do not take one. */
+  seats: number;
   /** Bumped on every change; SSE streams send a snapshot when it moves. */
   version: number;
   readonly players: Map<string, RacePlayer>;
@@ -140,6 +143,7 @@ const toSnapshot = (room: Room, now: number): RaceSnapshot => ({
   closesAt: room.status === 'racing' ? room.closesAt : null,
   serverNow: now,
   raceNo: room.raceNo,
+  seats: room.seats,
   players: [...room.players.values()],
 });
 
@@ -155,6 +159,7 @@ export function createRoom(missionId: MissionId): RaceSnapshot {
     startAt: null,
     closesAt: null,
     raceNo: 0,
+    seats: DEFAULT_SEATS,
     version: 0,
     players: new Map(),
     tokens: new Map(),
@@ -190,15 +195,15 @@ function seatPlayer(room: Room, fields: Pick<RacePlayer, 'nickname' | 'kind' | '
   return { playerId, token, nickname: fields.nickname };
 }
 
-const canSeat = (room: Room): RaceResult<null> => {
-  if (room.status !== 'lobby' && room.status !== 'build') return fail(409, 'The race has already started. Join the next one.');
-  if (room.players.size >= MAX_PLAYERS) return fail(409, `The room is full (${MAX_PLAYERS} robots).`);
-  return done(null);
-};
+const humans = (room: Room): number => [...room.players.values()].filter((player) => player.kind === 'human').length;
+
+const canSeat = (room: Room): RaceResult<null> =>
+  room.status === 'lobby' || room.status === 'build' ? done(null) : fail(409, 'The race has already started. Join the next one.');
 
 function join(room: Room, action: Act<'join'>): RaceResult<JoinResponse> {
   const open = canSeat(room);
   if (!open.ok) return open;
+  if (humans(room) >= room.seats) return fail(409, ROOM_FULL_MESSAGE);
   const taken = [...room.players.values()].some((player) => player.nickname.toLowerCase() === action.nickname.toLowerCase());
   if (taken) return fail(409, 'That nickname is already in the room.');
   return done(seatPlayer(room, { nickname: action.nickname, kind: 'human', build: action.build, briefing: undefined }));
@@ -242,6 +247,13 @@ function start(room: Room, action: Act<'start'>, now: number): RaceResult<null> 
 function setMission(room: Room, action: Act<'mission'>): RaceResult<null> {
   if (room.status !== 'lobby') return fail(409, 'The track can only be changed in the lobby.');
   room.missionId = action.missionId;
+  return done(null);
+}
+
+function setSeats(room: Room, action: Act<'seats'>): RaceResult<null> {
+  if (room.status !== 'lobby') return fail(409, 'Seats can only be changed in the lobby.');
+  if (action.seats < humans(room)) return fail(409, `${humans(room)} players are already seated.`);
+  room.seats = action.seats;
   return done(null);
 }
 
@@ -310,6 +322,8 @@ export function applyAction(code: string, action: RaceAction): RaceResult<JoinRe
           ? remove(room, action)
           : action.action === 'mission'
             ? setMission(room, action)
+            : action.action === 'seats'
+              ? setSeats(room, action)
             : action.action === 'start'
               ? start(room, action, now)
             : action.action === 'build'

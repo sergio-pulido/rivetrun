@@ -13,7 +13,11 @@ import {
 import { z } from 'zod';
 
 export const RACE_CODE_LENGTH = 4;
-export const MAX_PLAYERS = 32;
+/** Human seats a host can open. JEV bots never take a seat. */
+export const SEAT_OPTIONS = [4, 6, 8] as const;
+export const DEFAULT_SEATS = 6;
+export const MAX_SEATS = 8;
+export const ROOM_FULL_MESSAGE = 'Room full — watch the big screen';
 /** JEV bots the host may add; the big screen runs them. */
 export const MAX_BOTS = 2;
 /** BUILD phase: phones show the compact workshop. Ends early when every human is ready. */
@@ -101,6 +105,8 @@ export const RaceSnapshotSchema = z.object({
   serverNow: z.number(),
   /** Counts races run in this room; a new number means a new race. */
   raceNo: z.number().int().min(0),
+  /** Human seats the host opened (4, 6 or 8). */
+  seats: z.number().int().min(1).max(MAX_SEATS).default(DEFAULT_SEATS),
   players: z.array(RacePlayerSchema),
 });
 export type RaceSnapshot = z.infer<typeof RaceSnapshotSchema>;
@@ -115,6 +121,8 @@ export const RaceActionSchema = z.discriminatedUnion('action', [
   z.object({ action: z.literal('remove'), playerId: z.string() }),
   /** Host: pick the track in the lobby, so every screen shows it before the BUILD phase. */
   z.object({ action: z.literal('mission'), missionId: MissionIdSchema }),
+  /** Host: how many human seats the room has, in the lobby. */
+  z.object({ action: z.literal('seats'), seats: z.union([z.literal(4), z.literal(6), z.literal(8)]) }),
   /** Host: open the BUILD phase (lobby), or skip the rest of it (build). */
   z.object({ action: z.literal('start'), missionId: MissionIdSchema.optional() }),
   /** Player: change the build and/or lock it in, in the lobby or the BUILD phase. */
@@ -143,6 +151,10 @@ export type RaceAction = z.infer<typeof RaceActionSchema>;
 
 export const JoinResponseSchema = z.object({ playerId: z.string(), token: z.string(), nickname: z.string().optional() });
 export type JoinResponse = z.infer<typeof JoinResponseSchema>;
+
+/** Humans seated, and whether a phone can still take a seat. Bots are not counted. */
+export const seatsTaken = (snapshot: Pick<RaceSnapshot, 'players'>): number => snapshot.players.filter((player) => player.kind === 'human').length;
+export const roomFull = (snapshot: Pick<RaceSnapshot, 'players' | 'seats'>): boolean => seatsTaken(snapshot) >= snapshot.seats;
 
 /** Order: finishers by race time, then everyone else by distance covered. The same on every screen. */
 export function rankPlayers(players: readonly RacePlayer[]): RacePlayer[] {

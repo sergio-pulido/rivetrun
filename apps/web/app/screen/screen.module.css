@@ -726,3 +726,31 @@
   transform: translateY(-50%);
   opacity: 0.9;
 }
+
+.seats {
+  margin-top: calc(var(--u) * 2);
+  font-family: var(--data);
+  font-size: calc(var(--u) * 12);
+  letter-spacing: calc(var(--u) * 1);
+  color: #ffb27a;
+  text-transform: uppercase;
+}
+.seats strong {
+  font-family: var(--display);
+  font-size: calc(var(--u) * 22);
+  font-weight: 700;
+  letter-spacing: 0;
+  color: var(--text);
+  margin-right: calc(var(--u) * 4);
+}
+.seatsFull strong {
+  color: var(--orange);
+}
+.pickLabel {
+  font-family: var(--data);
+  font-size: calc(var(--u) * 11);
+  letter-spacing: calc(var(--u) * 1.5);
+  color: var(--faint);
+  text-transform: uppercase;
+  white-space: nowrap;
+}

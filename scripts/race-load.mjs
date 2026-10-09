@@ -1,10 +1,11 @@
 // Room Race load test: N scripted bots in one room, each with its own SSE stream, posting state at 5 Hz
 // for a full race. Reports server CPU / memory, POST latency, SSE latency and dropped players.
-//   node scripts/race-load.mjs            (BASE=http://localhost:3001 BOTS=30 MISSION=M5)
+//   node scripts/race-load.mjs            (BASE=http://localhost:3001 BOTS=8 MISSION=M5)
 import { execFileSync } from 'node:child_process';
 
 const BASE = process.env.BASE ?? 'http://localhost:3001';
-const BOTS = Number(process.env.BOTS ?? 30);
+// A room seats at most 8 humans (the host picks 4, 6 or 8), so 8 is the most this script can drive.
+const BOTS = Math.min(8, Number(process.env.BOTS ?? 8));
 const MISSION = process.env.MISSION ?? 'M5';
 const POST_MS = 200;
 /** Track length used for the synthetic progress; the server does not validate x. */
@@ -70,6 +71,7 @@ const endToEndMs = []; // bot POST sent → that x visible on the observer's str
 const sentAt = new Map(); // `${playerId}:${x}` → epoch ms
 let last = created;
 
+await post(code, { action: 'seats', seats: 8 });
 const bots = [];
 for (let i = 0; i < BOTS; i++) {
   const joined = await post(code, { action: 'join', nickname: `bot_${String(i + 1).padStart(2, '0')}`, build: BUILD, briefing: i % 3 === 0 ? 'Speed is everything. Take risks.' : undefined });

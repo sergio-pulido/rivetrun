@@ -38,12 +38,14 @@ interface SideProps {
   readonly joinCode: string;
   readonly joinUrl: string;
   readonly episodes: number | null;
+  /** Shown next to the QR, e.g. "5/6" with the caption "seats taken". */
+  readonly seats?: string;
   /** Right-hand stat, e.g. "12 IN THE ROOM". */
   readonly stat: string;
 }
 
 /** Right column of the board: a panel, the QR block, two stats and the footer line. */
-export function Side({ children, joinLabel, joinCode, joinUrl, episodes, stat }: SideProps) {
+export function Side({ children, joinLabel, joinCode, joinUrl, episodes, seats, stat }: SideProps) {
   return (
     <div className={styles.side}>
       {children}
@@ -55,6 +57,11 @@ export function Side({ children, joinLabel, joinCode, joinUrl, episodes, stat }:
           <span className={styles.joinLabel}>{joinLabel}</span>
           <span className={styles.code}>{joinCode}</span>
           <span className={styles.url}>{joinUrl.replace(/^https?:\/\//, '')}</span>
+          {seats ? (
+            <span className={styles.seats}>
+              <strong>{seats}</strong> seats taken
+            </span>
+          ) : null}
         </div>
       </div>
       <div className={styles.stats}>
