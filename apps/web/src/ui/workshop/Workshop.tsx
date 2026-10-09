@@ -1,9 +1,11 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { useCallback, useState } from 'react';
 import type { Part } from '@rivetrun/contracts';
-import { PRESETS, buildIssues } from '@rivetrun/sim';
+import { PARTS_BY_ID, PRESETS, buildIssues } from '@rivetrun/sim';
+import type { RoverPick } from '@/game/robot/pick';
 import { useBuildStore } from '@/state/build';
 import { isUnlocked, useProgressStore } from '@/state/progress';
 import { useWorkshopUi } from '@/state/workshop';
@@ -37,6 +39,15 @@ export function Workshop({ models }: WorkshopProps) {
   const slot = useWorkshopUi((store) => store.slot);
   const setSlot = useWorkshopUi((store) => store.setSlot);
   const [notice, setNotice] = useState<string | null>(null);
+
+  const router = useRouter();
+  // Tapping a part on the 3D rover opens its sheet. Picks this screen has no sheet for (printed parts, empty space) do nothing.
+  const openPicked = useCallback(
+    (pick: RoverPick | null): void => {
+      if (pick && 'partId' in pick && PARTS_BY_ID.has(pick.partId)) router.push(`/workshop/part/${pick.partId}`);
+    },
+    [router],
+  );
 
   const stats = buildStats(build);
   const fittedIds = fitted(build, slot);
@@ -82,7 +93,7 @@ export function Workshop({ models }: WorkshopProps) {
       }
     >
       <section className="rr-stage h-[270px] shrink-0">
-        <Bench3D build={build} className="bottom-7" />
+        <Bench3D build={build} onPick={openPicked} className="bottom-7" />
         <button type="button" onClick={() => setSlot('sensor')} className={`${CALLOUT} right-3 top-[18px] text-[#CFE9EE]`}>
           <span className={`${DOT} bg-cyan text-on-cyan`}>1</span>SENSORS
         </button>
