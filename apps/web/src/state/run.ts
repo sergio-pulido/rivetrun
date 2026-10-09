@@ -9,9 +9,13 @@ export const DEFAULT_PRIORITY = 0.5;
 export interface GhostResult {
   readonly policy: Policy;
   readonly outcome: Outcome;
+  /** Decisions the ghost's brain made, when known (the Jev ghost in Drive mode). */
+  readonly decisions?: number;
+  /** How many of those the heuristic made because Jev failed or timed out. */
+  readonly fallbacks?: number;
 }
 
-/** What the Result page needs: the player's Episode and the two Brain Duel outcomes. */
+/** What the Result page needs: the player's Episode and the ghost outcomes (two in Jev mode, the rival in Drive mode). */
 export interface RunResult {
   readonly missionId: MissionId;
   readonly episode: Episode;
