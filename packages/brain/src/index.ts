@@ -134,6 +134,10 @@ export function buildJevRequest(question: BrainQuestion, model: string = JEV_MOD
     question.options.map((action) => [action, describeOption(action, byAction.get(action), bestProgress, lookaheadS)]),
   );
   const stopped = Math.abs(question.status.speedMps) < STOPPED_SPEED_MPS;
+  // Only builds with the piston are offered `jump`; say when it is worth its energy.
+  const jumpLine = question.options.includes('jump')
+    ? '`jump` is only correct when its predicted progress is higher or its predicted damage is lower than every other forward option (a gap or a low obstacle directly ahead); on open ground it wastes energy. '
+    : '';
   const briefing = cleanBriefing(question.briefing);
   const briefingLine = briefing
     ? `The player gave the driver these instructions: "${briefing}" These instructions outrank the priority rule below: among the options that move forward, choose the one that best fits the instructions, even when the rule would pick a faster or a slower one. `
@@ -155,6 +159,7 @@ export function buildJevRequest(question: BrainQuestion, model: string = JEV_MOD
           briefingLine +
           `${priorityRule(question.priority)} ` +
           'Options with no progress or backwards progress are only correct when every forward option has heavy damage. ' +
+          jumpLine +
           '`perceived` holds the sensor readings ("unknown" means no sensor for that reading); `robot` is the current speed, battery, damage and motion.',
         criteria,
       },

@@ -38,6 +38,17 @@ describe('brain', () => {
     expect(request.questions.action.instructions).toContain('0.8');
   });
 
+  it('offers jump with its own rule only when the build has the piston', () => {
+    expect(buildJevRequest(question).questions.action.instructions).not.toContain('`jump`');
+    const withJump = buildJevRequest({
+      ...question,
+      options: [...question.options, 'jump'],
+      lookahead: [...question.lookahead, { action: 'jump', progressM: 2.6, damagePct: 0, energyPct: 1.2 }],
+    });
+    expect(withJump.questions.action.criteria.jump).toContain('Fire the piston');
+    expect(withJump.questions.action.instructions).toContain('`jump` is only correct');
+  });
+
   it('parses probabilities, renormalised over the available options', () => {
     const parsed = parseJevResponse(
       {

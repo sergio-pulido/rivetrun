@@ -36,7 +36,7 @@ export function startJevRun({ code, raceNo, seat, mission, seed, build, briefing
     };
   };
 
-  const controller = runController({ mission, seed, build, priority: 0.5 }, createClientBrain({ briefing }), {
+  const controller = runController({ mission, seed, build, priority: 0.5 }, createClientBrain({ briefing, isAirborne: () => feed.get().state?.airborne === true }), {
     onEvent: feed.push,
     policy: 'jev',
     briefing,

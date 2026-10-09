@@ -17,6 +17,11 @@ export interface ClientBrainOptions {
   readonly timeoutMs?: number;
   /** "Brief the brain": the player's instructions, sent to Jev with every question. The heuristic ignores it. */
   readonly briefing?: string;
+  /**
+   * True while the robot is in the air (SimState.airborne). No traction and no throttle there, so nothing is
+   * asked of Jev: the brain answers at once with "hold" and makes no network call.
+   */
+  readonly isAirborne?: () => boolean;
   /** Called when Jev could not decide and the heuristic took over. */
   readonly onFallback?: (reason: string) => void;
 }
@@ -70,12 +75,20 @@ const askServer = async (question: BrainQuestion, timeoutMs: number): Promise<Br
   }
 };
 
+/** The answer while airborne: keep doing nothing new. Labelled heuristic because Jev was not asked. */
+const holdInAir = (question: BrainQuestion): BrainDecision => {
+  const selected: Action = question.options.includes('cruise') ? 'cruise' : question.options[0]!;
+  const probabilities: Probabilities = Object.fromEntries(question.options.map((action) => [action, action === selected ? 1 : 0]));
+  return { probabilities, selected, policy: 'heuristic', fallback: false, latencyMs: 0 };
+};
+
 /** Jev via POST /api/decide; on error or timeout the heuristic decides with `fallback: true`. */
 export function createClientBrain(options: ClientBrainOptions = {}): Brain {
   const timeoutMs = options.timeoutMs ?? DECIDE_TIMEOUT_MS;
   const briefing = options.briefing?.trim().slice(0, BRIEFING_MAX_CHARS);
   return {
     decide: async (asked) => {
+      if (options.isAirborne?.()) return holdInAir(asked);
       const question: BrainQuestion = briefing ? { ...asked, briefing } : asked;
       const started = performance.now();
       try {
