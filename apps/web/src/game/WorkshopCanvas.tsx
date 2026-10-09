@@ -1,13 +1,29 @@
 'use client';
 
-import { PlaceholderRobot } from './PlaceholderRobot';
-import { PlaceholderStage } from './PlaceholderStage';
+import { Canvas } from '@react-three/fiber';
+import type { Build } from '@rivetrun/contracts';
+import { DEFAULT_PRESET_ID, PRESETS } from '@rivetrun/sim';
+import { MAX_DPR } from './RunCanvas';
+import { WorkshopScene } from './workshop/WorkshopScene';
 
-/** Scaffold workshop view: robot on a workbench-sized pad, slow turntable. */
-export default function WorkshopCanvas() {
+export interface WorkshopCanvasProps {
+  /** Updates live: pass the build being edited. */
+  build?: Build;
+  spin?: number;
+}
+
+/** Workshop view: robot on a turntable. Transparent background, fills its parent. */
+export default function WorkshopCanvas({ build = PRESETS[DEFAULT_PRESET_ID].build, spin }: WorkshopCanvasProps) {
   return (
-    <PlaceholderStage cameraPosition={[2.6, 2.2, 3.6]} groundColor="#243042" groundSize={[6, 6]}>
-      <PlaceholderRobot spin={0.4} />
-    </PlaceholderStage>
+    <Canvas
+      shadows
+      dpr={[1, MAX_DPR]}
+      camera={{ fov: 34, near: 0.2, far: 60, position: [0, 3, 7] }}
+      gl={{ antialias: true, alpha: true }}
+      // pan-y: vertical swipes still scroll the page; horizontal drags spin the turntable.
+      style={{ width: '100%', height: '100%', touchAction: 'pan-y', cursor: 'grab' }}
+    >
+      <WorkshopScene build={build} spin={spin} />
+    </Canvas>
   );
 }

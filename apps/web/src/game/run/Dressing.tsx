@@ -1,0 +1,323 @@
+'use client';
+
+import { useLayoutEffect, useMemo, useRef } from 'react';
+import {
+  BoxGeometry,
+  Color,
+  ConeGeometry,
+  CylinderGeometry,
+  IcosahedronGeometry,
+  MeshBasicMaterial,
+  MeshStandardMaterial,
+  Object3D,
+  type BufferGeometry,
+  type InstancedMesh,
+  type Material,
+} from 'three';
+import { LANES, UI } from '../palette';
+import { mulberry32 } from '../rng';
+import { OBSTACLE_HEIGHT, obstacleS, sampleTrack, type LaidSegment, type TrackLayout } from '../track';
+import { checkerTexture, hazardTexture, labelTexture } from './textures';
+
+interface Item {
+  readonly p: readonly [number, number, number];
+  readonly s: readonly [number, number, number];
+  readonly yaw: number;
+  readonly slope: number;
+  readonly tilt?: number;
+  readonly c: string;
+}
+
+const CONE = new ConeGeometry(1, 1, 5).translate(0, 0.5, 0);
+const ICO = new IcosahedronGeometry(1, 0);
+const BOX = new BoxGeometry(1, 1, 1);
+const DISC = new CylinderGeometry(1, 1, 1, 10);
+const LOG = new CylinderGeometry(1, 1, 1, 9);
+
+const FLAT = new MeshStandardMaterial({ flatShading: true, roughness: 0.9 });
+const PAINT = new MeshStandardMaterial({ roughness: 0.7 });
+const PUDDLE = new MeshStandardMaterial({ color: '#2c1a0e', roughness: 0.04, metalness: 0.4, envMapIntensity: 1.6 });
+
+interface ScatterProps {
+  geometry: BufferGeometry;
+  material: Material;
+  items: readonly Item[];
+  shadow?: boolean;
+}
+
+/** One draw call for many static props. */
+function Scatter({ geometry, material, items, shadow = false }: ScatterProps) {
+  const mesh = useRef<InstancedMesh>(null);
+  useLayoutEffect(() => {
+    const node = mesh.current;
+    if (!node) return;
+    const dummy = new Object3D();
+    dummy.rotation.order = 'ZYX';
+    const color = new Color();
+    items.forEach((item, i) => {
+      dummy.position.set(item.p[0], item.p[1], item.p[2]);
+      dummy.rotation.set(item.tilt ?? 0, item.yaw, item.slope);
+      dummy.scale.set(item.s[0], item.s[1], item.s[2]);
+      dummy.updateMatrix();
+      node.setMatrixAt(i, dummy.matrix);
+      node.setColorAt(i, color.set(item.c));
+    });
+    node.instanceMatrix.needsUpdate = true;
+    if (node.instanceColor) node.instanceColor.needsUpdate = true;
+    node.computeBoundingSphere();
+  }, [items]);
+  if (items.length === 0) return null;
+  return <instancedMesh key={items.length} ref={mesh} args={[geometry, material, items.length]} castShadow={shadow} receiveShadow />;
+}
+
+const pick = <T,>(rand: () => number, list: readonly T[]): T => list[Math.floor(rand() * list.length)]!;
+/** Z bands between the lanes, so big props never sit under a robot. */
+const VERGES: ReadonlyArray<readonly [number, number]> = [
+  [0.75, 1.4],
+  [-1.15, -0.8],
+  [-3.05, -2.7],
+  [-5.1, -4.6],
+];
+
+interface Dressed {
+  readonly tufts: Item[];
+  readonly blobs: Item[];
+  readonly paint: Item[];
+  readonly puddles: Item[];
+  readonly trees: Item[];
+  readonly trunks: Item[];
+}
+
+function dress(layout: TrackLayout): Dressed {
+  const out: Dressed = { tufts: [], blobs: [], paint: [], puddles: [], trees: [], trunks: [] };
+  const { zFront, zBack } = LANES;
+  layout.segments.forEach((segment, order) => {
+    const rand = mulberry32(order * 977 + 13);
+    const length = segment.s1 - segment.s0;
+    const at = (s: number, z: number, lift = 0): readonly [number, number, number] => {
+      const sample = sampleTrack(layout, s);
+      return [sample.x, sample.y + lift, z];
+    };
+    const anywhere = () => zBack + 0.15 + rand() * (zFront - zBack - 0.3);
+    const verge = () => {
+      const band = pick(rand, VERGES);
+      return band[0] + rand() * (band[1] - band[0]);
+    };
+    const along = () => segment.s0 + 0.2 + rand() * (length - 0.4);
+    const slope = segment.slopeRad;
+    const terrain = segment.pad ? 'pad' : segment.terrain;
+
+    if (terrain === 'grass') {
+      for (let i = 0; i < length * 16; i += 1) {
+        const h = 0.1 + rand() * 0.2;
+        out.tufts.push({ p: at(along(), anywhere()), s: [0.035 + rand() * 0.03, h, 0.035 + rand() * 0.03], yaw: rand() * 6, slope, tilt: (rand() - 0.5) * 0.5, c: pick(rand, ['#4c9a33', '#6cbc45', '#83cf57', '#3f8a2c']) });
+      }
+      for (let i = 0; i < length * 0.5; i += 1) {
+        out.blobs.push({ p: at(along(), verge(), 0.06), s: [0.05, 0.05, 0.05], yaw: 0, slope, c: pick(rand, ['#ffe066', '#ffffff', '#ff9a4d']) });
+      }
+    }
+    if (terrain === 'sand') {
+      for (let i = 0; i < length * 3; i += 1) {
+        out.blobs.push({ p: at(along(), anywhere(), -0.02), s: [0.3 + rand() * 0.5, 0.05 + rand() * 0.04, 0.14 + rand() * 0.2], yaw: (rand() - 0.5) * 0.6, slope, c: pick(rand, ['#f2d894', '#dcb96c', '#edcf86']) });
+      }
+      for (let i = 0; i < length * 0.4; i += 1) {
+        out.blobs.push({ p: at(along(), verge(), 0.03), s: [0.07, 0.05, 0.06], yaw: rand() * 6, slope, c: pick(rand, ['#f7efe0', '#c98f6b']) });
+      }
+    }
+    if (terrain === 'mud') {
+      for (let i = 0; i < length * 2.2; i += 1) {
+        out.blobs.push({ p: at(along(), anywhere(), -0.02), s: [0.14 + rand() * 0.26, 0.05 + rand() * 0.06, 0.12 + rand() * 0.2], yaw: rand() * 6, slope, c: pick(rand, ['#4a2f1c', '#6b4428', '#3a2414']) });
+      }
+      for (let i = 0; i < length * 0.9; i += 1) {
+        const r = 0.2 + rand() * 0.42;
+        out.puddles.push({ p: at(along(), anywhere(), 0.006), s: [r, 0.012, r * (0.5 + rand() * 0.4)], yaw: rand() * 3, slope, c: '#ffffff' });
+      }
+    }
+    if (terrain === 'ice') {
+      for (let i = 0; i < length * 1.4; i += 1) {
+        const h = 0.18 + rand() * 0.5;
+        out.blobs.push({ p: at(along(), verge(), h * 0.3), s: [0.07 + rand() * 0.1, h, 0.07 + rand() * 0.1], yaw: rand() * 6, slope, tilt: (rand() - 0.5) * 0.7, c: pick(rand, ['#ecf9ff', '#b9e6fb', '#ffffff']) });
+      }
+      for (let i = 0; i < length * 2; i += 1) {
+        out.blobs.push({ p: at(along(), anywhere(), 0), s: [0.1 + rand() * 0.3, 0.012, 0.03], yaw: rand() * 6, slope, c: '#ffffff' });
+      }
+    }
+    if (terrain === 'rock') {
+      for (let i = 0; i < length * 3.2; i += 1) {
+        const r = 0.04 + rand() * 0.08;
+        out.blobs.push({ p: at(along(), anywhere(), r * 0.4), s: [r * 1.3, r, r * 1.2], yaw: rand() * 6, slope, tilt: rand(), c: pick(rand, ['#6f747c', '#9a9fa8', '#5c6068', '#84807a']) });
+      }
+      for (let i = 0; i < length * 1.1; i += 1) {
+        const r = 0.16 + rand() * 0.26;
+        out.blobs.push({ p: at(along(), verge(), r * 0.5), s: [r * 1.2, r, r], yaw: rand() * 6, slope, tilt: rand(), c: pick(rand, ['#737882', '#8f949d', '#5f646c']) });
+      }
+    }
+    if (terrain === 'asphalt' || terrain === 'pad') {
+      const paint = terrain === 'pad' ? UI.safety : '#f1f3f5';
+      for (let s = segment.s0 + 0.6; s < segment.s1 - 0.5; s += 1.9) {
+        for (const z of [-0.95, -2.85]) out.paint.push({ p: at(s + 0.45, z, 0.008), s: [0.9, 0.012, 0.09], yaw: 0, slope, c: paint });
+      }
+      const mid = (segment.s0 + segment.s1) / 2;
+      out.paint.push({ p: at(mid, 1.3, 0.008), s: [length, 0.012, 0.1], yaw: 0, slope, c: UI.safety });
+      out.paint.push({ p: at(mid, -4.95, 0.008), s: [length, 0.012, 0.1], yaw: 0, slope, c: '#f1f3f5' });
+    }
+    if (terrain === 'water') {
+      for (let i = 0; i < 5; i += 1) {
+        const z = verge();
+        for (const s of [segment.s0 + 0.25 + rand() * 0.4, segment.s1 - 0.25 - rand() * 0.4]) {
+          const h = 0.5 + rand() * 0.5;
+          out.tufts.push({ p: at(s, z), s: [0.03, h, 0.03], yaw: 0, slope: 0, tilt: (rand() - 0.5) * 0.3, c: pick(rand, ['#5f8a3a', '#7aa64a']) });
+        }
+      }
+    }
+
+    // Backdrop land: trees, boulders or ice by biome.
+    const count = Math.round((length / 10) * 7);
+    for (let i = 0; i < count; i += 1) {
+      const z = zBack - 1.2 - rand() * rand() * 30;
+      const lift = ((zBack - z) / 65) * 5;
+      const base = at(along(), z, lift);
+      if (terrain === 'rock' || terrain === 'ice' || terrain === 'sand' || terrain === 'water') {
+        const r = 0.4 + rand() * 1.1;
+        const c = terrain === 'ice' ? pick(rand, ['#eef8ff', '#c7e6f6']) : terrain === 'rock' ? pick(rand, ['#6f747c', '#8a8f98']) : pick(rand, ['#c9a45e', '#b9925a']);
+        out.blobs.push({ p: [base[0], base[1] + r * 0.3, base[2]], s: [r * 1.3, r * (terrain === 'ice' ? 1.6 : 0.8), r], yaw: rand() * 6, slope: 0, tilt: rand() * 0.6, c });
+      } else {
+        const h = 1.4 + rand() * 1.8;
+        out.trunks.push({ p: [base[0], base[1] + 0.25, base[2]], s: [0.09, 0.6, 0.09], yaw: 0, slope: 0, c: '#5a3d26' });
+        out.trees.push({ p: [base[0], base[1] + 0.45, base[2]], s: [0.55 + rand() * 0.3, h, 0.55 + rand() * 0.3], yaw: rand() * 6, slope: 0, c: pick(rand, ['#2f7a3a', '#3f8f42', '#27663a', '#4f9a45']) });
+      }
+    }
+  });
+  return out;
+}
+
+const ROCK_COLORS = ['#6a6f77', '#868b94', '#585c64'] as const;
+
+function ObstacleProp({ layout, segment }: { layout: TrackLayout; segment: LaidSegment }) {
+  const hazard = useMemo(() => {
+    const texture = hazardTexture().clone();
+    texture.needsUpdate = true;
+    texture.repeat.set(1, 14);
+    return new MeshStandardMaterial({ map: texture, roughness: 0.7 });
+  }, []);
+  const kind = segment.obstacle;
+  const boulders = useMemo(() => {
+    const rand = mulberry32(Math.round(segment.s0 * 31) + 3);
+    return Array.from({ length: 9 }, (_, i) => ({
+      z: LANES.zBack + 0.5 + (i / 8) * (LANES.zFront - LANES.zBack - 1.2),
+      x: (rand() - 0.5) * 0.5,
+      r: 0.2 + rand() * 0.16,
+      yaw: rand() * 6,
+      color: ROCK_COLORS[i % 3]!,
+    }));
+  }, [segment.s0]);
+  if (!kind) return null;
+  const sample = sampleTrack(layout, obstacleS(segment));
+  const depth = LANES.zFront - LANES.zBack;
+  const midZ = (LANES.zFront + LANES.zBack) / 2;
+  const h = OBSTACLE_HEIGHT[kind];
+  return (
+    <group position={[sample.x, sample.y, 0]} rotation={[0, 0, segment.slopeRad]}>
+      {kind === 'step' && (
+        <>
+          <mesh geometry={BOX} position={[0, h / 2, midZ]} scale={[0.55, h, depth - 0.1]} castShadow receiveShadow>
+            <meshStandardMaterial color="#9aa0a8" roughness={0.9} />
+          </mesh>
+          <mesh geometry={BOX} material={hazard} position={[-0.285, h / 2, midZ]} scale={[0.02, h, depth - 0.1]} />
+          <mesh geometry={BOX} material={hazard} position={[0, h / 2, LANES.zFront - 0.04]} scale={[0.56, h, 0.02]} />
+        </>
+      )}
+      {kind === 'log' && (
+        <>
+          <mesh geometry={LOG} position={[0, h * 0.85, midZ]} rotation={[Math.PI / 2, 0, 0]} scale={[h, depth - 0.2, h]} castShadow receiveShadow>
+            <meshStandardMaterial color="#6b4527" roughness={1} flatShading />
+          </mesh>
+          <mesh geometry={LOG} position={[0, h * 0.85, LANES.zFront - 0.09]} rotation={[Math.PI / 2, 0, 0]} scale={[h * 0.86, 0.03, h * 0.86]}>
+            <meshStandardMaterial color="#d9b382" roughness={1} />
+          </mesh>
+          <mesh geometry={LOG} position={[0, h * 0.85, LANES.zFront - 0.085]} rotation={[Math.PI / 2, 0, 0]} scale={[h * 0.5, 0.03, h * 0.5]}>
+            <meshStandardMaterial color="#b98d5c" roughness={1} />
+          </mesh>
+          <mesh geometry={LOG} position={[0.1, h * 1.5, -1.4]} rotation={[0.4, 0, -0.5]} scale={[0.06, 0.4, 0.06]} castShadow>
+            <meshStandardMaterial color="#5a3a20" roughness={1} />
+          </mesh>
+        </>
+      )}
+      {kind === 'rock' &&
+        boulders.map((boulder) => (
+          <mesh key={boulder.z} geometry={ICO} position={[boulder.x, boulder.r * 0.55, boulder.z]} rotation={[boulder.yaw, boulder.yaw, 0]} scale={[boulder.r * 1.25, boulder.r, boulder.r * 1.1]} castShadow receiveShadow>
+            <meshStandardMaterial color={boulder.color} roughness={0.9} flatShading />
+          </mesh>
+        ))}
+    </group>
+  );
+}
+
+function Sign({ text, x, y, width = 2.6, color = '#0f141b', background = UI.safety }: { text: string; x: number; y: number; width?: number; color?: string; background?: string }) {
+  const material = useMemo(
+    () => new MeshBasicMaterial({ map: labelTexture(text, { color, background, border: '#0f141b' }), transparent: true }),
+    [text, color, background],
+  );
+  const z = LANES.zBack - 0.35;
+  const height = width / 4;
+  return (
+    <group position={[x, y, z]}>
+      {[-width * 0.36, width * 0.36].map((offset) => (
+        <mesh key={offset} geometry={BOX} position={[offset, 0.9, -0.05]} scale={[0.09, 1.8, 0.09]} castShadow>
+          <meshStandardMaterial color="#3a4250" roughness={0.6} metalness={0.5} />
+        </mesh>
+      ))}
+      <mesh position={[0, 1.8 + height / 2, 0]} material={material}>
+        <planeGeometry args={[width, height]} />
+      </mesh>
+    </group>
+  );
+}
+
+interface DressingProps {
+  layout: TrackLayout;
+}
+
+/** Everything that sits on the terrain: tufts, stones, paint, obstacles, signs, gates. */
+export function Dressing({ layout }: DressingProps) {
+  const dressed = useMemo(() => dress(layout), [layout]);
+  const checker = useMemo(() => {
+    const texture = checkerTexture().clone();
+    texture.needsUpdate = true;
+    texture.repeat.set(1, 11);
+    return new MeshStandardMaterial({ map: texture, roughness: 0.8 });
+  }, []);
+  const finish = sampleTrack(layout, layout.lengthM);
+  const marks = useMemo(() => {
+    const list: Array<{ s: number; x: number; y: number }> = [];
+    for (let s = 10; s < layout.lengthM - 3; s += 10) {
+      const sample = sampleTrack(layout, s);
+      list.push({ s, x: sample.x, y: sample.y });
+    }
+    return list;
+  }, [layout]);
+  const depth = LANES.zFront - LANES.zBack;
+  const midZ = (LANES.zFront + LANES.zBack) / 2;
+
+  return (
+    <group dispose={null}>
+      <Scatter geometry={CONE} material={FLAT} items={dressed.tufts} />
+      <Scatter geometry={ICO} material={FLAT} items={dressed.blobs} shadow />
+      <Scatter geometry={BOX} material={PAINT} items={dressed.paint} />
+      <Scatter geometry={DISC} material={PUDDLE} items={dressed.puddles} />
+      <Scatter geometry={CONE} material={FLAT} items={dressed.trees} />
+      <Scatter geometry={DISC} material={FLAT} items={dressed.trunks} />
+      {layout.segments.map((segment) => (segment.obstacle ? <ObstacleProp key={segment.s0} layout={layout} segment={segment} /> : null))}
+
+      <mesh geometry={BOX} position={[0, 0.006, midZ]} scale={[0.14, 0.012, depth]}>
+        <meshStandardMaterial color="#f1f3f5" roughness={0.7} />
+      </mesh>
+      <Sign text="START" x={-1.6} y={0} />
+      <mesh geometry={BOX} material={checker} position={[finish.x + 0.3, finish.y + 0.007, midZ]} scale={[0.6, 0.012, depth]} />
+      <Sign text="FINISH" x={finish.x + 1.9} y={finish.y} background="#f1f3f5" />
+      {marks.map((mark) => (
+        <Sign key={mark.s} text={`${mark.s} m`} x={mark.x} y={mark.y - 0.9} width={1.3} color="#e6ebf2" background="#1a222d" />
+      ))}
+    </group>
+  );
+}

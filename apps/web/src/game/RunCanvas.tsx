@@ -1,13 +1,94 @@
 'use client';
 
-import { PlaceholderRobot } from './PlaceholderRobot';
-import { PlaceholderStage } from './PlaceholderStage';
+import { Canvas } from '@react-three/fiber';
+import { useEffect, useMemo, useState } from 'react';
+import type { Build, GhostTrace, Mission } from '@rivetrun/contracts';
+import { DEFAULT_PRESET_ID, MISSIONS, PRESETS } from '@rivetrun/sim';
+import { createFakeRun, fakeGhostTrace } from './fakeRun';
+import { RunHud } from './hud/RunHud';
+import { UI } from './palette';
+import { RunScene } from './run/RunScene';
+import { createRunFeed, type RunFeed } from './runFeed';
 
-/** Scaffold run view: side-on camera, flat strip, rotating placeholder robot. */
-export default function RunCanvas() {
+/** Mobile performance budget from the spec. */
+export const MAX_DPR = 1.5;
+
+export interface RunCanvasProps {
+  mission?: Mission;
+  build?: Build;
+  /**
+   * Live run: `runController(config, brain, { onEvent: feed.push })`.
+   * Omit it and the canvas drives itself with a looping fake run (demo mode).
+   */
+  feed?: RunFeed;
+  /** Brain Duel traces. In demo mode they are faked too. */
+  ghosts?: readonly GhostTrace[];
+  /** Hide the DOM overlay (top bar + Brain HUD) to supply your own. */
+  hud?: boolean;
+}
+
+const DEMO_RESTART_MS = 4200;
+
+/** Looping fake run + fake ghosts, until packages/sim drives the scene. */
+function useDemoRun(mission: Mission, build: Build, enabled: boolean): { feed: RunFeed; ghosts: readonly GhostTrace[] } {
+  const feed = useMemo(() => createRunFeed(), []);
+  const ghosts = useMemo(
+    () => (enabled ? [fakeGhostTrace(mission, build, 'heuristic'), fakeGhostTrace(mission, build, 'random')] : []),
+    [mission, build, enabled],
+  );
+  useEffect(() => {
+    if (!enabled) return undefined;
+    let timer = 0;
+    let run = createFakeRun({ mission, build, onEvent: () => undefined });
+    const launch = () => {
+      feed.reset();
+      run = createFakeRun({
+        mission,
+        build,
+        onEvent: (event) => {
+          feed.push(event);
+          if (event.type === 'finish' || event.type === 'dnf') timer = window.setTimeout(launch, DEMO_RESTART_MS);
+        },
+      });
+      run.start();
+    };
+    launch();
+    return () => {
+      window.clearTimeout(timer);
+      run.stop();
+    };
+  }, [mission, build, enabled, feed]);
+  return { feed, ghosts };
+}
+
+/** The run view: R3F canvas with the 2.5D scene plus the HUD overlay. Fills its parent. */
+export default function RunCanvas({ mission = MISSIONS.M5, build = PRESETS[DEFAULT_PRESET_ID].build, feed, ghosts, hud = true }: RunCanvasProps) {
+  const demo = useDemoRun(mission, build, feed === undefined);
+  const activeFeed = feed ?? demo.feed;
+  const activeGhosts = ghosts ?? demo.ghosts;
+  const [lost, setLost] = useState(false);
+
   return (
-    <PlaceholderStage cameraPosition={[0, 1.8, 10]} groundColor="#3a4250" groundSize={[40, 3]}>
-      <PlaceholderRobot />
-    </PlaceholderStage>
+    <div className="relative h-full w-full overflow-hidden" style={{ background: UI.ink }}>
+      <Canvas
+        shadows
+        dpr={[1, MAX_DPR]}
+        camera={{ fov: 38, near: 0.5, far: 420, position: [0, 6, 20] }}
+        gl={{ antialias: true, powerPreference: 'high-performance' }}
+        style={{ position: 'absolute', inset: 0, touchAction: 'none' }}
+        onCreated={({ gl }) => {
+          gl.domElement.addEventListener('webglcontextlost', () => setLost(true));
+          gl.domElement.addEventListener('webglcontextrestored', () => setLost(false));
+        }}
+      >
+        <RunScene mission={mission} build={build} feed={activeFeed} ghosts={activeGhosts} />
+      </Canvas>
+      {lost && (
+        <div className="absolute inset-0 flex items-center justify-center font-mono text-xs" style={{ color: UI.dim }}>
+          3D view paused — reload to resume
+        </div>
+      )}
+      {hud && <RunHud mission={mission} feed={activeFeed} ghosts={activeGhosts} />}
+    </div>
   );
 }
