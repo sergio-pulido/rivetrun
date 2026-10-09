@@ -11,8 +11,7 @@ export function RunClient({ missionId }: { readonly missionId: MissionId }) {
   const mission = MISSIONS[missionId];
   const build = useRunStore((store) => store.build);
   const priority = useRunStore((store) => store.priority);
-  // Optional until the build store ships the field.
-  const briefing = useBuildStore((store) => (store as { briefing?: string }).briefing);
+  const briefing = useBuildStore((store) => store.briefing);
   const { feed, ghosts, error } = useRun(mission, build, priority, briefing);
 
   return (
