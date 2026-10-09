@@ -81,18 +81,28 @@ function buildTerrain(layout: TrackLayout): Built {
     const lipColor = segment.pad ? '#565b64' : look.lip;
     for (const span of spansOf(segment)) {
       const { ax, ay, bx, by } = span;
+      // Inside a gap the floor and walls are bare dark earth, not the terrain surface.
+      const pit = segment.gap !== undefined && (span.lineA - ay > 0.01 || span.lineB - by > 0.01);
       const uvTop: [P2, P2, P2, P2] = [[ax / 3, zFront / 3], [bx / 3, zFront / 3], [bx / 3, zBack / 3], [ax / 3, zBack / 3]];
-      top.quad([ax, ay, zFront], [bx, by, zFront], [bx, by, zBack], [ax, ay, zBack], uvTop);
+      if (pit) {
+        const shadeA = span.lineA - ay > 1 ? '#150e09' : '#3a2a1d';
+        const shadeB = span.lineB - by > 1 ? '#150e09' : '#3a2a1d';
+        waterWall.quad([ax, ay, zFront], [bx, by, zFront], [bx, by, zBack], [ax, ay, zBack], undefined, [shadeA, shadeB, shadeB, shadeA]);
+      } else {
+        top.quad([ax, ay, zFront], [bx, by, zFront], [bx, by, zBack], [ax, ay, zBack], uvTop);
+      }
       cut.quad(
         [ax, bottom, zFront], [bx, bottom, zFront], [bx, by, zFront], [ax, ay, zFront],
         [[ax / 4, bottom / 4], [bx / 4, bottom / 4], [bx / 4, by / 4], [ax / 4, ay / 4]],
       );
-      lip.quad(
-        [ax, ay - LIP, zFront + 0.015], [bx, by - LIP, zFront + 0.015], [bx, by, zFront + 0.015], [ax, ay, zFront + 0.015],
-        undefined,
-        [lipColor, lipColor, lipColor, lipColor],
-      );
-      if (segment.gap && (span.lineA - ay > 0.01 || span.lineB - by > 0.01)) {
+      if (!pit) {
+        lip.quad(
+          [ax, ay - LIP, zFront + 0.015], [bx, by - LIP, zFront + 0.015], [bx, by, zFront + 0.015], [ax, ay, zFront + 0.015],
+          undefined,
+          [lipColor, lipColor, lipColor, lipColor],
+        );
+      }
+      if (pit) {
         // Far wall of a gap's pit: dark earth, so the hole never shows the sky through it.
         waterWall.quad(
           [ax, ay, zBack + 0.01], [bx, by, zBack + 0.01], [bx, span.lineB, zBack + 0.01], [ax, span.lineA, zBack + 0.01],

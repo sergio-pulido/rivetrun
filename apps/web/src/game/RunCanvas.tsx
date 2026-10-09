@@ -30,11 +30,10 @@ export interface RunCanvasProps {
   hud?: boolean;
   /**
    * Drive mode: the player's controls, from `createDriveInput()`. The sim samples `drive.read()` each tick;
-   * the canvas shows the touch controls instead of the Brain sheet and tags the robot YOU.
+   * the canvas shows the touch controls instead of the Brain sheet and tags the robot YOU. Pass the rival as the
+   * single entry of `ghosts` (policy 'jev', or 'heuristic' when Jev's ghost was not ready): it is labelled from its policy.
    */
   drive?: DriveInput;
-  /** Drive mode: Jev's live run on the same build, seed and track (a second RunFeed). Drawn as a ghost labelled JEV. */
-  rival?: RunFeed;
 }
 
 const DEMO_RESTART_MS = 4200;
@@ -72,7 +71,7 @@ function useDemoRun(mission: Mission, build: Build, enabled: boolean): { feed: R
 }
 
 /** The run view: R3F canvas with the 2.5D scene plus the HUD overlay. Fills its parent. */
-export default function RunCanvas({ mission = MISSIONS.M5, build = PRESETS[DEFAULT_PRESET_ID].build, feed, ghosts, hud = true, drive, rival }: RunCanvasProps) {
+export default function RunCanvas({ mission = MISSIONS.M5, build = PRESETS[DEFAULT_PRESET_ID].build, feed, ghosts, hud = true, drive }: RunCanvasProps) {
   const demo = useDemoRun(mission, build, feed === undefined);
   const activeFeed = feed ?? demo.feed;
   const activeGhosts = ghosts ?? demo.ghosts;
@@ -95,14 +94,14 @@ export default function RunCanvas({ mission = MISSIONS.M5, build = PRESETS[DEFAU
           if (process.env.NODE_ENV !== 'production') (window as unknown as { __rivetrun?: unknown }).__rivetrun = { info: gl.info, scene };
         }}
       >
-        <RunScene mission={mission} build={build} feed={activeFeed} ghosts={activeGhosts} particleBudget={tier.particles} hands={drive} rival={rival} />
+        <RunScene mission={mission} build={build} feed={activeFeed} ghosts={activeGhosts} particleBudget={tier.particles} hands={drive} />
       </Canvas>
       {lost && (
         <div className="absolute inset-0 flex items-center justify-center font-mono text-xs" style={{ color: UI.dim }}>
           3D view paused — reload to resume
         </div>
       )}
-      {hud && <RunHud mission={mission} feed={activeFeed} ghosts={activeGhosts} drive={drive} rival={rival} build={build} />}
+      {hud && <RunHud mission={mission} feed={activeFeed} ghosts={activeGhosts} drive={drive} build={build} />}
     </div>
   );
 }

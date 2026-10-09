@@ -1,7 +1,7 @@
 'use client';
 
 import { useFrame, useThree } from '@react-three/fiber';
-import { useMemo, useRef, useState, type RefObject } from 'react';
+import { useMemo, useRef, type RefObject } from 'react';
 import { Vector3, type DirectionalLight, type Group, type PerspectiveCamera } from 'three';
 import type { Build, GhostTrace, Mission, Policy, SimEffect } from '@rivetrun/contracts';
 import { TUNING } from '@rivetrun/sim';
@@ -11,7 +11,7 @@ import { restDrive, type Expression, type RobotDrive } from '../robot/drive';
 import { RobotModel } from '../robot/RobotModel';
 import type { DriveInput } from '../drive/driveInput';
 import type { RunFeed } from '../runFeed';
-import { basinDepthAt, layoutTrack, rideOffset, sampleTrack, type TrackLayout } from '../track';
+import { HEIGHT_SCALE, PIT_DEPTH, basinDepthAt, layoutTrack, rideOffset, sampleTrack, type TrackLayout } from '../track';
 import { Particles, type ParticleEmitter } from './Particles';
 import { restPose, type Pose } from './pose';
 import { ScoutDroneRig } from './ScoutDroneRig';
@@ -19,12 +19,8 @@ import { EFFECT_PARTICLES, Tag, swimLift } from './shared';
 import { World } from './World';
 
 const SIM_DT = TUNING.dtMs / 1000;
-/**
- * Sim metres of height → world units. The robot is drawn several times larger than its real hull,
- * so a true-scale 46 cm hop would barely clear its own axles: height is doubled to read as a jump.
- * Distance along the track is never scaled, so where a jump lands is exact.
- */
-const HEIGHT_SCALE = 2;
+/** How long the tumble into a gap plays before the robot is shown back at its respawn point. */
+const FALL_MS = 650;
 
 interface PlayerProps {
   feed: RunFeed;
@@ -47,6 +43,8 @@ function Player({ feed, build, layout, pose, timeScale, particles, hands }: Play
   const swim = useRef(0);
   const landedAt = useRef(0);
   const squash = useRef(0);
+  const fall = useRef({ at: 0, until: 0, x: 0, y: 0 });
+  const snap = useRef(false);
 
   useFrame(({ clock }, rawDt) => {
     // Unclamped (up to 0.5 s): easing must keep up with the sim even when frames are slow.
@@ -61,13 +59,31 @@ function Player({ feed, build, layout, pose, timeScale, particles, hands }: Play
       return;
     }
     const now = performance.now();
+    // Fell into a gap: the sim has already put the robot back at its respawn point. Show the tumble first.
+    if (view.lastFall && view.lastFall.at !== fall.current.at) {
+      fall.current = { at: view.lastFall.at, until: now + FALL_MS, x: pose.current.x, y: pose.current.y };
+      pose.current.shakeUntil = now + 260;
+    }
+    if (now < fall.current.until && !view.done) {
+      const k = 1 - (fall.current.until - now) / FALL_MS;
+      node.visible = true;
+      node.scale.set(1, 1, 1);
+      node.position.set(fall.current.x + k * 0.35, fall.current.y - k * k * PIT_DEPTH, LANES.player);
+      node.rotation.z = -k * 1.9;
+      drive.current.expression = 'hurt';
+      drive.current.wheelSpin = 6;
+      // The camera holds on the hole; the pose snaps to the respawn point when the tumble ends.
+      snap.current = true;
+      return;
+    }
     const scale = view.done ? 0 : view.pending ? TUNING.decision.slowMoFactor : 1;
     timeScale.current = damp(timeScale.current ?? 1, view.done ? 1 : scale, 10, dt);
     // The sim ticks at 20 Hz (5 Hz in slow-mo): extrapolate one tick, then ease.
     const ahead = Math.min(((now - view.stateAt) / 1000) * scale, SIM_DT);
     const target = state.x + state.v * ahead;
     const p = pose.current;
-    const jump = !p.ready || Math.abs(target - p.s) > 3;
+    const jump = !p.ready || snap.current || Math.abs(target - p.s) > 3;
+    snap.current = false;
     p.s = jump ? target : damp(p.s, target, 22, dt);
     p.t = state.t + ahead;
     p.v = state.v;
@@ -186,17 +202,19 @@ interface GhostProps {
   layout: TrackLayout;
   pose: RefObject<Pose>;
   timeScale: RefObject<number>;
+  /** Drive mode: the one ghost is the rival (Jev, or the heuristic standing in) on the lane behind the player. */
+  driving: boolean;
 }
 
 /** A translucent robot replaying a recorded headless run against sim time. */
-function Ghost({ trace, build, layout, pose, timeScale }: GhostProps) {
+function Ghost({ trace, build, layout, pose, timeScale, driving }: GhostProps) {
   const group = useRef<Group>(null);
   const drive = useRef<RobotDrive>(restDrive());
   const cursor = useRef(0);
   const pitch = useRef(0);
   const swim = useRef(0);
   const policy: Policy = trace.policy;
-  const z = laneZ(policy);
+  const z = driving ? LANES.heuristic : laneZ(policy);
 
   useFrame(({ clock }, rawDt) => {
     const node = group.current;
@@ -213,99 +231,36 @@ function Ghost({ trace, build, layout, pose, timeScale }: GhostProps) {
     const a = frames[cursor.current]!;
     const b = frames[Math.min(cursor.current + 1, frames.length - 1)]!;
     const span = b.t - a.t;
-    const k = span > 0 ? clamp((t - a.t) / span, 0, 1) : 1;
+    // A fall sends the ghost back to its respawn point with a time penalty: hold, then snap, never slide backwards.
+    const respawn = b.x < a.x - 1;
+    const k = respawn ? 0 : span > 0 ? clamp((t - a.t) / span, 0, 1) : 1;
     const ended = t >= frames[frames.length - 1]!.t;
     const s = lerp(a.x, b.x, k);
+    const air = lerp(a.heightM ?? 0, b.heightM ?? 0, k) * HEIGHT_SCALE;
     const sample = sampleTrack(layout, s);
     const wanted = (lerp(a.pitch, b.pitch, k) * Math.PI) / 180;
     pitch.current = damp(pitch.current, wanted, 9, Math.min(rawDt, 0.5));
     node.visible = true;
     swim.current = damp(swim.current, a.thrusting ? 1 : 0, 2.5, Math.min(rawDt, 0.5));
-    node.position.set(sample.x, sample.y + rideOffset(sample.segment, s) + swim.current * swimLift(sample.segment, s, clock.elapsedTime + 1.3), z);
+    node.position.set(sample.x, sample.y + rideOffset(sample.segment, s) + swim.current * swimLift(sample.segment, s, clock.elapsedTime + 1.3) + air, z);
     node.rotation.z = pitch.current;
     const d = drive.current;
-    const slipping = a.effects.includes('slip');
+    const airborne = a.airborne === true && !ended;
+    const slipping = a.effects.includes('slip') && !airborne;
     d.wheelSpin = ended ? 0 : a.wheelSpin * (timeScale.current ?? 1);
     d.speed = a.v;
     d.slip = slipping && !ended ? 1 : 0;
     d.dnf = ended && !trace.outcome.finished;
-    d.expression = d.dnf ? 'dnf' : ended ? 'finish' : slipping ? 'slip' : 'cruise';
+    d.expression = d.dnf ? 'dnf' : ended ? 'finish' : airborne ? 'jump' : slipping ? 'slip' : 'cruise';
     d.winch = false;
     d.thrusting = a.thrusting === true && !ended;
+    d.airborne = airborne;
   });
 
   return (
     <group ref={group} visible={false}>
       <RobotModel build={build} drive={drive} ghostTint={POLICY_TINT[policy]} droneAway />
       <Tag text={POLICY_LABEL[policy]} color={POLICY_TINT[policy]} y={2.05} />
-    </group>
-  );
-}
-
-interface RivalProps {
-  /** A second live run: in Drive mode, Jev driving the same build on the same track and seed. */
-  feed: RunFeed;
-  build: Build;
-  layout: TrackLayout;
-}
-
-/** The Jev ghost of Drive mode: translucent, on the lane behind the player, fed live (not a recording). */
-function Rival({ feed, build, layout }: RivalProps) {
-  const group = useRef<Group>(null);
-  const drive = useRef<RobotDrive>(restDrive());
-  const memo = useRef({ s: 0, ready: false, pitch: 0, swim: 0 });
-  const [fallback, setFallback] = useState(false);
-  const shownFallback = useRef(false);
-
-  useFrame(({ clock }, rawDt) => {
-    const dt = Math.min(rawDt, 0.5);
-    const node = group.current;
-    const view = feed.get();
-    const state = view.state;
-    if (!node) return;
-    if (!state) {
-      memo.current.ready = false;
-      node.visible = false;
-      return;
-    }
-    // The label follows who is actually deciding: re-render only when that flips.
-    const nowFallback = view.decision?.decision.fallback === true;
-    if (nowFallback !== shownFallback.current) {
-      shownFallback.current = nowFallback;
-      setFallback(nowFallback);
-    }
-    const m = memo.current;
-    const ahead = view.done ? 0 : Math.min((performance.now() - view.stateAt) / 1000, SIM_DT);
-    const target = state.x + state.v * ahead;
-    const jump = !m.ready || Math.abs(target - m.s) > 3;
-    m.s = jump ? target : damp(m.s, target, 22, dt);
-    m.ready = true;
-    const sample = sampleTrack(layout, m.s);
-    const airborne = state.airborne === true;
-    const air = Math.max(0, (state.heightM ?? 0) + (airborne ? (state.vy ?? 0) * ahead : 0)) * HEIGHT_SCALE;
-    m.swim = damp(m.swim, state.thrusting ? 1 : 0, 2.5, dt);
-    const wanted = (state.pitch * Math.PI) / 180;
-    m.pitch = jump ? wanted : damp(m.pitch, wanted, 9, dt);
-    node.visible = true;
-    node.position.set(sample.x, sample.y + rideOffset(sample.segment, m.s) + m.swim * swimLift(sample.segment, m.s, clock.elapsedTime + 1.3) + air, LANES.heuristic);
-    node.rotation.z = m.pitch;
-    const wrecked = view.dnfReason !== null;
-    const slipping = state.effects.includes('slip') && !airborne;
-    const d = drive.current;
-    d.wheelSpin = view.done ? 0 : state.wheelSpin;
-    d.speed = state.v;
-    d.slip = slipping && !view.done ? 1 : 0;
-    d.dnf = wrecked;
-    d.winch = false;
-    d.thrusting = state.thrusting === true && !view.done;
-    d.airborne = airborne && !view.done;
-    d.expression = wrecked ? 'dnf' : view.done ? 'finish' : airborne ? 'jump' : slipping ? 'slip' : (view.decision?.decision.selected ?? 'cruise');
-  });
-
-  return (
-    <group ref={group} visible={false}>
-      <RobotModel build={build} drive={drive} ghostTint={POLICY_TINT.heuristic} droneAway />
-      <Tag text={fallback ? 'JEV · FALLBACK' : POLICY_LABEL.jev} color={fallback ? UI.bad : UI.cyan} y={2.05} />
     </group>
   );
 }
@@ -390,14 +345,12 @@ export interface RunSceneProps {
   ghosts?: readonly GhostTrace[];
   /** 0–1: particle and weather budget (0.5 on weak devices). */
   particleBudget?: number;
-  /** Drive mode: the player's controls (tag reads YOU, wider view, no decision zoom). */
+  /** Drive mode: the player's controls (tag reads YOU, wider view, no decision zoom; the one ghost is the rival). */
   hands?: DriveInput;
-  /** Drive mode: Jev's live run on the same build, track and seed, drawn as a ghost labelled JEV. */
-  rival?: RunFeed;
 }
 
 /** The 2.5D run view. Mount inside an R3F <Canvas>. Reads sim state only: no physics here. */
-export function RunScene({ mission, build, feed, ghosts = [], particleBudget = 1, hands, rival }: RunSceneProps) {
+export function RunScene({ mission, build, feed, ghosts = [], particleBudget = 1, hands }: RunSceneProps) {
   const layout = useMemo(() => layoutTrack(mission.track), [mission.track]);
   const pose = useRef<Pose>(restPose());
   const hasDrone = build.sensors.includes('scout_drone');
@@ -409,9 +362,8 @@ export function RunScene({ mission, build, feed, ghosts = [], particleBudget = 1
       <World layout={layout} weather={mission.weather} sun={sun} budget={particleBudget} />
 
       {ghosts.map((trace) => (
-        <Ghost key={trace.policy} trace={trace} build={build} layout={layout} pose={pose} timeScale={timeScale} />
+        <Ghost key={trace.policy} trace={trace} build={build} layout={layout} pose={pose} timeScale={timeScale} driving={hands !== undefined} />
       ))}
-      {rival && <Rival feed={rival} build={build} layout={layout} />}
       <Player feed={feed} build={build} layout={layout} pose={pose} timeScale={timeScale} particles={particles} hands={hands} />
       {hasDrone && <ScoutDroneRig feed={feed} layout={layout} pose={pose} />}
       <Particles ref={particles} timeScale={timeScale} budget={particleBudget} />

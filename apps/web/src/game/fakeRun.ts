@@ -397,8 +397,6 @@ export interface FakeRunOptions {
   readonly priority?: number;
   /** Drive mode: sampled once per tick instead of asking a brain (pass `drive.read`). */
   readonly control?: () => ControlInput;
-  /** false = no slow-mo while a decision is pending (the Jev ghost of Drive mode). */
-  readonly slowMo?: boolean;
 }
 
 export interface FakeRun {
@@ -407,7 +405,7 @@ export interface FakeRun {
 }
 
 /** Wall-clock fake run with pending decisions, slow-mo, latency and the odd fallback. */
-export function createFakeRun({ mission, build, onEvent, seed = 1, priority = 0.5, control, slowMo = true }: FakeRunOptions): FakeRun {
+export function createFakeRun({ mission, build, onEvent, seed = 1, priority = 0.5, control }: FakeRunOptions): FakeRun {
   const world = worldOf(mission, build);
   const rand = mulberry32(seed);
   const core = freshCore();
@@ -436,7 +434,7 @@ export function createFakeRun({ mission, build, onEvent, seed = 1, priority = 0.
     const dtWall = Math.min(0.1, (time - last) / 1000);
     last = time;
     if (pending && time >= pendingUntil) resolve();
-    budget += dtWall * (pending && slowMo ? TUNING.decision.slowMoFactor : 1);
+    budget += dtWall * (pending ? TUNING.decision.slowMoFactor : 1);
     while (budget >= DT) {
       budget -= DT;
       if (control) {

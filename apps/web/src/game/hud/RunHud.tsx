@@ -1,12 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { Build, GhostTrace, Mission, SimState } from '@rivetrun/contracts';
 import { isMuted, toggleMute } from '../audio/sfx';
 import { DriveControls } from '../drive/DriveControls';
 import type { DriveInput } from '../drive/driveInput';
 import { useRunHaptics } from '../drive/haptics';
-import { ACTION_LABEL, DNF_LABEL, UI } from '../palette';
+import { DNF_LABEL, POLICY_LABEL, UI } from '../palette';
 import { useRunView, type RunFeed } from '../runFeed';
 import { BrainHud } from './BrainHud';
 import styles from './hud.module.css';
@@ -18,8 +18,6 @@ export interface RunHudProps {
   ghosts?: readonly GhostTrace[];
   /** Drive mode: the player's controls. Swaps the Brain sheet for the touch controls. */
   drive?: DriveInput;
-  /** Drive mode: Jev's live run, shown as a gap chip and a marker on the strip. */
-  rival?: RunFeed;
   /** Needed in Drive mode: which action-button parts the robot has. */
   build?: Build;
 }
@@ -103,26 +101,61 @@ function Underwater({ state }: { state: SimState | null }) {
   );
 }
 
-/** Drive mode: how far ahead or behind Jev is right now, and what it is doing. */
-function RivalChip({ rival, meX }: { rival: RunFeed; meX: number }) {
-  const view = useRunView(rival);
-  if (!view.state) return null;
-  const gap = view.state.x - meX;
-  const decision = view.decision?.decision;
-  const fallback = decision?.fallback === true;
-  const status = view.dnfReason ? DNF_LABEL[view.dnfReason].toUpperCase() : view.done ? 'FINISHED' : `${Math.abs(gap).toFixed(1)} m ${gap >= 0 ? 'AHEAD' : 'BEHIND'}`;
+/** Where a recorded ghost is at sim time t (frames are in time order; the last one holds). */
+function ghostFrameAt(trace: GhostTrace, t: number): SimState | undefined {
+  const frames = trace.frames;
+  let lo = 0;
+  let hi = frames.length - 1;
+  while (lo < hi) {
+    const mid = (lo + hi + 1) >> 1;
+    if (frames[mid]!.t <= t) lo = mid;
+    else hi = mid - 1;
+  }
+  return frames[lo];
+}
+
+/** Drive mode: how far ahead or behind the rival ghost is right now. Labelled by who actually drove it. */
+function RivalChip({ trace, state }: { trace: GhostTrace; state: SimState | null }) {
+  const t = state?.t ?? 0;
+  const frame = ghostFrameAt(trace, t);
+  const last = trace.frames[trace.frames.length - 1];
+  if (!frame || !last) return null;
+  const jev = trace.policy === 'jev';
+  const ended = t >= last.t;
+  const gap = frame.x - (state?.x ?? 0);
+  const status = !ended
+    ? `${Math.abs(gap).toFixed(1)} m ${gap >= 0 ? 'AHEAD' : 'BEHIND'}`
+    : trace.outcome.finished
+      ? `FINISHED ${trace.outcome.timeS.toFixed(1)} s`
+      : (trace.outcome.dnfReason ? DNF_LABEL[trace.outcome.dnfReason] : 'DNF').toUpperCase();
   return (
-    <span className="whitespace-nowrap rounded-full px-3 py-1.5 font-mono text-[10px] leading-none tracking-[1px]" style={{ border: `1px solid ${fallback ? UI.bad : UI.cyan}`, background: 'rgb(8 24 27 / 0.85)', color: UI.cyanText }}>
-      <span style={{ color: fallback ? UI.bad : UI.cyan, fontWeight: 600 }}>{fallback ? 'JEV · FALLBACK' : 'JEV'}</span> {status}
-      {decision && !view.done ? <span style={{ color: UI.dim }}> · {ACTION_LABEL[decision.selected].toLowerCase()}</span> : null}
+    <span className="whitespace-nowrap rounded-full px-3 py-1.5 font-mono text-[10px] leading-none tracking-[1px]" style={{ border: `1px solid ${jev ? UI.cyan : UI.dim}`, background: 'rgb(8 24 27 / 0.85)', color: UI.cyanText }}>
+      <span style={{ color: jev ? UI.cyan : UI.text, fontWeight: 600 }}>{POLICY_LABEL[trace.policy]}</span> {status}
     </span>
   );
 }
 
+/** Fell into a gap: what it cost, for a moment. */
+function FallToast({ fall }: { fall: { readonly falls: number; readonly at: number } }) {
+  const [shown, setShown] = useState(true);
+  useEffect(() => {
+    setShown(true);
+    const id = window.setTimeout(() => setShown(false), 1800);
+    return () => window.clearTimeout(id);
+  }, [fall.at]);
+  if (!shown) return null;
+  return (
+    <div className="absolute inset-x-0 flex justify-center" style={{ top: '26%' }}>
+      <span className="rounded-lg px-3 py-2 font-mono text-[12px] font-semibold tracking-[1px]" style={{ border: `2px solid ${UI.bad}`, background: 'rgb(14 16 19 / 0.88)', color: UI.bad }}>
+        FELL · +5 s · {fall.falls} of 3
+      </span>
+    </div>
+  );
+}
+
 /** DOM overlay for the run view: top bar, slow-mo pill + cyan frame, end stamp and the Brain sheet. */
-export function RunHud({ mission, feed, ghosts = [], drive, rival, build }: RunHudProps) {
+export function RunHud({ mission, feed, ghosts = [], drive, build }: RunHudProps) {
   const view = useRunView(feed);
-  const rivalView = useRunView(rival ?? feed);
   const driving = drive !== undefined;
   // Drive mode has no slow-mo: the player is the one deciding.
   const thinking = view.pending !== null && !driving;
@@ -141,12 +174,12 @@ export function RunHud({ mission, feed, ghosts = [], drive, rival, build }: RunH
 
       <div className="absolute inset-x-0 top-0 mx-auto max-w-[430px] px-3" style={{ paddingTop: 'max(14px, env(safe-area-inset-top))' }}>
         <div className="relative">
-          <TopBar mission={mission} state={view.state} ghosts={ghosts} rivals={rival && rivalView.state ? [{ x: rivalView.state.x, color: UI.cyan }] : []} />
+          <TopBar mission={mission} state={view.state} ghosts={ghosts} />
           <MuteButton />
         </div>
         <div className="mt-2.5 flex justify-center">
-          {rival ? (
-            <RivalChip rival={rival} meX={view.state?.x ?? 0} />
+          {driving && ghosts[0] ? (
+            <RivalChip trace={ghosts[0]} state={view.state} />
           ) : (
             <span className={`${styles.pill} whitespace-nowrap px-3 py-1.5 font-mono text-[10px] leading-none`} style={{ opacity: thinking ? 1 : 0 }}>
               SLOW-MO · JEV IS DECIDING
@@ -154,6 +187,8 @@ export function RunHud({ mission, feed, ghosts = [], drive, rival, build }: RunH
           )}
         </div>
       </div>
+
+      {view.lastFall && !view.done ? <FallToast fall={view.lastFall} /> : null}
 
       {view.done && (
         <div className="absolute inset-x-0 flex justify-center" style={{ top: '24%' }}>
