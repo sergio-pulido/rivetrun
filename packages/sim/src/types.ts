@@ -30,6 +30,8 @@ export interface StepDamage {
   readonly cause: DamageCause;
   readonly amountPct: number;
   readonly obstacle?: Obstacle;
+  /** Set when the impact was driving onto rough ground too fast. */
+  readonly roughEntry?: TerrainId;
   readonly speedMps?: number;
 }
 
@@ -37,7 +39,7 @@ export interface StepDamage {
 export interface RunStats {
   readonly slipSByTerrain: Partial<Record<TerrainId, number>>;
   readonly damageByCause: Partial<Record<DamageCause, number>>;
-  readonly worstImpact?: { readonly obstacle: Obstacle; readonly speedMps: number; readonly amountPct: number };
+  readonly worstImpact?: { readonly obstacle?: Obstacle; readonly roughEntry?: TerrainId; readonly speedMps: number; readonly amountPct: number };
   readonly lastTerrain: TerrainId;
 }
 

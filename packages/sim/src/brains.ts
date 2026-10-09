@@ -4,6 +4,7 @@ import { mulberry32 } from './rng';
 const TEMPERATURE = 0.6;
 const STALL_PROGRESS_M = 0.15;
 const STALL_PENALTY = 4;
+const BASE_LOOKAHEAD_S = 1.5;
 
 /** Lookahead utility of one option for the player's priority (0 = speed, 1 = safety). */
 export function utility(question: BrainQuestion, action: Action): number {
@@ -12,7 +13,10 @@ export function utility(question: BrainQuestion, action: Action): number {
   const p = question.priority;
   // Standing still never finishes the course: without this the robot parks in front of every obstacle.
   const stall = entry.progressM < STALL_PROGRESS_M ? STALL_PENALTY * (2 - p) : 0;
-  return -stall + entry.progressM * (1 - 0.5 * p) - entry.damagePct * (0.4 + 2 * p) - entry.energyPct * (0.05 + 0.15 * p);
+  // Progress is compared per standard window, so a longer lookahead (scout drone) is not just more reward.
+  // Damage is only partly discounted: a hazard seen 8 s out still counts, unavoidable trickle damage does not stall the robot.
+  const window = BASE_LOOKAHEAD_S / (question.lookaheadS ?? BASE_LOOKAHEAD_S);
+  return -stall + entry.progressM * window * (1 - 0.5 * p) - entry.damagePct * Math.sqrt(window) * (0.4 + 2 * p) - entry.energyPct * window * (0.05 + 0.15 * p);
 }
 
 function softmax(options: readonly Action[], utilities: readonly number[]): Probabilities {

@@ -18,7 +18,7 @@ export const PHYSICS = {
   /** Impacts below this speed do no damage. */
   safeImpactSpeedMps: 0.6,
   impactDamagePerMps: 7,
-  obstacleHardness: { step: 1, log: 1.5, rock: 2 } satisfies Record<Obstacle, number>,
+  obstacleHardness: { step: 1, log: 1.5, rock: 1.6 } satisfies Record<Obstacle, number>,
   tipDamagePerDegS: 1.5,
   stuckAfterS: 8,
   winchSpeedMps: 0.6,
@@ -27,6 +27,10 @@ export const PHYSICS = {
   sparksS: 0.4,
   idleLoad: 0.15,
   stallSpeedMps: 0.15,
+  /** Driving onto rough ground (impactRisk at or above this) faster than the safe speed is an impact. */
+  roughTerrainRisk: 0.7,
+  roughEntrySafeMps: 1,
+  roughEntryDamagePerMps: 25,
 } as const;
 
 interface ActionProfile {
@@ -155,12 +159,12 @@ function powerW(state: RunState, action: Action, load: number): number {
 function addDamage(stats: RunStats, damage: StepDamage): RunStats {
   const byCause = { ...stats.damageByCause, [damage.cause]: (stats.damageByCause[damage.cause] ?? 0) + damage.amountPct };
   const worst = stats.worstImpact;
-  const isWorst = damage.cause === 'impact' && damage.obstacle !== undefined && (!worst || damage.amountPct > worst.amountPct);
+  const isWorst = damage.cause === 'impact' && (damage.obstacle !== undefined || damage.roughEntry !== undefined) && (!worst || damage.amountPct > worst.amountPct);
   return {
     ...stats,
     damageByCause: byCause,
     worstImpact: isWorst
-      ? { obstacle: damage.obstacle!, speedMps: damage.speedMps ?? 0, amountPct: damage.amountPct }
+      ? { obstacle: damage.obstacle, roughEntry: damage.roughEntry, speedMps: damage.speedMps ?? 0, amountPct: damage.amountPct }
       : worst,
   };
 }
@@ -204,6 +208,15 @@ export function step(state: RunState, action: Action): RunState {
         (0.5 + TERRAINS[terrainId].impactRisk) * spec.impactDamageFactor * profile.impact;
       hit = { cause: 'impact', amountPct, obstacle: obstacle.kind, speedMps: speed };
       v *= profile.impact < 1 ? 0.9 : 0.5;
+    }
+  }
+  const entered = world.segments[segmentIndexAt(world, x, state.segmentIndex)]!;
+  if (!hit && entered.index > segment.index && entered.terrain !== terrainId && TERRAINS[entered.terrain].impactRisk >= PHYSICS.roughTerrainRisk) {
+    const speed = Math.abs(v);
+    const amountPct = Math.max(0, speed - PHYSICS.roughEntrySafeMps) * PHYSICS.roughEntryDamagePerMps * spec.impactDamageFactor * profile.impact;
+    if (amountPct > 0) {
+      hit = { cause: 'impact', amountPct, roughEntry: entered.terrain, speedMps: speed };
+      v *= 0.7;
     }
   }
   let stats = state.stats;

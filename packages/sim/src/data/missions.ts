@@ -42,16 +42,16 @@ export const MISSIONS: Readonly<Record<MissionId, Mission>> = {
     },
   },
   M4: {
-    id: 'M4', name: 'Frozen Pass', description: 'Cold. Asphalt, a 12° ice slope, a rock field and more ice.',
+    id: 'M4', name: 'Frozen Pass', description: 'Cold. An ice climb, a rock field, then a long ice descent into more rock. Brake early or pay.',
     weather: 'cold', starThreshold: 650, leaderboard: false,
     track: {
       segments: [
         { terrain: 'asphalt', lengthM: 8, slopeDeg: 0 },
-        { terrain: 'ice', lengthM: 12, slopeDeg: 12 },
+        { terrain: 'ice', lengthM: 10, slopeDeg: 5 },
         { terrain: 'rock', lengthM: 6, slopeDeg: 0, obstacle: 'rock' },
+        { terrain: 'ice', lengthM: 16, slopeDeg: -5 },
         { terrain: 'rock', lengthM: 6, slopeDeg: 0, obstacle: 'rock' },
-        { terrain: 'ice', lengthM: 14, slopeDeg: -6 },
-        { terrain: 'asphalt', lengthM: 4, slopeDeg: 0 },
+        { terrain: 'asphalt', lengthM: 6, slopeDeg: 0 },
       ],
     },
   },

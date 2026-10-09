@@ -11,6 +11,8 @@ export const TUNING = {
   decision: {
     intervalS: 1.5,
     lookaheadS: 1.5,
+    /** With a scout drone the Brain simulates this far ahead instead. */
+    droneLookaheadS: 8,
     slipThresholdPct: 25,
     /** Jev budget; beyond it the heuristic decides with fallback: true. */
     timeoutMs: 1200,

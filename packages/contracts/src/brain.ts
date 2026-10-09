@@ -14,6 +14,8 @@ const reading = <T extends z.ZodType>(schema: T) => z.union([schema, z.literal('
 export const PerceptionSchema = z.object({
   terrainAhead: reading(TerrainIdSchema),
   terrainAheadDistanceM: reading(z.number().min(0)),
+  /** Which sensor produced terrainAhead* (the scout drone sees further than the camera). */
+  terrainAheadSource: z.enum(['camera', 'scout_drone']).optional(),
   /** `null` = sensor present, nothing in range. */
   obstacleAheadM: reading(z.number().min(0).nullable()),
   slipPct: reading(z.number().min(0).max(100)),
@@ -89,6 +91,8 @@ export const BrainQuestionSchema = z
     lookahead: z.array(LookaheadEntrySchema),
     /** Player's instructions to the driver (optional). */
     briefing: BriefingSchema.optional(),
+    /** Seconds each lookahead entry simulates. Absent = 1.5; longer when a scout drone is fitted. */
+    lookaheadS: z.number().positive().optional(),
   })
   .refine((q) => new Set(q.options).size === q.options.length, {
     message: 'options must be unique',

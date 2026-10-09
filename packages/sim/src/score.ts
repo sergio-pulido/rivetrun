@@ -7,7 +7,7 @@ const round1 = (value: number): number => Math.round(value * 10) / 10;
 /** One line explaining the run, from ground truth. */
 export function why(state: RunState): string {
   const { stats, spec, sim } = state;
-  const has = (sensor: 'imu' | 'ultrasonic' | 'camera' | 'moisture'): boolean => spec.sensorRangeM[sensor] !== undefined;
+  const has = (sensor: 'imu' | 'ultrasonic' | 'camera' | 'moisture' | 'scout_drone'): boolean => spec.sensorRangeM[sensor] !== undefined;
   const terrain = TERRAINS[stats.lastTerrain].name.toLowerCase();
   const slipEntries = Object.entries(stats.slipSByTerrain) as [TerrainId, number][];
   const worstSlip = slipEntries.sort((a, b) => b[1] - a[1])[0];
@@ -17,7 +17,9 @@ export function why(state: RunState): string {
   const tip = stats.damageByCause.tip_over ?? 0;
 
   const impactLine = (): string =>
-    `Hit the ${impact!.obstacle} at ${round1(impact!.speedMps)} m/s${has('ultrasonic') ? '' : ' — no ultrasonic to see it coming'}`;
+    impact!.obstacle === undefined
+      ? `Slammed onto ${TERRAINS[impact!.roughEntry ?? 'rock'].name.toLowerCase()} at ${round1(impact!.speedMps)} m/s${has('scout_drone') ? '' : ' — no scout drone to see it in time'}`
+      : `Hit the ${impact!.obstacle} at ${round1(impact!.speedMps)} m/s${has('ultrasonic') ? '' : ' — no ultrasonic to see it coming'}`;
   const waterLine = (): string => `Took ${Math.round(water)}% water damage — no waterproof case`;
   const slipLine = (): string =>
     `Slipped ${Math.round(worstSlip![1])} s on ${TERRAINS[worstSlip![0]].name.toLowerCase()}${has('imu') ? '' : ' — no IMU'}`;

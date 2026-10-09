@@ -19,7 +19,7 @@ describe('sim data (v0) matches contracts', () => {
     }
     expect(new Set(PARTS.map((p) => p.id)).size).toBe(PARTS.length);
     const count = (slot: string) => PARTS.filter((p) => p.slot === slot).length;
-    expect([count('locomotion'), count('motor'), count('battery'), count('sensor'), count('extra')]).toEqual([3, 2, 2, 4, 3]);
+    expect([count('locomotion'), count('motor'), count('battery'), count('sensor'), count('extra')]).toEqual([3, 2, 2, 5, 3]);
   });
 
   it('has presets that are valid, unlocked from the start and within budget', () => {

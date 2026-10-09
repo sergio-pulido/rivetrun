@@ -62,6 +62,11 @@ export const PARTS: readonly Part[] = [
     massKg: 0.05, costEur: 15, powerW: 0.3, unlockPoints: 150,
     effects: { sensor: 'moisture', rangeM: 3 },
   },
+  {
+    id: 'scout_drone', name: 'Scout drone', slot: 'sensor', blurb: 'Flies ahead: reads the next terrain change up to 15 m out.',
+    massKg: 0.09, costEur: 60, powerW: 6, unlockPoints: 0,
+    effects: { sensor: 'scout_drone', rangeM: 15 },
+  },
   // Extras (0–2)
   {
     id: 'winch', name: 'Winch', slot: 'extra', blurb: 'Hauls the robot over slopes and obstacles.',

@@ -6,10 +6,11 @@ import { deriveSpec } from './spec';
 import type { RunState } from './types';
 import type { World } from './world';
 
-const NOISE = { distanceM: 0.2, obstacleM: 0.1, slipPct: 3, tiltDeg: 0.5, depthCm: 1 } as const;
+const NOISE = { droneDistanceM: 0.5, distanceM: 0.2, obstacleM: 0.1, slipPct: 3, tiltDeg: 0.5, depthCm: 1 } as const;
 const ASSUMED_DEPTH_CM = 5;
 /** Without an IMU, a robot that drives and does not move assumes it is on a hill this steep. */
-const STALL_INFERENCE = { afterS: 1, slopeDeg: 15 } as const;
+// 8° is enough to rule out plain cruising on soft or icy ground without ruling out climb mode.
+const STALL_INFERENCE = { afterS: 1, slopeDeg: 8 } as const;
 const MIN_DECISION_GAP_S = 0.5;
 const DAMAGE_DECISION_STEP_PCT = 5;
 const ALL_ACTIONS: readonly Action[] = ['cruise', 'accelerate', 'slow_down', 'brake', 'reverse', 'climb_mode', 'deploy_winch'];
@@ -34,15 +35,19 @@ export function perceive(state: RunState): Perception {
 
   let terrainAhead: Perception['terrainAhead'] = 'unknown';
   let terrainAheadDistanceM: Perception['terrainAheadDistanceM'] = 'unknown';
-  const cameraRange = cameraRangeM(state);
+  let terrainAheadSource: Perception['terrainAheadSource'];
+  const droneRange = spec.sensorRangeM.scout_drone;
+  // The drone flies above the rain; when both are fitted it wins on range.
+  const cameraRange = droneRange ?? cameraRangeM(state);
   if (cameraRange !== undefined) {
+    terrainAheadSource = droneRange !== undefined ? 'scout_drone' : 'camera';
     const change = world.segments.find(
       (segment) => segment.index > current.index && segment.terrain !== current.terrain && segment.startM - sim.x <= cameraRange,
     );
     const sameUntil = world.segments.slice(current.index).find((segment) => segment.terrain !== current.terrain);
     terrainAhead = change ? change.terrain : current.terrain;
     const distance = change ? change.startM - sim.x : (sameUntil ? sameUntil.startM : world.lengthM) - sim.x;
-    terrainAheadDistanceM = round(Math.max(0, distance + noise(NOISE.distanceM)), 2);
+    terrainAheadDistanceM = round(Math.max(0, distance + noise(droneRange !== undefined ? NOISE.droneDistanceM : NOISE.distanceM)), 2);
   }
 
   let obstacleAheadM: Perception['obstacleAheadM'] = 'unknown';
@@ -65,7 +70,7 @@ export function perceive(state: RunState): Perception {
     depthAheadCm = deepest > 0 ? round(Math.max(0, deepest + noise(NOISE.depthCm)), 1) : 0;
   }
 
-  return { terrainAhead, terrainAheadDistanceM, obstacleAheadM, slipPct, tiltDeg, depthAheadCm };
+  return { terrainAhead, terrainAheadDistanceM, ...(terrainAheadSource ? { terrainAheadSource } : {}), obstacleAheadM, slipPct, tiltDeg, depthAheadCm };
 }
 
 /** The world as the robot believes it is: only what the sensors reported. */
@@ -93,9 +98,14 @@ function perceivedWorld(state: RunState, perceived: Perception): World {
   return { segments, obstacles, lengthM: far };
 }
 
+/** How far ahead the Brain simulates: further when a scout drone is fitted. */
+export function lookaheadSeconds(state: RunState): number {
+  return state.spec.sensorRangeM.scout_drone !== undefined ? TUNING.decision.droneLookaheadS : TUNING.decision.lookaheadS;
+}
+
 /** Forward-simulates each action for TUNING.decision.lookaheadS on the perceived state. */
 export function lookahead(state: RunState, actions: readonly Action[]): LookaheadEntry[] {
-  const steps = Math.round((TUNING.decision.lookaheadS * 1000) / TUNING.dtMs);
+  const steps = Math.round((lookaheadSeconds(state) * 1000) / TUNING.dtMs);
   const believed: RunState = {
     ...state,
     world: perceivedWorld(state, perceive(state)),
@@ -164,6 +174,7 @@ export function buildQuestion(state: RunState, trigger: DecisionTrigger, briefin
     priority: state.config.priority,
     options,
     lookahead: lookahead(state, options),
+    ...(lookaheadSeconds(state) !== TUNING.decision.lookaheadS ? { lookaheadS: lookaheadSeconds(state) } : {}),
     ...(briefing ? { briefing } : {}),
   };
 }

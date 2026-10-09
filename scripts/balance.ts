@@ -13,6 +13,9 @@ const BUILDS: Readonly<Record<string, Build>> = {
   mud_crawler: PRESETS.mud_crawler.build,
   all_rounder: PRESETS.all_rounder.build,
   offroad_winch: { locomotion: 'offroad_wheels', motor: 'motor_torque', battery: 'battery_large', sensors: ['imu', 'ultrasonic'], extras: ['winch', 'bumper'] },
+  drone_sprinter: { locomotion: 'offroad_wheels', motor: 'motor_light', battery: 'battery_large', sensors: ['scout_drone', 'ultrasonic'], extras: ['bumper'] },
+  camera_sprinter: { locomotion: 'offroad_wheels', motor: 'motor_light', battery: 'battery_large', sensors: ['camera', 'ultrasonic'], extras: ['bumper'] },
+  drone_rounder: { locomotion: 'offroad_wheels', motor: 'motor_torque', battery: 'battery_large', sensors: ['scout_drone', 'ultrasonic'], extras: ['bumper'] },
   tracks_scout: { locomotion: 'tracks', motor: 'motor_torque', battery: 'battery_large', sensors: ['camera', 'ultrasonic'], extras: ['bumper'] },
 };
 
@@ -21,8 +24,8 @@ const pad = (value: string | number, width: number): string => String(value).pad
 
 async function main(): Promise<void> {
   console.log(`Balance — ${SEEDS} seed(s) per cell, budget €${TUNING.defaultBudgetEur}\n`);
-  console.log(`| ${pad('mission', 7)} | ${pad('build', 13)} | ${pad('€', 3)} | ${pad('policy', 9)} | ${pad('finish', 6)} | ${pad('time s', 6)} | ${pad('dmg %', 5)} | ${pad('energy %', 8)} | ${pad('score', 5)} | why (seed 1)`);
-  console.log(`|${'-'.repeat(9)}|${'-'.repeat(15)}|${'-'.repeat(5)}|${'-'.repeat(11)}|${'-'.repeat(8)}|${'-'.repeat(8)}|${'-'.repeat(7)}|${'-'.repeat(10)}|${'-'.repeat(7)}|---`);
+  console.log(`| ${pad('mission', 7)} | ${pad('build', 15)} | ${pad('€', 3)} | ${pad('policy', 9)} | ${pad('finish', 6)} | ${pad('time s', 6)} | ${pad('dmg %', 5)} | ${pad('energy %', 8)} | ${pad('score', 5)} | why (seed 1)`);
+  console.log(`|${'-'.repeat(9)}|${'-'.repeat(17)}|${'-'.repeat(5)}|${'-'.repeat(11)}|${'-'.repeat(8)}|${'-'.repeat(8)}|${'-'.repeat(7)}|${'-'.repeat(10)}|${'-'.repeat(7)}|---`);
   const solvedBy: Record<string, string[]> = {};
   for (const missionId of MISSION_IDS) {
     solvedBy[missionId] = [];
@@ -37,7 +40,7 @@ async function main(): Promise<void> {
         const finished = outcomes.filter((outcome) => outcome.finished).length;
         if (policy === 'heuristic' && finished === SEEDS && cost <= TUNING.defaultBudgetEur) solvedBy[missionId]!.push(name);
         console.log(
-          `| ${pad(missionId, 7)} | ${pad(name, 13)} | ${pad(cost, 3)} | ${pad(policy, 9)} | ${pad(`${finished}/${SEEDS}`, 6)} | ${pad(mean(outcomes.map((o) => o.timeS)).toFixed(1), 6)} | ${pad(mean(outcomes.map((o) => o.damagePct)).toFixed(1), 5)} | ${pad(mean(outcomes.map((o) => o.energyUsedPct)).toFixed(1), 8)} | ${pad(Math.round(mean(outcomes.map((o) => o.score))), 5)} | ${outcomes[0]?.why ?? ''}`,
+          `| ${pad(missionId, 7)} | ${pad(name, 15)} | ${pad(cost, 3)} | ${pad(policy, 9)} | ${pad(`${finished}/${SEEDS}`, 6)} | ${pad(mean(outcomes.map((o) => o.timeS)).toFixed(1), 6)} | ${pad(mean(outcomes.map((o) => o.damagePct)).toFixed(1), 5)} | ${pad(mean(outcomes.map((o) => o.energyUsedPct)).toFixed(1), 8)} | ${pad(Math.round(mean(outcomes.map((o) => o.score))), 5)} | ${outcomes[0]?.why ?? ''}`,
         );
       }
     }

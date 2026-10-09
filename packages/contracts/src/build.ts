@@ -4,7 +4,7 @@ import { TerrainIdSchema } from './world';
 export const SlotSchema = z.enum(['locomotion', 'motor', 'battery', 'sensor', 'extra']);
 export type Slot = z.infer<typeof SlotSchema>;
 
-export const SensorKindSchema = z.enum(['ultrasonic', 'imu', 'camera', 'moisture']);
+export const SensorKindSchema = z.enum(['ultrasonic', 'imu', 'camera', 'moisture', 'scout_drone']);
 export type SensorKind = z.infer<typeof SensorKindSchema>;
 
 export const ExtraKindSchema = z.enum(['winch', 'waterproof_case', 'bumper']);
