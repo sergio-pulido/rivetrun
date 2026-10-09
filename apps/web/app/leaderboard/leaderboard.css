@@ -1,0 +1,14 @@
+/* Safety tape: orange / ink diagonal stripes. */
+.hazard {
+  background-image: repeating-linear-gradient(-45deg, #ff6a13 0 12px, #0f141b 12px 24px);
+}
+
+/* Panel with a rivet in each corner. */
+.riveted {
+  position: relative;
+  background-image:
+    radial-gradient(circle at 12px 12px, #7c8a9c 0 3px, transparent 3.5px),
+    radial-gradient(circle at calc(100% - 12px) 12px, #7c8a9c 0 3px, transparent 3.5px),
+    radial-gradient(circle at 12px calc(100% - 12px), #7c8a9c 0 3px, transparent 3.5px),
+    radial-gradient(circle at calc(100% - 12px) calc(100% - 12px), #7c8a9c 0 3px, transparent 3.5px);
+}

@@ -1,5 +1,9 @@
-import { Placeholder } from '@/ui/Placeholder';
+import type { Metadata } from 'next';
+import { LeaderboardClient } from './LeaderboardClient';
+import './leaderboard.css';
+
+export const metadata: Metadata = { title: 'Leaderboard · RivetRun' };
 
 export default function LeaderboardPage() {
-  return <Placeholder title="Leaderboard" note="Placeholder: Room Challenge top 20 lands with the brain and ui sessions." />;
+  return <LeaderboardClient />;
 }
