@@ -14,6 +14,8 @@ const CORE_BUILDS: Readonly<Record<string, Build>> = {
   all_rounder: PRESETS.all_rounder.build,
   drone_sprinter: { locomotion: 'offroad_wheels', motor: 'motor_light', battery: 'battery_large', sensors: ['scout_drone', 'ultrasonic'], extras: ['bumper'] },
   deep_diver: PRESETS.deep_diver.build,
+  // Recommended for M7 Scrapyard Jumps: piston for the rampless gap, bumper for the landings.
+  scrap_jumper: { locomotion: 'offroad_wheels', motor: 'motor_torque', battery: 'battery_large', sensors: ['camera', 'ultrasonic'], extras: ['piston_jump', 'bumper'] },
 };
 const EXTRA_BUILDS: Readonly<Record<string, Build>> = {
   // docs/inputs/m6-deep-water.md's build: the Deep Diver preset without the camera.

@@ -91,7 +91,7 @@ export const PARTS: readonly Part[] = [
   {
     id: 'piston_jump', name: 'Piston jump', slot: 'extra', blurb: 'A spring-loaded piston kicks the robot into the air. 3 s to re-arm.',
     massKg: 0.25, costEur: 35, powerW: 15, unlockPoints: 0,
-    effects: { extra: 'piston_jump', jumpImpulseMps: 3, cooldownS: 3 },
+    effects: { extra: 'piston_jump', jumpImpulseMps: 4, cooldownS: 3 },
   },
 ];
 

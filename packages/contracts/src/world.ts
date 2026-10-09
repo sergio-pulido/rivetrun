@@ -24,11 +24,11 @@ export type Obstacle = z.infer<typeof ObstacleSchema>;
 
 /** Height features (gameplay v2). Separate from `obstacle` so existing obstacle handling is untouched. */
 export const TrackFeatureSchema = z.discriminatedUnion('type', [
-  /** Launch ramp at the end of the segment. */
+  /** Launch ramp over the last `lengthM` of the segment; the lip is the segment end. */
   z.object({ type: z.literal('ramp'), launchDeg: z.number().positive().max(60), lengthM: z.number().positive() }),
-  /** Gap at the end of the segment: not cleared = the robot falls. */
+  /** Gap over the first `widthM` of the segment: not cleared = the robot falls. */
   z.object({ type: z.literal('gap'), widthM: z.number().positive() }),
-  /** Step down at the end of the segment. */
+  /** Step down at the start of the segment. */
   z.object({ type: z.literal('drop'), heightM: z.number().positive() }),
 ]);
 export type TrackFeature = z.infer<typeof TrackFeatureSchema>;
@@ -55,7 +55,7 @@ export type Track = z.infer<typeof TrackSchema>;
 export const WeatherSchema = z.enum(['clear', 'rain', 'cold']);
 export type Weather = z.infer<typeof WeatherSchema>;
 
-export const MissionIdSchema = z.enum(['M1', 'M2', 'M3', 'M4', 'M5', 'M6']);
+export const MissionIdSchema = z.enum(['M1', 'M2', 'M3', 'M4', 'M5', 'M6', 'M7']);
 export type MissionId = z.infer<typeof MissionIdSchema>;
 
 export const SeedSchema = z.number().int().min(0).max(0xffffffff);

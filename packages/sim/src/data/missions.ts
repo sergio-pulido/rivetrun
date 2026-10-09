@@ -20,7 +20,7 @@ export const MISSIONS: Readonly<Record<MissionId, Mission>> = {
     weather: 'clear', starThreshold: 700, leaderboard: false,
     track: {
       segments: [
-        { terrain: 'asphalt', lengthM: 10, slopeDeg: 0 },
+        { terrain: 'asphalt', lengthM: 10, slopeDeg: 0, feature: { type: 'ramp', launchDeg: 12, lengthM: 1.2 } },
         { terrain: 'sand', lengthM: 14, slopeDeg: -3 },
         { terrain: 'water', lengthM: 8, slopeDeg: 0, depthCm: 8 },
         { terrain: 'sand', lengthM: 14, slopeDeg: 5 },
@@ -37,7 +37,7 @@ export const MISSIONS: Readonly<Record<MissionId, Mission>> = {
         { terrain: 'mud', lengthM: 10, slopeDeg: 15, depthCm: 6 },
         { terrain: 'mud', lengthM: 12, slopeDeg: 0, depthCm: 12 },
         { terrain: 'rock', lengthM: 10, slopeDeg: 0, obstacle: 'rock' },
-        { terrain: 'grass', lengthM: 6, slopeDeg: -4 },
+        { terrain: 'grass', lengthM: 6, slopeDeg: -4, feature: { type: 'drop', heightM: 0.6 } },
       ],
     },
   },
@@ -60,7 +60,7 @@ export const MISSIONS: Readonly<Record<MissionId, Mission>> = {
     weather: 'rain', starThreshold: 600, leaderboard: true, fixedSeed: 20261010,
     track: {
       segments: [
-        { terrain: 'asphalt', lengthM: 8, slopeDeg: 0 },
+        { terrain: 'asphalt', lengthM: 8, slopeDeg: 0, feature: { type: 'ramp', launchDeg: 12, lengthM: 1.2 } },
         { terrain: 'grass', lengthM: 8, slopeDeg: 5 },
         { terrain: 'sand', lengthM: 10, slopeDeg: 0 },
         { terrain: 'water', lengthM: 6, slopeDeg: 0, depthCm: 10 },
@@ -68,7 +68,7 @@ export const MISSIONS: Readonly<Record<MissionId, Mission>> = {
         { terrain: 'rock', lengthM: 8, slopeDeg: 0, obstacle: 'log' },
         { terrain: 'ice', lengthM: 10, slopeDeg: -5 },
         { terrain: 'asphalt', lengthM: 4, slopeDeg: 0, obstacle: 'step' },
-        { terrain: 'grass', lengthM: 6, slopeDeg: 0 },
+        { terrain: 'grass', lengthM: 6, slopeDeg: 0, feature: { type: 'drop', heightM: 0.5 } },
       ],
     },
   },
@@ -88,6 +88,28 @@ export const MISSIONS: Readonly<Record<MissionId, Mission>> = {
       ],
     },
   },
+  M7: {
+    id: 'M7', name: 'Scrapyard Jumps', description: 'Ramps, gaps and a drop. Hit the ramps fast, and bring a piston for the gap with no ramp.',
+    weather: 'clear', starThreshold: 650, leaderboard: false,
+    track: {
+      segments: [
+        { terrain: 'asphalt', lengthM: 8, slopeDeg: 0 },
+        { terrain: 'asphalt', lengthM: 6, slopeDeg: 0, feature: { type: 'ramp', launchDeg: 20, lengthM: 1.5 } },
+        { terrain: 'grass', lengthM: 8, slopeDeg: 0, feature: { type: 'gap', widthM: 0.6 } },
+        { terrain: 'asphalt', lengthM: 8, slopeDeg: 0, obstacle: 'log' },
+        { terrain: 'grass', lengthM: 8, slopeDeg: 0, feature: { type: 'gap', widthM: 0.9 } },
+        { terrain: 'asphalt', lengthM: 6, slopeDeg: 0, feature: { type: 'drop', heightM: 0.7 } },
+        { terrain: 'asphalt', lengthM: 6, slopeDeg: 0, feature: { type: 'ramp', launchDeg: 15, lengthM: 1.5 } },
+        { terrain: 'asphalt', lengthM: 8, slopeDeg: 0, feature: { type: 'gap', widthM: 0.6 } },
+        { terrain: 'asphalt', lengthM: 4, slopeDeg: 0 },
+      ],
+    },
+  },
 };
+
+/** Drive mode: one seed per mission, so every player races the same Jev ghost and times compare. */
+export function driveSeed(mission: Mission): number {
+  return mission.fixedSeed ?? 20261010 + Number(mission.id.slice(1));
+}
 
 export const MISSION_IDS = Object.keys(MISSIONS) as readonly MissionId[];

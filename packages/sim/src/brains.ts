@@ -4,6 +4,8 @@ import { mulberry32 } from './rng';
 const TEMPERATURE = 0.6;
 const STALL_PROGRESS_M = 0.15;
 const STALL_PENALTY = 4;
+const PARKED_SPEED_MPS = 0.1;
+const PARKED_FACTOR = 4;
 const BASE_LOOKAHEAD_S = 1.5;
 
 /** Lookahead utility of one option for the player's priority (0 = speed, 1 = safety). */
@@ -12,7 +14,9 @@ export function utility(question: BrainQuestion, action: Action): number {
   if (!entry) return -Infinity;
   const p = question.priority;
   // Standing still never finishes the course: without this the robot parks in front of every obstacle.
-  const stall = entry.progressM < STALL_PROGRESS_M ? STALL_PENALTY * (2 - p) : 0;
+  // Already standing still: staying put is the one option that can never finish, so it costs more than a risk.
+  const parked = Math.abs(question.status.speedMps) < PARKED_SPEED_MPS ? PARKED_FACTOR : 1;
+  const stall = entry.progressM < STALL_PROGRESS_M ? STALL_PENALTY * (2 - p) * parked : 0;
   // Progress is compared per standard window, so a longer lookahead (scout drone) is not just more reward.
   // Damage is only partly discounted: a hazard seen 8 s out still counts, unavoidable trickle damage does not stall the robot.
   const window = BASE_LOOKAHEAD_S / (question.lookaheadS ?? BASE_LOOKAHEAD_S);

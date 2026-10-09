@@ -21,6 +21,10 @@ export const PerceptionSchema = z.object({
   slipPct: reading(z.number().min(0).max(100)),
   tiltDeg: reading(z.number()),
   depthAheadCm: reading(z.number().min(0)),
+  /** Distance to the next gap in sensor range (ultrasonic, camera or drone). `null` = none in range. Absent on tracks without gaps. */
+  gapAheadM: reading(z.number().min(0).nullable()).optional(),
+  /** Width of that gap, metres. */
+  gapWidthM: z.number().positive().optional(),
 });
 export type Perception = z.infer<typeof PerceptionSchema>;
 

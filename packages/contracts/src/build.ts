@@ -60,6 +60,8 @@ export const PartSchema = z.object({
   powerW: z.number().min(0),
   /** Points needed to unlock; 0 = available from the start. */
   unlockPoints: z.number().int().min(0),
+  /** True while the part has no behaviour yet: the Workshop hides it. */
+  comingSoon: z.boolean().optional(),
   effects: PartEffectsSchema,
 });
 export type Part = z.infer<typeof PartSchema>;

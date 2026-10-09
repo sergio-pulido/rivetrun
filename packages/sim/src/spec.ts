@@ -25,6 +25,13 @@ export interface RobotSpec {
   /** Deepest water the locomotion can drive through, cm. */
   readonly maxWadingDepthCm: number;
   readonly roughGroundFactor: number;
+  /** Multiplier on obstacle and rough-ground impacts from wheel size (bigger wheels roll over more). */
+  readonly obstacleImpactFactor: number;
+  /** Vertical launch speed of the piston, m/s (0 = no piston). */
+  readonly jumpImpulseMps: number;
+  readonly jumpCooldownS: number;
+  /** Energy of one jump = this power for one second. */
+  readonly jumpPowerW: number;
   readonly sensorRangeM: Partial<Record<SensorKind, number>>;
   readonly extras: readonly ExtraKind[];
   readonly impactDamageFactor: number;
@@ -50,6 +57,22 @@ export function buildIssues(build: Build): string[] {
   });
 }
 
+/** Gameplay v2 tuning. Every factor is 1 at the stock setting, so untuned builds drive exactly as before. */
+export const BUILD_TUNING = {
+  stockCells: 2,
+  stockWheelMm: 80,
+  stockGear: 3,
+  /** Per wheel size: top speed, wheel force, extra mass, obstacle impact, wading depth, extra cost. */
+  wheel: {
+    60: { speed: 0.85, force: 1.18, massKg: -0.1, impact: 1.25, wading: 0.75, costEur: 0 },
+    80: { speed: 1, force: 1, massKg: 0, impact: 1, wading: 1, costEur: 0 },
+    100: { speed: 1.15, force: 0.87, massKg: 0.15, impact: 0.75, wading: 1.25, costEur: 10 },
+  },
+  /** Gear step 1 (speed) … 5 (torque). */
+  gearSpeed: [1.3, 1.15, 1, 0.87, 0.75],
+  gearForce: [0.77, 0.87, 1, 1.15, 1.33],
+} as const;
+
 export function deriveSpec(build: Build): RobotSpec {
   const locomotion = part(build.locomotion);
   const motor = part(build.motor);
@@ -58,28 +81,42 @@ export function deriveSpec(build: Build): RobotSpec {
   const extras = build.extras.map(part);
   const all = [locomotion, motor, battery, ...sensors, ...extras];
   const winch = extras.find((p) => p.effects.extra === 'winch');
+  const piston = extras.find((p) => p.effects.extra === 'piston_jump');
   const kinds = new Set(extras.map((p) => p.effects.extra));
   const thrusters = extras.find((p) => p.effects.maxSwimDepthCm !== undefined && (p.effects.requiresExtra === undefined || kinds.has(p.effects.requiresExtra)));
   const sensorRangeM: Partial<Record<SensorKind, number>> = {};
   for (const sensor of sensors) {
     if (sensor.effects.sensor) sensorRangeM[sensor.effects.sensor] = sensor.effects.rangeM ?? 0;
   }
+  // Cells scale the pack (capacity, mass, cost) and the voltage (speed, power, a little force).
+  const cells = (build.batteryCells ?? BUILD_TUNING.stockCells) / BUILD_TUNING.stockCells;
+  const cellCount = build.batteryCells ?? BUILD_TUNING.stockCells;
+  const voltageSpeed = 0.6 + 0.2 * cellCount;
+  const voltageForce = 0.85 + 0.075 * cellCount;
+  const wheel = BUILD_TUNING.wheel[build.wheelSizeMm ?? BUILD_TUNING.stockWheelMm];
+  const gear = (build.gearStep ?? BUILD_TUNING.stockGear) - 1;
+  const speedFactor = voltageSpeed * wheel.speed * BUILD_TUNING.gearSpeed[gear]!;
+  const forceFactor = voltageForce * wheel.force * BUILD_TUNING.gearForce[gear]!;
   return {
-    massKg: CHASSIS_MASS_KG + all.reduce((sum, p) => sum + p.massKg, 0),
-    costEur: all.reduce((sum, p) => sum + p.costEur, 0),
-    topSpeedMps: motor.effects.topSpeedMps ?? 2,
-    motorForceN: (motor.effects.torqueNm ?? 1) / WHEEL_RADIUS_M,
-    motorPowerW: motor.powerW,
+    massKg: CHASSIS_MASS_KG + all.reduce((sum, p) => sum + p.massKg, 0) + battery.massKg * (cells - 1) + wheel.massKg,
+    costEur: Math.round(all.reduce((sum, p) => sum + p.costEur, 0) + battery.costEur * (cells - 1) + wheel.costEur),
+    topSpeedMps: (motor.effects.topSpeedMps ?? 2) * speedFactor,
+    motorForceN: ((motor.effects.torqueNm ?? 1) / WHEEL_RADIUS_M) * forceFactor,
+    motorPowerW: motor.powerW * cells,
     basePowerW: locomotion.powerW + sensors.reduce((sum, p) => sum + p.powerW, 0),
     winchPowerW: winch?.powerW ?? 0,
     thrusterPowerW: thrusters?.powerW ?? 0,
     maxSwimDepthCm: thrusters?.effects.maxSwimDepthCm ?? 0,
-    capacityWh: battery.effects.capacityWh ?? 0.5,
+    capacityWh: (battery.effects.capacityWh ?? 0.5) * cells,
     grip: locomotion.effects.grip ?? {},
     sinkageFactor: locomotion.effects.sinkageFactor ?? 1,
     maxSlopeDeg: locomotion.effects.maxSlopeDeg ?? 20,
-    maxWadingDepthCm: locomotion.effects.maxWadingDepthCm ?? 25,
+    maxWadingDepthCm: (locomotion.effects.maxWadingDepthCm ?? 25) * wheel.wading,
     roughGroundFactor: locomotion.effects.roughGroundFactor ?? 1,
+    obstacleImpactFactor: wheel.impact,
+    jumpImpulseMps: piston?.effects.jumpImpulseMps ?? 0,
+    jumpCooldownS: piston?.effects.cooldownS ?? 0,
+    jumpPowerW: piston?.powerW ?? 0,
     sensorRangeM,
     extras: extras.flatMap((p) => (p.effects.extra ? [p.effects.extra] : [])),
     impactDamageFactor: extras.reduce((factor, p) => factor * (p.effects.impactDamageFactor ?? 1), 1),

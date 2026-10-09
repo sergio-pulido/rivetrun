@@ -36,8 +36,8 @@ describe('sim data (v0) matches contracts', () => {
     }
   });
 
-  it('has six valid missions; only M5 has a fixed seed and a leaderboard', () => {
-    expect(MISSION_IDS).toEqual(['M1', 'M2', 'M3', 'M4', 'M5', 'M6']);
+  it('has seven valid missions; only M5 has a fixed seed and a leaderboard', () => {
+    expect(MISSION_IDS).toEqual(['M1', 'M2', 'M3', 'M4', 'M5', 'M6', 'M7']);
     for (const mission of Object.values(MISSIONS)) {
       expect(MissionSchema.safeParse(mission).success, mission.id).toBe(true);
       expect(mission.fixedSeed !== undefined, mission.id).toBe(mission.id === 'M5');

@@ -17,7 +17,11 @@ export function why(state: RunState): string {
   const tip = stats.damageByCause.tip_over ?? 0;
 
   const impactLine = (): string =>
-    impact!.obstacle === undefined
+    impact!.air === 'fall'
+      ? `Fell into a gap${state.falls > 1 ? ` ${state.falls} times` : ''}${spec.jumpImpulseMps > 0 ? '' : ' — no piston to jump it'}`
+      : impact!.air === 'landing'
+      ? `Landed hard at ${round1(impact!.speedMps)} m/s${spec.impactDamageFactor < 1 ? '' : ' — no bumper'}`
+      : impact!.obstacle === undefined
       ? `Slammed onto ${TERRAINS[impact!.roughEntry ?? 'rock'].name.toLowerCase()} at ${round1(impact!.speedMps)} m/s${has('scout_drone') ? '' : ' — no scout drone to see it in time'}`
       : `Hit the ${impact!.obstacle} at ${round1(impact!.speedMps)} m/s${has('ultrasonic') ? '' : ' — no ultrasonic to see it coming'}`;
   // Mud ingress is logged as water damage; name the thing the player actually drove through.
@@ -26,6 +30,11 @@ export function why(state: RunState): string {
   const slipLine = (): string =>
     `Slipped ${Math.round(worstSlip![1])} s on ${TERRAINS[worstSlip![0]].name.toLowerCase()}${has('imu') ? '' : ' — no IMU'}`;
 
+  if (state.dnfReason === 'stuck' && state.falls >= 3) return `Fell into the gap ${state.falls} times${spec.jumpImpulseMps > 0 ? '' : ' — no piston to jump it'}`;
+  const gapAhead = state.world.features.find((f) => f.type === 'gap' && f.endM > sim.x && f.startM - sim.x <= 1.5);
+  if (state.dnfReason === 'stuck' && gapAhead) {
+    return `Stopped at a ${Math.round((gapAhead.endM - gapAhead.startM) * 100)} cm gap${spec.jumpImpulseMps > 0 ? ' and never took the jump' : ' — no ramp, no piston to jump it'}`;
+  }
   const slope = state.world.segments[state.segmentIndex]!.slopeDeg;
   if (state.dnfReason === 'stuck' && slope >= 5 && !has('imu')) return `Stuck on a ${slope}° ${terrain} slope — no IMU to feel the tilt`;
   const here = state.world.segments[state.segmentIndex]!;

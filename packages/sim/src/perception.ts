@@ -15,7 +15,7 @@ const UNDERWATER_ULTRASONIC = { rangeFactor: 0.5, noiseFactor: 3 } as const;
 const STALL_INFERENCE = { afterS: 1, slopeDeg: 8 } as const;
 const MIN_DECISION_GAP_S = 0.5;
 const DAMAGE_DECISION_STEP_PCT = 5;
-const ALL_ACTIONS: readonly Action[] = ['cruise', 'accelerate', 'slow_down', 'brake', 'reverse', 'climb_mode', 'deploy_winch'];
+const ALL_ACTIONS: readonly Action[] = ['cruise', 'accelerate', 'slow_down', 'brake', 'reverse', 'climb_mode', 'deploy_winch', 'jump'];
 
 const round = (value: number, digits: number): number => {
   const scale = 10 ** digits;
@@ -26,6 +26,12 @@ function cameraRangeM(state: RunState): number | undefined {
   const range = state.spec.sensorRangeM.camera;
   if (range === undefined) return undefined;
   return state.environment.weather === 'rain' ? range * TUNING.weather.rain.cameraRangeFactor : range;
+}
+
+/** How far ahead the build can make out ramps, gaps and drops: its longest forward sensor. 0 = blind. */
+function featureSightM(state: RunState): number {
+  const { sensorRangeM } = state.spec;
+  return Math.max(sensorRangeM.scout_drone ?? 0, cameraRangeM(state) ?? 0, sensorRangeM.ultrasonic ?? 0);
 }
 
 /** What the build's sensors report, with seeded noise. Never ground truth. */
@@ -77,7 +83,19 @@ export function perceive(state: RunState): Perception {
     depthAheadCm = deepest > 0 ? round(Math.max(0, deepest + noise(NOISE.depthCm)), 1) : 0;
   }
 
-  return { terrainAhead, terrainAheadDistanceM, ...(terrainAheadSource ? { terrainAheadSource } : {}), obstacleAheadM, slipPct, tiltDeg, depthAheadCm };
+  // Gaps only exist on v2 tracks; older tracks keep the exact perception shape they had.
+  let gap: Pick<Perception, 'gapAheadM' | 'gapWidthM'> = {};
+  if (world.features.some((feature) => feature.type === 'gap')) {
+    const sight = featureSightM(state);
+    const next = world.features.find((feature) => feature.type === 'gap' && feature.endM > sim.x && feature.startM - sim.x <= sight);
+    gap = sight === 0
+      ? { gapAheadM: 'unknown' }
+      : next
+        ? { gapAheadM: round(Math.max(0, next.startM - sim.x + noise(NOISE.obstacleM)), 2), gapWidthM: round(next.endM - next.startM, 2) }
+        : { gapAheadM: null };
+  }
+
+  return { terrainAhead, terrainAheadDistanceM, ...(terrainAheadSource ? { terrainAheadSource } : {}), ...gap, obstacleAheadM, slipPct, tiltDeg, depthAheadCm };
 }
 
 /** The world as the robot believes it is: only what the sensors reported. */
@@ -109,7 +127,10 @@ function perceivedWorld(state: RunState, perceived: Perception): World {
     typeof perceived.obstacleAheadM === 'number'
       ? [{ xM: x + perceived.obstacleAheadM, kind: 'log' as const, segmentIndex: 0 }]
       : [];
-  return { segments, obstacles, lengthM: far };
+  // Ramps, gaps and drops the sensors can make out (and whatever the robot is standing on).
+  const sight = featureSightM(state);
+  const features = state.world.features.filter((feature) => feature.endM >= x - 0.01 && feature.startM - x <= sight);
+  return { segments, obstacles, features, lengthM: far };
 }
 
 /** How far ahead the Brain simulates: further when a scout drone is fitted. */
@@ -142,7 +163,8 @@ export function lookahead(state: RunState, actions: readonly Action[]): Lookahea
 
 /** Returns the trigger when `next` is a decision point, otherwise null. */
 export function detectDecisionPoint(prev: RunState, next: RunState): DecisionTrigger | null {
-  if (next.done) return null;
+  if (next.done || next.airborne) return null;
+  if (next.lastAir?.type === 'fell' || next.lastAir?.type === 'landed') return 'damage';
   const sinceLast = next.sim.t - next.lastDecisionT;
   if (next.lastDamage?.cause === 'impact') return 'damage';
   if (sinceLast < MIN_DECISION_GAP_S) return null;
@@ -152,6 +174,7 @@ export function detectDecisionPoint(prev: RunState, next: RunState): DecisionTri
   const before = perceive(prev);
   const after = perceive(next);
   if (typeof after.obstacleAheadM === 'number' && typeof before.obstacleAheadM !== 'number') return 'obstacle';
+  if (typeof after.gapAheadM === 'number' && typeof before.gapAheadM !== 'number') return 'obstacle';
   const threshold = TUNING.decision.slipThresholdPct;
   if (typeof after.slipPct === 'number' && after.slipPct > threshold && typeof before.slipPct === 'number' && before.slipPct <= threshold) {
     return 'slip';
@@ -169,8 +192,8 @@ export function detectDecisionPoint(prev: RunState, next: RunState): DecisionTri
 /** Actions the build can perform (e.g. deploy_winch needs a winch). */
 export function availableActions(build: Build): Action[] {
   const hasWinch = deriveSpec(build).extras.includes('winch');
-  // 'jump' (gameplay v2) is not offered until the piston has physics behind it.
-  return ALL_ACTIONS.filter((action) => action !== 'deploy_winch' || hasWinch);
+  const hasPiston = deriveSpec(build).jumpImpulseMps > 0;
+  return ALL_ACTIONS.filter((action) => (action !== 'deploy_winch' || hasWinch) && (action !== 'jump' || hasPiston));
 }
 
 /** The question any Brain answers at a decision point. Perceived data only. */

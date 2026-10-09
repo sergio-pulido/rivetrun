@@ -1,5 +1,11 @@
 import type { Obstacle, TerrainId, Track } from '@rivetrun/contracts';
 
+/** Height features with absolute positions (gameplay v2). */
+export type WorldFeature =
+  | { readonly type: 'ramp'; readonly startM: number; readonly endM: number; readonly launchDeg: number; readonly heightM: number }
+  | { readonly type: 'gap'; readonly startM: number; readonly endM: number }
+  | { readonly type: 'drop'; readonly startM: number; readonly endM: number; readonly heightM: number };
+
 export interface WorldSegment {
   readonly index: number;
   readonly startM: number;
@@ -24,6 +30,7 @@ export interface WorldObstacle {
 export interface World {
   readonly segments: readonly WorldSegment[];
   readonly obstacles: readonly WorldObstacle[];
+  readonly features: readonly WorldFeature[];
   readonly lengthM: number;
 }
 
@@ -31,6 +38,7 @@ export function compileTrack(track: Track): World {
   let cursor = 0;
   const segments: WorldSegment[] = [];
   const obstacles: WorldObstacle[] = [];
+  const features: WorldFeature[] = [];
   track.segments.forEach((segment, index) => {
     const startM = cursor;
     cursor += segment.lengthM;
@@ -45,11 +53,20 @@ export function compileTrack(track: Track): World {
       edgeInCm: edge(track.segments[index - 1]), edgeOutCm: edge(track.segments[index + 1]),
       ...(segment.currentMps ? { currentMps: segment.currentMps } : {}),
     });
+    const feature = segment.feature;
+    if (feature?.type === 'ramp') {
+      const lengthM = Math.min(feature.lengthM, segment.lengthM);
+      features.push({ type: 'ramp', startM: cursor - lengthM, endM: cursor, launchDeg: feature.launchDeg, heightM: lengthM * Math.tan((feature.launchDeg * Math.PI) / 180) });
+    } else if (feature?.type === 'gap') {
+      features.push({ type: 'gap', startM, endM: startM + Math.min(feature.widthM, segment.lengthM) });
+    } else if (feature?.type === 'drop') {
+      features.push({ type: 'drop', startM, endM: startM, heightM: feature.heightM });
+    }
     if (segment.obstacle) {
       obstacles.push({ xM: startM + segment.lengthM / 2, kind: segment.obstacle, segmentIndex: index });
     }
   });
-  return { segments, obstacles, lengthM: cursor };
+  return { segments, obstacles, features, lengthM: cursor };
 }
 
 /** A dry shore meets the water at no more than this depth. */

@@ -2,8 +2,9 @@ import type { Action, Environment, Obstacle, SimEffect, SimState, TerrainId } fr
 import { TERRAINS, TUNING } from './data';
 import { mixSeed, nextRandom } from './rng';
 import { WHEEL_RADIUS_M, deriveSpec } from './spec';
-import type { RunConfig, RunState, RunStats, StepDamage } from './types';
+import type { AirEvent, RunConfig, RunState, RunStats, StepDamage } from './types';
 import { compileTrack, segmentIndexAt, waterDepthCmAt } from './world';
+import type { World, WorldFeature } from './world';
 
 const G = 9.81;
 const DT_S = TUNING.dtMs / 1000;
@@ -27,6 +28,22 @@ export const PHYSICS = {
   sparksS: 0.4,
   idleLoad: 0.15,
   stallSpeedMps: 0.15,
+  // Height (gameplay v2).
+  /** Slower than this at a ramp lip and the robot just drops off it. */
+  minLaunchMps: 0.3,
+  /** Landings softer than this are free. */
+  safeLandingMps: 4.5,
+  landingDamagePerMps: 10,
+  /** Height at which an airborne robot passes over an obstacle. */
+  obstacleClearM: 0.3,
+  /** Wheels roll straight over gaps this narrow. */
+  gapRollOverM: 0.15,
+  fallDamagePct: 15,
+  fallPenaltyS: 5,
+  maxFalls: 3,
+  respawnRunUpM: 3,
+  /** An armed piston waits for a gap or obstacle this far beyond its reach. */
+  jumpArmRangeM: 2,
   swimSpeedMps: 1.5,
   swimTauS: 0.6,
   /** A flooded hull takes this many times the normal water damage. */
@@ -64,7 +81,7 @@ export const ACTION_PROFILES: Readonly<Record<Action, ActionProfile>> = {
   reverse: { ...DEFAULT_PROFILE, speed: -0.35 },
   climb_mode: { speed: 0.45, force: 1.6, grip: 1.5, power: 1.4, impact: 0.3, drag: 0.6 },
   deploy_winch: { speed: 0, force: 1, grip: 1, power: 0.3, impact: 0.1, drag: 1 },
-  // Gameplay v2: no jump physics yet, so it drives like cruise. Not offered by availableActions.
+  // Drives like cruise; the piston fires from step() (timed to the next gap unless a player drives).
   jump: { ...DEFAULT_PROFILE, speed: 0.7 },
 };
 
@@ -105,6 +122,12 @@ export function createRun(config: RunConfig): RunState {
     lastProgressT: 0,
     sparksUntilT: 0,
     stallS: 0,
+    heightM: 0,
+    vy: 0,
+    airborne: false,
+    airStartT: 0,
+    falls: 0,
+    jumpReadyT: 0,
     finished: false,
     stats: { slipSByTerrain: {}, damageByCause: {}, lastTerrain: first.terrain },
   };
@@ -192,12 +215,12 @@ function powerW(state: RunState, action: Action, load: number, swimming: boolean
 function addDamage(stats: RunStats, damage: StepDamage): RunStats {
   const byCause = { ...stats.damageByCause, [damage.cause]: (stats.damageByCause[damage.cause] ?? 0) + damage.amountPct };
   const worst = stats.worstImpact;
-  const isWorst = damage.cause === 'impact' && (damage.obstacle !== undefined || damage.roughEntry !== undefined) && (!worst || damage.amountPct > worst.amountPct);
+  const isWorst = damage.cause === 'impact' && (damage.obstacle !== undefined || damage.roughEntry !== undefined || damage.air !== undefined) && (!worst || damage.amountPct > worst.amountPct);
   return {
     ...stats,
     damageByCause: byCause,
     worstImpact: isWorst
-      ? { obstacle: damage.obstacle, roughEntry: damage.roughEntry, speedMps: damage.speedMps ?? 0, amountPct: damage.amountPct }
+      ? { obstacle: damage.obstacle, roughEntry: damage.roughEntry, air: damage.air, speedMps: damage.speedMps ?? 0, amountPct: damage.amountPct }
       : worst,
   };
 }
@@ -216,6 +239,32 @@ function effectsFor(terrain: TerrainId, v: number, slipPct: number, damage: numb
   return effects;
 }
 
+const rampAt = (world: World, xM: number): Extract<WorldFeature, { type: 'ramp' }> | undefined =>
+  world.features.find((f): f is Extract<WorldFeature, { type: 'ramp' }> => f.type === 'ramp' && xM >= f.startM && xM < f.endM);
+
+/** The gap x is over, ignoring a sliver at the near edge that wheels simply roll across. */
+const gapAt = (world: World, xM: number): WorldFeature | undefined =>
+  world.features.find((f) => f.type === 'gap' && f.endM - f.startM > PHYSICS.gapRollOverM && xM > f.startM + PHYSICS.gapRollOverM && xM < f.endM);
+
+/** Airtime of a piston jump from flat ground, seconds. */
+export const jumpAirtimeS = (impulseMps: number): number => (2 * impulseMps) / G;
+
+/**
+ * How far before the next gap (or obstacle) an armed piston should fire so the arc is centred on it.
+ * null = nothing worth timing for: fire now.
+ */
+function jumpLeadM(state: RunState, v: number): { readonly targetM: number; readonly leadM: number } | null {
+  const reach = Math.abs(v) * jumpAirtimeS(state.spec.jumpImpulseMps);
+  const x = state.sim.x;
+  // A gap comes first: the piston is saved for it if it would not have re-armed in time after a hop over an obstacle.
+  const saveFor = reach + PHYSICS.jumpArmRangeM + Math.abs(v) * state.spec.jumpCooldownS;
+  const gap = state.world.features.find((f) => f.type === 'gap' && f.endM > x && f.startM - x <= saveFor);
+  if (gap) return { targetM: gap.startM, leadM: Math.max(0.05, (reach - (gap.endM - gap.startM)) / 2) };
+  const obstacle = state.world.obstacles.find((o) => o.xM > x && o.xM - x <= reach + PHYSICS.jumpArmRangeM);
+  if (obstacle) return { targetM: obstacle.xM, leadM: reach / 2 };
+  return null;
+}
+
 /** Advances one fixed timestep (TUNING.dtMs) under the given action. Pure. */
 export function step(state: RunState, action: Action): RunState {
   if (state.done) return state;
@@ -223,7 +272,12 @@ export function step(state: RunState, action: Action): RunState {
   const segment = world.segments[state.segmentIndex]!;
   const terrainId = segment.terrain;
   const profile = ACTION_PROFILES[action];
-  const motion = driveMotion(state, action, terrainId, segment.slopeDeg);
+  const wasAirborne = state.airborne;
+  const ramp = wasAirborne ? undefined : rampAt(world, sim.x);
+  const slopeDeg = segment.slopeDeg + (ramp ? ramp.launchDeg : 0);
+  const motion: Motion = wasAirborne
+    ? { v: sim.v, slipPct: 0, load: 0, accel: 0 }
+    : driveMotion(state, action, terrainId, slopeDeg);
 
   let v = motion.v;
   let x = sim.x + v * DT_S;
@@ -232,23 +286,86 @@ export function step(state: RunState, action: Action): RunState {
     v = Math.max(v, 0);
   }
 
+  // Height: ballistic while airborne, otherwise ramps, drops, gaps and the piston decide whether we leave the ground.
+  let airborne = wasAirborne;
+  let heightM = state.heightM;
+  let vy = state.vy;
+  let airStartT = state.airStartT;
+  let jumpReadyT = state.jumpReadyT;
+  let falls = state.falls;
+  let lastAir: AirEvent | undefined;
+  let landing: StepDamage | undefined;
+  let fell: Extract<WorldFeature, { type: 'gap' }> | undefined;
+  let jumpJ = 0;
+  const takeOff = (cause: 'ramp' | 'jump' | 'drop', fromHeightM: number, verticalMps: number): void => {
+    airborne = true;
+    heightM = fromHeightM;
+    vy = verticalMps;
+    airStartT = sim.t;
+    lastAir = { type: 'airborne', cause };
+  };
+  const afloat = terrainId === 'water' && waterDepthCmAt(segment, sim.x) > spec.maxWadingDepthCm;
+  if (wasAirborne) {
+    vy -= G * DT_S;
+    heightM += vy * DT_S;
+  } else if (ramp && x >= ramp.endM) {
+    const launchRad = ramp.launchDeg * DEG;
+    if (Math.abs(v) >= PHYSICS.minLaunchMps) {
+      takeOff('ramp', ramp.heightM, v * Math.sin(launchRad));
+      v *= Math.cos(launchRad);
+    } else {
+      takeOff('drop', ramp.heightM, 0);
+    }
+  } else {
+    const drop = world.features.find((f) => f.type === 'drop' && sim.x < f.startM && x >= f.startM);
+    if (drop && drop.type === 'drop') takeOff('drop', drop.heightM, 0);
+  }
+  if (!airborne && action === 'jump' && spec.jumpImpulseMps > 0 && sim.t >= jumpReadyT && !afloat) {
+    const timing = state.config.manual ? null : jumpLeadM(state, v);
+    if (!timing || timing.targetM - x <= timing.leadM) {
+      takeOff('jump', ramp ? (x - ramp.startM) * Math.tan(ramp.launchDeg * DEG) : 0, spec.jumpImpulseMps);
+      jumpReadyT = sim.t + spec.jumpCooldownS;
+      jumpJ = spec.jumpPowerW;
+    }
+  }
+  if (airborne && wasAirborne && heightM <= 0) {
+    const gap = gapAt(world, x);
+    if (gap && gap.type === 'gap') {
+      fell = gap;
+    } else {
+      const impactMps = Math.abs(vy);
+      const amountPct = Math.max(0, impactMps - PHYSICS.safeLandingMps) * PHYSICS.landingDamagePerMps * spec.impactDamageFactor;
+      landing = { cause: 'impact', amountPct, air: 'landing', speedMps: impactMps };
+      lastAir = { type: 'landed', impactMps, airtimeS: Math.max(0, sim.t + DT_S - airStartT), damagePct: amountPct };
+    }
+    airborne = false;
+    heightM = 0;
+    vy = 0;
+  } else if (!airborne) {
+    const gap = gapAt(world, x);
+    if (gap && gap.type === 'gap') fell = gap;
+  }
+
   // Damage: one cause per step (the largest), so events stay simple.
   let hit: StepDamage | undefined;
   for (const obstacle of world.obstacles) {
-    if (sim.x < obstacle.xM && x >= obstacle.xM) {
+    const cleared = (wasAirborne || airborne) && Math.min(state.heightM, heightM) >= PHYSICS.obstacleClearM;
+    if (sim.x < obstacle.xM && x >= obstacle.xM && !cleared) {
       const speed = Math.abs(v);
       const amountPct =
         Math.max(0, speed - PHYSICS.safeImpactSpeedMps) * PHYSICS.obstacleHardness[obstacle.kind] * PHYSICS.impactDamagePerMps *
-        (0.5 + TERRAINS[terrainId].impactRisk) * spec.impactDamageFactor * profile.impact *
+        (0.5 + TERRAINS[terrainId].impactRisk) * spec.impactDamageFactor * spec.obstacleImpactFactor * profile.impact *
         (terrainId === 'water' && segment.depthCm > spec.maxWadingDepthCm ? PHYSICS.submergedImpactFactor : 1);
       hit = { cause: 'impact', amountPct, obstacle: obstacle.kind, speedMps: speed };
       v *= profile.impact < 1 ? 0.9 : 0.5;
     }
   }
   const entered = world.segments[segmentIndexAt(world, x, state.segmentIndex)]!;
-  if (!hit && entered.index > segment.index && entered.terrain !== terrainId && TERRAINS[entered.terrain].impactRisk >= PHYSICS.roughTerrainRisk) {
+  if (!hit && !airborne && !wasAirborne && entered.index > segment.index && entered.terrain !== terrainId && TERRAINS[entered.terrain].impactRisk >= PHYSICS.roughTerrainRisk) {
     const speed = Math.abs(v);
-    const amountPct = Math.max(0, speed - PHYSICS.roughEntrySafeMps) * PHYSICS.roughEntryDamagePerMps * spec.roughGroundFactor * spec.impactDamageFactor * profile.impact;
+    const amountPct =
+      Math.max(0, speed - PHYSICS.roughEntrySafeMps) * PHYSICS.roughEntryDamagePerMps * spec.roughGroundFactor * spec.impactDamageFactor *
+      spec.obstacleImpactFactor * profile.impact;
     if (amountPct > 0) {
       hit = { cause: 'impact', amountPct, roughEntry: entered.terrain, speedMps: speed };
       v *= 0.7;
@@ -264,22 +381,41 @@ export function step(state: RunState, action: Action): RunState {
     if (!lastDamage || entry.amountPct > lastDamage.amountPct) lastDamage = entry;
   };
   if (hit) apply(hit);
+  if (landing) apply(landing);
   const depthCm = waterDepthCmAt(segment, sim.x);
-  if (!spec.waterproof && depthCm > 0) {
+  const overWater = (wasAirborne || airborne) && heightM > PHYSICS.hullHeightM;
+  if (!spec.waterproof && depthCm > 0 && !overWater) {
     const flooded = terrainId === 'water' && depthCm > PHYSICS.hullHeightM * 100 ? PHYSICS.floodedDamageFactor : 1;
     apply({ cause: 'water', amountPct: TERRAINS[terrainId].waterDamage * (depthCm / 10) * flooded * DT_S });
   }
   const overSlope = Math.abs(segment.slopeDeg) - spec.maxSlopeDeg;
-  if (overSlope > 0 && action !== 'climb_mode' && action !== 'deploy_winch') {
+  if (overSlope > 0 && !wasAirborne && action !== 'climb_mode' && action !== 'deploy_winch') {
     apply({ cause: 'tip_over', amountPct: overSlope * PHYSICS.tipDamagePerDegS * (0.5 + Math.abs(v)) * DT_S });
+  }
+
+  // A fall costs hull and time, and puts the robot back with a run-up. The third one ends the run.
+  let stepCount = state.stepCount + 1;
+  if (fell) {
+    falls += 1;
+    const fromX = x;
+    const lip = world.features.find((f) => f.type === 'ramp' && Math.abs(f.endM - fell!.startM) < 1e-6);
+    const respawnX = Math.max(0, (lip ? lip.startM : fell.startM) - PHYSICS.respawnRunUpM);
+    apply({ cause: 'impact', amountPct: PHYSICS.fallDamagePct, air: 'fall', speedMps: Math.abs(v) });
+    x = respawnX;
+    v = 0;
+    airborne = false;
+    heightM = 0;
+    vy = 0;
+    stepCount += Math.round((PHYSICS.fallPenaltyS * 1000) / TUNING.dtMs);
+    lastAir = { type: 'fell', falls, respawnX, fromX };
   }
   damage = Math.min(100, damage);
 
   const capacityFactor = state.environment.weather === 'cold' ? TUNING.weather.cold.batteryCapacityFactor : 1;
   const capacityJ = spec.capacityWh * capacityFactor * 3600;
-  const battery = Math.max(0, sim.battery - ((powerW(state, action, motion.load, motion.swimming === true) * DT_S) / capacityJ) * 100);
+  const drawJ = (wasAirborne ? spec.basePowerW : powerW(state, action, motion.load, motion.swimming === true)) * DT_S + jumpJ;
+  const battery = Math.max(0, sim.battery - (drawJ / capacityJ) * 100);
 
-  const stepCount = state.stepCount + 1;
   const t = Math.round(stepCount * TUNING.dtMs) / 1000;
   if (motion.slipPct > PHYSICS.slipEffectPct) {
     stats = { ...stats, slipSByTerrain: { ...stats.slipSByTerrain, [terrainId]: (stats.slipSByTerrain[terrainId] ?? 0) + DT_S } };
@@ -288,24 +424,32 @@ export function step(state: RunState, action: Action): RunState {
 
   const progressed = x > state.bestX + 0.02;
   const bestX = progressed ? x : state.bestX;
-  const lastProgressT = progressed ? t : state.lastProgressT;
+  const lastProgressT = progressed || fell || airborne ? t : state.lastProgressT;
 
   const finished = x >= world.lengthM;
   const dnfReason = finished
     ? undefined
     : damage >= 100 ? 'damage'
     : battery <= 0 ? 'battery'
+    : falls >= PHYSICS.maxFalls ? 'stuck'
     : t - lastProgressT >= PHYSICS.stuckAfterS ? 'stuck'
     : t >= TUNING.maxRunS ? 'timeout'
     : undefined;
 
-  const segmentIndex = segmentIndexAt(world, x, state.segmentIndex);
+  const segmentIndex = segmentIndexAt(world, x, fell ? 0 : state.segmentIndex);
   const nextSegment = world.segments[segmentIndex]!;
-  const sparksUntilT = hit && hit.amountPct > 0 ? t + PHYSICS.sparksS : state.sparksUntilT;
+  const sparksUntilT = (hit && hit.amountPct > 0) || (landing && landing.amountPct > 0) || fell ? t + PHYSICS.sparksS : state.sparksUntilT;
   const spinSpeed = motion.slipPct > 0 ? profile.speed * spec.topSpeedMps : v;
   const nextDepthM = nextSegment.terrain === 'water' ? waterDepthCmAt(nextSegment, x) / 100 : 0;
   // The hull is about this tall: it is under water once the depth passes it.
-  const submergedDepthM = Math.max(0, nextDepthM - PHYSICS.hullHeightM);
+  const submergedDepthM = airborne ? 0 : Math.max(0, nextDepthM - PHYSICS.hullHeightM);
+  const nextRamp = airborne ? undefined : rampAt(world, x);
+  const groundHeightM = nextRamp ? (x - nextRamp.startM) * Math.tan(nextRamp.launchDeg * DEG) : 0;
+  const shownHeightM = airborne ? Math.max(0, heightM) : groundHeightM;
+  const surfaceSlopeDeg = nextSegment.slopeDeg + (nextRamp ? nextRamp.launchDeg : 0);
+  const pitch = airborne
+    ? clamp(Math.atan2(vy, Math.max(0.2, Math.abs(v))) / DEG, -35, 35)
+    : surfaceSlopeDeg + clamp(-motion.accel * 1.5, -8, 8);
 
   return {
     ...state,
@@ -313,13 +457,14 @@ export function step(state: RunState, action: Action): RunState {
       t,
       x: finished ? world.lengthM : x,
       v,
-      slopeDeg: nextSegment.slopeDeg,
-      pitch: nextSegment.slopeDeg + clamp(-motion.accel * 1.5, -8, 8),
+      slopeDeg: surfaceSlopeDeg,
+      pitch,
       wheelSpin: spinSpeed / WHEEL_RADIUS_M,
       terrain: nextSegment.terrain,
       battery,
       damage,
-      effects: effectsFor(nextSegment.terrain, v, motion.slipPct, damage, action, t < sparksUntilT, submergedDepthM),
+      effects: effectsFor(nextSegment.terrain, airborne ? 0 : v, motion.slipPct, damage, action, t < sparksUntilT, submergedDepthM),
+      ...(shownHeightM > 0 || airborne ? { heightM: shownHeightM, vy: airborne ? vy : 0, airborne } : {}),
       ...(nextDepthM > 0 ? { waterDepthM: nextDepthM, submergedDepthM, thrusting: motion.swimming === true && Math.abs(v) > 0.05, ...(nextSegment.currentMps ? { waterCurrentMps: nextSegment.currentMps } : {}) } : {}),
     },
     action,
@@ -330,7 +475,14 @@ export function step(state: RunState, action: Action): RunState {
     bestX,
     lastProgressT,
     sparksUntilT,
-    stallS: profile.speed > 0 && Math.abs(v) < PHYSICS.stallSpeedMps ? state.stallS + DT_S : 0,
+    stallS: !airborne && profile.speed > 0 && Math.abs(v) < PHYSICS.stallSpeedMps ? state.stallS + DT_S : 0,
+    heightM: airborne ? heightM : 0,
+    vy: airborne ? vy : 0,
+    airborne,
+    airStartT,
+    falls,
+    jumpReadyT,
+    lastAir,
     finished,
     dnfReason,
     lastDamage,

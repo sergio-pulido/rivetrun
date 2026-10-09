@@ -1,4 +1,6 @@
 import type {
+  Action,
+  ControlInput,
   Brain,
   BrainDecision,
   BrainQuestion,
@@ -15,7 +17,7 @@ import type {
 import { BRIEFING_MAX_CHARS } from '@rivetrun/contracts';
 import { heuristicDecide } from './brains';
 import { TUNING } from './data';
-import { buildQuestion, detectDecisionPoint } from './perception';
+import { availableActions, buildQuestion, detectDecisionPoint } from './perception';
 import { createRun, markDecision, step, withAction } from './physics';
 import { score } from './score';
 import type { HeadlessOptions, HeadlessResult, RunConfig, RunController, RunControllerOptions, RunState } from './types';
@@ -86,13 +88,15 @@ export async function runHeadless(
   options: HeadlessOptions = {},
 ): Promise<HeadlessResult> {
   let state = createRun({ mission, seed, build, priority: options.priority ?? 0.5 });
+  const briefing = options.briefing?.trim().slice(0, BRIEFING_MAX_CHARS) || undefined;
   const decisions: DecisionRecord[] = [];
   const frames: SimState[] = [state.sim];
   const frameEvery = Math.max(1, Math.round(1000 / TUNING.ghostHz / TUNING.dtMs));
   let trigger: DecisionTrigger | null = 'start';
   while (!state.done) {
     if (trigger) {
-      const question = buildQuestion(state, trigger);
+      const question = buildQuestion(state, trigger, briefing);
+      // Brains may be async (Jev over HTTP on the server): each decision is awaited before the sim moves on.
       const decision = await decideSafe(brain, question);
       decisions.push(record(question, decision));
       state = withAction(markDecision(state), decision.selected);
@@ -107,6 +111,107 @@ export async function runHeadless(
   return { episode, ghost: { policy, frames, outcome: episode.outcome } };
 }
 
+/** Everything one step produces besides decisions: frame, terrain change, damage and air events. */
+function emitStepEvents(
+  emit: (event: RunEvent) => void,
+  prev: RunState,
+  state: RunState,
+  pendingDamage: Partial<Record<DamageCause, number>>,
+): void {
+  emit({ type: 'frame', state: state.sim });
+  if (state.segmentIndex !== prev.segmentIndex) {
+    emit({ type: 'terrainEnter', t: state.sim.t, terrain: state.sim.terrain, segmentIndex: state.segmentIndex });
+  }
+  const air = state.lastAir;
+  if (air?.type === 'airborne') emit({ type: 'airborne', t: state.sim.t, x: state.sim.x, v: state.sim.v, vy: state.vy, cause: air.cause });
+  if (air?.type === 'landed') emit({ type: 'landed', t: state.sim.t, x: state.sim.x, impactMps: air.impactMps, airtimeS: air.airtimeS, damagePct: air.damagePct });
+  if (air?.type === 'fell') emit({ type: 'fell', t: state.sim.t, x: air.fromX, falls: air.falls, respawnX: air.respawnX });
+  const damage = state.lastDamage;
+  if (damage) {
+    const total = (pendingDamage[damage.cause] ?? 0) + damage.amountPct;
+    if (damage.cause === 'impact' || total >= DAMAGE_EVENT_PCT || state.done) {
+      emit({ type: 'damage', t: state.sim.t, cause: damage.cause, amountPct: total, totalPct: Math.min(100, state.sim.damage) });
+      pendingDamage[damage.cause] = 0;
+    } else {
+      pendingDamage[damage.cause] = total;
+    }
+  }
+}
+
+/** Drive mode: the player's thumbs as one of the Actions the Brains use, so the physics is shared. */
+export function controlToAction(input: ControlInput, build: Build): Action {
+  const actions = availableActions(build);
+  if (input.special === 'jump' && actions.includes('jump')) return 'jump';
+  if (input.brake) return 'brake';
+  if (input.special === 'winch' && actions.includes('deploy_winch')) return 'deploy_winch';
+  if (input.special === 'climb') return 'climb_mode';
+  return input.throttle ? 'accelerate' : 'cruise';
+}
+
+/**
+ * Drive mode loop: every 50 ms step reads the player's input (20 Hz) and applies it. No decisions, no slow-mo.
+ * Emits the same RunEvent stream as runController and resolves with an Episode whose policy is 'human'.
+ */
+export function driveController(config: RunConfig, readInput: () => ControlInput, options: RunControllerOptions): RunController {
+  const emit = (event: RunEvent): void => options.onEvent(event);
+  const timeScale = options.timeScale ?? 1;
+  let stopped = false;
+  let timer: number | undefined;
+  let started: Promise<Episode> | undefined;
+  let finish: (() => void) | undefined;
+
+  const run = (): Promise<Episode> =>
+    new Promise<Episode>((resolve) => {
+      let state = createRun({ ...config, manual: true });
+      const pendingDamage: Partial<Record<DamageCause, number>> = {};
+      let accumulatedMs = 0;
+      let last = now();
+      const complete = (): void => {
+        if (timer !== undefined) clearTimeout(timer);
+        resolve(toEpisode(state, [], 'human', newEpisodeId(state)));
+      };
+      finish = complete;
+      const tick = (): void => {
+        if (stopped) return;
+        const current = now();
+        accumulatedMs += Math.min(current - last, MAX_FRAME_MS) * timeScale;
+        last = current;
+        while (accumulatedMs >= TUNING.dtMs && !state.done) {
+          accumulatedMs -= TUNING.dtMs;
+          const prev = state;
+          state = step(state, controlToAction(readInput(), config.build));
+          emitStepEvents(emit, prev, state, pendingDamage);
+        }
+        if (state.done) {
+          const outcome = score(state);
+          emit(
+            state.finished
+              ? { type: 'finish', t: state.sim.t, outcome }
+              : { type: 'dnf', t: state.sim.t, reason: state.dnfReason ?? 'timeout', outcome },
+          );
+          complete();
+          return;
+        }
+        timer = setTimeout(tick, TICK_MS);
+      };
+      emit({ type: 'frame', state: state.sim });
+      timer = setTimeout(tick, TICK_MS);
+    });
+
+  return {
+    start: () => {
+      started ??= run();
+      return started;
+    },
+    stop: () => {
+      if (stopped) return;
+      stopped = true;
+      finish?.();
+    },
+    isDecisionPending: () => false,
+  };
+}
+
 const now = (): number => (typeof performance !== 'undefined' ? performance.now() : Date.now());
 
 function newEpisodeId(state: RunState): string {
@@ -118,6 +223,7 @@ function newEpisodeId(state: RunState): string {
 export function runController(config: RunConfig, brain: Brain, options: RunControllerOptions): RunController {
   const emit = (event: RunEvent): void => options.onEvent(event);
   const timeScale = options.timeScale ?? 1;
+  const slowMoFactor = options.slowMo === false ? 1 : TUNING.decision.slowMoFactor;
   const briefing = options.briefing?.trim().slice(0, BRIEFING_MAX_CHARS) || undefined;
   let stopped = false;
   let pending = false;
@@ -154,29 +260,14 @@ export function runController(config: RunConfig, brain: Brain, options: RunContr
         });
       };
 
-      const emitStep = (prev: RunState): void => {
-        emit({ type: 'frame', state: state.sim });
-        if (state.segmentIndex !== prev.segmentIndex) {
-          emit({ type: 'terrainEnter', t: state.sim.t, terrain: state.sim.terrain, segmentIndex: state.segmentIndex });
-        }
-        const damage = state.lastDamage;
-        if (damage) {
-          const total = (pendingDamage[damage.cause] ?? 0) + damage.amountPct;
-          if (damage.cause === 'impact' || total >= DAMAGE_EVENT_PCT || state.done) {
-            emit({ type: 'damage', t: state.sim.t, cause: damage.cause, amountPct: total, totalPct: Math.min(100, state.sim.damage) });
-            pendingDamage[damage.cause] = 0;
-          } else {
-            pendingDamage[damage.cause] = total;
-          }
-        }
-      };
+      const emitStep = (prev: RunState): void => emitStepEvents(emit, prev, state, pendingDamage);
 
       const tick = (): void => {
         if (stopped) return;
         const current = now();
         const elapsed = Math.min(current - last, MAX_FRAME_MS);
         last = current;
-        accumulatedMs += elapsed * timeScale * (pending ? TUNING.decision.slowMoFactor : 1);
+        accumulatedMs += elapsed * timeScale * (pending ? slowMoFactor : 1);
         while (accumulatedMs >= TUNING.dtMs && !state.done) {
           accumulatedMs -= TUNING.dtMs;
           const prev = state;
@@ -186,7 +277,7 @@ export function runController(config: RunConfig, brain: Brain, options: RunContr
           const trigger = detectDecisionPoint(prev, state);
           if (trigger) {
             ask(trigger);
-            accumulatedMs *= TUNING.decision.slowMoFactor;
+            accumulatedMs *= slowMoFactor;
           }
         }
         if (state.done) {
