@@ -1,0 +1,25 @@
+@import 'tailwindcss';
+
+@theme {
+  --color-slate-ink: #0f141b;
+  --color-slate-panel: #1a222d;
+  --color-slate-line: #2b3644;
+  --color-safety: #ff6a13;
+  --color-blueprint: #3b82c4;
+}
+
+html,
+body {
+  height: 100%;
+  background: var(--color-slate-ink);
+  color: #e6ebf2;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Blueprint grid backdrop. */
+.blueprint {
+  background-image:
+    linear-gradient(to right, rgb(59 130 196 / 0.12) 1px, transparent 1px),
+    linear-gradient(to bottom, rgb(59 130 196 / 0.12) 1px, transparent 1px);
+  background-size: 24px 24px;
+}

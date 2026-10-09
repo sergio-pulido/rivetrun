@@ -1,0 +1,25 @@
+{
+  "name": "@rivetrun/db",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.4",
+    "drizzle-kit": "^0.31.11",
+    "vitest": "^5.0.3"
+  },
+  "dependencies": {
+    "@neondatabase/serverless": "^1.2.0",
+    "@rivetrun/contracts": "workspace:*",
+    "drizzle-orm": "^0.45.4"
+  }
+}

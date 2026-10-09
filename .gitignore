@@ -1,0 +1,16 @@
+node_modules
+.next
+.turbo
+.vercel
+dist
+coverage
+*.tsbuildinfo
+next-env.d.ts
+.DS_Store
+.env
+.env.*
+!.env.example
+.claude/worktrees
+playwright-report
+test-results
+.claude/launch.json

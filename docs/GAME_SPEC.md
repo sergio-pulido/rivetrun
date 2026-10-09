@@ -82,7 +82,7 @@ Practice missions jitter friction ±10 % and sensor noise by a random seed. Room
 2. Workshop: 3D robot on a workbench (slow turntable, tap a slot to swap parts, the model updates live), budget and mass bars, stat bars (speed, grip, endurance, perception), presets, locked parts with point cost.
 3. Brief: terrain strip, conditions, priority slider, Deploy.
 4. Run: 2.5D side view with the Jev robot + two ghosts, Brain HUD, top bar (time, battery, damage).
-5. Result: score breakdown, stars, Brain Duel table, one-line "why" derived from the episode (e.g. "Slipped 6 s on ice — no IMU"), Retry / Upgrade / Submit (nickname) / Download episode (JSON).
+5. Result: score breakdown, stars, Brain Duel table, one-line "why" derived from the episode (e.g. "Slipped 6 s on ice — no IMU"), Retry / Upgrade / Submit (nickname) / Share / Download episode (JSON). Share uses the Web Share API with score, build and URL; fallback copies the text.
 6. `/screen`: big-screen Room Challenge leaderboard, auto-refresh, QR to the game. Footer: "Today a game. Tomorrow a benchmark."
 
 First-time path: Home → Play → run starts with the preset; zero choices required before the first run.
@@ -116,5 +116,11 @@ Without `DATABASE_URL` the game still works: runs are not stored, leaderboard re
 - `apps/web/app/**` pages and `apps/web/src/ui/**` — ui session.
 - `docs/` — GAME_SPEC.md, JEV.md, BENCHMARK.md, prompts/.
 
+## Priorities and cuts
+- Must ship: M1 + M5, Workshop with presets, Jev + fallback HUD, ghosts, Result with Brain Duel table, leaderboard, /screen.
+- Cut first if behind at Sat 12:00: progression locks, M2–M4 balancing (keep them playable), moisture probe, winch.
+- Stretch: one persistent 3D scene where the camera flies from the workbench to the track on Deploy.
+
 ## Visual direction
 Maker workshop: dark slate, safety-orange accents, blueprint grid, chunky tactile buttons ≥48 px. Robot parts look like real maker parts made of primitives: PCB-green boards, black servo blocks, orange 3D-printed brackets, rubber wheels. Terrain materials clearly distinct (ice sheen, water surface, mud gloss, sand grain). Ghost robots: translucent, desaturated, labelled.
+Robot personality: an LED-eye face that reacts to the last decision (squint on brake, wide on accelerate, X eyes on DNF), body wobble on slip, parts fly off and bounce on DNF. Crashes are exaggerated and funny.
