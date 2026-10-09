@@ -7,7 +7,7 @@ import { MISSIONS, TUNING } from '@rivetrun/sim';
 import { TERRAIN_LOOK } from '@/game/palette';
 import { useBuildStore } from '@/state/build';
 import { useWorkshopUi } from '@/state/workshop';
-import { BUDGET_EUR, buildName, buildStats, deepWaterIssue, missionWarnings } from '@/ui/buildStats';
+import { BUDGET_EUR, buildName, buildStats, deepWaterIssue, missionWarnings, presetThatCrosses } from '@/ui/buildStats';
 import { Icon } from '@/ui/Icon';
 import { Shell } from '@/ui/Shell';
 import { TrackProfile } from '@/ui/TrackProfile';
@@ -39,9 +39,11 @@ export function Brief({ missionId }: { readonly missionId: MissionId }) {
   const mission = MISSIONS[missionId];
   const build = useBuildStore((store) => store.build);
   const setMission = useBuildStore((store) => store.setMission);
+  const setBuild = useBuildStore((store) => store.setBuild);
   const stats = buildStats(build);
   const warnings = missionWarnings(mission, build);
   const deepWater = deepWaterIssue(mission, build);
+  const rescue = deepWater ? presetThatCrosses(mission) : null;
   const setSlot = useWorkshopUi((store) => store.setSlot);
   const overBudget = stats.overBudgetEur > 0;
 
@@ -107,6 +109,19 @@ export function Brief({ missionId }: { readonly missionId: MissionId }) {
               FIX IN WORKSHOP
             </Link>
           </p>
+        ) : null}
+        {rescue ? (
+          <button
+            type="button"
+            onClick={() => setBuild(rescue.build)}
+            className="flex min-h-11 items-center justify-between gap-3 rounded-[10px] border border-orange px-3 text-left active:bg-orange-deep"
+          >
+            <span className="min-w-0 text-xs leading-snug text-text-2">
+              <span className="font-display text-[13px] font-semibold text-orange-soft">Switch to {rescue.name}</span>
+              <span className="block truncate">{rescue.blurb}</span>
+            </span>
+            <span className="shrink-0 font-mono text-[11px] tabular-nums text-muted">€{buildStats(rescue.build).costEur}</span>
+          </button>
         ) : null}
         {warnings.map((warning) => (
           <p key={warning} className="flex items-start gap-2 text-xs leading-snug text-warn">

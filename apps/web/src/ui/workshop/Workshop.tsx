@@ -104,7 +104,7 @@ export function Workshop({ models }: WorkshopProps) {
         </div>
       </section>
 
-      <div className="flex gap-2" role="group" aria-label="Presets">
+      <div className="flex gap-1.5" role="group" aria-label="Presets">
         {PRESET_LIST.map((preset) => {
           const on = sameBuild(preset.build, build);
           return (
@@ -116,7 +116,7 @@ export function Workshop({ models }: WorkshopProps) {
                 setNotice(null);
                 setBuild(preset.build);
               }}
-              className={`h-10 flex-1 rounded-[10px] border font-display text-[13px] font-semibold transition-colors ${
+              className={`h-10 min-w-0 flex-1 whitespace-nowrap rounded-[10px] border px-0.5 font-display text-xs font-semibold transition-colors ${
                 on ? 'border-orange bg-orange-deep text-orange-soft' : 'border-line-2 bg-panel-2 text-text-2'
               }`}
             >

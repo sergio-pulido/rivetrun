@@ -97,6 +97,10 @@ export function deepWaterIssue(mission: Mission, build: Build): string | null {
   return `This build can't cross deep water — needs ${partName('thruster_kit')} + ${partName('waterproof_case')}`;
 }
 
+/** A ready-made build that gets across this mission's deep water, for a one-tap fix. Null when no preset can. */
+export const presetThatCrosses = (mission: Mission): Preset | null =>
+  Object.values(PRESETS).find((preset) => deepWaterIssue(mission, preset.build) === null) ?? null;
+
 /** Facts about this build on this track: what will hurt and what the AI cannot perceive. */
 export function missionWarnings(mission: Mission, build: Build): readonly string[] {
   const spec = deriveSpec(build);

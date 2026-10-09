@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Build } from '@rivetrun/contracts';
 import { MISSIONS, PRESETS } from '@rivetrun/sim';
-import { buildSenses, deepWaterIssue, missionWarnings } from './buildStats';
+import { buildSenses, deepWaterIssue, missionWarnings, presetThatCrosses } from './buildStats';
 
 const SEALED_SWIMMER: Build = {
   locomotion: 'wheels',
@@ -14,8 +14,8 @@ const SEALED_SWIMMER: Build = {
 const DEEP_WATER = "This build can't cross deep water — needs Thruster kit + Waterproof case";
 
 describe('deepWaterIssue', () => {
-  it('flags every preset on Deep Water', () => {
-    for (const preset of Object.values(PRESETS)) {
+  it('flags every preset on Deep Water except the one built for it', () => {
+    for (const preset of Object.values(PRESETS).filter((candidate) => candidate.id !== 'deep_diver')) {
       expect(deepWaterIssue(MISSIONS.M6, preset.build), preset.name).toBe(DEEP_WATER);
     }
   });
@@ -31,6 +31,14 @@ describe('deepWaterIssue', () => {
 
   it('stays quiet on a crossing the drive can wade', () => {
     expect(deepWaterIssue(MISSIONS.M2, PRESETS.all_rounder.build)).toBeNull();
+  });
+});
+
+describe('presetThatCrosses', () => {
+  it('finds the preset that crosses Deep Water', () => {
+    const preset = presetThatCrosses(MISSIONS.M6);
+    expect(preset?.id).toBe('deep_diver');
+    expect(deepWaterIssue(MISSIONS.M6, preset!.build)).toBeNull();
   });
 });
 
