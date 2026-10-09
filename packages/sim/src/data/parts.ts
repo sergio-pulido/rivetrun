@@ -106,6 +106,10 @@ export const PRESETS: Readonly<Record<PresetId, Preset>> = {
     id: 'all_rounder', name: 'All-rounder', blurb: 'Sees ahead, takes a knock. The default.',
     build: { locomotion: 'offroad_wheels', motor: 'motor_torque', battery: 'battery_large', sensors: ['camera', 'ultrasonic'], extras: ['bumper'] },
   },
+  deep_diver: {
+    id: 'deep_diver', name: 'Deep Diver', blurb: 'Sealed hull and thrusters. The one that crosses Deep Water.',
+    build: { locomotion: 'wheels', motor: 'motor_torque', battery: 'battery_large', sensors: ['ultrasonic', 'camera'], extras: ['waterproof_case', 'thruster_kit'] },
+  },
 };
 
 export const DEFAULT_PRESET_ID: PresetId = 'all_rounder';

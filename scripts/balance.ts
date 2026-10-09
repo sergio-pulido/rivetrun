@@ -13,12 +13,11 @@ const CORE_BUILDS: Readonly<Record<string, Build>> = {
   mud_crawler: PRESETS.mud_crawler.build,
   all_rounder: PRESETS.all_rounder.build,
   drone_sprinter: { locomotion: 'offroad_wheels', motor: 'motor_light', battery: 'battery_large', sensors: ['scout_drone', 'ultrasonic'], extras: ['bumper'] },
-  // Recommended for M6 Deep Water (docs/inputs/m6-deep-water.md): sealed, thrusters, ultrasonic.
-  deep_diver: { locomotion: 'wheels', motor: 'motor_torque', battery: 'battery_large', sensors: ['ultrasonic'], extras: ['waterproof_case', 'thruster_kit'] },
-  // The same robot with the spare budget spent on a camera.
-  deep_diver_cam: { locomotion: 'wheels', motor: 'motor_torque', battery: 'battery_large', sensors: ['ultrasonic', 'camera'], extras: ['waterproof_case', 'thruster_kit'] },
+  deep_diver: PRESETS.deep_diver.build,
 };
 const EXTRA_BUILDS: Readonly<Record<string, Build>> = {
+  // docs/inputs/m6-deep-water.md's build: the Deep Diver preset without the camera.
+  deep_diver_doc: { locomotion: 'wheels', motor: 'motor_torque', battery: 'battery_large', sensors: ['ultrasonic'], extras: ['waterproof_case', 'thruster_kit'] },
   offroad_winch: { locomotion: 'offroad_wheels', motor: 'motor_torque', battery: 'battery_large', sensors: ['imu', 'ultrasonic'], extras: ['winch', 'bumper'] },
   camera_sprinter: { locomotion: 'offroad_wheels', motor: 'motor_light', battery: 'battery_large', sensors: ['camera', 'ultrasonic'], extras: ['bumper'] },
   drone_rounder: { locomotion: 'offroad_wheels', motor: 'motor_torque', battery: 'battery_large', sensors: ['scout_drone', 'ultrasonic'], extras: ['bumper'] },

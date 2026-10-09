@@ -5,3 +5,4 @@
 - 2026-10-09 sim: optional `PartEffects.roughGroundFactor` (locomotion; tracks soak up rough-ground entry impacts).
 - 2026-10-09 sim: Deep Water — `MissionId` gains `'M6'`, `ExtraKind` gains `'thruster_kit'`, `SimEffect` gains `'bubbles'`; optional `PartEffects.requiresExtra` / `maxSwimDepthCm`; optional `SimState.waterDepthM` / `submergedDepthM` / `thrusting`.
 - 2026-10-09 sim: M6 v2 — optional `Segment.currentMps`, `PartEffects.maxWadingDepthCm` (wheels 20 / off-road 35 / tracks 45), `SimState.waterCurrentMps`.
+- 2026-10-09 sim: `PresetId` gains `'deep_diver'` (fourth preset, the recommended M6 build).

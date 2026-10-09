@@ -69,7 +69,7 @@ export const BuildSchema = z.object({
 });
 export type Build = z.infer<typeof BuildSchema>;
 
-export const PresetIdSchema = z.enum(['speedster', 'mud_crawler', 'all_rounder']);
+export const PresetIdSchema = z.enum(['speedster', 'mud_crawler', 'all_rounder', 'deep_diver']);
 export type PresetId = z.infer<typeof PresetIdSchema>;
 
 export const PresetSchema = z.object({
