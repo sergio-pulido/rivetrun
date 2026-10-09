@@ -10,7 +10,9 @@
     "build": "turbo run build",
     "test": "turbo run test",
     "lint": "turbo run lint",
-    "typecheck": "turbo run typecheck"
+    "typecheck": "turbo run typecheck",
+    "demo": "pnpm --filter @rivetrun/web demo",
+    "tunnel": "node scripts/tunnel.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.5",

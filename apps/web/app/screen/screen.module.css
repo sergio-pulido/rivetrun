@@ -143,9 +143,39 @@
   min-height: 0;
 }
 .lanes {
+  --gap: 8;
   display: flex;
   flex-direction: column;
-  gap: calc(var(--u) * 8);
+  gap: calc(var(--u) * var(--gap));
+}
+/* 13+ robots: thin lanes, type and chips scale with the lane. */
+.lanesDense .nick {
+  font-size: calc(var(--u) * min(18, var(--h) * 0.72));
+}
+.lanesDense .road {
+  border-radius: calc(var(--u) * 5);
+}
+.lanesDense .terrain {
+  bottom: calc(var(--u) * 1);
+  height: calc(var(--u) * 2);
+}
+.lanesDense .runner {
+  top: calc(var(--u) * var(--h) * 0.08);
+  left: calc(var(--at) * (100% - var(--u) * var(--h) * 1.3 - var(--u) * 6));
+  gap: calc(var(--u) * 4);
+}
+.lanesDense .robot {
+  height: calc(var(--u) * var(--h) * 0.8);
+}
+.lanesDense .action {
+  margin-bottom: 0;
+  padding: 0 calc(var(--u) * 4);
+  border-radius: calc(var(--u) * 3);
+  font-size: calc(var(--u) * min(11, var(--h) * 0.6));
+  line-height: calc(var(--u) * var(--h) * 0.8);
+}
+.lanesDense .actionLeft {
+  margin-right: calc(var(--u) * 4);
 }
 .lane {
   --h: 60;

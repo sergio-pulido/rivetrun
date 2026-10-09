@@ -19,15 +19,19 @@ const STRIP: Readonly<Record<TerrainId, string>> = {
 };
 const LOCOMOTION_LABEL: Readonly<Record<string, string>> = { wheels: 'wheels', offroad_wheels: 'off-road', tracks: 'tracks' };
 const LANE_MAX = 60;
-const LANE_MIN = 32;
+const LANE_MIN = 13;
 const LANE_GAP = 8;
+/** Above this many robots the lanes pack tight and drop the build line. */
+const DENSE_FROM = 13;
+const DENSE_GAP = 2;
 /** Height the lanes may use on the 720-high board, below the header and captions. */
 const LANES_HEIGHT = 500;
 /** Past this share of the track the action chip moves to the robot's left. */
 const CHIP_FLIP = 0.68;
 
+const laneGap = (count: number): number => (count >= DENSE_FROM ? DENSE_GAP : LANE_GAP);
 const laneHeight = (count: number): number =>
-  Math.max(LANE_MIN, Math.min(LANE_MAX, Math.floor((LANES_HEIGHT - LANE_GAP * (count - 1)) / Math.max(1, count))));
+  Math.max(LANE_MIN, Math.min(LANE_MAX, Math.floor((LANES_HEIGHT - laneGap(count) * (count - 1)) / Math.max(1, count))));
 
 function stripGradient(world: World): string {
   const stops = world.segments.map(
@@ -97,6 +101,7 @@ export function RaceTrack({ mission, players, racing }: RaceTrackProps) {
   const lanes = [...players].sort((a, b) => a.lane - b.lane);
   const height = laneHeight(lanes.length);
   const gradient = stripGradient(world);
+  const dense = lanes.length >= DENSE_FROM;
 
   return (
     <>
@@ -108,7 +113,7 @@ export function RaceTrack({ mission, players, racing }: RaceTrackProps) {
           <span>Finish</span>
         </div>
       </div>
-      <div className={styles.lanes}>
+      <div className={`${styles.lanes} ${dense ? styles.lanesDense : ''}`} style={{ ['--gap' as string]: laneGap(lanes.length) }}>
         {lanes.length === 0 ? <div className={styles.emptyLane}>The grid is empty. Scan the code to bring your robot.</div> : null}
         {lanes.map((player) => {
           const out = player.done && !player.finished;
@@ -118,7 +123,7 @@ export function RaceTrack({ mission, players, racing }: RaceTrackProps) {
             <div key={player.id} className={`${styles.lane} ${out ? styles.laneOut : ''}`} style={{ ['--h' as string]: height }}>
               <div className={styles.pilot}>
                 <span className={styles.nick}>{player.nickname}</span>
-                <span className={styles.build}>{buildLine(player)}</span>
+                {dense ? null : <span className={styles.build}>{buildLine(player)}</span>}
               </div>
               <div className={styles.road}>
                 <div className={styles.terrain} style={{ background: gradient }} />

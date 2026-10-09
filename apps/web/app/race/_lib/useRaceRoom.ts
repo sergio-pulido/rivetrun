@@ -12,37 +12,66 @@ export interface RaceRoom {
 
 const INITIAL: RaceRoom = { snapshot: null, link: 'connecting', clockOffsetMs: 0 };
 
-/** Subscribes to a room over Server-Sent Events. EventSource reconnects on its own. */
+/** How long the event stream may stay silent before the room switches to polling. The server sends at least every 2 s. */
+const STREAM_SILENCE_MS = 3500;
+const POLL_MS = 250;
+
+/**
+ * Subscribes to a room over Server-Sent Events (EventSource reconnects on its own).
+ * Some proxies buffer event streams and never deliver them (Cloudflare quick tunnels do): when the stream
+ * stays silent, the room falls back to polling the snapshot, which passes through anything.
+ */
 export function useRaceRoom(code: string): RaceRoom {
   const [room, setRoom] = useState<RaceRoom>(INITIAL);
 
   useEffect(() => {
     let closed = false;
-    const source = new EventSource(`/api/race/${code}/events`);
-    source.onmessage = (event: MessageEvent<string>) => {
-      const parsed = RaceSnapshotSchema.safeParse(JSON.parse(event.data));
-      if (!parsed.success) return;
+    let poller: ReturnType<typeof setInterval> | undefined;
+    let lastMessageAt = Date.now();
+
+    const accept = (data: unknown): void => {
+      const parsed = RaceSnapshotSchema.safeParse(data);
+      if (!parsed.success || closed) return;
+      lastMessageAt = Date.now();
       setRoom({ snapshot: parsed.data, link: 'live', clockOffsetMs: parsed.data.serverNow - Date.now() });
     };
-    source.addEventListener('gone', () => {
+    const markMissing = (): void => {
+      if (poller !== undefined) clearInterval(poller);
       source.close();
       setRoom((previous) => ({ ...previous, link: 'missing' }));
-    });
+    };
+    const readOnce = async (): Promise<void> => {
+      try {
+        const response = await fetch(`/api/race/${code}`, { cache: 'no-store' });
+        if (closed) return;
+        if (response.status === 404) markMissing();
+        else if (response.ok) accept(await response.json());
+      } catch {
+        if (!closed) setRoom((previous) => (previous.link === 'missing' ? previous : { ...previous, link: 'reconnecting' }));
+      }
+    };
+
+    const source = new EventSource(`/api/race/${code}/events`);
+    source.onmessage = (event: MessageEvent<string>) => accept(JSON.parse(event.data));
+    source.addEventListener('gone', markMissing);
     source.onerror = () => {
-      if (closed) return;
+      if (closed || poller !== undefined) return;
       setRoom((previous) => (previous.link === 'missing' ? previous : { ...previous, link: 'reconnecting' }));
       // A room that does not exist answers 404, which EventSource reports as a plain error.
-      fetch(`/api/race/${code}`, { cache: 'no-store' })
-        .then((response) => {
-          if (response.status === 404 && !closed) {
-            source.close();
-            setRoom((previous) => ({ ...previous, link: 'missing' }));
-          }
-        })
-        .catch(() => undefined);
+      void readOnce();
     };
+
+    const watchdog = setInterval(() => {
+      if (poller !== undefined || Date.now() - lastMessageAt < STREAM_SILENCE_MS) return;
+      source.close();
+      poller = setInterval(() => void readOnce(), POLL_MS);
+      void readOnce();
+    }, 500);
+
     return () => {
       closed = true;
+      clearInterval(watchdog);
+      if (poller !== undefined) clearInterval(poller);
       source.close();
     };
   }, [code]);

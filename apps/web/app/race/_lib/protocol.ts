@@ -11,7 +11,7 @@ import {
 import { z } from 'zod';
 
 export const RACE_CODE_LENGTH = 4;
-export const MAX_PLAYERS = 12;
+export const MAX_PLAYERS = 32;
 export const COUNTDOWN_MS = 5000;
 /** Phones post their sim state at 5 Hz. */
 export const STATE_POST_MS = 200;

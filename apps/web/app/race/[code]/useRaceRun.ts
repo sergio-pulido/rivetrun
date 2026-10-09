@@ -67,7 +67,8 @@ export function useRaceRun(
       const controller = runController(
         { mission: MISSIONS[missionId], seed, build: identity.build, priority },
         createClientBrain({ briefing: identity.briefing }),
-        { onEvent: feed.push, policy: 'jev' },
+        // The briefing rides on every BrainQuestion, so the HUD shows it and Jev reads it.
+        { onEvent: feed.push, policy: 'jev', briefing: identity.briefing },
       );
       stop = controller.stop;
       // A dropped 5 Hz post is replaced by the next one, so failures are not retried.

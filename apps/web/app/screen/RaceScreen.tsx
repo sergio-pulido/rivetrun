@@ -20,6 +20,8 @@ interface RaceScreenProps {
 const STATUS_TITLE = { lobby: 'LOBBY', countdown: 'GET READY', racing: 'LIVE', finished: 'FINISH' } as const;
 const ORDER_ROW_MAX = 30;
 const ORDER_ROW_MIN = 20;
+/** A full room does not fit the panel: it lists the front of the field and counts the rest. */
+const ORDER_ROWS_MAX = 12;
 /** Height the order rows may share on the 720-high board. */
 const ORDER_HEIGHT = 330;
 
@@ -48,7 +50,8 @@ function Order({ snapshot }: { readonly snapshot: RaceSnapshot }) {
   const ranked = rankPlayers(snapshot.players);
   const leader = ranked[0];
   const racing = snapshot.status === 'racing' || snapshot.status === 'finished';
-  const row = Math.max(ORDER_ROW_MIN, Math.min(ORDER_ROW_MAX, Math.floor(ORDER_HEIGHT / Math.max(1, ranked.length)) - 6));
+  const shown = ranked.slice(0, ORDER_ROWS_MAX);
+  const row = Math.max(ORDER_ROW_MIN, Math.min(ORDER_ROW_MAX, Math.floor(ORDER_HEIGHT / Math.max(1, shown.length)) - 6));
   return (
     <div className={styles.orderPanel}>
       <span className={styles.label}>
@@ -56,7 +59,7 @@ function Order({ snapshot }: { readonly snapshot: RaceSnapshot }) {
       </span>
       {!leader ? <span className={styles.orderEmpty}>Nobody yet.</span> : null}
       {leader
-        ? ranked.map((player, index) => {
+        ? shown.map((player, index) => {
             const out = player.done && !player.finished;
             return (
               <div key={player.id} className={styles.orderRow} style={{ ['--row' as string]: row }}>
@@ -69,6 +72,7 @@ function Order({ snapshot }: { readonly snapshot: RaceSnapshot }) {
             );
           })
         : null}
+      {ranked.length > shown.length ? <span className={styles.orderEmpty}>+ {ranked.length - shown.length} more behind</span> : null}
     </div>
   );
 }
