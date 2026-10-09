@@ -22,3 +22,10 @@ Overrides every process rule in docs/prompts/kickoff-v3.md. The game design in d
 ## Milestones
 - M-1 (~21:45): M1 playable end to end on localhost with the heuristic brain.
 - M-2 (23:00): Jev driving with HUD, ghosts, Workshop, Result with Brain Duel table.
+
+## Browser testing origins (separate localStorage per session)
+- sim: http://localhost:3000
+- ui: http://127.0.0.1:3000
+- game: http://10.194.73.231:3000
+- brain: no browser; curl only
+- The human owns `pnpm demo` (:3001) and `pnpm tunnel`.
