@@ -43,6 +43,7 @@ export function useRaceRun(
     const report = (done: boolean): Promise<unknown> => {
       const view = feed.get();
       const state = view.state;
+      const last = view.decision?.decision;
       return postRaceAction(code, {
         action: 'state',
         playerId: identity.playerId,
@@ -52,7 +53,8 @@ export function useRaceRun(
         v: state?.v ?? 0,
         damagePct: view.outcome?.damagePct ?? state?.damage ?? 0,
         batteryPct: state?.battery ?? 100,
-        lastAction: view.decision?.decision.selected ?? null,
+        lastAction: last?.selected ?? null,
+        lastActionP: last ? (last.probabilities[last.selected] ?? null) : null,
         thinking: view.pending !== null,
         done,
         finished: done && (view.outcome?.finished ?? false),

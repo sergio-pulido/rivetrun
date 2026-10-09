@@ -1,46 +1,3 @@
-.surface {
-  background:
-    linear-gradient(180deg, rgb(255 255 255 / 0.5) 0 6%, transparent 6%),
-    linear-gradient(180deg, rgb(10 14 19 / 0.25), rgb(10 14 19 / 0.78)),
-    var(--terrain);
-  background-size:
-    100% 100%,
-    100% 100%,
-    100% 100%;
-  box-shadow: inset -1px 0 0 rgb(10 14 19 / 0.45);
-  /* Top 45 % is sky: the ground starts where the robot's wheels are. */
-  clip-path: inset(48% 0 0 0);
-}
-
-.chequer {
-  background-image:
-    linear-gradient(45deg, #0a0e13 25%, transparent 25%, transparent 75%, #0a0e13 75%),
-    linear-gradient(45deg, #0a0e13 25%, #e6ebf2 25%, #e6ebf2 75%, #0a0e13 75%);
-  background-size: 12px 12px;
-  background-position:
-    0 0,
-    6px 6px;
-}
-
-.runner {
-  transform: translateX(-50%);
-  transition: left 240ms linear;
-  will-change: left;
-}
-
-.thinking {
-  animation: think 700ms ease-in-out infinite alternate;
-}
-
-@keyframes think {
-  from {
-    filter: drop-shadow(0 0 0 rgb(94 242 255 / 0));
-  }
-  to {
-    filter: drop-shadow(0 0 8px rgb(94 242 255 / 0.95));
-  }
-}
-
 .count {
   animation: count 1000ms ease-out both;
 }
@@ -61,7 +18,6 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .thinking,
   .count {
     animation: none;
   }

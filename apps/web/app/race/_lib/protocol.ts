@@ -40,6 +40,8 @@ export const RacePlayerSchema = z.object({
   damagePct: z.number().min(0).max(100),
   batteryPct: z.number().min(0).max(100),
   lastAction: ActionSchema.nullable(),
+  /** Probability the brain gave the last action, 0–1. */
+  lastActionP: z.number().min(0).max(1).nullable().default(null),
   /** True while Jev is deciding (the phone's sim is in slow motion). */
   thinking: z.boolean(),
   /** The run ended: finished or DNF. */
@@ -86,6 +88,7 @@ export const RaceActionSchema = z.discriminatedUnion('action', [
     damagePct: z.number().min(0).max(100),
     batteryPct: z.number().min(0).max(100),
     lastAction: ActionSchema.nullable(),
+    lastActionP: z.number().min(0).max(1).nullable().default(null),
     thinking: z.boolean().default(false),
     done: z.boolean().default(false),
     finished: z.boolean().default(false),

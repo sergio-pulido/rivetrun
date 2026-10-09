@@ -73,6 +73,7 @@ const STOPPED_SPEED_MPS = 0.1;
 // Mirrors BRIEFING_MAX_CHARS in @rivetrun/contracts (type-only imports here: see the header).
 const BRIEFING_MAX_CHARS = 140;
 const STALL_PROGRESS_M = 0.15;
+const DEFAULT_LOOKAHEAD_S = 1.5;
 
 const round = (value: number, digits: number): number => {
   const factor = 10 ** digits;
@@ -82,10 +83,11 @@ const round = (value: number, digits: number): number => {
 // Jev reads named buckets better than raw numbers (docs/JEV.md, jaggedness), so every number gets one.
 const damageBucket = (pct: number): string =>
   pct < 1 ? 'negligible' : pct < 4 ? 'light' : pct < 12 ? 'moderate' : 'heavy';
-const energyBucket = (pct: number): string => (pct < 0.5 ? 'low' : pct < 1.5 ? 'medium' : 'high');
-const progressBucket = (m: number, best: number): string => {
+// Energy and stall thresholds are per default lookahead window; a longer window (Scout Drone) scales them.
+const energyBucket = (pct: number, scale: number): string => (pct < 0.5 * scale ? 'low' : pct < 1.5 * scale ? 'medium' : 'high');
+const progressBucket = (m: number, best: number, scale: number): string => {
   if (m < 0) return 'backwards, loses ground';
-  if (m < STALL_PROGRESS_M) return 'none, the robot stays where it is';
+  if (m < STALL_PROGRESS_M * scale) return 'none, the robot stays where it is';
   if (best <= 0) return 'some';
   const share = m / best;
   return share >= 0.9 ? 'most' : share >= 0.6 ? 'good' : share >= 0.3 ? 'some' : 'little';
@@ -103,16 +105,17 @@ const priorityRule = (priority: number): string => {
   return `The player priority is ${value} on a scale from 0 (pure speed) to 1 (pure safety): SAFETY. Pick the option with the most progress among those with negligible damage; if none has negligible damage, pick the one with the least damage that still moves forward.`;
 };
 
-const describeOption = (action: Action, entry: LookaheadEntry | undefined, bestProgress: number): string => {
+const describeOption = (action: Action, entry: LookaheadEntry | undefined, bestProgress: number, lookaheadS: number): string => {
   if (!entry) return `${ACTION_MEANING[action]} No prediction available.`;
   const progress = round(entry.progressM, 1);
   const damage = round(entry.damagePct, 1);
   const energy = round(entry.energyPct, 2);
+  const scale = lookaheadS / DEFAULT_LOOKAHEAD_S;
   return (
-    `${ACTION_MEANING[action]} Predicted over the next 1.5 s: ` +
-    `progress ${progress} m (${progressBucket(entry.progressM, bestProgress)}), ` +
+    `${ACTION_MEANING[action]} Predicted over the next ${lookaheadS} s: ` +
+    `progress ${progress} m (${progressBucket(entry.progressM, bestProgress, scale)}), ` +
     `damage +${damage} % (${damageBucket(entry.damagePct)}), ` +
-    `energy ${energy} % (${energyBucket(entry.energyPct)}).`
+    `energy ${energy} % (${energyBucket(entry.energyPct, scale)}).`
   );
 };
 
@@ -122,10 +125,12 @@ const cleanBriefing = (briefing: string | undefined): string =>
 
 /** BrainQuestion → the documented System One request with one Choice question. */
 export function buildJevRequest(question: BrainQuestion, model: string = JEV_MODEL_ID): JevRequest {
+  // The sim simulates further ahead with a Scout Drone fitted; absent = the default window.
+  const lookaheadS = question.lookaheadS ?? DEFAULT_LOOKAHEAD_S;
   const byAction = new Map(question.lookahead.map((entry) => [entry.action, entry]));
   const bestProgress = Math.max(0, ...question.lookahead.map((entry) => entry.progressM));
   const criteria = Object.fromEntries(
-    question.options.map((action) => [action, describeOption(action, byAction.get(action), bestProgress)]),
+    question.options.map((action) => [action, describeOption(action, byAction.get(action), bestProgress, lookaheadS)]),
   );
   const stopped = Math.abs(question.status.speedMps) < STOPPED_SPEED_MPS;
   const briefing = cleanBriefing(question.briefing);
@@ -143,8 +148,8 @@ export function buildJevRequest(question: BrainQuestion, model: string = JEV_MOD
         type: 'choice',
         instructions:
           'A robot is racing along a track and must reach the finish line; a robot that stops or goes backwards never finishes and loses the race. ' +
-          'Which driving action should it take for the next 1.5 seconds? ' +
-          'Each option states its predicted progress, damage and energy from a forward simulation, each with a named level in brackets. ' +
+          'Which driving action should it take now? ' +
+          `Each option states its predicted progress, damage and energy from a ${lookaheadS} second forward simulation of that action, each with a named level in brackets. ` +
           'Damage is cumulative and the robot is only destroyed at 100 %, so negligible damage is acceptable. ' +
           briefingLine +
           `${priorityRule(question.priority)} ` +

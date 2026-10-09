@@ -68,6 +68,8 @@ export function decisionKey(q: BrainQuestion): string {
   const byAction = new Map(q.lookahead.map((l) => [l.action, l]));
   return JSON.stringify([
     q.briefing ?? '',
+    q.lookaheadS ?? null,
+    p.terrainAheadSource ?? null,
     q.options,
     bucket(q.priority, 0.1),
     p.terrainAhead,
