@@ -25,13 +25,15 @@ export interface RobotModelProps {
   ghostTint?: string;
   /** Parts pop in with a spring when they mount (workshop). */
   popIn?: boolean;
+  /** Run view: the scout drone flies ahead, so the pad on the robot stays empty. */
+  droneAway?: boolean;
 }
 
 /**
  * Procedural low-poly maker robot. Origin = ground under the centre, +X = forward.
  * Every part is a detachable <Part>: swap the build and the model rebuilds live.
  */
-export function RobotModel({ build, drive, state, action, expression, dnf = false, ghostTint, popIn = false }: RobotModelProps) {
+export function RobotModel({ build, drive, state, action, expression, dnf = false, ghostTint, popIn = false, droneAway = false }: RobotModelProps) {
   const own = useRef<RobotDrive>(restDrive());
   const active = drive ?? own;
   const sway = useRef<Group>(null);
@@ -53,7 +55,7 @@ export function RobotModel({ build, drive, state, action, expression, dnf = fals
   const floor = -geo.deckY;
   const lite = ghostTint !== undefined;
   const materials = useMemo(() => (ghostTint ? ghostMaterials(ghostTint) : robotMaterials()), [ghostTint]);
-  const context = useMemo<RobotContextValue>(() => ({ drive: active, popIn, lite }), [active, popIn, lite]);
+  const context = useMemo<RobotContextValue>(() => ({ drive: active, popIn, lite, droneAway }), [active, popIn, lite, droneAway]);
 
   useFrame(({ clock }) => {
     const node = sway.current;

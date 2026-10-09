@@ -22,37 +22,14 @@ function ghostX(trace: GhostTrace, t: number): number {
   return frames[lo]?.x ?? 0;
 }
 
-interface GaugeProps {
-  label: string;
-  value: number;
-  color: string;
-  icon: 'battery' | 'damage';
-}
-
-function Gauge({ label, value, color, icon }: GaugeProps) {
+function Gauge({ label, value, color }: { label: string; value: number; color: string }) {
   return (
-    <div className="flex min-w-0 flex-1 items-center gap-2 rounded-md px-2 py-1.5" style={{ background: 'rgb(9 13 18 / 0.7)', border: `1px solid ${UI.line}` }}>
-      <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden className="shrink-0">
-        {icon === 'battery' ? (
-          <>
-            <rect x="1" y="4" width="12" height="8" rx="1.5" fill="none" stroke={color} strokeWidth="1.5" />
-            <rect x="13.5" y="6.5" width="1.5" height="3" fill={color} />
-            <rect x="2.8" y="5.8" width={Math.max(0.5, (value / 100) * 8.4)} height="4.4" fill={color} />
-          </>
-        ) : (
-          <path d="M8 1.5 14.5 13.5H1.5Zm0 4.2v3.8m0 1.6v.4" fill="none" stroke={color} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-        )}
-      </svg>
-      <div className="min-w-0 flex-1">
-        <div className="flex items-baseline justify-between text-[9px] leading-none tracking-widest" style={{ color: UI.dim }}>
-          <span>{label}</span>
-          <span className="text-[12px] font-bold tabular-nums" style={{ color }}>
-            {Math.round(value)}%
-          </span>
-        </div>
-        <div className="mt-1 h-1.5 overflow-hidden rounded-full" style={{ background: '#0a0e13' }}>
-          <div className="h-full rounded-full" style={{ width: `${value}%`, background: color, transition: 'width 120ms linear' }} />
-        </div>
+    <div className="flex w-[82px] flex-col gap-[3px]">
+      <span className="font-mono text-[9px] leading-none tracking-[1px]" style={{ color: UI.dim }}>
+        {label} {Math.round(value)}%
+      </span>
+      <div className="h-1.5 overflow-hidden rounded-[3px]" style={{ background: UI.line }}>
+        <div className="h-full rounded-[3px]" style={{ width: `${value}%`, background: color, transition: 'width 120ms linear' }} />
       </div>
     </div>
   );
@@ -64,67 +41,42 @@ export interface TopBarProps {
   ghosts?: readonly GhostTrace[];
 }
 
-/** Time, speed, battery, damage and a terrain strip with the three robots on it. */
+/** Time, battery, damage and the terrain strip with the player and the ghosts on it. */
 export function TopBar({ mission, state, ghosts = [] }: TopBarProps) {
   const total = mission.track.segments.reduce((sum, segment) => sum + segment.lengthM, 0);
   const t = state?.t ?? 0;
   const battery = state?.battery ?? 100;
   const damage = state?.damage ?? 0;
-  const batteryColor = battery > 40 ? UI.ok : battery > 15 ? UI.warn : UI.bad;
-  const damageColor = damage < 30 ? UI.dim : damage < 65 ? UI.warn : UI.bad;
   const at = (x: number): string => `${Math.min(100, Math.max(0, (x / total) * 100))}%`;
 
   return (
-    <div className={`${styles.panel} ${styles.rivets} rounded-xl px-3 pb-2.5 pt-2 font-mono`} style={{ color: UI.text }}>
-      <div className="flex items-center justify-between gap-2">
-        <div className="min-w-0 truncate text-[11px] font-bold tracking-widest">
-          <span style={{ color: UI.safety }}>{mission.id}</span>
-          <span className="ml-1.5 uppercase">{mission.name}</span>
-          {mission.weather !== 'clear' && (
-            <span className="ml-1.5 uppercase" style={{ color: UI.blueprint }}>
-              · {mission.weather}
-            </span>
-          )}
-        </div>
-        <div className="flex shrink-0 items-baseline gap-2">
-          <span className="text-[10px] tabular-nums" style={{ color: UI.dim }}>
-            {(state?.v ?? 0).toFixed(1)} m/s
-          </span>
-          <span className="text-[20px] font-bold leading-none tabular-nums">{formatTime(t)}</span>
+    <div className={`${styles.topbar} flex flex-col gap-2 px-3 py-2.5`} style={{ color: UI.text }}>
+      <div className="flex items-center justify-between">
+        <span className="font-mono text-[22px] font-semibold leading-none tabular-nums">{formatTime(t)}</span>
+        <div className="flex gap-3">
+          <Gauge label="BATTERY" value={battery} color={battery > 15 ? UI.cyan : UI.bad} />
+          <Gauge label="DAMAGE" value={damage} color={damage < 65 ? UI.safety : UI.bad} />
         </div>
       </div>
 
-      <div className="mt-2 flex gap-2">
-        <Gauge label="BATTERY" value={battery} color={batteryColor} icon="battery" />
-        <Gauge label="DAMAGE" value={damage} color={damageColor} icon="damage" />
-      </div>
-
-      <div className="relative mt-3.5 h-2.5">
-        <div className="flex h-full overflow-hidden rounded-sm" style={{ border: '1px solid #0a0e13' }}>
+      <div className="relative h-3.5" aria-label={`${mission.id} ${mission.name}`}>
+        <div className="absolute inset-x-0 top-1.5 flex h-[3px] overflow-hidden rounded-[2px]">
           {mission.track.segments.map((segment, i) => (
             <div key={i} className="relative h-full" style={{ width: `${(segment.lengthM / total) * 100}%`, background: TERRAIN_LOOK[segment.terrain].hud }}>
-              {segment.obstacle && <span className="absolute left-1/2 top-0 h-full w-[3px] -translate-x-1/2" style={{ background: '#0f141b' }} />}
+              {segment.obstacle && <span className="absolute left-1/2 top-0 h-full w-[2px] -translate-x-1/2" style={{ background: UI.ink }} />}
             </div>
           ))}
         </div>
         {ghosts.map((trace) => (
           <span
             key={trace.policy}
-            className="absolute -top-[7px] h-[6px] w-[6px] -translate-x-1/2 rounded-full"
-            style={{ left: at(ghostX(trace, t)), background: POLICY_TINT[trace.policy], boxShadow: '0 0 0 1px #0f141b' }}
+            className="absolute top-px h-3 w-3 -translate-x-1/2 rounded-full"
+            style={{ left: at(ghostX(trace, t)), background: POLICY_TINT[trace.policy], opacity: 0.6 }}
           />
         ))}
         <span
-          className="absolute -bottom-[9px] -translate-x-1/2"
-          style={{
-            left: at(state?.x ?? 0),
-            width: 0,
-            height: 0,
-            borderLeft: '5px solid transparent',
-            borderRight: '5px solid transparent',
-            borderBottom: `7px solid ${UI.safety}`,
-            transition: 'left 80ms linear',
-          }}
+          className="absolute top-0 box-border h-3.5 w-3.5 -translate-x-1/2 rounded-full"
+          style={{ left: at(state?.x ?? 0), background: UI.safety, border: `2px solid ${UI.ink}`, transition: 'left 80ms linear' }}
         />
       </div>
     </div>

@@ -1,20 +1,26 @@
 import type { Action, DnfReason, Policy, TerrainId, Weather } from '@rivetrun/contracts';
 
-/** Maker-workshop palette shared by the 3D scenes and the HUD. */
+/** Design v1 tokens (docs/design/v1/README.md), shared by the 3D scenes and the HUD. */
 export const UI = {
-  ink: '#0f141b',
-  panel: '#161d27',
-  panelHi: '#1f2935',
-  line: '#2b3644',
-  text: '#e6ebf2',
-  dim: '#8494a7',
-  safety: '#ff6a13',
-  safetyHi: '#ff9a4d',
+  ink: '#0e1013',
+  panel: '#12161b',
+  panelHi: '#151920',
+  /** Bottom-sheet background of the Brain panel. */
+  sheet: '#10151a',
+  line: '#232932',
+  text: '#edeff2',
+  dim: '#9aa3ae',
+  /** Action / player. */
+  safety: '#ff7a1a',
+  safetyHi: '#ffb27a',
+  /** Brain / Jev. */
+  cyan: '#3fd0e0',
+  cyanText: '#bfeff5',
   blueprint: '#3b82c4',
   ok: '#4ade80',
   warn: '#fbbf24',
   bad: '#f8514a',
-  led: '#5ef2ff',
+  led: '#3fd0e0',
 } as const;
 
 export interface TerrainLook {
@@ -61,7 +67,7 @@ export const POLICY_LABEL: Readonly<Record<Policy, string>> = {
 
 /** Ghost tints: pale and desaturated so the player robot stays the hero. */
 export const POLICY_TINT: Readonly<Record<Policy, string>> = {
-  jev: '#ff6a13',
+  jev: '#ff7a1a',
   heuristic: '#9fd8ef',
   random: '#cdb4f0',
 };

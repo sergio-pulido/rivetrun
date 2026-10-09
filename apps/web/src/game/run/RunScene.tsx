@@ -15,24 +15,13 @@ import { layoutTrack, rideOffset, sampleTrack, type TrackLayout } from '../track
 import { Backdrop } from './Backdrop';
 import { Dressing } from './Dressing';
 import { Particles, type ParticleEmitter, type ParticleKind } from './Particles';
+import { restPose, type Pose } from './pose';
+import { ScoutDroneRig } from './ScoutDroneRig';
 import { Terrain } from './Terrain';
 import { labelTexture } from './textures';
 import { WeatherFx } from './WeatherFx';
 
 const SIM_DT = TUNING.dtMs / 1000;
-
-/** Where the player robot is drawn this frame. Shared by camera, ghosts and particles. */
-interface Pose {
-  ready: boolean;
-  s: number;
-  x: number;
-  y: number;
-  v: number;
-  /** Interpolated sim time: ghosts play against it. */
-  t: number;
-  shakeUntil: number;
-  thinking: boolean;
-}
 
 const EFFECT_PARTICLES: Readonly<Partial<Record<SimEffect, { kind: ParticleKind; rate: number; where: 'rear' | 'front' | 'top' }>>> = {
   dust: { kind: 'dust', rate: 30, where: 'rear' },
@@ -159,7 +148,7 @@ function Player({ feed, build, layout, pose, timeScale, particles }: PlayerProps
 
   return (
     <group ref={group} visible={false}>
-      <RobotModel build={build} drive={drive} />
+      <RobotModel build={build} drive={drive} droneAway />
       <Tag text={POLICY_LABEL.jev} color={UI.safety} y={1.95} />
     </group>
   );
@@ -218,13 +207,15 @@ function Ghost({ trace, build, layout, pose, timeScale }: GhostProps) {
 
   return (
     <group ref={group} visible={false}>
-      <RobotModel build={build} drive={drive} ghostTint={POLICY_TINT[policy]} />
+      <RobotModel build={build} drive={drive} ghostTint={POLICY_TINT[policy]} droneAway />
       <Tag text={POLICY_LABEL[policy]} color={POLICY_TINT[policy]} y={2.05} />
     </group>
   );
 }
 
 const VIEW_WIDTH_M = 5.7;
+/** With a scout drone the view opens up so the drone and its scan cone stay in frame. */
+const VIEW_WIDTH_DRONE_M = 6.7;
 const MIN_VIEW_HEIGHT_M = 8.5;
 const ELEVATION = (15 * Math.PI) / 180;
 
@@ -232,10 +223,12 @@ interface RigProps {
   pose: RefObject<Pose>;
   light: RefObject<DirectionalLight | null>;
   startX: number;
+  /** Frame the scout drone ahead of the robot too. */
+  wide: boolean;
 }
 
 /** Side-on follow camera, framed for portrait, with decision zoom and impact shake. */
-function CameraRig({ pose, light, startX }: RigProps) {
+function CameraRig({ pose, light, startX, wide }: RigProps) {
   const camera = useThree((state) => state.camera) as PerspectiveCamera;
   const size = useThree((state) => state.size);
   const focus = useRef({ x: startX, y: 0, zoom: 1, init: false });
@@ -247,7 +240,7 @@ function CameraRig({ pose, light, startX }: RigProps) {
     const f = focus.current;
     const aspect = size.width / Math.max(1, size.height);
     const portrait = aspect < 1;
-    const leadX = (p.ready ? p.x : startX) + (portrait ? 0.75 : 2.4) + clamp(p.v * 0.25, -0.5, 0.9);
+    const leadX = (p.ready ? p.x : startX) + (portrait ? (wide ? 1.35 : 0.75) : 2.4) + clamp(p.v * 0.25, -0.5, 0.9);
     const leadY = p.ready ? p.y : 0;
     if (!f.init) {
       f.x = leadX;
@@ -259,11 +252,11 @@ function CameraRig({ pose, light, startX }: RigProps) {
     f.zoom = damp(f.zoom, p.thinking ? 0.86 : 1, 5, dt);
 
     const halfV = (camera.fov * Math.PI) / 360;
-    const byWidth = VIEW_WIDTH_M / (2 * Math.tan(halfV) * aspect);
+    const byWidth = (wide ? VIEW_WIDTH_DRONE_M : VIEW_WIDTH_M) / (2 * Math.tan(halfV) * aspect);
     const byHeight = MIN_VIEW_HEIGHT_M / (2 * Math.tan(halfV));
     const distance = Math.max(byWidth, byHeight) * f.zoom;
-    // In portrait the Brain HUD covers the lower third: the robot sits just above the middle.
-    const lift = distance * Math.tan(halfV) * (portrait ? 0.05 : -0.12);
+    // In portrait the Brain sheet covers the lower ~42 %: the robot sits in the clear band above it.
+    const lift = distance * Math.tan(halfV) * (portrait ? 0.2 : -0.12);
     const shake = performance.now() < p.shakeUntil ? 0.09 : 0;
     target.set(f.x + (Math.random() - 0.5) * shake, f.y + 0.75 - lift + (Math.random() - 0.5) * shake, -1);
     camera.position.set(target.x, target.y + Math.sin(ELEVATION) * distance, target.z + Math.cos(ELEVATION) * distance);
@@ -292,7 +285,8 @@ export interface RunSceneProps {
 export function RunScene({ mission, build, feed, ghosts = [] }: RunSceneProps) {
   const layout = useMemo(() => layoutTrack(mission.track), [mission.track]);
   const sky = SKY[mission.weather];
-  const pose = useRef<Pose>({ ready: false, s: 0, x: 0, y: 0, v: 0, t: 0, shakeUntil: 0, thinking: false });
+  const pose = useRef<Pose>(restPose());
+  const hasDrone = build.sensors.includes('scout_drone');
   const timeScale = useRef(1);
   const particles = useRef<ParticleEmitter>(null);
   const sun = useRef<DirectionalLight>(null);
@@ -343,8 +337,9 @@ export function RunScene({ mission, build, feed, ghosts = [] }: RunSceneProps) {
         <Ghost key={trace.policy} trace={trace} build={build} layout={layout} pose={pose} timeScale={timeScale} />
       ))}
       <Player feed={feed} build={build} layout={layout} pose={pose} timeScale={timeScale} particles={particles} />
+      {hasDrone && <ScoutDroneRig feed={feed} layout={layout} pose={pose} />}
       <Particles ref={particles} timeScale={timeScale} />
-      <CameraRig pose={pose} light={sun} startX={0} />
+      <CameraRig pose={pose} light={sun} startX={0} wide={hasDrone} />
     </>
   );
 }

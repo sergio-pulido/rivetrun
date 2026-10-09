@@ -1,12 +1,13 @@
 'use client';
 
 import { useFrame } from '@react-three/fiber';
-import { useContext, useRef } from 'react';
+import { useContext, useRef, type ReactNode } from 'react';
 import type { Group, Mesh } from 'three';
 import { RobotContext } from './drive';
 import { useMats } from './materials';
 import { Part } from './Part';
 import { Box, Cyl, HALF_RING } from './primitives';
+import { ScoutDronePad } from './ScoutDrone';
 
 interface AttachmentProps {
   floor: number;
@@ -170,14 +171,15 @@ function Bumper({ floor }: AttachmentProps) {
   );
 }
 
-const SENSOR_PARTS: Readonly<Record<string, (props: AttachmentProps) => React.ReactNode>> = {
+const SENSOR_PARTS: Readonly<Record<string, (props: AttachmentProps) => ReactNode>> = {
   ultrasonic: Ultrasonic,
   camera: Camera,
   imu: Imu,
   moisture_probe: MoistureProbe,
+  scout_drone: ScoutDronePad,
 };
 
-const EXTRA_PARTS: Readonly<Record<string, (props: AttachmentProps) => React.ReactNode>> = {
+const EXTRA_PARTS: Readonly<Record<string, (props: AttachmentProps) => ReactNode>> = {
   winch: Winch,
   waterproof_case: WaterproofCase,
   bumper: Bumper,

@@ -27,6 +27,8 @@ export interface RobotContextValue {
   readonly popIn: boolean;
   /** Skip tiny details (ghosts). */
   readonly lite: boolean;
+  /** The scout drone is flying ahead (run view): leave its landing pad empty. */
+  readonly droneAway: boolean;
 }
 
 export const RobotContext = createContext<RobotContextValue | null>(null);

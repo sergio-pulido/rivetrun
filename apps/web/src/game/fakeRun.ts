@@ -224,8 +224,9 @@ function perceive(world: World, core: Core, rand: () => number): Perception {
   const next = world.mission.track.segments[index + 1];
   const toNext = world.starts[index]! + segment.lengthM - core.x;
   const noise = () => 1 + (rand() - 0.5) * 0.12;
-  const camera = caps.sensors.has('camera');
-  const seesNext = camera && next !== undefined && toNext <= 6;
+  const drone = caps.sensors.has('scout_drone');
+  const camera = drone || caps.sensors.has('camera');
+  const seesNext = camera && next !== undefined && toNext <= (drone ? 15 : 6);
   const obstacleAt = segment.obstacle && !core.hit.has(index) ? world.starts[index]! + segment.lengthM / 2 - core.x : null;
   const nextObstacle = next?.obstacle ? toNext + next.lengthM / 2 : null;
   const obstacle = obstacleAt ?? nextObstacle;
@@ -233,6 +234,7 @@ function perceive(world: World, core: Core, rand: () => number): Perception {
   return {
     terrainAhead: camera ? (seesNext ? next.terrain : segment.terrain) : 'unknown',
     terrainAheadDistanceM: camera ? Math.max(0, toNext * noise()) : 'unknown',
+    terrainAheadSource: camera ? (drone ? 'scout_drone' : 'camera') : undefined,
     obstacleAheadM: caps.sensors.has('ultrasonic')
       ? obstacle !== null && obstacle > 0 && obstacle <= 3
         ? obstacle * noise()
@@ -292,11 +294,12 @@ function trigger(world: World, core: Core, memo: TriggerMemo): DecisionTrigger |
   const toNext = world.starts[index]! + segment.lengthM - core.x;
   if (memo.lastT < 0) return 'start';
   if (core.damageEvent > 0) return 'damage';
-  if (caps.sensors.has('camera') && toNext <= 6 && memo.aheadFor < index && index + 1 < world.starts.length) {
+  const eyes = caps.sensors.has('camera') || caps.sensors.has('scout_drone');
+  if (eyes && toNext <= (caps.sensors.has('scout_drone') ? 15 : 6) && memo.aheadFor < index && index + 1 < world.starts.length) {
     memo.aheadFor = index;
     return 'terrain_ahead';
   }
-  if (!caps.sensors.has('camera') && memo.enteredFor < index) {
+  if (!eyes && memo.enteredFor < index) {
     memo.enteredFor = index;
     return 'terrain_enter';
   }
