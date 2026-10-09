@@ -5,6 +5,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { MISSION_IDS, MISSIONS, whyLine } from '@rivetrun/sim';
 import { DNF_LABEL } from '@/game/palette';
 import { useBuildStore } from '@/state/build';
+import { AppHeader } from '@/ui/AppHeader';
 import { buildStats } from '@/ui/buildStats';
 import { formatSeconds } from '@/ui/format';
 import { LOCKED_PARTS, isUnlocked, useProgressStore } from '@/state/progress';
@@ -86,11 +87,9 @@ function Summary({ result }: { readonly result: RunResult }) {
   }, [award, episode]);
 
   return (
-    <main className="mx-auto flex min-h-dvh max-w-[430px] flex-col gap-3 px-4 pb-[max(18px,env(safe-area-inset-bottom))] pt-[max(22px,env(safe-area-inset-top))]">
-      <header className="relative flex flex-col items-center gap-1">
-        <Link href="/" aria-label="Home" className="rr-iconbtn absolute right-0 top-0">
-          <Icon name="close" />
-        </Link>
+    <main className="mx-auto flex min-h-dvh max-w-[430px] flex-col gap-3 px-4 pb-[max(18px,env(safe-area-inset-bottom))] pt-[max(18px,env(safe-area-inset-top))]">
+      <AppHeader back="/" label="Result" />
+      <header className="flex flex-col items-center gap-1">
         <span className="font-mono text-[11px] font-medium uppercase tracking-[2px] text-muted">
           Mission 0{mission.id.slice(1)} · {mission.name}
         </span>

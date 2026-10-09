@@ -122,7 +122,6 @@ export function Brief({ missionId }: { readonly missionId: MissionId }) {
     <Shell
       back="/workshop"
       title={`Mission 0${mission.id.slice(1)}`}
-      titleStyle="label"
       footer={
         overBudget ? (
           <Link href="/workshop" className="rr-btn rr-btn-secondary w-full !min-h-[60px] !rounded-2xl">

@@ -7,6 +7,7 @@ import type { Part } from '@rivetrun/contracts';
 import { useBuildStore } from '@/state/build';
 import { isUnlocked, useProgressStore } from '@/state/progress';
 import { useWorkshopUi } from '@/state/workshop';
+import { AppHeader } from '@/ui/AppHeader';
 import { Icon } from '@/ui/Icon';
 import { PartCanvas } from '@/ui/three';
 import { Stage3D } from '@/ui/three/Stage3D';
@@ -113,14 +114,7 @@ export function PartSheet({ part, real }: PartSheetProps) {
 
   return (
     <main className="mx-auto flex min-h-dvh max-w-[430px] flex-col gap-3 px-4 pt-[max(18px,env(safe-area-inset-top))]">
-      <header className="flex h-11 shrink-0 items-center justify-between">
-        <span className="font-mono text-[11px] font-medium uppercase tracking-[2px] text-cyan">
-          {SLOT_NAME[part.slot]} · {shelf.findIndex((other) => other.id === part.id) + 1} of {shelf.length}
-        </span>
-        <Link href="/workshop" aria-label="Close" className="rr-iconbtn">
-          <Icon name="close" />
-        </Link>
-      </header>
+      <AppHeader back="/workshop" label={`${SLOT_NAME[part.slot]} · ${shelf.findIndex((other) => other.id === part.id) + 1} of ${shelf.length}`} />
 
       <section className="rr-stage h-[230px] shrink-0 !bg-stage [background-size:16px_16px]">
         <Stage3D loadingLabel="Loading the part" placeholder={<PartGlyph id={part.id} width={200} className="opacity-70" />}>

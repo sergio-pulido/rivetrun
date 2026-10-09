@@ -4,6 +4,7 @@ import { EpisodesLogged } from '@/ui/home/EpisodesLogged';
 import { MissionRail } from '@/ui/home/MissionRail';
 import { PlayNow } from '@/ui/home/PlayNow';
 import { Tagline } from '@/ui/home/Tagline';
+import { AppHeader } from '@/ui/AppHeader';
 import { Icon } from '@/ui/Icon';
 import { ModeSwitch } from '@/ui/ModeSwitch';
 
@@ -12,19 +13,8 @@ const TILE = 'rr-btn rr-btn-secondary !min-h-14 !text-[15px]';
 export default function HomePage() {
   return (
     <main className="blueprint mx-auto max-w-[430px]">
-      <section className="flex min-h-dvh flex-col gap-[18px] px-5 pb-6 pt-[max(28px,env(safe-area-inset-top))]">
-        <header className="flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <svg width="28" height="28" viewBox="0 0 28 28" aria-hidden="true">
-              <circle cx="14" cy="14" r="11" fill="none" stroke="#FF7A1A" strokeWidth="3" />
-              <circle cx="14" cy="14" r="4.5" fill="#FF7A1A" />
-            </svg>
-            <span className="font-display text-2xl font-bold tracking-[3px]">RIVETRUN</span>
-          </div>
-          <Link href="/leaderboard" aria-label="Leaderboard" className="rr-iconbtn bg-panel-2">
-            <Icon name="trophy" />
-          </Link>
-        </header>
+      <section className="flex min-h-dvh flex-col gap-[18px] px-5 pb-6 pt-[max(18px,env(safe-area-inset-top))]">
+        <AppHeader />
 
         <Tagline />
 
