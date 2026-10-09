@@ -12,7 +12,8 @@
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
     "demo": "pnpm --filter @rivetrun/web demo",
-    "tunnel": "node scripts/tunnel.mjs"
+    "tunnel": "node scripts/tunnel.mjs",
+    "demo:stable": "node scripts/demo-stable.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.5",
