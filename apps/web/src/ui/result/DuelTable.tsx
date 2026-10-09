@@ -9,7 +9,7 @@ interface Row {
   readonly player: boolean;
 }
 
-const COLUMNS = 'grid grid-cols-[1fr_22px_48px_40px_40px_46px] items-center gap-x-1.5';
+const COLUMNS = 'grid grid-cols-[minmax(0,1fr)_24px_44px_34px_34px_40px] items-center gap-x-1';
 
 const median = (values: readonly number[]): number => {
   const sorted = [...values].sort((a, b) => a - b);
@@ -71,8 +71,8 @@ export function DuelTable({ episode, ghosts }: DuelTableProps) {
             >
               <span className="flex min-w-0 items-center gap-1.5">
                 <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: POLICY_TINT[row.policy] }} />
-                <span className="truncate font-sans text-[13px] font-bold tracking-wide">{POLICY_LABEL[row.policy]}</span>
-                {row.player ? <span className="shrink-0 rounded bg-slate-line px-1 py-0.5 text-[8px] font-bold tracking-wider text-slate-200">YOU</span> : null}
+                <span className="font-sans text-xs font-bold">{POLICY_LABEL[row.policy]}</span>
+                {row.player ? <span className="shrink-0 rounded bg-slate-line px-1 py-0.5 text-[8px] font-bold leading-none text-slate-200">YOU</span> : null}
               </span>
               <span className={`grid place-items-center ${row.outcome.finished ? 'text-ok' : 'text-bad'}`}>
                 {row.outcome.finished ? <Icon name="check" size={15} /> : <span className="text-[10px] font-bold">DNF</span>}

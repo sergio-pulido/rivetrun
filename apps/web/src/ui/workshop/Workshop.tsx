@@ -57,15 +57,21 @@ export function Workshop() {
             Over budget by €{stats.overBudgetEur}
           </button>
         ) : (
-          <Link href={`/brief/${mission.id}`} className="rr-btn rr-btn-primary w-full !min-h-[58px] text-lg">
-            Take it to {mission.id} · {mission.name}
-            <Icon name="next" size={20} />
+          <Link href={`/brief/${mission.id}`} className="rr-btn rr-btn-primary w-full !min-h-[60px] !justify-between !px-5">
+            <span className="flex min-w-0 flex-col items-start">
+              <span className="text-lg font-bold leading-none">Take it to {mission.id}</span>
+              <span className="mt-1.5 truncate font-mono text-[10px] font-medium uppercase leading-none tracking-wider opacity-75">
+                {mission.name} · mission brief
+              </span>
+            </span>
+            <Icon name="next" size={22} />
           </Link>
         )
       }
     >
       <section className="relative -mx-4 -mt-1 h-[216px]">
         <div className="pointer-events-none absolute inset-x-10 bottom-6 top-8 rounded-[50%] bg-[radial-gradient(closest-side,rgb(59_130_196/0.26),transparent)]" />
+        <span className="rr-label rr-blink pointer-events-none absolute inset-0 grid place-items-center">Powering up the bench</span>
         <div className="absolute inset-0 [mask-image:linear-gradient(to_bottom,transparent,black_14%,black_80%,transparent)]">
           <WorkshopCanvas build={build} />
         </div>

@@ -12,6 +12,7 @@ export function HeroRobot() {
     <div className="relative -mx-4 h-[212px]">
       {/* Work-lamp pool so the stage never reads as empty while three.js loads. */}
       <div className="pointer-events-none absolute inset-x-8 bottom-4 top-10 rounded-[50%] bg-[radial-gradient(closest-side,rgb(59_130_196/0.28),transparent)]" />
+      <span className="rr-label rr-blink pointer-events-none absolute inset-0 grid place-items-center">Powering up the bench</span>
       <div className="absolute inset-0 [mask-image:linear-gradient(to_bottom,transparent,black_14%,black_80%,transparent)]">
         <WorkshopCanvas build={build} spin={0.5} />
       </div>

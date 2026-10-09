@@ -61,11 +61,11 @@ function Summary({ result }: { readonly result: RunResult }) {
       title={mission.name}
       footer={
         <div className="grid grid-cols-2 gap-2.5">
-          <Link href="/workshop" className="rr-btn rr-btn-secondary">
+          <Link href="/workshop" className={`rr-btn ${outcome.finished ? 'rr-btn-secondary' : 'rr-btn-primary'}`}>
             <Icon name="wrench" size={18} />
             Upgrade
           </Link>
-          <Link href={`/run/${mission.id}`} className="rr-btn rr-btn-primary">
+          <Link href={`/run/${mission.id}`} className={`rr-btn ${outcome.finished ? 'rr-btn-primary' : 'rr-btn-secondary'}`}>
             <Icon name="retry" size={18} />
             Retry
           </Link>
@@ -83,7 +83,7 @@ function Summary({ result }: { readonly result: RunResult }) {
           <Stars count={outcome.stars} size={34} animate />
         </div>
         <p className="mt-2 font-mono text-[10px] text-dim">
-          1★ finish · 2★ {mission.starThreshold} pts · 3★ {mission.starThreshold} pts with zero damage
+          1★ finish · 2★ at {mission.starThreshold} pts · 3★ with zero damage
         </p>
         <p className="mt-3.5 rounded-xl border border-slate-line bg-slate-deep/70 px-3 py-2.5 text-[15px] font-medium leading-snug">{whyLine(episode)}</p>
         <div className="mt-3 flex flex-wrap items-center justify-center gap-1.5">
