@@ -3,8 +3,11 @@ import {
   BrainDecisionSchema,
   BrainQuestionSchema,
   BuildSchema,
+  DecisionRecordSchema,
   GhostTraceSchema,
+  LeaderboardEntrySchema,
   LeaderboardQuerySchema,
+  OutcomeSchema,
   RunEventSchema,
   SubmitRunRequestSchema,
   type BrainQuestion,
@@ -104,6 +107,29 @@ describe('contracts', () => {
       expect(RunEventSchema.safeParse(event).success, event.type).toBe(true);
     }
     expect(RunEventSchema.safeParse({ type: 'explode' }).success).toBe(false);
+  });
+
+  it('DecisionRecord keeps trigger and model; Outcome keeps the why line', () => {
+    const record = {
+      t: 1.5,
+      perceived: question.perceived,
+      options: question.options,
+      probabilities: { cruise: 1 },
+      selected: 'cruise',
+      policy: 'jev',
+      fallback: false,
+      latencyMs: 110,
+      trigger: 'interval',
+      model: 'jev-1.13.0',
+    };
+    expect(DecisionRecordSchema.parse(record)).toMatchObject({ trigger: 'interval', model: 'jev-1.13.0' });
+    expect(OutcomeSchema.parse({ ...outcome, why: 'Slipped 6 s on ice — no IMU' }).why).toContain('no IMU');
+  });
+
+  it('accepts leaderboard timestamps with Z or an offset', () => {
+    const entry = { rank: 1, nickname: 'ada', missionId: 'M5', score: 700, timeS: 50, damagePct: 0, policy: 'jev' };
+    expect(LeaderboardEntrySchema.safeParse({ ...entry, createdAt: '2026-10-10T09:00:00.000Z' }).success).toBe(true);
+    expect(LeaderboardEntrySchema.safeParse({ ...entry, createdAt: '2026-10-10T09:00:00+00:00' }).success).toBe(true);
   });
 
   it('validates API payloads', () => {

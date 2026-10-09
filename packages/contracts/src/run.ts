@@ -5,6 +5,7 @@ import {
   BrainQuestionSchema,
   PerceptionSchema,
   PolicySchema,
+  DecisionTriggerSchema,
   PrioritySchema,
   ProbabilitiesSchema,
 } from './brain';
@@ -14,7 +15,10 @@ import { EnvironmentSchema, MissionIdSchema, SeedSchema, TerrainIdSchema } from 
 export const SimEffectSchema = z.enum(['dust', 'splash', 'mud_spray', 'sparks', 'slip', 'smoke', 'winch']);
 export type SimEffect = z.infer<typeof SimEffectSchema>;
 
-/** Everything the renderer reads. The renderer never computes physics. */
+/**
+ * Everything the renderer reads. The renderer never computes physics.
+ * The sim clamps battery and damage to 0–100 before emitting.
+ */
 export const SimStateSchema = z.object({
   /** Sim time, seconds. */
   t: z.number().min(0),
@@ -50,6 +54,8 @@ export const OutcomeSchema = z.object({
   progressFraction: z.number().min(0).max(1),
   stars: z.number().int().min(0).max(3),
   dnfReason: DnfReasonSchema.optional(),
+  /** One-line explanation derived by the sim from ground truth, e.g. "Slipped 6 s on ice — no IMU". */
+  why: z.string().max(200).optional(),
 });
 export type Outcome = z.infer<typeof OutcomeSchema>;
 
@@ -70,6 +76,10 @@ export const DecisionRecordSchema = z.object({
   policy: PolicySchema,
   fallback: z.boolean(),
   latencyMs: z.number().min(0),
+  /** Why the decision point fired. */
+  trigger: DecisionTriggerSchema.optional(),
+  /** Versioned model id that answered (jev only). The benchmark reports it. */
+  model: z.string().optional(),
 });
 export type DecisionRecord = z.infer<typeof DecisionRecordSchema>;
 

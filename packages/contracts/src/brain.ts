@@ -8,6 +8,8 @@ const reading = <T extends z.ZodType>(schema: T) => z.union([schema, z.literal('
  * What the Brain sees. Only sensor output, with seeded noise. Never ground truth.
  * camera → terrainAhead*, ultrasonic → obstacleAheadM, IMU → slipPct / tiltDeg,
  * moisture probe → depthAheadCm.
+ * Noisy readings are clamped to the bounds below before they are emitted.
+ * Camera with no terrain change in range: the current terrain and the distance to the end of its segment.
  */
 export const PerceptionSchema = z.object({
   terrainAhead: reading(TerrainIdSchema),

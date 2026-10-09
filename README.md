@@ -62,4 +62,4 @@ API (Node runtime; validate with contracts, then return 501 until the brain sess
 
 ## Deploy
 
-Target: Vercel, project root directory `apps/web`. **Not deployed yet**: the repo is not linked to a Vercel project, so no deploy command has been run. See the scaffold PR for the exact link and deploy commands.
+Target: Vercel, project root directory `apps/web`. **Not deployed yet**: deploy is deferred to the integration session, so no deploy command has been run.

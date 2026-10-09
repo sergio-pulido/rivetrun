@@ -18,7 +18,7 @@ export const LeaderboardEntrySchema = z.object({
   timeS: z.number().min(0),
   damagePct: z.number().min(0).max(100),
   policy: PolicySchema,
-  createdAt: z.iso.datetime(),
+  createdAt: z.iso.datetime({ offset: true }),
 });
 export type LeaderboardEntry = z.infer<typeof LeaderboardEntrySchema>;
 
