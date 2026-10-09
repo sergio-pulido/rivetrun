@@ -9,6 +9,8 @@ import { UI } from '../palette';
 import { damp } from '../rng';
 import { Bake } from '../robot/bake';
 import { restDrive, type RobotDrive } from '../robot/drive';
+import { addOutline } from '../robot/outline';
+import { ownPick, pickKey, pickOf, type RoverPick } from '../robot/pick';
 import { Reflections } from '../run/Reflections';
 import { robotMaterials } from '../robot/materials';
 import { Box, Cyl } from '../robot/primitives';
@@ -136,12 +138,31 @@ export interface WorkshopSceneProps {
   spin?: number;
   /** Running late: skip the reflection environment and draw with plain lights. */
   plain?: boolean;
+  /** The part to outline (a tap sets it through `onPick`). */
+  picked?: RoverPick | null;
+  /** A tap on a rover part: the catalog part or printed part under the finger. */
+  onPick?: (pick: RoverPick) => void;
 }
 
 /** Robot on a turntable over a blueprint sheet. Swap the build and parts pop in live. Mount inside a <Canvas>. */
-export function WorkshopScene({ build, spin = 0.45, plain = false }: WorkshopSceneProps) {
+export function WorkshopScene({ build, spin = 0.45, plain = false, picked = null, onPick }: WorkshopSceneProps) {
   const gl = useThree((state) => state.gl);
   const table = useRef<Group>(null);
+  const rover = useRef<Group>(null);
+  const pickedKey = picked ? pickKey(picked) : null;
+
+  // Outline every node that stands for the picked part (all four wheels, every instance of a printed bracket).
+  // Runs after the parts have mounted and merged, and again when the build swaps parts in or out.
+  useEffect(() => {
+    const root = rover.current;
+    if (!root || !pickedKey) return undefined;
+    const removers: Array<() => void> = [];
+    root.traverse((node) => {
+      const own = ownPick(node);
+      if (own && pickKey(own) === pickedKey) removers.push(addOutline(node));
+    });
+    return () => removers.forEach((remove) => remove());
+  }, [pickedKey, build]);
   const drive = useRef<RobotDrive>(restDrive());
   const motion = useRef({ velocity: spin, dragging: false, lastX: 0, happyUntil: 0 });
   const sheet = useMemo(() => new MeshBasicMaterial({ map: blueprintTexture(), transparent: true, depthWrite: false }), []);
@@ -255,7 +276,17 @@ export function WorkshopScene({ build, spin = 0.45, plain = false }: WorkshopSce
           ))}
           </Bake>
         </group>
-        <group position={[0, 0.11, 0]}>
+        <group
+          ref={rover}
+          position={[0, 0.11, 0]}
+          onClick={(event) => {
+            // A drag that spun the turntable ends in a click too: only a still tap selects.
+            if (event.delta > 6) return;
+            event.stopPropagation();
+            const pick = pickOf(event.object);
+            if (pick) onPick?.(pick);
+          }}
+        >
           <RobotModel build={build} drive={drive} popIn />
         </group>
       </group>

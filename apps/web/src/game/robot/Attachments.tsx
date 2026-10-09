@@ -6,19 +6,22 @@ import type { Group, Mesh } from 'three';
 import { BAKE_STOP, Bake } from './bake';
 import { RobotContext } from './drive';
 import { useMats } from './materials';
+import type { RoverPick } from './pick';
 import { Part } from './Part';
 import { Box, Cyl, HALF_RING } from './primitives';
 import { ScoutDronePad } from './ScoutDrone';
 
 interface AttachmentProps {
   floor: number;
+  /** Tag for Workshop taps: the catalog id this model stands for. */
+  pick: RoverPick;
 }
 
 /** HC-SR04 look: blue board, two steel "eyes" pointing forward. */
-function Ultrasonic({ floor }: AttachmentProps) {
+function Ultrasonic({ floor, pick }: AttachmentProps) {
   const m = useMats();
   return (
-    <Part position={[0.84, 0.17, 0]} floor={floor + 0.1}>
+    <Part position={[0.84, 0.17, 0]} floor={floor + 0.1} pick={pick}>
       <Box s={[0.06, 0.07, 0.2]} p={[-0.06, -0.1, 0]} m={m.print} />
       <Box s={[0.03, 0.22, 0.46]} m={m.pcbBlue} />
       {[0.12, -0.12].map((z) => (
@@ -33,14 +36,14 @@ function Ultrasonic({ floor }: AttachmentProps) {
 }
 
 /** Pi-camera on a printed mast. Pans slowly, like it is looking around. */
-function Camera({ floor }: AttachmentProps) {
+function Camera({ floor, pick }: AttachmentProps) {
   const m = useMats();
   const pan = useRef<Group>(null);
   useFrame(({ clock }) => {
     if (pan.current) pan.current.rotation.y = Math.sin(clock.elapsedTime * 1.3) * 0.35;
   });
   return (
-    <Part position={[0.56, 0.2, -0.16]} floor={floor + 0.1}>
+    <Part position={[0.56, 0.2, -0.16]} floor={floor + 0.1} pick={pick}>
       <Box s={[0.07, 0.4, 0.07]} p={[0, 0.2, 0]} m={m.print} />
       <Box s={[0.14, 0.05, 0.12]} p={[0, 0.02, 0]} m={m.printDark} />
       <Bake ref={pan} position={[0, 0.46, 0]}>
@@ -56,14 +59,14 @@ function Camera({ floor }: AttachmentProps) {
 }
 
 /** Purple breakout board standing on the PCB, with a blinking LED. */
-function Imu({ floor }: AttachmentProps) {
+function Imu({ floor, pick }: AttachmentProps) {
   const m = useMats();
   const led = useRef<Mesh>(null);
   useFrame(({ clock }) => {
     if (led.current) led.current.visible = clock.elapsedTime % 0.9 < 0.45;
   });
   return (
-    <Part position={[0.34, 0.2, 0.2]} floor={floor + 0.1}>
+    <Part position={[0.34, 0.2, 0.2]} floor={floor + 0.1} pick={pick}>
       <Box s={[0.2, 0.05, 0.04]} p={[0, 0.02, 0]} m={m.chip} />
       <Box s={[0.24, 0.22, 0.025]} p={[0, 0.15, 0]} m={m.pcbPurple} />
       <Box s={[0.09, 0.09, 0.03]} p={[0, 0.15, 0.015]} m={m.chip} shadow={false} />
@@ -76,10 +79,10 @@ function Imu({ floor }: AttachmentProps) {
 }
 
 /** Two gold prongs on a printed arm, dipping towards the ground ahead. */
-function MoistureProbe({ floor }: AttachmentProps) {
+function MoistureProbe({ floor, pick }: AttachmentProps) {
   const m = useMats();
   return (
-    <Part position={[0.78, -0.04, 0.24]} rotation={[0, 0, -0.5]} floor={floor + 0.1}>
+    <Part position={[0.78, -0.04, 0.24]} rotation={[0, 0, -0.5]} floor={floor + 0.1} pick={pick}>
       <Box s={[0.3, 0.05, 0.08]} p={[0.1, 0, 0]} m={m.print} />
       <Box s={[0.12, 0.1, 0.14]} p={[0.28, 0, 0]} m={m.pcbDark} />
       {[0.04, -0.04].map((z) => (
@@ -90,7 +93,7 @@ function MoistureProbe({ floor }: AttachmentProps) {
 }
 
 /** Cable drum with orange flanges. The cable goes taut while the winch is deployed. */
-function Winch({ floor }: AttachmentProps) {
+function Winch({ floor, pick }: AttachmentProps) {
   const m = useMats();
   const context = useContext(RobotContext);
   const drum = useRef<Group>(null);
@@ -103,7 +106,7 @@ function Winch({ floor }: AttachmentProps) {
     if (hook.current) hook.current.visible = !deployed;
   });
   return (
-    <Part position={[0.66, 0.04, 0.16]} floor={floor + 0.1}>
+    <Part position={[0.66, 0.04, 0.16]} floor={floor + 0.1} pick={pick}>
       <Box s={[0.22, 0.05, 0.36]} p={[0, 0.025, 0]} m={m.printDark} />
       <Bake ref={drum} position={[0, 0.17, 0]}>
         <Cyl rad={0.085} h={0.24} axis="z" m={m.cable} seg={12} />
@@ -124,13 +127,13 @@ function Winch({ floor }: AttachmentProps) {
 }
 
 /** Clear box over the electronics, with a gasket line, frame and yellow latches. */
-function WaterproofCase({ floor }: AttachmentProps) {
+function WaterproofCase({ floor, pick }: AttachmentProps) {
   const m = useMats();
   const w = 0.88;
   const d = 0.66;
   const h = 0.3;
   return (
-    <Part position={[0.12, 0.2, 0]} floor={floor + 0.2}>
+    <Part position={[0.12, 0.2, 0]} floor={floor + 0.2} pick={pick}>
       <Box s={[w, h, d]} p={[0, h / 2, 0]} m={m.clear} shadow={false} />
       <Box s={[w + 0.03, 0.035, d + 0.03]} p={[0, h * 0.62, 0]} m={m.print} shadow={false} />
       {[1, -1].flatMap((ax) =>
@@ -156,10 +159,10 @@ function WaterproofCase({ floor }: AttachmentProps) {
 const STRIPES = [-0.36, -0.18, 0, 0.18, 0.36];
 
 /** Hazard-striped crash bar on printed arms. */
-function Bumper({ floor }: AttachmentProps) {
+function Bumper({ floor, pick }: AttachmentProps) {
   const m = useMats();
   return (
-    <Part position={[0.98, -0.03, 0]} floor={floor + 0.08}>
+    <Part position={[0.98, -0.03, 0]} floor={floor + 0.08} pick={pick}>
       <Box s={[0.11, 0.17, 1.08]} m={m.hazard} />
       {STRIPES.map((z) => (
         <Box key={z} s={[0.115, 0.2, 0.07]} p={[0, 0, z]} r={[0.6, 0, 0]} m={m.chip} shadow={false} />
@@ -175,7 +178,7 @@ function Bumper({ floor }: AttachmentProps) {
 const BLADES = [0, 1, 2].map((i) => (i / 3) * Math.PI * 2);
 
 /** Twin ducted thrusters on the rear: dark shrouds with a cyan lip, props that spin up under water. */
-function ThrusterKit({ floor }: AttachmentProps) {
+function ThrusterKit({ floor, pick }: AttachmentProps) {
   const m = useMats();
   const context = useContext(RobotContext);
   const props = useRef<Array<Group | null>>([]);
@@ -188,7 +191,7 @@ function ThrusterKit({ floor }: AttachmentProps) {
     });
   });
   return (
-    <Part position={[-0.97, -0.04, 0]} floor={floor + 0.12}>
+    <Part position={[-0.97, -0.04, 0]} floor={floor + 0.12} pick={pick}>
       <Box s={[0.14, 0.07, 0.62]} p={[0.12, 0.04, 0]} m={m.print} />
       {[0.23, -0.23].map((z, i) => (
         <group key={z} position={[0, 0, z]}>
@@ -216,7 +219,7 @@ function ThrusterKit({ floor }: AttachmentProps) {
 }
 
 /** Spring-loaded piston under the chassis: the foot punches down when the robot leaves the ground. */
-function PistonJump({ floor }: AttachmentProps) {
+function PistonJump({ floor, pick }: AttachmentProps) {
   const m = useMats();
   const context = useContext(RobotContext);
   const rod = useRef<Group>(null);
@@ -231,7 +234,7 @@ function PistonJump({ floor }: AttachmentProps) {
     if (rod.current) rod.current.position.y = -0.1 - k.value * (Math.abs(floor) - 0.22);
   });
   return (
-    <Part position={[-0.05, -0.04, 0]} floor={floor + 0.12}>
+    <Part position={[-0.05, -0.04, 0]} floor={floor + 0.12} pick={pick}>
       <Cyl rad={0.1} h={0.14} p={[0, -0.07, 0]} m={m.print} seg={12} />
       <Cyl rad={0.108} h={0.03} p={[0, -0.02, 0]} m={m.finRed} seg={12} shadow={false} />
       <Cyl rad={0.108} h={0.025} p={[0, -0.13, 0]} m={m.darkSteel} seg={12} shadow={false} />
@@ -242,6 +245,16 @@ function PistonJump({ floor }: AttachmentProps) {
       </group>
     </Part>
   );
+}
+
+const picks = new Map<string, RoverPick>();
+/** One stable pick object per catalog id, so parts do not re-tag on every render. */
+function catalogPick(id: string): RoverPick {
+  const cached = picks.get(id);
+  if (cached) return cached;
+  const made = { partId: id };
+  picks.set(id, made);
+  return made;
 }
 
 const SENSOR_PARTS: Readonly<Record<string, (props: AttachmentProps) => ReactNode>> = {
@@ -271,11 +284,11 @@ export function Attachments({ sensors, extras, floor }: AttachmentsProps) {
     <>
       {[...new Set(sensors)].map((id) => {
         const Sensor = SENSOR_PARTS[id];
-        return Sensor ? <Sensor key={id} floor={floor} /> : null;
+        return Sensor ? <Sensor key={id} floor={floor} pick={catalogPick(id)} /> : null;
       })}
       {[...new Set(extras)].map((id) => {
         const Extra = EXTRA_PARTS[id];
-        return Extra ? <Extra key={id} floor={floor} /> : null;
+        return Extra ? <Extra key={id} floor={floor} pick={catalogPick(id)} /> : null;
       })}
     </>
   );

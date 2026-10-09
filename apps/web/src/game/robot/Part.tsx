@@ -1,10 +1,11 @@
 'use client';
 
 import { useFrame } from '@react-three/fiber';
-import { useContext, useRef, type ReactNode } from 'react';
+import { useContext, useMemo, useRef, type ReactNode } from 'react';
 import type { Group } from 'three';
 import { bakeRootData, useBake } from './bake';
 import { RobotContext } from './drive';
+import type { RoverPick } from './pick';
 import type { V3 } from './primitives';
 
 interface PartProps {
@@ -13,6 +14,8 @@ interface PartProps {
   rotation?: V3;
   /** Local Y of the ground in this part's parent frame (where it lands on DNF). */
   floor?: number;
+  /** What a tap on this part means in the Workshop. Parts without one are not selectable. */
+  pick?: RoverPick;
 }
 
 interface Flight {
@@ -30,7 +33,8 @@ const GRAVITY = 11;
 const POP_S = 0.38;
 
 /** A detachable robot part: pops in when mounted, flies off and bounces on DNF. */
-export function Part({ children, position = [0, 0, 0], rotation = [0, 0, 0], floor = -0.4 }: PartProps) {
+export function Part({ children, position = [0, 0, 0], rotation = [0, 0, 0], floor = -0.4, pick }: PartProps) {
+  const data = useMemo(() => (pick ? { ...bakeRootData, pick } : bakeRootData), [pick]);
   const context = useContext(RobotContext);
   const group = useRef<Group>(null);
   useBake(group);
@@ -95,7 +99,7 @@ export function Part({ children, position = [0, 0, 0], rotation = [0, 0, 0], flo
   });
 
   return (
-    <group ref={group} position={position as [number, number, number]} rotation={rotation as [number, number, number]} scale={context?.popIn ? 0.001 : 1} userData={bakeRootData}>
+    <group ref={group} position={position as [number, number, number]} rotation={rotation as [number, number, number]} scale={context?.popIn ? 0.001 : 1} userData={data}>
       {children}
     </group>
   );

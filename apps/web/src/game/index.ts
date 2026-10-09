@@ -15,6 +15,8 @@ export const AttractCanvas = dynamic(() => import('./AttractCanvas'), { ssr: fal
 
 export type { RunCanvasProps } from './RunCanvas';
 export type { WorkshopCanvasProps } from './WorkshopCanvas';
+// What a tap on the rover in the Workshop reports: a catalog part or a printed part.
+export type { RoverPick } from './robot/pick';
 export type { AttractCanvasProps } from './AttractCanvas';
 export { createRunFeed, useRunView } from './runFeed';
 export type { RunFeed, RunView } from './runFeed';

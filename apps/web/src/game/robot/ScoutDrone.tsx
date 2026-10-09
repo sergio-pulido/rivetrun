@@ -8,6 +8,7 @@ import { BAKE_STOP, Bake } from './bake';
 import { RobotContext } from './drive';
 import { useMats, withBakeKey } from './materials';
 import { Part } from './Part';
+import type { RoverPick } from './pick';
 import { Box, Cyl, SPHERE } from './primitives';
 
 const SHELL = withBakeKey(new MeshStandardMaterial({ color: '#23272e', roughness: 0.45, metalness: 0.3 }), 'metal');
@@ -75,7 +76,7 @@ export function DroneModel() {
 }
 
 /** Landing pad on the rear deck. The drone idles just above it unless it is flying ahead. */
-export function ScoutDronePad({ floor }: { floor: number }) {
+export function ScoutDronePad({ floor, pick }: { floor: number; pick: RoverPick }) {
   const m = useMats();
   const context = useContext(RobotContext);
   const hover = useRef<Group>(null);
@@ -86,7 +87,7 @@ export function ScoutDronePad({ floor }: { floor: number }) {
   });
 
   return (
-    <Part position={[-0.72, 0.04, 0]} floor={floor + 0.1}>
+    <Part position={[-0.72, 0.04, 0]} floor={floor + 0.1} pick={pick}>
       {[0.27, -0.27].map((z) => (
         <Box key={z} s={[0.05, 0.36, 0.05]} p={[0, 0.18, z]} m={m.print} />
       ))}

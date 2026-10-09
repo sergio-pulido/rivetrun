@@ -9,6 +9,8 @@ import { useMats } from './materials';
 import { Part } from './Part';
 import { Box, Cyl } from './primitives';
 
+/** Stable pick tags: a tap on any wheel or track selects the locomotion part. */
+const PICKS = { wheels: { partId: 'wheels' }, offroad_wheels: { partId: 'offroad_wheels' }, tracks: { partId: 'tracks' } } as const;
 const SIDES = [1, -1] as const;
 const AXLES = [1, -1] as const;
 const KNOBS = Array.from({ length: 14 }, (_, i) => (i / 14) * Math.PI * 2);
@@ -31,6 +33,7 @@ function useWheelSpin() {
 /** Classic yellow-hub hobby wheels: thin, smooth, fast. */
 function StreetWheels() {
   const m = useMats();
+  const pick = PICKS.wheels;
   const { radius, halfTrack, halfBase } = locomotionGeometry('wheels');
   const wheels = useWheelSpin();
   let slot = 0;
@@ -41,7 +44,7 @@ function StreetWheels() {
           const index = slot;
           slot += 1;
           return (
-            <Part key={`${ax}${side}`} position={[ax * halfBase, radius, side * halfTrack]} floor={radius * 0.5}>
+            <Part key={`${ax}${side}`} position={[ax * halfBase, radius, side * halfTrack]} floor={radius * 0.5} pick={pick}>
               <Bake
                 ref={(node) => {
                   wheels.current[index] = node;
@@ -72,6 +75,7 @@ function StreetWheels() {
 /** Fat knobbly tyres on printed orange rims. */
 function OffroadWheels() {
   const m = useMats();
+  const pick = PICKS.offroad_wheels;
   const lite = useContext(RobotContext)?.lite ?? false;
   const { radius, halfTrack, halfBase } = locomotionGeometry('offroad_wheels');
   const wheels = useWheelSpin();
@@ -83,7 +87,7 @@ function OffroadWheels() {
           const index = slot;
           slot += 1;
           return (
-            <Part key={`${ax}${side}`} position={[ax * halfBase, radius, side * halfTrack]} floor={radius * 0.5}>
+            <Part key={`${ax}${side}`} position={[ax * halfBase, radius, side * halfTrack]} floor={radius * 0.5} pick={pick}>
               <Bake
                 ref={(node) => {
                   wheels.current[index] = node;
@@ -180,6 +184,7 @@ function beltPoint(u: number, radius: number, half: number, out: { x: number; y:
 /** Rubber belts with moving cleats over yellow sprockets and road wheels. */
 function Tracks() {
   const m = useMats();
+  const pick = PICKS.tracks;
   const context = useContext(RobotContext);
   const { radius, halfTrack, halfBase } = locomotionGeometry('tracks');
   const belt = useMemo(() => beltGeometry(radius, halfBase), [radius, halfBase]);
@@ -211,7 +216,7 @@ function Tracks() {
   return (
     <>
       {SIDES.map((side, sideIndex) => (
-        <Part key={side} position={[0, radius, side * halfTrack]} floor={radius}>
+        <Part key={side} position={[0, radius, side * halfTrack]} floor={radius} pick={pick}>
           <mesh geometry={belt} material={m.rubber} castShadow={!context?.lite} userData={BAKE_TAG} />
           <instancedMesh
             ref={(node) => {

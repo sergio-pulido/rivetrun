@@ -58,6 +58,8 @@ export interface SceneFrameProps {
   /** Called once, when the first frame is on screen (or when the view is given up on). Start the action here. */
   onReady?: () => void;
   onCreated?: (state: RootState) => void;
+  /** A tap or click that hit nothing interactive in the scene. */
+  onPointerMissed?: () => void;
 }
 
 /**
@@ -65,7 +67,7 @@ export interface SceneFrameProps {
  * a loading cover stays up until the first frame has been drawn, the scene falls back to plain lights
  * after 3 s, and a lost WebGL context or a crash in the scene becomes a message instead of a void.
  */
-export function SceneFrame({ children, camera, label, tips = false, bare = false, alpha = false, canvasStyle, onReady, onCreated }: SceneFrameProps) {
+export function SceneFrame({ children, camera, label, tips = false, bare = false, alpha = false, canvasStyle, onReady, onCreated, onPointerMissed }: SceneFrameProps) {
   const [phase, setPhase] = useState<'loading' | 'ready' | 'shown' | 'failed'>('loading');
   const [plain, setPlain] = useState(false);
   const [lost, setLost] = useState(false);
@@ -118,6 +120,7 @@ export function SceneFrame({ children, camera, label, tips = false, bare = false
             camera={camera}
             gl={{ antialias: true, alpha, powerPreference: 'high-performance' }}
             style={{ position: 'absolute', inset: 0, ...canvasStyle }}
+            onPointerMissed={onPointerMissed}
             onCreated={(state) => {
               state.gl.domElement.addEventListener('webglcontextlost', (event) => {
                 event.preventDefault();

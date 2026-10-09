@@ -1,12 +1,18 @@
 'use client';
 
 import { useFrame } from '@react-three/fiber';
-import { useContext, useRef } from 'react';
+import { useContext, useMemo, useRef } from 'react';
 import type { Mesh } from 'three';
 import { RobotContext, type LocomotionGeometry } from './drive';
 import { useMats } from './materials';
 import { Part } from './Part';
 import { Box, Cyl } from './primitives';
+
+/**
+ * The procedural chassis is one printed piece. PROVISIONAL id: docs/inputs/printed-parts.json has not landed;
+ * rename it to the matching id from that file when it does.
+ */
+const CHASSIS_PICK = { printedPartId: 'chassis' } as const;
 
 const CORNERS: ReadonlyArray<readonly [number, number]> = [
   [1, 1],
@@ -21,7 +27,7 @@ export function Chassis({ geo, floor }: { geo: LocomotionGeometry; floor: number
   const lite = useContext(RobotContext)?.lite ?? false;
   const axleY = geo.radius - geo.deckY;
   return (
-    <Part floor={floor + 0.06}>
+    <Part floor={floor + 0.06} pick={CHASSIS_PICK}>
       <Box s={[1.5, 0.08, 0.7]} m={m.print} />
       <Box s={[0.16, 0.08, 0.5]} p={[0.8, 0, 0]} m={m.print} />
       <Box s={[0.12, 0.08, 0.5]} p={[-0.8, 0, 0]} m={m.print} />
@@ -48,12 +54,13 @@ export function Motors({ id, geo, floor }: { id: string; geo: LocomotionGeometry
   const m = useMats();
   const lite = useContext(RobotContext)?.lite ?? false;
   const torque = id === 'motor_torque';
+  const pick = useMemo(() => ({ partId: id }), [id]);
   const axleY = geo.radius - geo.deckY;
   const z = geo.halfTrack - (torque ? 0.3 : 0.26);
   return (
     <>
       {CORNERS.map(([ax, side]) => (
-        <Part key={`${ax}${side}`} position={[ax * geo.halfBase, axleY, side * z]} floor={floor + 0.1}>
+        <Part key={`${ax}${side}`} position={[ax * geo.halfBase, axleY, side * z]} floor={floor + 0.1} pick={pick}>
           {torque ? (
             <>
               <Box s={[0.3, 0.26, 0.22]} m={m.servo} />
@@ -82,8 +89,9 @@ export function Motors({ id, geo, floor }: { id: string; geo: LocomotionGeometry
 export function Battery({ id, floor }: { id: string; floor: number }) {
   const m = useMats();
   const large = id === 'battery_large';
+  const pick = useMemo(() => ({ partId: id }), [id]);
   return (
-    <Part position={[-0.54, 0.04, 0]} floor={floor + 0.08}>
+    <Part position={[-0.54, 0.04, 0]} floor={floor + 0.08} pick={pick}>
       {large ? (
         <>
           <Box s={[0.5, 0.05, 0.4]} p={[0, 0.025, 0]} m={m.servo} />
