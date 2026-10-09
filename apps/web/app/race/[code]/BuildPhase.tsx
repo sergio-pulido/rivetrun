@@ -72,7 +72,7 @@ export function BuildPhase({ mission, build, ready, secondsLeft, onChange }: Bui
     list.includes(id) ? list.filter((item) => item !== id) : list.length < max ? [...list, id] : [...list];
 
   return (
-    <main className="mx-auto flex min-h-dvh max-w-md flex-col gap-3 px-3 py-3">
+    <main className="mx-auto flex min-h-dvh max-w-md flex-col gap-3 px-3 pb-32 pt-3">
       <header className="flex items-end justify-between gap-3">
         <div className="min-w-0">
           <p className="rr-label text-blueprint">Build phase · {mission.name}</p>
@@ -183,15 +183,6 @@ export function BuildPhase({ mission, build, ready, secondsLeft, onChange }: Bui
         </div>
       </section>
 
-      <div className="flex items-center justify-between font-mono text-xs">
-        <span className={over ? 'font-bold text-bad' : 'text-slate-200'}>
-          €{cost} of €{budget}
-          {over ? ' · over budget' : ''}
-        </span>
-        <span className="text-dim">
-          top {stats.topSpeedMps.toFixed(1)} m/s · climbs {Math.round(stats.maxClimbDeg)}° · {mass.toFixed(1)} kg
-        </span>
-      </div>
       {warnings.length > 0 ? (
         <ul className="rounded-lg border border-warn/50 bg-warn/10 px-3 py-2 text-[13px] text-amber-100">
           {warnings.slice(0, 3).map((line) => (
@@ -200,16 +191,29 @@ export function BuildPhase({ mission, build, ready, secondsLeft, onChange }: Bui
         </ul>
       ) : null}
 
-      <button
-        type="button"
-        disabled={over}
-        aria-pressed={ready}
-        onClick={() => onChange(build, !ready)}
-        className={`rr-btn mt-auto text-lg ${ready ? 'rr-btn-secondary' : 'rr-btn-primary'}`}
-      >
-        {over ? 'Over budget: remove a part' : ready ? 'Ready ✓ · tap to keep building' : 'Ready'}
-      </button>
-      <p className="text-center font-mono text-[11px] text-dim">The race starts when everyone is ready or the timer runs out.</p>
+      {/* Pinned to the viewport: with a 45 s timer running, the cost and READY must never be below the fold. */}
+      <div className="fixed inset-x-0 bottom-0 z-10 border-t border-slate-line bg-slate-ink/95 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2 backdrop-blur">
+        <div className="mx-auto flex max-w-md flex-col gap-2">
+          <div className="flex items-center justify-between font-mono text-xs">
+            <span className={over ? 'font-bold text-bad' : 'text-slate-200'}>
+              €{cost} of €{budget}
+              {over ? ' · over budget' : ''}
+            </span>
+            <span className="text-dim">
+              top {stats.topSpeedMps.toFixed(1)} m/s · climbs {Math.round(stats.maxClimbDeg)}° · {mass.toFixed(2)} kg
+            </span>
+          </div>
+          <button
+            type="button"
+            disabled={over}
+            aria-pressed={ready}
+            onClick={() => onChange(build, !ready)}
+            className={`rr-btn text-lg ${ready ? 'rr-btn-secondary' : 'rr-btn-primary'}`}
+          >
+            {over ? 'Over budget: remove a part' : ready ? 'Ready ✓ · tap to keep building' : 'Ready'}
+          </button>
+        </div>
+      </div>
     </main>
   );
 }
