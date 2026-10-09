@@ -64,7 +64,11 @@ export function brainGets(part: Part): BrainGets {
   if (part.slot === 'locomotion') {
     return {
       heading: 'What your brain works with', note: LOOKAHEAD_NOTE,
-      rows: [{ side: 'tips over past', field: 'slope', value: `${effects.maxSlopeDeg}°` }, { side: 'sinks in', field: 'sinkage', value: `×${effects.sinkageFactor}` }],
+      rows: [
+        { side: 'tips over past', field: 'slope', value: `${effects.maxSlopeDeg}°` },
+        { side: 'sinks in', field: 'sinkage', value: `×${effects.sinkageFactor}` },
+        ...(effects.maxWadingDepthCm === undefined ? [] : [{ side: 'wades through', field: 'water', value: `${effects.maxWadingDepthCm} cm` }]),
+      ],
     };
   }
   if (part.slot === 'motor') {

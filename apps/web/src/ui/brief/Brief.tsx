@@ -6,7 +6,8 @@ import type { Mission, MissionId } from '@rivetrun/contracts';
 import { MISSIONS, TUNING } from '@rivetrun/sim';
 import { TERRAIN_LOOK } from '@/game/palette';
 import { useBuildStore } from '@/state/build';
-import { BUDGET_EUR, buildName, buildStats, missionWarnings } from '@/ui/buildStats';
+import { useWorkshopUi } from '@/state/workshop';
+import { BUDGET_EUR, buildName, buildStats, deepWaterIssue, missionWarnings } from '@/ui/buildStats';
 import { Icon } from '@/ui/Icon';
 import { Shell } from '@/ui/Shell';
 import { TrackProfile } from '@/ui/TrackProfile';
@@ -20,6 +21,7 @@ function conditionChips(mission: Mission): readonly string[] {
   const segments = mission.track.segments;
   const steepest = [...segments].sort((a, b) => b.slopeDeg - a.slopeDeg)[0];
   const deepest = [...segments].sort((a, b) => (b.depthCm ?? 0) - (a.depthCm ?? 0))[0];
+  const current = Math.max(0, ...segments.map((segment) => segment.currentMps ?? 0));
   const obstacles = [...new Set(segments.flatMap((segment) => (segment.obstacle ? [segment.obstacle] : [])))];
   return [
     mission.weather === 'rain' ? `Rain · grip ×${rain.frictionFactor}` : null,
@@ -28,6 +30,7 @@ function conditionChips(mission: Mission): readonly string[] {
     steepest && steepest.slopeDeg >= 5 ? `${steepest.slopeDeg}° ${TERRAIN_LOOK[steepest.terrain].label} climb` : null,
     obstacles.length > 0 ? obstacles.join(' + ') : null,
     deepest?.depthCm ? `${TERRAIN_LOOK[deepest.terrain].label} ${deepest.depthCm} cm deep` : null,
+    current > 0 ? `Current ${current} m/s` : null,
     mission.fixedSeed === undefined ? null : 'Same seed for everyone',
   ].flatMap((chip) => (chip ? [chip] : []));
 }
@@ -38,6 +41,8 @@ export function Brief({ missionId }: { readonly missionId: MissionId }) {
   const setMission = useBuildStore((store) => store.setMission);
   const stats = buildStats(build);
   const warnings = missionWarnings(mission, build);
+  const deepWater = deepWaterIssue(mission, build);
+  const setSlot = useWorkshopUi((store) => store.setSlot);
   const overBudget = stats.overBudgetEur > 0;
 
   useEffect(() => setMission(missionId), [missionId, setMission]);
@@ -93,6 +98,16 @@ export function Brief({ missionId }: { readonly missionId: MissionId }) {
             CHANGE
           </Link>
         </div>
+        {deepWater ? (
+          <p className="flex items-start gap-2 text-xs leading-snug text-warn">
+            <Icon name="warn" size={14} className="mt-px shrink-0" />
+            <span className="min-w-0 flex-1">{deepWater}</span>
+            {/* One tap: straight to the Extras shelf, where both parts are. */}
+            <Link href="/workshop" onClick={() => setSlot('extra')} className="shrink-0 font-mono text-[11px] font-medium tracking-[1px] text-orange-soft underline underline-offset-2">
+              FIX IN WORKSHOP
+            </Link>
+          </p>
+        ) : null}
         {warnings.map((warning) => (
           <p key={warning} className="flex items-start gap-2 text-xs leading-snug text-warn">
             <Icon name="warn" size={14} className="mt-px shrink-0" />

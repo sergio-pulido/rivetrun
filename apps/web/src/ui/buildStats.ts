@@ -82,18 +82,37 @@ export const matchPreset = (build: Build): Preset | null =>
 
 export const buildName = (build: Build): string => matchPreset(build)?.name ?? 'Custom build';
 
+const deepestWaterCm = (mission: Mission): number =>
+  Math.max(0, ...mission.track.segments.filter((segment) => segment.terrain === 'water').map((segment) => segment.depthCm ?? 0));
+
+const partName = (id: string): string => PARTS_BY_ID.get(id)?.name ?? id;
+
+/**
+ * The blocking issue on a deep-water mission: the track is deeper than this drive can wade and the robot cannot swim.
+ * Swimming takes the thruster kit and the waterproof case together. Null when the build can cross, or the water is shallow.
+ */
+export function deepWaterIssue(mission: Mission, build: Build): string | null {
+  const spec = deriveSpec(build);
+  if (deepestWaterCm(mission) <= spec.maxWadingDepthCm || spec.maxSwimDepthCm > 0) return null;
+  return `This build can't cross deep water — needs ${partName('thruster_kit')} + ${partName('waterproof_case')}`;
+}
+
 /** Facts about this build on this track: what will hurt and what the AI cannot perceive. */
 export function missionWarnings(mission: Mission, build: Build): readonly string[] {
   const spec = deriveSpec(build);
   const segments = mission.track.segments;
   const has = (kind: SensorKind): boolean => spec.sensorRangeM[kind] !== undefined;
   const steepest = Math.max(...segments.map((segment) => Math.abs(segment.slopeDeg)));
+  const deep = deepWaterIssue(mission, build);
+  const deepest = deepestWaterCm(mission);
   return [
-    segments.some((segment) => segment.terrain === 'water') && !spec.waterproof ? 'Water crossing and no waterproof case' : null,
+    // Sealed and fitted with thrusters, but the water is deeper than they reach.
+    deep === null && deepest > Math.max(spec.maxWadingDepthCm, spec.maxSwimDepthCm) ? `${deepest} cm of water: the thrusters reach ${spec.maxSwimDepthCm} cm` : null,
+    deep === null && segments.some((segment) => segment.terrain === 'water') && !spec.waterproof ? 'Water crossing and no waterproof case' : null,
     steepest > spec.maxSlopeDeg ? `${steepest}° slope: ${spec.locomotionName.toLowerCase()} tip over past ${spec.maxSlopeDeg}°` : null,
     segments.some((segment) => segment.obstacle) && !has('ultrasonic') ? 'Obstacles on track: no ultrasonic, the AI cannot see them' : null,
     segments.some((segment) => segment.terrain === 'ice' || segment.terrain === 'mud') && !has('imu') ? 'Slippery ground: no IMU, the AI cannot feel slip' : null,
-    !has('camera') ? 'No camera: the AI learns each terrain only on entry' : null,
+    !has('camera') && !has('scout_drone') ? 'No camera or scout drone: the AI learns each terrain only on entry' : null,
   ].flatMap((line) => (line ? [line] : []));
 }
 
