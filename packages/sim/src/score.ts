@@ -36,6 +36,8 @@ export function why(state: RunState): string {
     return `Stopped at a ${Math.round((gapAhead.endM - gapAhead.startM) * 100)} cm gap${spec.jumpImpulseMps > 0 ? ' and never took the jump' : ' — no ramp, no piston to jump it'}`;
   }
   const slope = state.world.segments[state.segmentIndex]!.slopeDeg;
+  // A player can see the hill; the missing IMU only explains it when a Brain was driving.
+  if (state.dnfReason === 'stuck' && slope >= 5 && state.config.manual) return `Stuck on a ${slope}° ${terrain} slope — it needs climb mode, a winch or more grip`;
   if (state.dnfReason === 'stuck' && slope >= 5 && !has('imu')) return `Stuck on a ${slope}° ${terrain} slope — no IMU to feel the tilt`;
   const here = state.world.segments[state.segmentIndex]!;
   if (state.dnfReason === 'stuck' && here.terrain === 'water' && here.depthCm > spec.maxWadingDepthCm) {
@@ -69,7 +71,8 @@ export function why(state: RunState): string {
 export function score(state: RunState): Outcome {
   const { sim, spec } = state;
   const tuning = TUNING.score;
-  const progressFraction = state.finished ? 1 : Math.min(1, Math.max(0, sim.x / state.world.lengthM));
+  // Furthest point reached: a fall puts the robot back, but the track it covered still counts.
+  const progressFraction = state.finished ? 1 : Math.min(1, Math.max(0, Math.max(sim.x, state.bestX) / state.world.lengthM));
   const damagePct = round1(Math.min(100, sim.damage));
   const energyUsedPct = round1(Math.min(100, Math.max(0, 100 - sim.battery)));
   const points = state.finished
