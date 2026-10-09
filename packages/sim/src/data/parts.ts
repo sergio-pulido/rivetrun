@@ -1,0 +1,101 @@
+import type { Part, PartId, Preset, PresetId } from '@rivetrun/contracts';
+
+// v0 values. Tuned later by scripts/balance.ts.
+// The spec lists 14 parts (3 locomotion, 2 motors, 2 batteries, 4 sensors, 3 extras).
+export const PARTS: readonly Part[] = [
+  // Locomotion (exactly 1)
+  {
+    id: 'wheels', name: 'Wheels', slot: 'locomotion', blurb: 'Light and fast on hard ground.',
+    massKg: 0.4, costEur: 20, powerW: 0, unlockPoints: 0,
+    effects: { grip: { asphalt: 1.1, ice: 0.6, mud: 0.7, sand: 0.8 }, sinkageFactor: 1.2, maxSlopeDeg: 18 },
+  },
+  {
+    id: 'offroad_wheels', name: 'Off-road wheels', slot: 'locomotion', blurb: 'Knobbly tyres: grip on loose ground.',
+    massKg: 0.7, costEur: 45, powerW: 0, unlockPoints: 0,
+    effects: { grip: { grass: 1.2, sand: 1.2, mud: 1.1, rock: 1.2, ice: 0.8 }, sinkageFactor: 0.9, maxSlopeDeg: 24 },
+  },
+  {
+    id: 'tracks', name: 'Tracks', slot: 'locomotion', blurb: 'Slow, heavy, almost never slips or sinks.',
+    massKg: 1.3, costEur: 80, powerW: 2, unlockPoints: 0,
+    effects: { grip: { asphalt: 0.9, sand: 1.4, mud: 1.6, ice: 1.8, water: 1.2, rock: 1.1 }, sinkageFactor: 0.4, maxSlopeDeg: 32 },
+  },
+  // Motor (exactly 1)
+  {
+    id: 'motor_light', name: 'Light motor', slot: 'motor', blurb: 'Fast, low torque.',
+    massKg: 0.3, costEur: 25, powerW: 18, unlockPoints: 0,
+    effects: { topSpeedMps: 3, torqueNm: 0.8 },
+  },
+  {
+    id: 'motor_torque', name: 'High-torque motor', slot: 'motor', blurb: 'Slower, strong, thirsty.',
+    massKg: 0.6, costEur: 50, powerW: 30, unlockPoints: 0,
+    effects: { topSpeedMps: 2, torqueNm: 2 },
+  },
+  // Battery (exactly 1)
+  {
+    id: 'battery_small', name: 'Small battery', slot: 'battery', blurb: 'Light. Runs out sooner.',
+    massKg: 0.3, costEur: 20, powerW: 0, unlockPoints: 0,
+    effects: { capacityWh: 0.5 },
+  },
+  {
+    id: 'battery_large', name: 'Large battery', slot: 'battery', blurb: 'Heavy. Goes the distance.',
+    massKg: 0.9, costEur: 45, powerW: 0, unlockPoints: 0,
+    effects: { capacityWh: 1.2 },
+  },
+  // Sensors (0–2)
+  {
+    id: 'ultrasonic', name: 'Ultrasonic', slot: 'sensor', blurb: 'Sees obstacles up to 3 m ahead.',
+    massKg: 0.05, costEur: 10, powerW: 0.5, unlockPoints: 0,
+    effects: { sensor: 'ultrasonic', rangeM: 3 },
+  },
+  {
+    id: 'imu', name: 'IMU', slot: 'sensor', blurb: 'Feels slip and tilt.',
+    massKg: 0.02, costEur: 15, powerW: 0.2, unlockPoints: 0,
+    effects: { sensor: 'imu' },
+  },
+  {
+    id: 'camera', name: 'Camera', slot: 'sensor', blurb: 'Reads the next terrain up to 6 m ahead.',
+    massKg: 0.1, costEur: 35, powerW: 2, unlockPoints: 0,
+    effects: { sensor: 'camera', rangeM: 6 },
+  },
+  {
+    id: 'moisture_probe', name: 'Moisture probe', slot: 'sensor', blurb: 'Measures water and mud depth ahead.',
+    massKg: 0.05, costEur: 15, powerW: 0.3, unlockPoints: 150,
+    effects: { sensor: 'moisture', rangeM: 3 },
+  },
+  // Extras (0–2)
+  {
+    id: 'winch', name: 'Winch', slot: 'extra', blurb: 'Hauls the robot over slopes and obstacles.',
+    massKg: 0.5, costEur: 40, powerW: 12, unlockPoints: 300,
+    effects: { extra: 'winch' },
+  },
+  {
+    id: 'waterproof_case', name: 'Waterproof case', slot: 'extra', blurb: 'No water damage. Adds mass.',
+    massKg: 0.4, costEur: 30, powerW: 0, unlockPoints: 0,
+    effects: { extra: 'waterproof_case', waterproof: true },
+  },
+  {
+    id: 'bumper', name: 'Bumper', slot: 'extra', blurb: 'Halves impact damage. Adds mass.',
+    massKg: 0.3, costEur: 20, powerW: 0, unlockPoints: 0,
+    effects: { extra: 'bumper', impactDamageFactor: 0.5 },
+  },
+];
+
+export const PARTS_BY_ID: ReadonlyMap<PartId, Part> = new Map(PARTS.map((part) => [part.id, part]));
+
+/** One-tap builds. They use only parts that are unlocked from the start. */
+export const PRESETS: Readonly<Record<PresetId, Preset>> = {
+  speedster: {
+    id: 'speedster', name: 'Speedster', blurb: 'Light and quick. Hates mud and water.',
+    build: { locomotion: 'wheels', motor: 'motor_light', battery: 'battery_small', sensors: ['camera', 'ultrasonic'], extras: [] },
+  },
+  mud_crawler: {
+    id: 'mud_crawler', name: 'Mud Crawler', blurb: 'Tracks, torque and a sealed case.',
+    build: { locomotion: 'tracks', motor: 'motor_torque', battery: 'battery_large', sensors: ['imu'], extras: ['waterproof_case'] },
+  },
+  all_rounder: {
+    id: 'all_rounder', name: 'All-rounder', blurb: 'Sees ahead, takes a knock. The default.',
+    build: { locomotion: 'offroad_wheels', motor: 'motor_torque', battery: 'battery_large', sensors: ['camera', 'ultrasonic'], extras: ['bumper'] },
+  },
+};
+
+export const DEFAULT_PRESET_ID: PresetId = 'all_rounder';
