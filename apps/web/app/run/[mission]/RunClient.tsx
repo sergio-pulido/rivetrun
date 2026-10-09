@@ -3,6 +3,7 @@
 import type { MissionId } from '@rivetrun/contracts';
 import { MISSIONS } from '@rivetrun/sim';
 import { RunCanvas } from '@/game';
+import { useBuildStore } from '@/state/build';
 import { useRunStore } from '@/state/run';
 import { useRun } from './useRun';
 
@@ -10,7 +11,9 @@ export function RunClient({ missionId }: { readonly missionId: MissionId }) {
   const mission = MISSIONS[missionId];
   const build = useRunStore((store) => store.build);
   const priority = useRunStore((store) => store.priority);
-  const { feed, ghosts, error } = useRun(mission, build, priority);
+  // Optional until the build store ships the field.
+  const briefing = useBuildStore((store) => (store as { briefing?: string }).briefing);
+  const { feed, ghosts, error } = useRun(mission, build, priority, briefing);
 
   return (
     <main className="relative h-dvh w-full overflow-hidden bg-slate-ink">

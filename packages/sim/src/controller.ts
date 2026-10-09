@@ -12,6 +12,7 @@ import type {
   RunEvent,
   SimState,
 } from '@rivetrun/contracts';
+import { BRIEFING_MAX_CHARS } from '@rivetrun/contracts';
 import { heuristicDecide } from './brains';
 import { TUNING } from './data';
 import { buildQuestion, detectDecisionPoint } from './perception';
@@ -117,6 +118,7 @@ function newEpisodeId(state: RunState): string {
 export function runController(config: RunConfig, brain: Brain, options: RunControllerOptions): RunController {
   const emit = (event: RunEvent): void => options.onEvent(event);
   const timeScale = options.timeScale ?? 1;
+  const briefing = options.briefing?.trim().slice(0, BRIEFING_MAX_CHARS) || undefined;
   let stopped = false;
   let pending = false;
   let timer: number | undefined;
@@ -139,7 +141,7 @@ export function runController(config: RunConfig, brain: Brain, options: RunContr
 
       const ask = (trigger: DecisionTrigger): void => {
         pending = true;
-        const question = buildQuestion(state, trigger);
+        const question = buildQuestion(state, trigger, briefing);
         state = markDecision(state);
         emit({ type: 'decisionPending', t: question.t, question });
         void decideSafe(brain, question).then((decision) => {

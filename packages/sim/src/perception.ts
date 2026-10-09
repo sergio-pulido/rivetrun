@@ -149,7 +149,7 @@ export function availableActions(build: Build): Action[] {
 }
 
 /** The question any Brain answers at a decision point. Perceived data only. */
-export function buildQuestion(state: RunState, trigger: DecisionTrigger): BrainQuestion {
+export function buildQuestion(state: RunState, trigger: DecisionTrigger, briefing?: string): BrainQuestion {
   const options = availableActions(state.config.build);
   return {
     missionId: state.config.mission.id,
@@ -164,5 +164,6 @@ export function buildQuestion(state: RunState, trigger: DecisionTrigger): BrainQ
     priority: state.config.priority,
     options,
     lookahead: lookahead(state, options),
+    ...(briefing ? { briefing } : {}),
   };
 }

@@ -24,7 +24,7 @@ const newSeed = (): number => Math.floor(Math.random() * 0xffffffff) >>> 0;
  * Drives one run: ghosts from runHeadless (heuristic + random), the player's run from
  * runController with the client brain (Jev, heuristic fallback), then Result.
  */
-export function useRun(mission: Mission, build: Build, priority: number): RunSession {
+export function useRun(mission: Mission, build: Build, priority: number, briefing?: string): RunSession {
   const router = useRouter();
   const feed = useMemo(() => createRunFeed(), []);
   const [ghosts, setGhosts] = useState<readonly GhostTrace[]>([]);
@@ -52,6 +52,7 @@ export function useRun(mission: Mission, build: Build, priority: number): RunSes
       const controller = runController({ mission, seed: runSeed, build, priority }, createClientBrain(), {
         onEvent: feed.push,
         policy: 'jev',
+        briefing,
       });
       stop = controller.stop;
       const episode = await controller.start();
@@ -73,7 +74,7 @@ export function useRun(mission: Mission, build: Build, priority: number): RunSes
       stop?.();
       if (timer !== undefined) clearTimeout(timer);
     };
-  }, [mission, build, priority, feed, router]);
+  }, [mission, build, priority, briefing, feed, router]);
 
   return { feed, ghosts, seed, error };
 }

@@ -88,6 +88,8 @@ export interface RunControllerOptions {
   readonly onEvent: (event: RunEvent) => void;
   /** Episode policy label. Default: 'jev' if any decision came from Jev or a fallback, else the first decision's policy. */
   readonly policy?: Policy;
+  /** The player's instructions to the Brain; put on every BrainQuestion. Only Jev reads it. */
+  readonly briefing?: string;
   /** Sim seconds per real second when no decision is pending. Default 1. */
   readonly timeScale?: number;
 }
