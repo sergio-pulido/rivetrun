@@ -5,7 +5,9 @@ Marker: RR-GAMEPLAY-V2
 Problem: the player mostly watches. Decision: the player drives, builds with real trade-offs, and the track gets height (ramps, gaps, airtime). The track stays a rail (1D along x) with a height profile. No free 2D/3D steering.
 
 ## 1. Drive mode (you vs Jev)
-- New default for Play: the player drives. A Jev ghost runs the same build, seed and track live in the background (runController + clientBrain, its own slow-mo disabled); if Jev is slow it falls back to the heuristic, labelled.
+- New default for Play: the player drives against a Jev ghost with the same build, seed and track.
+- The Jev ghost is a precomputed GhostTrace, not a second live controller (updated 22:55): `GET /api/ghost` runs runHeadless on the server with the Jev brain, cached by mission + build hash + seed + briefing, with concurrent requests for one key sharing one computation. Brief prefetches it; if it is not ready at Deploy, the run uses the heuristic ghost labelled HEURISTIC. This keeps one live controller per phone and protects the Jev quota with 70 phones.
+- Drive mode uses one fixed seed per mission, so everyone races the same Jev ghost and times are comparable.
 - Jev mode stays: Jev drives, you brief it, heuristic and random ghosts (current game).
 - Policy gains `'human'`.
 - Controls, one thumb, portrait:
