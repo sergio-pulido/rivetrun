@@ -20,6 +20,8 @@ const ProgressSchema = z.object({
   best: z.partialRecord(MissionIdSchema, BestSchema),
   /** Episode ids already paid out, so a reload of Result never pays twice. */
   awarded: z.array(z.string()),
+  /** Play modes whose first-run coach marks have been shown. Older saves have none. */
+  coachSeen: z.array(z.string()).default([]),
 });
 type Progress = z.infer<typeof ProgressSchema>;
 
@@ -29,10 +31,14 @@ interface ProgressStore extends Progress {
   /** Spends points on a locked part. False when the player cannot afford it. */
   readonly unlock: (partId: PartId) => boolean;
   readonly setNickname: (nickname: string) => void;
+  /** Records that the coach marks for a play mode were shown, so they never show again. */
+  readonly markCoachSeen: (mode: string) => void;
+  /** False until the saved progress has been read: nothing first-run-only should show before that. */
+  readonly hydrated: boolean;
   readonly hydrate: () => void;
 }
 
-const INITIAL: Progress = { points: 0, unlocked: [], nickname: '', runs: 0, best: {}, awarded: [] };
+const INITIAL: Progress = { points: 0, unlocked: [], nickname: '', runs: 0, best: {}, awarded: [], coachSeen: [] };
 
 const snapshot = (state: Progress): Progress => ({
   points: state.points,
@@ -41,6 +47,7 @@ const snapshot = (state: Progress): Progress => ({
   runs: state.runs,
   best: state.best,
   awarded: state.awarded,
+  coachSeen: state.coachSeen,
 });
 
 /** Parts that cost points to use. */
@@ -56,6 +63,7 @@ export const useProgressStore = create<ProgressStore>((set, get) => {
   };
   return {
     ...INITIAL,
+    hydrated: false,
     award: (episode) => {
       const state = get();
       if (state.awarded.includes(episode.id)) return 0;
@@ -82,9 +90,12 @@ export const useProgressStore = create<ProgressStore>((set, get) => {
       return true;
     },
     setNickname: (nickname) => commit({ nickname: nickname.slice(0, 16) }),
+    markCoachSeen: (mode) => {
+      if (!get().coachSeen.includes(mode)) commit({ coachSeen: [...get().coachSeen, mode] });
+    },
     hydrate: () => {
       const parsed = ProgressSchema.safeParse(readJson(STORAGE_KEY));
-      if (parsed.success) set(parsed.data);
+      set(parsed.success ? { ...parsed.data, hydrated: true } : { hydrated: true });
     },
   };
 });

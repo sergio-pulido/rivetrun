@@ -73,8 +73,16 @@ export function buildStats(build: Build): BuildStats {
 const sameSet = (a: readonly string[], b: readonly string[]): boolean =>
   a.length === b.length && a.every((id) => b.includes(id));
 
+/** Same parts and the same v2 tuning. Tuning left at stock (absent) only equals stock. */
 export const sameBuild = (a: Build, b: Build): boolean =>
-  a.locomotion === b.locomotion && a.motor === b.motor && a.battery === b.battery && sameSet(a.sensors, b.sensors) && sameSet(a.extras, b.extras);
+  a.locomotion === b.locomotion &&
+  a.motor === b.motor &&
+  a.battery === b.battery &&
+  a.batteryCells === b.batteryCells &&
+  a.wheelSizeMm === b.wheelSizeMm &&
+  a.gearStep === b.gearStep &&
+  sameSet(a.sensors, b.sensors) &&
+  sameSet(a.extras, b.extras);
 
 /** The preset this build is, or null for a custom build. */
 export const matchPreset = (build: Build): Preset | null =>

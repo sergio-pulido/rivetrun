@@ -12,7 +12,9 @@ import { Icon } from '@/ui/Icon';
 import { Shell } from '@/ui/Shell';
 import { Bench3D } from '@/ui/three/Bench3D';
 import { PartCard } from './PartCard';
+import { Predicted } from './Predicted';
 import { SLOTS, fitted, partsIn, withPart } from './slots';
+import { Tuning } from './Tuning';
 
 const PRESET_LIST = Object.values(PRESETS);
 const BAR_COLOR = { speed: 'var(--color-orange)', grip: 'var(--color-pcb)', endurance: '#E3B341', perception: 'var(--color-cyan)' } as const;
@@ -124,6 +126,8 @@ export function Workshop({ models }: WorkshopProps) {
         })}
       </div>
 
+      <Predicted build={build} />
+
       <div className="sticky top-0 z-10 -mx-4 flex gap-1.5 border-b border-[#222831] bg-ground px-4" role="tablist" aria-label="Part slots">
         {SLOTS.map((info) => {
           const on = info.slot === slot;
@@ -155,6 +159,8 @@ export function Workshop({ models }: WorkshopProps) {
           {line}
         </p>
       ))}
+
+      <Tuning slot={slot} build={build} onChange={setBuild} />
 
       {partsIn(slot).some((part) => !isUnlocked(unlocked, part.id)) ? (
         <p className="flex items-center justify-between font-mono text-[10px] font-medium tracking-[1px] text-muted">

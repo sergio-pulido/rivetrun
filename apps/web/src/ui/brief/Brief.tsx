@@ -8,10 +8,13 @@ import { TERRAIN_LOOK } from '@/game/palette';
 import { useBuildStore } from '@/state/build';
 import { useWorkshopUi } from '@/state/workshop';
 import { BUDGET_EUR, buildName, buildStats, deepWaterIssue, missionWarnings, presetThatCrosses } from '@/ui/buildStats';
+import { PlayLink } from '@/ui/coach/PlayLink';
 import { Icon } from '@/ui/Icon';
+import { MODE_NOTE, ModeSwitch } from '@/ui/ModeSwitch';
 import { Shell } from '@/ui/Shell';
 import { TrackProfile } from '@/ui/TrackProfile';
 import { BriefTheBrain } from './BriefTheBrain';
+import { DriveCard } from './DriveCard';
 import { PrioritySlider } from './PrioritySlider';
 
 const { rain, cold } = TUNING.weather;
@@ -40,6 +43,7 @@ export function Brief({ missionId }: { readonly missionId: MissionId }) {
   const build = useBuildStore((store) => store.build);
   const setMission = useBuildStore((store) => store.setMission);
   const setBuild = useBuildStore((store) => store.setBuild);
+  const mode = useBuildStore((store) => store.mode);
   const stats = buildStats(build);
   const warnings = missionWarnings(mission, build);
   const deepWater = deepWaterIssue(mission, build);
@@ -89,7 +93,15 @@ export function Brief({ missionId }: { readonly missionId: MissionId }) {
         </p>
       ))}
       <p className="text-xs text-[#B8C0C9]">
-        Same seed, two ghosts: <span className="font-mono text-text">HEURISTIC</span> and <span className="font-mono text-text">RANDOM</span>.
+        {mode === 'drive' ? (
+          <>
+            Same seed, one ghost: <span className="font-mono text-text">JEV</span>.
+          </>
+        ) : (
+          <>
+            Same seed, two ghosts: <span className="font-mono text-text">HEURISTIC</span> and <span className="font-mono text-text">RANDOM</span>.
+          </>
+        )}
       </p>
     </section>
   );
@@ -105,10 +117,10 @@ export function Brief({ missionId }: { readonly missionId: MissionId }) {
             Over budget by €{stats.overBudgetEur} · fix in Workshop
           </Link>
         ) : (
-          <Link href={`/run/${mission.id}`} className="rr-btn rr-btn-primary w-full !min-h-[60px] !rounded-2xl !text-xl !tracking-[2px]">
-            Deploy
+          <PlayLink href={`/run/${mission.id}`} className="rr-btn rr-btn-primary w-full !min-h-[60px] !rounded-2xl !text-xl !tracking-[2px]">
+            {mode === 'drive' ? 'Drive' : 'Deploy'}
             <Icon name="next" size={22} />
-          </Link>
+          </PlayLink>
         )
       }
     >
@@ -131,13 +143,25 @@ export function Brief({ missionId }: { readonly missionId: MissionId }) {
       {/* A build that cannot finish goes above the fold, next to its fix; otherwise the robot is a footnote. */}
       {deepWater ? robotCard : null}
 
-      <div className="rr-rise" style={{ ['--i' as string]: 2 }}>
-        <BriefTheBrain />
-      </div>
+      <section className="rr-rise flex flex-col gap-1.5" style={{ ['--i' as string]: 2 }}>
+        <ModeSwitch />
+        <p className="px-1 text-xs leading-snug text-muted">{MODE_NOTE[mode]}</p>
+      </section>
 
-      <div className="rr-rise" style={{ ['--i' as string]: 3 }}>
-        <PrioritySlider />
-      </div>
+      {mode === 'drive' ? (
+        <div className="rr-rise" style={{ ['--i' as string]: 3 }}>
+          <DriveCard />
+        </div>
+      ) : (
+        <>
+          <div className="rr-rise" style={{ ['--i' as string]: 3 }}>
+            <BriefTheBrain />
+          </div>
+          <div className="rr-rise" style={{ ['--i' as string]: 4 }}>
+            <PrioritySlider />
+          </div>
+        </>
+      )}
 
       {deepWater ? null : robotCard}
     </Shell>

@@ -63,3 +63,11 @@ describe('buildSenses', () => {
     expect(buildSenses(scout).find((sense) => sense.label.startsWith('terrain ahead'))).toEqual({ label: 'terrain ahead 15 m', on: true });
   });
 });
+
+describe('sameBuild with v2 tuning', () => {
+  it('stops matching a preset once a dial is moved off stock', async () => {
+    const { matchPreset } = await import('./buildStats');
+    expect(matchPreset(PRESETS.all_rounder.build)?.id).toBe('all_rounder');
+    expect(matchPreset({ ...PRESETS.all_rounder.build, gearStep: 5 })).toBeNull();
+  });
+});

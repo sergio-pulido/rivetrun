@@ -25,8 +25,9 @@ export function Bench() {
   return (
     <div className="relative h-[270px] shrink-0 overflow-hidden rounded-[18px] border border-[#262B33] bg-panel">
       <Bench3D build={build} spin={0.5} className="top-6" />
-      <span className="pointer-events-none absolute left-[18px] top-4 max-w-[45%] font-mono text-[11px] font-medium uppercase leading-snug tracking-[1.5px] text-muted">
-        Bench · {buildName(build)}
+      <span className="pointer-events-none absolute left-[18px] top-4 flex max-w-[40%] flex-col gap-1 font-mono text-[11px] font-medium uppercase leading-none tracking-[1.5px] text-muted">
+        <span>Bench</span>
+        <span className="truncate text-text-2">{buildName(build)}</span>
       </span>
       <div className="pointer-events-none absolute right-3.5 top-3.5 flex flex-col gap-0.5 rounded-[10px] border border-cyan bg-ground px-2.5 py-2" title="The brain's last decision in your last run">
         <span className="font-mono text-[10px] font-medium tracking-[1.5px] text-cyan">{last.head}</span>

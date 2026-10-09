@@ -20,7 +20,11 @@ export const SLOTS: readonly SlotInfo[] = [
   { slot: 'extra', label: 'Extras', icon: 'extra', rule: `Up to ${MAX_EXTRAS}`, max: MAX_EXTRAS },
 ];
 
-export const partsIn = (slot: Slot): readonly Part[] => PARTS.filter((part) => part.slot === slot);
+/** Parts the sim ships in its data before their behaviour exists carry `comingSoon`; the Workshop does not offer them. */
+export const isComingSoon = (part: Part): boolean => part.comingSoon === true;
+
+/** The parts the Workshop offers for a slot. */
+export const partsIn = (slot: Slot): readonly Part[] => PARTS.filter((part) => part.slot === slot && !isComingSoon(part));
 
 export function fitted(build: Build, slot: Slot): readonly PartId[] {
   if (slot === 'sensor') return build.sensors;

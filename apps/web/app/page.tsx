@@ -4,6 +4,7 @@ import { EpisodesLogged } from '@/ui/home/EpisodesLogged';
 import { MissionRail } from '@/ui/home/MissionRail';
 import { PlayNow } from '@/ui/home/PlayNow';
 import { Icon } from '@/ui/Icon';
+import { ModeSwitch } from '@/ui/ModeSwitch';
 
 const HEADLINE = 'font-display text-[40px] font-bold leading-[1.02]';
 const TILE = 'rr-btn rr-btn-secondary !min-h-14 !text-[15px]';
@@ -36,6 +37,7 @@ export default function HomePage() {
         </div>
 
         <nav className="rr-rise mt-auto flex flex-col gap-2.5" style={{ ['--i' as string]: 2 }}>
+          <ModeSwitch />
           <PlayNow />
           <div className="grid grid-cols-2 gap-2.5">
             <Link href="/workshop" className={TILE}>
