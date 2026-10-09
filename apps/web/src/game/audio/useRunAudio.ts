@@ -34,10 +34,13 @@ export function useRunAudio(feed: RunFeed, build: Build): void {
       if (state && !prev.state) play('go');
       if (view.decisionCount < prev.decisionCount) lastAction = null;
       if (view.decisionCount > prev.decisionCount && view.decision) {
+        // Only a change of mind is worth a sound: a chirp every 1.5 s wears thin.
         const picked = view.decision.decision.selected;
-        play('decision');
-        if (picked !== lastAction && picked === 'accelerate') play('accelerate');
-        if (picked !== lastAction && picked === 'brake') play('brake');
+        if (picked !== lastAction) {
+          play('decision');
+          if (picked === 'accelerate') play('accelerate');
+          if (picked === 'brake') play('brake');
+        }
         lastAction = picked;
       }
       if (view.lastDamage && view.lastDamage !== prev.lastDamage) play('crash');

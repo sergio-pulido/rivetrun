@@ -1,4 +1,5 @@
-// Copied verbatim from docs/inputs/sfx.ts (the audio input for the game session). Edit the input, then re-copy.
+// Copied from docs/inputs/sfx.ts (the audio input for the game session).
+// One local change: the "decision" chirp plays at half the input's volume (0.08 / 0.045).
 
 /**
  * RivetRun — Procedural Sound Effects
@@ -758,7 +759,7 @@ export function play(name: SoundName): void {
         frequency: 680,
         endFrequency: 940,
         duration: 0.065,
-        volume: 0.16,
+        volume: 0.08,
         type: "square",
       });
 
@@ -766,7 +767,7 @@ export function play(name: SoundName): void {
         frequency: 1040,
         endFrequency: 1180,
         duration: 0.045,
-        volume: 0.09,
+        volume: 0.045,
         delay: 0.055,
       });
 
