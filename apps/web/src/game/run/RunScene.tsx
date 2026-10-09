@@ -66,6 +66,7 @@ function Player({ feed, build, layout, pose, timeScale, particles }: PlayerProps
   const pitch = useRef(0);
   const budget = useRef<Partial<Record<SimEffect, number>>>({});
   const lastDamageAt = useRef(0);
+  const celebrated = useRef(false);
 
   useFrame((_, rawDt) => {
     // Unclamped (up to 0.5 s): easing must keep up with the sim even when frames are slow.
@@ -110,6 +111,9 @@ function Player({ feed, build, layout, pose, timeScale, particles }: PlayerProps
       p.shakeUntil = now + 380;
       particles.current?.emit('sparks', p.x + 0.7, p.y + 0.3, LANES.player, 26, 1);
     }
+    const won = view.done && !wrecked;
+    if (won && !celebrated.current) particles.current?.emit('confetti', p.x, p.y + 1.2, LANES.player, 90, 1);
+    celebrated.current = won;
     const hurt = view.lastDamage !== null && now - view.lastDamage.at < 650;
     const expression: Expression = wrecked
       ? 'dnf'

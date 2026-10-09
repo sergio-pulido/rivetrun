@@ -57,7 +57,8 @@ interface FaceProps {
 export function Face({ floor }: FaceProps) {
   const m = useMats();
   const context = useContext(RobotContext);
-  const led = useMemo(() => new MeshBasicMaterial({ color: UI.led, toneMapped: false }), []);
+  const lite = context?.lite ?? false;
+  const led = useMemo(() => new MeshBasicMaterial({ color: UI.led, toneMapped: false, transparent: lite, opacity: lite ? 0.55 : 1 }), [lite]);
   const head = useRef<Group>(null);
   const bars = useRef<Array<Mesh | null>>([]);
   const mouth = useRef<Mesh>(null);

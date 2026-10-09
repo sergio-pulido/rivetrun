@@ -210,7 +210,7 @@ function Tracks() {
     <>
       {SIDES.map((side, sideIndex) => (
         <Part key={side} position={[0, radius, side * halfTrack]} floor={radius}>
-          <mesh geometry={belt} material={m.rubber} castShadow />
+          <mesh geometry={belt} material={m.rubber} castShadow={!context?.lite} />
           <instancedMesh
             ref={(node) => {
               cleats.current[sideIndex] = node;

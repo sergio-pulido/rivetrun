@@ -1,6 +1,8 @@
 'use client';
 
+import { useContext } from 'react';
 import { BoxGeometry, CylinderGeometry, IcosahedronGeometry, SphereGeometry, TorusGeometry, type Material } from 'three';
+import { RobotContext } from './drive';
 
 export type V3 = readonly [number, number, number];
 
@@ -29,8 +31,15 @@ interface BoxProps {
   shadow?: boolean;
 }
 
+/** Ghost robots are translucent: they cast no shadows. */
+const useCastsShadow = (shadow: boolean): boolean => {
+  const lite = useContext(RobotContext)?.lite ?? false;
+  return shadow && !lite;
+};
+
 export function Box({ s, p, r, m, shadow = true }: BoxProps) {
-  return <mesh geometry={BOX} material={m} scale={s as [number, number, number]} position={p as [number, number, number] | undefined} rotation={r as [number, number, number] | undefined} castShadow={shadow} />;
+  const castShadow = useCastsShadow(shadow);
+  return <mesh geometry={BOX} material={m} scale={s as [number, number, number]} position={p as [number, number, number] | undefined} rotation={r as [number, number, number] | undefined} castShadow={castShadow} />;
 }
 
 const AXIS_ROTATION: Readonly<Record<'x' | 'y' | 'z', V3>> = {
@@ -51,6 +60,7 @@ interface CylProps {
 }
 
 export function Cyl({ rad, h, p, axis = 'y', m, seg = 12, shadow = true }: CylProps) {
+  const castShadow = useCastsShadow(shadow);
   return (
     <mesh
       geometry={cylinder(seg)}
@@ -58,7 +68,7 @@ export function Cyl({ rad, h, p, axis = 'y', m, seg = 12, shadow = true }: CylPr
       scale={[rad, h, rad]}
       position={p as [number, number, number] | undefined}
       rotation={AXIS_ROTATION[axis] as [number, number, number]}
-      castShadow={shadow}
+      castShadow={castShadow}
     />
   );
 }
