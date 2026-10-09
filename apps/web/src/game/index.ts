@@ -20,4 +20,7 @@ export { TopBar } from './hud/TopBar';
 export type { TopBarProps } from './hud/TopBar';
 export { RunHud } from './hud/RunHud';
 export { createFakeRun, fakeGhostTrace } from './fakeRun';
+// Procedural sound (Web Audio, no assets). The run view wires itself; other screens can fire one-shots.
+export { initAudio, isMuted, play as playSfx, setMuted, toggleMute } from './audio/sfx';
+export type { SoundName } from './audio/sfx';
 export { ACTION_LABEL, POLICY_LABEL, POLICY_TINT, TERRAIN_LOOK, UI } from './palette';

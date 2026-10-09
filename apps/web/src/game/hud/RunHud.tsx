@@ -1,6 +1,8 @@
 'use client';
 
+import { useState } from 'react';
 import type { GhostTrace, Mission } from '@rivetrun/contracts';
+import { isMuted, toggleMute } from '../audio/sfx';
 import { DNF_LABEL, UI } from '../palette';
 import { useRunView, type RunFeed } from '../runFeed';
 import { BrainHud } from './BrainHud';
@@ -11,6 +13,26 @@ export interface RunHudProps {
   mission: Mission;
   feed: RunFeed;
   ghosts?: readonly GhostTrace[];
+}
+
+/** Sound on / off. The choice persists (sfx.ts keeps it in localStorage). */
+function MuteButton() {
+  const [muted, setMuted] = useState(() => isMuted());
+  return (
+    <button
+      type="button"
+      onClick={() => setMuted(toggleMute())}
+      aria-label={muted ? 'Turn sound on' : 'Mute sound'}
+      aria-pressed={muted}
+      className={`${styles.topbar} pointer-events-auto absolute right-0 top-full mt-1.5 flex h-11 w-11 items-center justify-center`}
+      style={{ borderRadius: 22, color: muted ? UI.dim : UI.cyan }}
+    >
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+        <path d="M3 7.5h2.8L10 4v12l-4.2-3.5H3z" fill="currentColor" fillOpacity="0.25" />
+        {muted ? <path d="m13 7.5 4.5 5m0-5-4.5 5" /> : <path d="M13 7.2a4 4 0 0 1 0 5.6m2.3-7.9a7.2 7.2 0 0 1 0 10.2" />}
+      </svg>
+    </button>
+  );
 }
 
 /** DOM overlay for the run view: top bar, slow-mo pill + cyan frame, end stamp and the Brain sheet. */
@@ -24,7 +46,10 @@ export function RunHud({ mission, feed, ghosts = [] }: RunHudProps) {
       <div className={`${styles.frame} absolute inset-0`} style={{ opacity: thinking ? 1 : 0 }} />
 
       <div className="absolute inset-x-0 top-0 mx-auto max-w-[430px] px-3" style={{ paddingTop: 'max(14px, env(safe-area-inset-top))' }}>
-        <TopBar mission={mission} state={view.state} ghosts={ghosts} />
+        <div className="relative">
+          <TopBar mission={mission} state={view.state} ghosts={ghosts} />
+          <MuteButton />
+        </div>
         <div className="mt-2.5 flex justify-center">
           <span className={`${styles.pill} whitespace-nowrap px-3 py-1.5 font-mono text-[10px] leading-none`} style={{ opacity: thinking ? 1 : 0 }}>
             SLOW-MO · JEV IS DECIDING

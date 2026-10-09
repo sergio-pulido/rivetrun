@@ -4,6 +4,7 @@ import { Canvas } from '@react-three/fiber';
 import { useEffect, useMemo, useState } from 'react';
 import type { Build, GhostTrace, Mission } from '@rivetrun/contracts';
 import { DEFAULT_PRESET_ID, MISSIONS, PRESETS } from '@rivetrun/sim';
+import { useRunAudio } from './audio/useRunAudio';
 import { createFakeRun, fakeGhostTrace } from './fakeRun';
 import { RunHud } from './hud/RunHud';
 import { UI } from './palette';
@@ -68,6 +69,7 @@ export default function RunCanvas({ mission = MISSIONS.M5, build = PRESETS[DEFAU
   const activeFeed = feed ?? demo.feed;
   const activeGhosts = ghosts ?? demo.ghosts;
   const [lost, setLost] = useState(false);
+  useRunAudio(activeFeed, build);
   const tier = quality();
 
   return (
