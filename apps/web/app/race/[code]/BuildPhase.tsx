@@ -183,23 +183,14 @@ export function BuildPhase({ mission, build, ready, secondsLeft, onChange }: Bui
         </div>
       </section>
 
-      {/* The bar below already shows the first warning; this box only lists the rest. */}
-      {warnings.length > 1 ? (
-        <ul className="rounded-lg border border-warn/50 bg-warn/10 px-3 py-2 text-[13px] text-amber-100">
-          {warnings.slice(1, 4).map((line) => (
-            <li key={line}>{line}</li>
-          ))}
-        </ul>
-      ) : null}
-
       {/* Pinned to the viewport: with a 45 s timer running, the cost and READY must never be below the fold. */}
       <div className="fixed inset-x-0 bottom-0 z-10 border-t border-slate-line bg-slate-ink/95 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2 backdrop-blur">
         <div className="mx-auto flex max-w-md flex-col gap-2">
-          {/* The first warning rides in the bar: a player who never scrolls still sees it before READY. */}
+          {/* The only copy of the build warnings: the first one, always in view above READY. */}
           {warnings[0] ? (
             <p role="status" className="truncate rounded-md border border-warn/50 bg-warn/10 px-2 py-1 text-[12px] text-amber-100">
               ⚠ {warnings[0]}
-              {warnings.length > 1 ? ` · +${warnings.length - 1} more below` : ''}
+              {warnings.length > 1 ? ` · +${warnings.length - 1} more` : ''}
             </p>
           ) : null}
           <div className="flex items-center justify-between font-mono text-xs">
