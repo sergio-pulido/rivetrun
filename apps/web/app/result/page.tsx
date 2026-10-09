@@ -1,5 +1,5 @@
-import { Placeholder } from '@/ui/Placeholder';
+import { Result } from '@/ui/result/Result';
 
 export default function ResultPage() {
-  return <Placeholder title="Result" note="Placeholder: score breakdown, stars and the Brain Duel table land in the ui session." />;
+  return <Result />;
 }
