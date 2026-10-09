@@ -1,5 +1,5 @@
 // A Jev-driven run for Room Race: the big screen runs each JEV bot with the client brain (Jev through
-// /api/decide, heuristic fallback) and posts its state like a phone does.
+// /api/decide, heuristic fallback) in real time, and posts its state like a phone does.
 import type { Build, Mission } from '@rivetrun/contracts';
 import { runController } from '@rivetrun/sim';
 import { createClientBrain } from '@/brain/clientBrain';
@@ -40,6 +40,9 @@ export function startJevRun({ code, raceNo, seat, mission, seed, build, briefing
     onEvent: feed.push,
     policy: 'jev',
     briefing,
+    // Race rule: no slow motion while Jev thinks. The bot's sim keeps running in real time and each decision
+    // applies when it arrives, so Jev's latency is the bot's reaction time, like a human's.
+    slowMo: false,
   });
   const poster = setInterval(() => void reportState(code, seat, raceNo, snapshot()).catch(() => undefined), STATE_POST_MS);
 

@@ -1,8 +1,11 @@
 'use client';
 
-import type { ControlInput, ControlSpecial, GhostTrace } from '@rivetrun/contracts';
-import { availableActions, compileTrack, MISSIONS } from '@rivetrun/sim';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import type { GhostTrace } from '@rivetrun/contracts';
+import { compileTrack, MISSIONS } from '@rivetrun/sim';
+import { useEffect, useMemo } from 'react';
+import { DriveControls } from '@/game/drive/DriveControls';
+import { createDriveInput } from '@/game/drive/driveInput';
+import { useRunHaptics } from '@/game/drive/haptics';
 import RunCanvas from '@/game/RunCanvas';
 import { createRunFeed, useRunView } from '@/game/runFeed';
 import { startHumanRun } from '../_lib/humanRun';
@@ -11,7 +14,6 @@ import { Ranking } from '../_lib/Ranking';
 import type { RaceSeat } from '../_lib/report';
 
 const NO_GHOSTS: readonly GhostTrace[] = [];
-const IDLE: ControlInput = { throttle: false, brake: false };
 
 interface RaceRunProps {
   readonly snapshot: RaceSnapshot;
@@ -22,21 +24,21 @@ interface RaceRunProps {
   readonly clockOffsetMs: number;
 }
 
-/** Drives this phone's run: starts on the start signal, steps the sim from the touch controls, reports at 5 Hz. */
+/** Drives this phone's run: starts driveController on the start signal and reports at 5 Hz. */
 function useDrive(snapshot: RaceSnapshot, seat: RaceSeat, me: RacePlayer, clockOffsetMs: number) {
   const feed = useMemo(() => createRunFeed(), []);
-  const controls = useRef<ControlInput>(IDLE);
+  const drive = useMemo(() => createDriveInput(), []);
   const { code, raceNo, startAt, missionId, seed } = snapshot;
   const live = snapshot.status === 'countdown' || snapshot.status === 'racing';
   const build = me.build;
 
   useEffect(() => {
     if (!live || startAt === null) return undefined;
-    controls.current = IDLE;
+    drive.release();
     let stop: (() => void) | undefined;
     const timer = setTimeout(
       () => {
-        stop = startHumanRun({ code, raceNo, seat, mission: MISSIONS[missionId], seed, build, feed, controls });
+        stop = startHumanRun({ code, raceNo, seat, mission: MISSIONS[missionId], seed, build, feed, drive });
       },
       Math.max(0, startAt - (Date.now() + clockOffsetMs)),
     );
@@ -47,43 +49,18 @@ function useDrive(snapshot: RaceSnapshot, seat: RaceSeat, me: RacePlayer, clockO
     // The build is locked once the countdown starts and the clock offset is read once per race on purpose:
     // a change in either must not restart a run in progress.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [live, raceNo, startAt, code, missionId, seed, seat, feed]);
+  }, [live, raceNo, startAt, code, missionId, seed, seat, feed, drive]);
 
-  return { feed, controls };
+  return { feed, drive };
 }
-
-/** Keyboard for laptops: → or Space = go, ← = brake, ↑ = the action button. */
-function useKeyboard(controls: React.RefObject<ControlInput>, special: ControlSpecial | null, onSpecial: () => void): void {
-  useEffect(() => {
-    const set = (patch: Partial<ControlInput>): void => {
-      controls.current = { ...controls.current, ...patch };
-    };
-    const handle = (down: boolean) => (event: KeyboardEvent) => {
-      if (event.key === 'ArrowRight' || event.key === ' ' || event.key === 'd') set({ throttle: down });
-      else if (event.key === 'ArrowLeft' || event.key === 'a') set({ brake: down });
-      else if ((event.key === 'ArrowUp' || event.key === 'w') && down && !event.repeat && special) onSpecial();
-      else return;
-      event.preventDefault();
-    };
-    const [keydown, keyup] = [handle(true), handle(false)];
-    window.addEventListener('keydown', keydown);
-    window.addEventListener('keyup', keyup);
-    return () => {
-      window.removeEventListener('keydown', keydown);
-      window.removeEventListener('keyup', keyup);
-    };
-  }, [controls, special, onSpecial]);
-}
-
-const SPECIAL_LABEL: Readonly<Record<ControlSpecial, string>> = { jump: 'JUMP', winch: 'WINCH', climb: 'CLIMB' };
 
 /**
- * The heavy half of the phone's race page: this phone's sim loop, the touch controls and the 3D run view.
+ * The heavy half of the phone's race page: the run (sim driveController + the game's drive controls) and the 3D view.
  * Loaded on demand by RaceClient (next/dynamic), so three.js is never part of the join page.
  * Everything about the result (place, RACE TIME, DNF reason) is read from the server snapshot.
  */
 export default function RaceRun({ snapshot, seat, me, now, clockOffsetMs }: RaceRunProps) {
-  const { feed, controls } = useDrive(snapshot, seat, me, clockOffsetMs);
+  const { feed, drive } = useDrive(snapshot, seat, me, clockOffsetMs);
   const view = useRunView(feed);
   const mission = MISSIONS[snapshot.missionId];
   const trackLengthM = compileTrack(mission.track).lengthM;
@@ -94,41 +71,15 @@ export default function RaceRun({ snapshot, seat, me, now, clockOffsetMs }: Race
   const localDone = view.done;
   const official = me.done;
 
-  // Action buttons: one per special action this build can perform.
-  const specials = useMemo<readonly ControlSpecial[]>(() => {
-    const can = new Set(availableActions(me.build));
-    return [can.has('jump') ? 'jump' : null, can.has('deploy_winch') ? 'winch' : null, can.has('climb_mode') ? 'climb' : null].filter(
-      (special): special is ControlSpecial => special !== null,
-    );
-  }, [me.build]);
-  const [climbOn, setClimbOn] = useState(false);
-  const hold = (patch: Partial<ControlInput>) => () => {
-    controls.current = { ...controls.current, ...patch };
-  };
-  const press = (special: ControlSpecial): void => {
-    if (special === 'jump') controls.current = { ...controls.current, special: 'jump' };
-    if (special === 'winch') controls.current = { ...controls.current, special: 'winch' };
-    if (special === 'climb') {
-      const on = !climbOn;
-      setClimbOn(on);
-      controls.current = { ...controls.current, special: on ? 'climb' : undefined };
-    }
-  };
-  // Releasing the winch (or a finished jump) falls back to climb mode when it is switched on.
-  const release = (): void => {
-    controls.current = { ...controls.current, special: climbOn ? 'climb' : undefined };
-  };
-  const keySpecial = specials[0] ?? null;
-  useKeyboard(controls, keySpecial, () => keySpecial && press(keySpecial));
-
   const elapsedMs = snapshot.startAt === null ? 0 : Math.max(0, now - snapshot.startAt);
   const closesInS = snapshot.closesAt === null ? null : Math.max(0, Math.ceil((snapshot.closesAt - now) / 1000));
   const state = view.state;
   const driving = racing && !localDone && !official;
+  useRunHaptics(feed, driving);
 
   return (
     <main className="relative h-dvh w-full select-none overflow-hidden bg-slate-ink">
-      {racing || over ? <RunCanvas mission={mission} build={me.build} feed={feed} ghosts={NO_GHOSTS} hud={false} /> : null}
+      {racing || over ? <RunCanvas mission={mission} build={me.build} feed={feed} ghosts={NO_GHOSTS} hud={false} drive={drive} /> : null}
 
       {/* Race bar: the room's clock and this robot's place and gauges. */}
       {racing ? (
@@ -159,55 +110,10 @@ export default function RaceRun({ snapshot, seat, me, now, clockOffsetMs }: Race
         </div>
       ) : null}
 
-      {/* Touch controls: hold the right half to go, the left half to brake. */}
+      {/* The same touch controls as solo Drive mode (pedal halves, action button, keyboard). */}
       {driving ? (
-        <div className="absolute inset-0 z-10 flex" style={{ touchAction: 'none' }} onContextMenu={(event) => event.preventDefault()}>
-          <button
-            type="button"
-            aria-label="Brake (hold)"
-            className="flex h-full w-1/2 items-end justify-start p-4 pb-[max(1.5rem,env(safe-area-inset-bottom))] active:bg-white/5"
-            onPointerDown={hold({ brake: true })}
-            onPointerUp={hold({ brake: false })}
-            onPointerCancel={hold({ brake: false })}
-            onPointerLeave={hold({ brake: false })}
-          >
-            <span className="rounded-xl border border-slate-line bg-slate-ink/80 px-4 py-3 font-mono text-sm font-black text-slate-200">◀ BRAKE</span>
-          </button>
-          <button
-            type="button"
-            aria-label="Throttle (hold)"
-            className="flex h-full w-1/2 items-end justify-end p-4 pb-[max(1.5rem,env(safe-area-inset-bottom))] active:bg-white/5"
-            onPointerDown={hold({ throttle: true })}
-            onPointerUp={hold({ throttle: false })}
-            onPointerCancel={hold({ throttle: false })}
-            onPointerLeave={hold({ throttle: false })}
-          >
-            <span className="rounded-xl border border-safety bg-safety px-5 py-3 font-mono text-sm font-black text-slate-deep">HOLD TO GO ▶</span>
-          </button>
-          {specials.length > 0 ? (
-            <div className="absolute bottom-[max(1.5rem,env(safe-area-inset-bottom))] left-1/2 flex -translate-x-1/2 gap-2">
-              {specials.map((special) => {
-                const on = special === 'climb' && climbOn;
-                return (
-                  <button
-                    key={special}
-                    type="button"
-                    aria-pressed={special === 'climb' ? on : undefined}
-                    className={`h-14 w-14 rounded-full border-2 border-led font-mono text-[10px] font-black ${on ? 'bg-led text-slate-deep' : 'bg-slate-ink/90 text-led'}`}
-                    onPointerDown={(event) => {
-                      event.stopPropagation();
-                      press(special);
-                    }}
-                    onPointerUp={special === 'winch' ? release : undefined}
-                    onPointerCancel={special === 'winch' ? release : undefined}
-                    onPointerLeave={special === 'winch' ? release : undefined}
-                  >
-                    {SPECIAL_LABEL[special]}
-                  </button>
-                );
-              })}
-            </div>
-          ) : null}
+        <div className="absolute inset-0 z-10">
+          <DriveControls drive={drive} feed={feed} build={me.build} />
         </div>
       ) : null}
 
