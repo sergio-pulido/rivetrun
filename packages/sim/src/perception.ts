@@ -8,6 +8,8 @@ import type { World } from './world';
 
 const NOISE = { distanceM: 0.2, obstacleM: 0.1, slipPct: 3, tiltDeg: 0.5, depthCm: 1 } as const;
 const ASSUMED_DEPTH_CM = 5;
+/** Without an IMU, a robot that drives and does not move assumes it is on a hill this steep. */
+const STALL_INFERENCE = { afterS: 1, slopeDeg: 15 } as const;
 const MIN_DECISION_GAP_S = 0.5;
 const DAMAGE_DECISION_STEP_PCT = 5;
 const ALL_ACTIONS: readonly Action[] = ['cruise', 'accelerate', 'slow_down', 'brake', 'reverse', 'climb_mode', 'deploy_winch'];
@@ -73,7 +75,8 @@ function perceivedWorld(state: RunState, perceived: Perception): World {
   const wet = (terrain: string): boolean => terrain === 'water' || terrain === 'mud';
   const depthFor = (terrain: string): number =>
     !wet(terrain) ? 0 : perceived.depthAheadCm === 'unknown' ? ASSUMED_DEPTH_CM : perceived.depthAheadCm;
-  const slopeDeg = perceived.tiltDeg === 'unknown' ? 0 : perceived.tiltDeg;
+  const blindSlopeDeg = state.stallS >= STALL_INFERENCE.afterS ? STALL_INFERENCE.slopeDeg : 0;
+  const slopeDeg = perceived.tiltDeg === 'unknown' ? blindSlopeDeg : perceived.tiltDeg;
   const far = x + 1000;
   const sees = perceived.terrainAhead !== 'unknown' && perceived.terrainAheadDistanceM !== 'unknown' && perceived.terrainAhead !== current.terrain;
   const boundary = sees ? x + (perceived.terrainAheadDistanceM as number) : far;

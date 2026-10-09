@@ -36,8 +36,8 @@ export function why(state: RunState): string {
   if (water >= 3) return waterLine();
   if (worstSlip && worstSlip[1] >= 2) return slipLine();
   if (tip >= 3) return `Scraped ${Math.round(tip)}% off on a slope too steep for ${spec.locomotionName.toLowerCase()}`;
-  if (impact && impactTotal > 0) return impactLine();
-  if (sim.damage === 0) return `Clean run: zero damage, ${Math.round(sim.battery)}% battery left`;
+  if (impact && impactTotal >= 0.5) return impactLine();
+  if (sim.damage < 0.5) return `Clean run: no damage, ${Math.round(sim.battery)}% battery left`;
   return `Finished with ${Math.round(sim.damage)}% damage and ${Math.round(sim.battery)}% battery left`;
 }
 

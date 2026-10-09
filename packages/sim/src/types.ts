@@ -63,6 +63,8 @@ export interface RunState {
   readonly bestX: number;
   readonly lastProgressT: number;
   readonly sparksUntilT: number;
+  /** Seconds spent driving without moving: the robot can feel this without any sensor. */
+  readonly stallS: number;
   readonly finished: boolean;
   readonly dnfReason?: DnfReason;
   readonly lastDamage?: StepDamage;

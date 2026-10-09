@@ -26,6 +26,7 @@ export const PHYSICS = {
   smokeAboveDamagePct: 50,
   sparksS: 0.4,
   idleLoad: 0.15,
+  stallSpeedMps: 0.15,
 } as const;
 
 interface ActionProfile {
@@ -86,6 +87,7 @@ export function createRun(config: RunConfig): RunState {
     bestX: 0,
     lastProgressT: 0,
     sparksUntilT: 0,
+    stallS: 0,
     finished: false,
     stats: { slipSByTerrain: {}, damageByCause: {}, lastTerrain: first.terrain },
   };
@@ -274,6 +276,7 @@ export function step(state: RunState, action: Action): RunState {
     bestX,
     lastProgressT,
     sparksUntilT,
+    stallS: profile.speed > 0 && Math.abs(v) < PHYSICS.stallSpeedMps ? state.stallS + DT_S : 0,
     finished,
     dnfReason,
     lastDamage,
