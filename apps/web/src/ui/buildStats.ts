@@ -105,9 +105,24 @@ export function deepWaterIssue(mission: Mission, build: Build): string | null {
   return `This build can't cross deep water — needs ${partName('thruster_kit')} + ${partName('waterproof_case')}`;
 }
 
-/** A ready-made build that gets across this mission's deep water, for a one-tap fix. Null when no preset can. */
-export const presetThatCrosses = (mission: Mission): Preset | null =>
-  Object.values(PRESETS).find((preset) => deepWaterIssue(mission, preset.build) === null) ?? null;
+/**
+ * The blocking issue on a track with a gap that no ramp leads into: only a jump clears it, and only the piston jumps.
+ * A gap right after a ramp segment is cleared with speed, so it is not flagged. Null when the build can jump or no such gap exists.
+ */
+export function gapIssue(mission: Mission, build: Build): string | null {
+  const segments = mission.track.segments;
+  const bareGap = segments.some((segment, index) => segment.feature?.type === 'gap' && segments[index - 1]?.feature?.type !== 'ramp');
+  if (!bareGap || availableActions(build).includes('jump')) return null;
+  return `This build can't clear the gap with no ramp — needs ${partName('piston_jump')}`;
+}
+
+/** Everything that stops this build finishing this mission, worst first. Empty when nothing does. */
+export const missionBlockers = (mission: Mission, build: Build): readonly string[] =>
+  [deepWaterIssue(mission, build), gapIssue(mission, build)].flatMap((issue) => (issue ? [issue] : []));
+
+/** A ready-made build with nothing blocking it on this mission, for a one-tap fix. Null when no preset qualifies. */
+export const presetThatFinishes = (mission: Mission): Preset | null =>
+  Object.values(PRESETS).find((preset) => missionBlockers(mission, preset.build).length === 0) ?? null;
 
 /** Facts about this build on this track: what will hurt and what the AI cannot perceive. */
 export function missionWarnings(mission: Mission, build: Build): readonly string[] {

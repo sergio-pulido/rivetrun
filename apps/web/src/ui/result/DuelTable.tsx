@@ -81,11 +81,13 @@ export function DuelTable({ episode, ghosts, briefing }: DuelTableProps) {
   const fallbacks = episode.decisions.filter((decision) => decision.fallback).length;
   const latency = median(episode.decisions.filter((decision) => !decision.fallback).map((decision) => decision.latencyMs));
   const brief = briefingName(briefing);
+  // Drive mode falls back to a heuristic rival when the Jev ghost cannot be fetched.
+  const standIn = drove && rival !== undefined && rival.policy !== 'jev';
 
   return (
     <section className="rr-card-brain flex flex-col gap-2 !rounded-2xl p-3">
       <div className="flex items-baseline justify-between">
-        <h2 className="font-display text-base font-bold tracking-[2px] text-cyan">{drove ? 'YOU VS JEV' : 'BRAIN DUEL'}</h2>
+        <h2 className="font-display text-base font-bold tracking-[2px] text-cyan">{drove ? `YOU VS ${rival ? POLICY_LABEL[rival.policy] : 'JEV'}` : 'BRAIN DUEL'}</h2>
         <span className="text-[11px] text-cyan-muted">same robot · same seed</span>
       </div>
 
@@ -95,16 +97,22 @@ export function DuelTable({ episode, ghosts, briefing }: DuelTableProps) {
         </p>
       ) : null}
 
-      {/* In Drive mode the briefing in the store is what the Jev ghost drove with. */}
-      <div className="rounded-[10px] border border-[#1F3A3F] bg-[#081214] px-2.5 py-2">
-        <div className="rr-label !text-cyan-muted">
-          {drove ? "Jev's briefing" : 'Your briefing'}
-          {brief && !brief.startsWith('“') ? ` · ${brief}` : ''}
-        </div>
-        <p className="mt-1 text-[13px] leading-snug text-text">
-          {briefing.trim() ? `“${briefing.trim()}”` : <span className="text-cyan-muted">None. Jev followed the priority slider.</span>}
+      {standIn ? (
+        <p className="rounded-[10px] border border-dashed border-[#1F3A3F] px-2.5 py-2 text-xs leading-snug text-cyan-muted">
+          Jev&apos;s ghost was not ready, so {POLICY_LABEL[rival.policy]} drove the rival on its fixed rules. No briefing applied.
         </p>
-      </div>
+      ) : (
+        /* In Drive mode the briefing in the store is what the Jev ghost drove with. */
+        <div className="rounded-[10px] border border-[#1F3A3F] bg-[#081214] px-2.5 py-2">
+          <div className="rr-label !text-cyan-muted">
+            {drove ? "Jev's briefing" : 'Your briefing'}
+            {brief && !brief.startsWith('“') ? ` · ${brief}` : ''}
+          </div>
+          <p className="mt-1 text-[13px] leading-snug text-text">
+            {briefing.trim() ? `“${briefing.trim()}”` : <span className="text-cyan-muted">None. Jev followed the priority slider.</span>}
+          </p>
+        </div>
+      )}
 
       <div className={`${COLUMNS} px-2 font-mono text-[10px] font-medium tracking-[1px] text-cyan-muted`}>
         <span>{drove ? 'DRIVER' : 'BRAIN'}</span>

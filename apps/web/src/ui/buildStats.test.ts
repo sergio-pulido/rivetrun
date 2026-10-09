@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import type { Build } from '@rivetrun/contracts';
 import { MISSIONS, PRESETS } from '@rivetrun/sim';
-import { buildSenses, deepWaterIssue, missionWarnings, presetThatCrosses } from './buildStats';
+import type { Mission } from '@rivetrun/contracts';
+import { buildSenses, deepWaterIssue, gapIssue, missionBlockers, missionWarnings, presetThatFinishes } from './buildStats';
 
 const SEALED_SWIMMER: Build = {
   locomotion: 'wheels',
@@ -34,11 +35,39 @@ describe('deepWaterIssue', () => {
   });
 });
 
-describe('presetThatCrosses', () => {
+describe('presetThatFinishes', () => {
   it('finds the preset that crosses Deep Water', () => {
-    const preset = presetThatCrosses(MISSIONS.M6);
+    const preset = presetThatFinishes(MISSIONS.M6);
     expect(preset?.id).toBe('deep_diver');
-    expect(deepWaterIssue(MISSIONS.M6, preset!.build)).toBeNull();
+    expect(missionBlockers(MISSIONS.M6, preset!.build)).toEqual([]);
+  });
+
+  it('finds none for Scrapyard Jumps: no preset carries the piston', () => {
+    expect(presetThatFinishes(MISSIONS.M7)).toBeNull();
+  });
+});
+
+describe('gapIssue', () => {
+  const GAP = "This build can't clear the gap with no ramp — needs Piston jump";
+  const jumper: Build = { ...PRESETS.all_rounder.build, extras: ['piston_jump', 'bumper'] };
+
+  it('flags every preset on Scrapyard Jumps and clears with a piston', () => {
+    for (const preset of Object.values(PRESETS)) expect(gapIssue(MISSIONS.M7, preset.build), preset.name).toBe(GAP);
+    expect(gapIssue(MISSIONS.M7, jumper)).toBeNull();
+  });
+
+  it('does not flag a gap that a ramp leads into, or a track with no gap', () => {
+    const rampedOnly: Mission = {
+      ...MISSIONS.M7,
+      track: {
+        segments: [
+          { terrain: 'asphalt', lengthM: 6, slopeDeg: 0, feature: { type: 'ramp', launchDeg: 20, lengthM: 1.5 } },
+          { terrain: 'grass', lengthM: 8, slopeDeg: 0, feature: { type: 'gap', widthM: 0.6 } },
+        ],
+      },
+    };
+    expect(gapIssue(rampedOnly, PRESETS.all_rounder.build)).toBeNull();
+    expect(gapIssue(MISSIONS.M1, PRESETS.all_rounder.build)).toBeNull();
   });
 });
 

@@ -7,7 +7,7 @@ import { MISSIONS, TUNING } from '@rivetrun/sim';
 import { TERRAIN_LOOK } from '@/game/palette';
 import { useBuildStore } from '@/state/build';
 import { useWorkshopUi } from '@/state/workshop';
-import { BUDGET_EUR, buildName, buildStats, deepWaterIssue, missionWarnings, presetThatCrosses } from '@/ui/buildStats';
+import { BUDGET_EUR, buildName, buildStats, missionBlockers, missionWarnings, presetThatFinishes } from '@/ui/buildStats';
 import { PlayLink } from '@/ui/coach/PlayLink';
 import { Icon } from '@/ui/Icon';
 import { MODE_NOTE, ModeSwitch } from '@/ui/ModeSwitch';
@@ -46,8 +46,9 @@ export function Brief({ missionId }: { readonly missionId: MissionId }) {
   const mode = useBuildStore((store) => store.mode);
   const stats = buildStats(build);
   const warnings = missionWarnings(mission, build);
-  const deepWater = deepWaterIssue(mission, build);
-  const rescue = deepWater ? presetThatCrosses(mission) : null;
+  const blockers = missionBlockers(mission, build);
+  const blocked = blockers.length > 0;
+  const rescue = blocked ? presetThatFinishes(mission) : null;
   const setSlot = useWorkshopUi((store) => store.setSlot);
   const overBudget = stats.overBudgetEur > 0;
 
@@ -63,16 +64,16 @@ export function Brief({ missionId }: { readonly missionId: MissionId }) {
           CHANGE
         </Link>
       </div>
-      {deepWater ? (
-        <p className="flex items-start gap-2 text-xs leading-snug text-warn">
+      {blockers.map((blocker) => (
+        <p key={blocker} className="flex items-start gap-2 text-xs leading-snug text-warn">
           <Icon name="warn" size={14} className="mt-px shrink-0" />
-          <span className="min-w-0 flex-1">{deepWater}</span>
-          {/* One tap: straight to the Extras shelf, where both parts are. */}
+          <span className="min-w-0 flex-1">{blocker}</span>
+          {/* One tap: straight to the Extras shelf, where the missing parts are. */}
           <Link href="/workshop" onClick={() => setSlot('extra')} className="shrink-0 font-mono text-[11px] font-medium tracking-[1px] text-orange-soft underline underline-offset-2">
             FIX IN WORKSHOP
           </Link>
         </p>
-      ) : null}
+      ))}
       {rescue ? (
         <button
           type="button"
@@ -141,7 +142,7 @@ export function Brief({ missionId }: { readonly missionId: MissionId }) {
       </section>
 
       {/* A build that cannot finish goes above the fold, next to its fix; otherwise the robot is a footnote. */}
-      {deepWater ? robotCard : null}
+      {blocked ? robotCard : null}
 
       <section className="rr-rise flex flex-col gap-1.5" style={{ ['--i' as string]: 2 }}>
         <ModeSwitch />
@@ -163,7 +164,7 @@ export function Brief({ missionId }: { readonly missionId: MissionId }) {
         </>
       )}
 
-      {deepWater ? null : robotCard}
+      {blocked ? null : robotCard}
     </Shell>
   );
 }
