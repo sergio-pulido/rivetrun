@@ -187,7 +187,7 @@ function driveMotion(state: RunState, action: Action, terrain: TerrainId, slopeD
   const target = profile.speed * spec.topSpeedMps;
   const motorMax = spec.motorForceN * profile.force;
   const direction = target !== 0 ? Math.sign(target) : Math.sign(v);
-  const requested = clamp((m * (target - v)) / PHYSICS.throttleTauS + gravity + direction * resistance, -motorMax, motorMax);
+  const requested = clamp((m * (target - v)) / (PHYSICS.throttleTauS * spec.throttleLag) + gravity + direction * resistance, -motorMax, motorMax);
   const drive = clamp(requested, -traction, traction);
   const slipPct = Math.abs(requested) > traction && Math.abs(requested) > 1e-6 ? (1 - traction / Math.abs(requested)) * 100 : 0;
   const push = drive - gravity;

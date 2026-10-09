@@ -10,6 +10,8 @@ export interface RobotSpec {
   readonly costEur: number;
   readonly topSpeedMps: number;
   readonly motorForceN: number;
+  /** Multiplier on the throttle time constant: tall gearing and big wheels wind up slower, short gearing is snappier. 1 = stock. */
+  readonly throttleLag: number;
   readonly motorPowerW: number;
   /** Always-on draw: sensors and locomotion electronics. */
   readonly basePowerW: number;
@@ -102,6 +104,7 @@ export function deriveSpec(build: Build): RobotSpec {
     costEur: Math.round(all.reduce((sum, p) => sum + p.costEur, 0) + battery.costEur * (cells - 1) + wheel.costEur),
     topSpeedMps: (motor.effects.topSpeedMps ?? 2) * speedFactor,
     motorForceN: ((motor.effects.torqueNm ?? 1) / WHEEL_RADIUS_M) * forceFactor,
+    throttleLag: speedFactor / forceFactor,
     motorPowerW: motor.powerW * cells,
     basePowerW: locomotion.powerW + sensors.reduce((sum, p) => sum + p.powerW, 0),
     winchPowerW: winch?.powerW ?? 0,
