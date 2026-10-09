@@ -8,6 +8,7 @@ import { TERRAIN_LOOK } from '@/game/palette';
 import { useBuildStore } from '@/state/build';
 import { useWorkshopUi } from '@/state/workshop';
 import { BUDGET_EUR, buildName, buildStats, missionBlockers, missionWarnings, presetThatFinishes } from '@/ui/buildStats';
+import { SavedBuilds } from '@/ui/builds/SavedBuilds';
 import { PlayLink } from '@/ui/coach/PlayLink';
 import { Icon } from '@/ui/Icon';
 import { MODE_NOTE, ModeSwitch } from '@/ui/ModeSwitch';
@@ -75,6 +76,7 @@ export function Brief({ missionId }: { readonly missionId: MissionId }) {
           CHANGE
         </Link>
       </div>
+      <SavedBuilds />
       {blockers.map((blocker) => (
         <p key={blocker} className="flex items-start gap-2 text-xs leading-snug text-warn">
           <Icon name="warn" size={14} className="mt-px shrink-0" />

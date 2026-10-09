@@ -7,6 +7,7 @@ import { PRESETS, buildIssues } from '@rivetrun/sim';
 import { useBuildStore } from '@/state/build';
 import { isUnlocked, useProgressStore } from '@/state/progress';
 import { useWorkshopUi } from '@/state/workshop';
+import { SavedBuilds } from '@/ui/builds/SavedBuilds';
 import { BUDGET_EUR, buildStats, sameBuild } from '@/ui/buildStats';
 import { Icon } from '@/ui/Icon';
 import { Shell } from '@/ui/Shell';
@@ -125,6 +126,8 @@ export function Workshop({ models }: WorkshopProps) {
           );
         })}
       </div>
+
+      <SavedBuilds manage />
 
       <Predicted build={build} />
 
