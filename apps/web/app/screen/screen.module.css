@@ -306,6 +306,32 @@
   color: var(--muted);
 }
 
+/* Attract mode: the 3D replay fills the lane area while the room is empty. */
+.attract {
+  position: relative;
+  height: 100%;
+  border-radius: calc(var(--u) * 12);
+  border: 1px solid #1f242b;
+  overflow: hidden;
+  background: #13171c;
+}
+.attractNote {
+  position: absolute;
+  left: 50%;
+  bottom: calc(var(--u) * 12);
+  transform: translateX(-50%);
+  padding: calc(var(--u) * 6) calc(var(--u) * 12);
+  border-radius: calc(var(--u) * 10);
+  border: 1px solid var(--orange);
+  background: rgb(23 18 13 / 0.9);
+  font-family: var(--data);
+  font-size: calc(var(--u) * 12);
+  letter-spacing: calc(var(--u) * 1);
+  color: #ffb27a;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
 /* Countdown over the lanes */
 .countdown {
   position: absolute;

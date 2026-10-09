@@ -4,6 +4,7 @@ import type { MissionId } from '@rivetrun/contracts';
 import { MISSION_IDS, MISSIONS } from '@rivetrun/sim';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
+import { AttractCanvas } from '@/game';
 import { DNF_LABEL } from '@/game/palette';
 import { rankPlayers, type RacePlayer, type RaceSnapshot } from '../race/_lib/protocol';
 import { postRaceAction, useRaceRoom, useServerNow } from '../race/_lib/useRaceRoom';
@@ -197,9 +198,17 @@ export function RaceScreen({ code, siteUrl }: RaceScreenProps) {
           ) : null}
 
           <div className={styles.trackArea}>
-            <div className={styles.main}>
-              <RaceTrack mission={mission} players={snapshot.players} racing={racing} />
-            </div>
+            {status === 'lobby' && snapshot.players.length === 0 ? (
+              // Nobody on the grid yet: the presets replay the track on a loop until the first robot joins.
+              <div className={styles.attract}>
+                <AttractCanvas mission={mission} />
+                <span className={styles.attractNote}>Demo replay · scan the code to put your own robot on the grid</span>
+              </div>
+            ) : (
+              <div className={styles.main}>
+                <RaceTrack mission={mission} players={snapshot.players} racing={racing} />
+              </div>
+            )}
             {status === 'countdown' ? (
               <div className={styles.countdown}>
                 <span key={countdown} className={styles.count}>
