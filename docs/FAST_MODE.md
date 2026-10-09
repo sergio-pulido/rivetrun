@@ -15,7 +15,7 @@ Overrides every process rule in docs/prompts/kickoff-v3.md. The game design in d
 
 ## Ownership (updated 20:55)
 - sim: packages/sim/**, scripts/balance.ts, apps/web/app/run/**, apps/web/src/state/run.ts (run page integration)
-- brain: packages/brain/**, apps/web/app/api/**, apps/web/src/brain/**, scripts/jev-smoke.ts, apps/web/app/leaderboard/**, apps/web/app/screen/**
+- brain: packages/brain/**, apps/web/app/api/**, apps/web/src/brain/**, scripts/jev-smoke.ts, apps/web/app/leaderboard/**, apps/web/app/screen/**, apps/web/app/race/** (Room Race, added 21:15)
 - game: apps/web/src/game/**
 - ui: every other page and layout under apps/web/app (Home, Workshop, Brief, Result), apps/web/src/ui/**, apps/web/src/state/** except state/run.ts
 
