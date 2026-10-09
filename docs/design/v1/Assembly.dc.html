@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>RivetRun — Assembly and properties</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;family=IBM+Plex+Mono:wght@500;600&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#3FD0E0}a:hover{color:#8BE6F0}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; box-sizing: border-box; background: #0E1013; font-family: 'IBM Plex Sans', sans-serif; color: #EDEFF2; display: flex; flex-direction: column; padding: 18px 16px 18px; gap: 12px; overflow: hidden">
+
+  <div style="display: flex; align-items: center; justify-content: space-between; height: 44px">
+    <a href="Workshop.dc.html" aria-label="Back" style="width: 44px; height: 44px; border-radius: 12px; border: 1px solid #2A3039; display: flex; align-items: center; justify-content: center; color: #EDEFF2; text-decoration: none">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"></path></svg>
+    </a>
+    <span style="font-family: 'Chakra Petch', sans-serif; font-weight: 700; font-size: 17px; letter-spacing: 3px">ASSEMBLY</span>
+    <span style="width: 44px"></span>
+  </div>
+
+  <div style="position: relative; height: 290px; flex-shrink: 0; border-radius: 18px; border: 1px solid #262B33; background-color: #0F1823; background-image: linear-gradient(rgba(90,150,210,0.10) 1px, transparent 1px), linear-gradient(90deg, rgba(90,150,210,0.10) 1px, transparent 1px); background-size: 20px 20px; overflow: hidden">
+    <svg viewBox="0 0 358 290" width="358" style="position: absolute; left: 0; top: 0" role="img" aria-label="Exploded view in five layers: sensors on top, the controller board, the printed chassis, motors and battery, and the wheels at the bottom">
+      <line x1="120" y1="18" x2="120" y2="272" stroke="#3E5468" stroke-width="1" stroke-dasharray="4 4"></line>
+      <rect x="62" y="20" width="40" height="18" rx="2" fill="#2F6FD6"></rect>
+      <circle cx="73" cy="29" r="6" fill="#C9CED6"></circle><circle cx="91" cy="29" r="6" fill="#C9CED6"></circle>
+      <rect x="132" y="22" width="28" height="15" rx="2" fill="#7B4FD6"></rect>
+      <rect x="140" y="26" width="12" height="7" fill="#141518"></rect>
+      <rect x="54" y="72" width="132" height="22" rx="3" fill="#2E9D63"></rect>
+      <rect x="104" y="76" width="30" height="14" rx="1" fill="#0F1114"></rect>
+      <circle cx="64" cy="83" r="2.5" fill="#E3B341"></circle><circle cx="74" cy="83" r="2.5" fill="#E3B341"></circle><circle cx="176" cy="83" r="2.5" fill="#E3B341"></circle>
+      <rect x="30" y="122" width="180" height="36" rx="9" fill="#FF7A1A"></rect>
+      <line x1="36" y1="131" x2="204" y2="131" stroke="#E0640C" stroke-width="1"></line>
+      <line x1="36" y1="140" x2="204" y2="140" stroke="#E0640C" stroke-width="1"></line>
+      <line x1="36" y1="149" x2="204" y2="149" stroke="#E0640C" stroke-width="1"></line>
+      <rect x="40" y="184" width="38" height="22" rx="3" fill="#16181C" stroke="#2C3038" stroke-width="2"></rect>
+      <rect x="162" y="184" width="38" height="22" rx="3" fill="#16181C" stroke="#2C3038" stroke-width="2"></rect>
+      <rect x="92" y="182" width="56" height="12" rx="6" fill="#3B82C4"></rect>
+      <rect x="92" y="196" width="56" height="12" rx="6" fill="#3B82C4"></rect>
+      <circle cx="70" cy="248" r="24" fill="#17191D" stroke="#2C3038" stroke-width="6" stroke-dasharray="6 4"></circle>
+      <circle cx="70" cy="248" r="8" fill="#8A929C"></circle>
+      <circle cx="170" cy="248" r="24" fill="#17191D" stroke="#2C3038" stroke-width="6" stroke-dasharray="6 4"></circle>
+      <circle cx="170" cy="248" r="8" fill="#8A929C"></circle>
+      <g stroke="#5E8FB8" stroke-width="1">
+        <line x1="166" y1="30" x2="232" y2="30"></line>
+        <line x1="190" y1="83" x2="232" y2="83"></line>
+        <line x1="214" y1="140" x2="232" y2="140"></line>
+        <line x1="204" y1="195" x2="232" y2="195"></line>
+        <line x1="198" y1="248" x2="232" y2="248"></line>
+      </g>
+      <g font-family="IBM Plex Mono, monospace" font-size="10" fill="#CFE0EE">
+        <text x="238" y="26">1 SENSORS</text><text x="238" y="38" fill="#7F96AA">ultrasonic · IMU</text>
+        <text x="238" y="79">2 BRAIN BOARD</text><text x="238" y="91" fill="#7F96AA">ESP32-class</text>
+        <text x="238" y="136">3 CHASSIS</text><text x="238" y="148" fill="#7F96AA">3D-printed PLA</text>
+        <text x="238" y="191">4 DRIVE + POWER</text><text x="238" y="203" fill="#7F96AA">2 motors · 2S pack</text>
+        <text x="238" y="244">5 WHEELS</text><text x="238" y="256" fill="#7F96AA">90 mm off-road</text>
+      </g>
+    </svg>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 0; border-radius: 14px; border: 1px solid #232932; background: #12161B; padding: 4px 14px">
+    <sc-for list="{{props}}" as="p" hint-placeholder-count="6">
+      <div style="height: 32px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #1C2128">
+        <span style="font-size: 13px; color: #B8C0C9">{{p.label}}</span>
+        <span style="font-family: 'IBM Plex Mono', monospace; font-size: 13px; font-weight: 600">{{p.value}}</span>
+      </div>
+    </sc-for>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 8px">
+    <span style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 1.5px; color: #3FD0E0">THIS BUILD LETS THE BRAIN</span>
+    <div style="display: flex; flex-wrap: wrap; gap: 6px">
+      <sc-for list="{{actions}}" as="a" hint-placeholder-count="7">
+        <span style="padding: 5px 9px; border-radius: 8px; font-family: 'IBM Plex Mono', monospace; font-size: 11px; border: {{a.border}}; color: {{a.color}}; background: {{a.bg}}">{{a.label}}</span>
+      </sc-for>
+    </div>
+    <div style="display: flex; flex-wrap: wrap; gap: 6px">
+      <sc-for list="{{senses}}" as="s" hint-placeholder-count="4">
+        <span style="padding: 5px 9px; border-radius: 8px; font-size: 11px; border: {{s.border}}; color: {{s.color}}">{{s.label}}</span>
+      </sc-for>
+    </div>
+  </div>
+
+  <a href="Brief.dc.html" style="margin-top: auto; height: 54px; border-radius: 14px; background: #FF7A1A; color: #160B03; text-decoration: none; display: flex; align-items: center; justify-content: center; gap: 8px; font-family: 'Chakra Petch', sans-serif; font-weight: 700; font-size: 15px; letter-spacing: 1px">BRIEF THE BRAIN
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"></path><path d="M13 6l6 6-6 6"></path></svg>
+  </a>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    var on = { border: '1px solid #1F5A63', color: '#BFEFF5', bg: '#0C1A1D' };
+    var off = { border: '1px dashed #3A414C', color: '#8A929C', bg: 'transparent' };
+    return {
+      props: [
+        { label: 'Mass', value: '1.11 kg' },
+        { label: 'Cost', value: '€202 / €250' },
+        { label: 'Power draw', value: '21 W' },
+        { label: 'Battery', value: '37 Wh' },
+        { label: 'Top speed', value: '4.2 m/s' },
+        { label: 'Torque', value: '0.25 N·m' }
+      ],
+      actions: [
+        Object.assign({ label: 'cruise' }, on),
+        Object.assign({ label: 'accelerate' }, on),
+        Object.assign({ label: 'slow_down' }, on),
+        Object.assign({ label: 'brake' }, on),
+        Object.assign({ label: 'reverse' }, on),
+        Object.assign({ label: 'climb_mode' }, on),
+        Object.assign({ label: 'deploy_winch · needs Winch' }, off)
+      ],
+      senses: [
+        { label: '✓ obstacles 3 m', border: '1px solid #2A3039', color: '#D7DBE0' },
+        { label: '✓ slip and tilt', border: '1px solid #2A3039', color: '#D7DBE0' },
+        { label: '? terrain ahead · needs Camera', border: '1px dashed #3A414C', color: '#8A929C' },
+        { label: '? water depth · needs Probe', border: '1px dashed #3A414C', color: '#8A929C' }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>RivetRun — Mission brief</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;family=IBM+Plex+Mono:wght@500;600&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#3FD0E0}a:hover{color:#8BE6F0}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; box-sizing: border-box; background: #0E1013; font-family: 'IBM Plex Sans', sans-serif; color: #EDEFF2; display: flex; flex-direction: column; padding: 18px 16px 18px; gap: 14px; overflow: hidden">
+
+  <div style="display: flex; align-items: center; justify-content: space-between; height: 44px">
+    <a href="Workshop.dc.html" aria-label="Back to Workshop" style="width: 44px; height: 44px; border-radius: 12px; border: 1px solid #2A3039; display: flex; align-items: center; justify-content: center; color: #EDEFF2; text-decoration: none">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"></path></svg>
+    </a>
+    <span style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 2px; color: #9AA3AE">MISSION 03</span>
+    <span style="width: 44px"></span>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 8px">
+    <span style="font-family: 'Chakra Petch', sans-serif; font-weight: 700; font-size: 36px; line-height: 1">Mud Run</span>
+    <div style="display: flex; gap: 6px; flex-wrap: wrap">
+      <span style="display: flex; align-items: center; gap: 6px; padding: 5px 10px; border-radius: 8px; background: #151920; border: 1px solid #2A3039; font-family: 'IBM Plex Mono', monospace; font-size: 11px">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#8FB8D6" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M7 15a5 5 0 1 1 9.6-2H18a3 3 0 0 1 0 6H8"></path><path d="M9 21l1-2"></path><path d="M14 21l1-2"></path></svg>RAIN · GRIP ×0.8</span>
+      <span style="padding: 5px 10px; border-radius: 8px; background: #151920; border: 1px solid #2A3039; font-family: 'IBM Plex Mono', monospace; font-size: 11px">15° MUD CLIMB</span>
+      <span style="padding: 5px 10px; border-radius: 8px; background: #151920; border: 1px solid #2A3039; font-family: 'IBM Plex Mono', monospace; font-size: 11px">ROCKS AT THE TOP</span>
+    </div>
+  </div>
+
+  <div style="border-radius: 16px; border: 1px solid #232932; background: #12161B; padding: 12px 12px 10px">
+    <svg viewBox="0 0 334 104" width="334" role="img" aria-label="Terrain profile: flat grass, a 15 degree mud climb, a mud plateau, then a rock field">
+      <polygon points="0,78 70,78 170,40 250,40 334,36 334,104 0,104" fill="#191E25"></polygon>
+      <polyline points="0,78 70,78" fill="none" stroke="#3E8E52" stroke-width="5" stroke-linecap="round"></polyline>
+      <polyline points="70,78 170,40" fill="none" stroke="#8A5A36" stroke-width="5" stroke-linecap="round"></polyline>
+      <polyline points="170,40 250,40" fill="none" stroke="#8A5A36" stroke-width="5" stroke-linecap="round"></polyline>
+      <polyline points="250,40 334,36" fill="none" stroke="#8C949E" stroke-width="5" stroke-linecap="round"></polyline>
+      <polygon points="270,36 278,26 286,36" fill="#8C949E"></polygon>
+      <polygon points="300,35 310,22 320,35" fill="#8C949E"></polygon>
+      <circle cx="10" cy="70" r="5" fill="#FF7A1A"></circle>
+      <line x1="330" y1="10" x2="330" y2="34" stroke="#EDEFF2" stroke-width="2"></line>
+      <polygon points="330,10 318,14 330,18" fill="#EDEFF2"></polygon>
+      <g font-family="IBM Plex Mono, monospace" font-size="9" fill="#9AA3AE"><text x="18" y="96">GRASS</text><text x="96" y="96">MUD 15°</text><text x="190" y="96">MUD</text><text x="276" y="96">ROCK</text></g>
+    </svg>
+  </div>
+
+  <div style="border-radius: 16px; border: 1px solid #1F5A63; background: #0C1A1D; padding: 14px; display: flex; flex-direction: column; gap: 10px">
+    <div style="display: flex; justify-content: space-between; align-items: baseline">
+      <span style="font-family: 'Chakra Petch', sans-serif; font-weight: 700; font-size: 18px; color: #3FD0E0">Brief your brain</span>
+      <span style="font-size: 11px; color: #8FB2B8">Jev follows it. The ghosts can't.</span>
+    </div>
+    <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px">
+      <sc-for list="{{chips}}" as="c" hint-placeholder-count="4">
+        <button type="button" onClick="{{c.pick}}" style="height: 40px; border-radius: 10px; border: {{c.border}}; background: {{c.bg}}; color: {{c.color}}; font-family: 'Chakra Petch', sans-serif; font-weight: 600; font-size: 13px">{{c.label}}</button>
+      </sc-for>
+    </div>
+    <label for="briefing" style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 1.5px; color: #8FB2B8">IN YOUR WORDS</label>
+    <textarea id="briefing" rows="2" style="resize: none; border-radius: 10px; border: 1px solid #2B4A50; background: #081214; color: #EDEFF2; font-family: 'IBM Plex Sans', sans-serif; font-size: 15px; padding: 10px 12px">Never risk damage. Slow is fine.</textarea>
+    <span style="align-self: flex-end; font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: #8FB2B8">32 / 140</span>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 6px">
+    <div style="display: flex; justify-content: space-between; font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 1px">
+      <span style="color: #FFB27A">SPEED</span>
+      <label for="priority" style="color: #9AA3AE">PRIORITY</label>
+      <span style="color: #3FD0E0">SAFETY</span>
+    </div>
+    <input id="priority" type="range" min="0" max="100" value="70" style="width: 100%; accent-color: #FF7A1A; height: 28px">
+  </div>
+
+  <div style="display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 12px; border: 1px dashed #3A414C">
+    <svg width="34" height="22" viewBox="0 0 34 22" aria-hidden="true"><rect x="2" y="4" width="22" height="10" rx="3" fill="#9AA3AE" opacity="0.35"></rect><circle cx="8" cy="17" r="4" fill="#9AA3AE" opacity="0.35"></circle><circle cx="20" cy="17" r="4" fill="#9AA3AE" opacity="0.35"></circle></svg>
+    <span style="font-size: 12px; color: #B8C0C9">Same seed, two ghosts: <span style="font-family: 'IBM Plex Mono', monospace; color: #EDEFF2">HEURISTIC</span> and <span style="font-family: 'IBM Plex Mono', monospace; color: #EDEFF2">RANDOM</span>.</span>
+  </div>
+
+  <a href="RunMud.dc.html" style="margin-top: auto; height: 60px; border-radius: 16px; background: #FF7A1A; color: #160B03; text-decoration: none; display: flex; align-items: center; justify-content: center; gap: 10px; font-family: 'Chakra Petch', sans-serif; font-weight: 700; font-size: 20px; letter-spacing: 2px">DEPLOY
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"></path><path d="M13 6l6 6-6 6"></path></svg>
+  </a>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    var picked = (this.state && this.state.picked) || 'Careful';
+    var self = this;
+    var labels = ['Daredevil', 'Careful', 'Eco', 'Custom'];
+    return {
+      chips: labels.map(function (l) {
+        var on = l === picked;
+        return {
+          label: l,
+          border: on ? '1px solid #3FD0E0' : '1px solid #2B4A50',
+          bg: on ? '#3FD0E0' : 'transparent',
+          color: on ? '#06191C' : '#BFEFF5',
+          pick: function () { self.setState({ picked: l }); }
+        };
+      })
+    };
+  }
+}
+</script>
+</body>
+</html>

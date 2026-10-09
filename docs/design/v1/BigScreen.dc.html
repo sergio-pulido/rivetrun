@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>RivetRun — Room Race big screen</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;family=IBM+Plex+Mono:wght@500;600&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#3FD0E0}a:hover{color:#8BE6F0}
+</style>
+</helmet>
+<div style="width: 1280px; height: 720px; box-sizing: border-box; background-color: #0E1013; background-image: linear-gradient(rgba(90,150,210,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(90,150,210,0.05) 1px, transparent 1px); background-size: 32px 32px; font-family: 'IBM Plex Sans', sans-serif; color: #EDEFF2; padding: 28px 32px; display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 28px; overflow: hidden">
+
+  <div style="display: flex; flex-direction: column; gap: 14px; min-width: 0">
+    <div style="display: flex; align-items: center; justify-content: space-between">
+      <div style="display: flex; align-items: center; gap: 14px">
+        <span style="width: 14px; height: 14px; border-radius: 7px; background: #FF7A1A; box-shadow: 0 0 0 6px rgba(255,122,26,0.18)"></span>
+        <span style="font-family: 'Chakra Petch', sans-serif; font-weight: 700; font-size: 32px; letter-spacing: 3px">ROOM RACE · LIVE</span>
+        <span style="padding: 6px 12px; border-radius: 10px; border: 1px solid #2A3039; background: #151920; font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: #C9CED6">M5 · ROOM CHALLENGE · RAIN</span>
+      </div>
+      <span style="font-family: 'IBM Plex Mono', monospace; font-size: 40px; font-weight: 600">00:41.2</span>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 130px minmax(0, 1fr); gap: 0 12px; padding: 0 0 2px; font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 1.5px; color: #6F7883">
+      <span>PILOT</span>
+      <div style="display: flex; justify-content: space-between"><span>START</span><span>ASPHALT · GRASS · SAND · MUD · WATER · ICE · ROCK</span><span>FINISH</span></div>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 8px">
+      <sc-for list="{{racers}}" as="r" hint-placeholder-count="8">
+        <div style="display: grid; grid-template-columns: 130px minmax(0, 1fr); gap: 12px; align-items: center; height: 60px; opacity: {{r.opacity}}">
+          <div style="display: flex; flex-direction: column; gap: 2px; min-width: 0">
+            <span style="font-family: 'Chakra Petch', sans-serif; font-weight: 700; font-size: 18px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{r.nick}}</span>
+            <span style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: #8A929C">{{r.build}}</span>
+          </div>
+          <div style="position: relative; height: 60px; border-radius: 12px; background: #13171C; border: 1px solid #1F242B; overflow: hidden">
+            <div style="position: absolute; left: 0; right: 0; bottom: 12px; height: 6px; background: linear-gradient(90deg, #3A3E46 0 14%, #3E8E52 14% 28%, #B08D57 28% 42%, #7A5233 42% 57%, #2E7FA0 57% 71%, #BFE3F2 71% 85%, #8C949E 85% 100%)"></div>
+            <div style="position: absolute; right: 0; top: 0; bottom: 0; width: 6px; background: repeating-linear-gradient(180deg, #EDEFF2 0 6px, #0E1013 6px 12px)"></div>
+            <div style="position: absolute; top: 8px; left: {{r.left}}; display: flex; align-items: flex-end; gap: 8px">
+              <svg width="46" height="32" viewBox="0 0 240 150" aria-hidden="true"><rect x="52" y="44" width="110" height="16" rx="2" fill="#2E9D63"></rect><rect x="34" y="60" width="170" height="36" rx="8" fill="{{r.color}}"></rect><rect x="194" y="54" width="32" height="42" rx="7" fill="#121418"></rect><rect x="201" y="67" width="7" height="13" rx="2" fill="#3FD0E0"></rect><rect x="213" y="67" width="7" height="13" rx="2" fill="#3FD0E0"></rect><circle cx="72" cy="114" r="27" fill="#17191D" stroke="#2C3038" stroke-width="7"></circle><circle cx="168" cy="114" r="27" fill="#17191D" stroke="#2C3038" stroke-width="7"></circle></svg>
+              <span style="margin-bottom: 14px; padding: 3px 8px; border-radius: 6px; border: 1px solid #1F5A63; background: #0C1A1D; font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: #BFEFF5; white-space: nowrap">{{r.action}}</span>
+            </div>
+          </div>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 14px; min-width: 0">
+    <div style="border-radius: 18px; border: 1px solid #262B33; background: #12161B; padding: 16px; display: flex; flex-direction: column; gap: 6px">
+      <span style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 2px; color: #9AA3AE">LIVE ORDER</span>
+      <sc-for list="{{order}}" as="o" hint-placeholder-count="8">
+        <div style="display: flex; align-items: center; gap: 10px; height: 30px">
+          <span style="width: 22px; font-family: 'IBM Plex Mono', monospace; font-size: 15px; font-weight: 600; color: {{o.color}}">{{o.pos}}</span>
+          <span style="flex: 1; font-size: 16px; font-weight: 600">{{o.nick}}</span>
+          <span style="font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: #9AA3AE">{{o.gap}}</span>
+        </div>
+      </sc-for>
+    </div>
+
+    <div style="border-radius: 18px; border: 1px solid #FF7A1A; background: #17120D; padding: 16px; display: flex; gap: 14px; align-items: center; margin-top: auto">
+      <div style="width: 112px; height: 112px; flex-shrink: 0; border-radius: 10px; background: #EDEFF2; position: relative" role="img" aria-label="QR code placeholder linking to the game">
+        <div style="position: absolute; left: 8px; top: 8px; width: 28px; height: 28px; border: 6px solid #0E1013; box-sizing: border-box"></div>
+        <div style="position: absolute; right: 8px; top: 8px; width: 28px; height: 28px; border: 6px solid #0E1013; box-sizing: border-box"></div>
+        <div style="position: absolute; left: 8px; bottom: 8px; width: 28px; height: 28px; border: 6px solid #0E1013; box-sizing: border-box"></div>
+        <span style="position: absolute; left: 0; right: 0; top: 48px; text-align: center; font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: #0E1013">QR</span>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 4px; min-width: 0">
+        <span style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 2px; color: #FFB27A">SCAN TO JOIN</span>
+        <span style="font-family: 'Chakra Petch', sans-serif; font-weight: 700; font-size: 40px; letter-spacing: 6px; line-height: 1">K7QX</span>
+        <span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #C9CED6">[YOUR-TUNNEL-URL]</span>
+      </div>
+    </div>
+
+    <div style="display: flex; justify-content: space-between; font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #9AA3AE">
+      <span>[N] EPISODES LOGGED</span>
+      <span>12 IN THE ROOM</span>
+    </div>
+    <span style="font-family: 'Chakra Petch', sans-serif; font-weight: 600; font-size: 18px; color: #3FD0E0">Today a game. Tomorrow a benchmark.</span>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":720}}'>
+class Component extends DCLogic {
+  renderVals() {
+    var racers = [
+      { nick: 'voltage', build: 'tracks · Careful', left: '71%', action: 'slow_down 81%', color: '#FF7A1A', opacity: '1' },
+      { nick: 'servo.k', build: 'off-road · Daredevil', left: '66%', action: 'accelerate 88%', color: '#FF7A1A', opacity: '1' },
+      { nick: 'mudlark', build: 'off-road · custom', left: '58%', action: 'cruise 64%', color: '#FF7A1A', opacity: '1' },
+      { nick: 'rivet_rae', build: 'tracks · Eco', left: '52%', action: 'climb_mode 70%', color: '#FF7A1A', opacity: '1' },
+      { nick: 'pcb_pablo', build: 'tracks · Careful', left: '44%', action: 'deploy_winch 93%', color: '#FF7A1A', opacity: '1' },
+      { nick: 'gearhead', build: 'wheels · custom', left: '37%', action: 'brake 77%', color: '#FF7A1A', opacity: '1' },
+      { nick: 'lidarling', build: 'wheels · Daredevil', left: '30%', action: 'DNF · stuck in mud', color: '#5B6470', opacity: '0.45' }
+    ];
+    return {
+      racers: racers,
+      order: [
+        { pos: '1', nick: 'voltage', gap: 'leader', color: '#FF7A1A' },
+        { pos: '2', nick: 'servo.k', gap: '+1.4 s', color: '#FF7A1A' },
+        { pos: '3', nick: 'mudlark', gap: '+3.1 s', color: '#FF7A1A' },
+        { pos: '4', nick: 'rivet_rae', gap: '+4.6 s', color: '#9AA3AE' },
+        { pos: '5', nick: 'pcb_pablo', gap: '+6.8 s', color: '#9AA3AE' },
+        { pos: '6', nick: 'gearhead', gap: '+8.2 s', color: '#9AA3AE' },
+        { pos: '—', nick: 'lidarling', gap: 'DNF', color: '#6F7883' }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

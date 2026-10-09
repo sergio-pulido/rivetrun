@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>RivetRun — Leaderboard</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;family=IBM+Plex+Mono:wght@500;600&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#3FD0E0}a:hover{color:#8BE6F0}
+</style>
+</helmet>
+<div style="position: relative; width: 390px; height: 844px; box-sizing: border-box; background: #0E1013; font-family: 'IBM Plex Sans', sans-serif; color: #EDEFF2; display: flex; flex-direction: column; padding: 18px 16px 0; gap: 12px; overflow: hidden">
+
+  <div style="display: flex; align-items: center; justify-content: space-between; height: 44px">
+    <a href="Main.dc.html" aria-label="Back" style="width: 44px; height: 44px; border-radius: 12px; border: 1px solid #2A3039; display: flex; align-items: center; justify-content: center; color: #EDEFF2; text-decoration: none">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"></path></svg>
+    </a>
+    <span style="font-family: 'Chakra Petch', sans-serif; font-weight: 700; font-size: 17px; letter-spacing: 3px">LEADERBOARD</span>
+    <span style="display: flex; align-items: center; gap: 6px; font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: #3FD0E0"><span style="width: 8px; height: 8px; border-radius: 4px; background: #3FD0E0"></span>LIVE</span>
+  </div>
+
+  <div style="display: flex; gap: 6px; padding: 4px; border-radius: 12px; background: #151920; border: 1px solid #232932">
+    <button type="button" aria-pressed="true" style="flex: 1; height: 38px; border-radius: 9px; border: 0; background: #FF7A1A; color: #160B03; font-family: 'Chakra Petch', sans-serif; font-weight: 700; font-size: 13px; letter-spacing: 1px">ROOM CHALLENGE</button>
+    <button type="button" style="flex: 1; height: 38px; border-radius: 9px; border: 0; background: transparent; color: #9AA3AE; font-family: 'Chakra Petch', sans-serif; font-weight: 600; font-size: 13px; letter-spacing: 1px">MY RUNS</button>
+  </div>
+
+  <div style="border-radius: 16px; border: 1px solid #3A2A1C; background: #17120D; padding: 14px; display: flex; justify-content: space-between; align-items: center">
+    <div style="display: flex; flex-direction: column; gap: 3px">
+      <span style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 1.5px; color: #FFB27A">M5 · SAME SEED FOR EVERYONE</span>
+      <span style="font-family: 'Chakra Petch', sans-serif; font-weight: 700; font-size: 20px">Score to beat</span>
+      <span style="font-size: 12px; color: #B8C0C9">Rain · every terrain · held by voltage</span>
+    </div>
+    <span style="font-family: 'IBM Plex Mono', monospace; font-weight: 600; font-size: 40px; color: #FF7A1A">742</span>
+  </div>
+
+  <div style="display: grid; grid-template-columns: 34px 1fr 74px 56px; gap: 6px; padding: 0 10px; font-family: 'IBM Plex Mono', monospace; font-size: 9px; letter-spacing: 1px; color: #6F7883">
+    <span>#</span><span>PILOT · BRIEF</span><span style="text-align: right">TIME</span><span style="text-align: right">SCORE</span>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 6px">
+    <sc-for list="{{rows}}" as="r" hint-placeholder-count="9">
+      <div style="display: grid; grid-template-columns: 34px 1fr 74px 56px; gap: 6px; align-items: center; height: 44px; padding: 0 10px; border-radius: 10px; background: #13171C; border: 1px solid #1E232A">
+        <span style="font-family: 'IBM Plex Mono', monospace; font-size: 14px; font-weight: 600; color: {{r.rankColor}}">{{r.rank}}</span>
+        <span style="display: flex; flex-direction: column; min-width: 0"><span style="font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{r.nick}}</span><span style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: #8A929C">{{r.build}} · {{r.brief}}</span></span>
+        <span style="text-align: right; font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #C9CED6">{{r.time}}</span>
+        <span style="text-align: right; font-family: 'IBM Plex Mono', monospace; font-size: 14px; font-weight: 600">{{r.score}}</span>
+      </div>
+    </sc-for>
+  </div>
+
+  <div style="position: absolute; left: 0; right: 0; bottom: 0; padding: 12px 16px 18px; background: #0E1013; border-top: 1px solid #222831; display: flex; flex-direction: column; gap: 10px">
+    <div style="display: grid; grid-template-columns: 34px 1fr 74px 56px; gap: 6px; align-items: center; height: 46px; padding: 0 10px; border-radius: 10px; background: rgba(63,208,224,0.12); border: 1px solid #3FD0E0">
+      <span style="font-family: 'IBM Plex Mono', monospace; font-size: 14px; font-weight: 600; color: #3FD0E0">14</span>
+      <span style="display: flex; flex-direction: column"><span style="font-size: 14px; font-weight: 600">you</span><span style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: #8FB2B8">tracks · Careful</span></span>
+      <span style="text-align: right; font-family: 'IBM Plex Mono', monospace; font-size: 12px">41.8s</span>
+      <span style="text-align: right; font-family: 'IBM Plex Mono', monospace; font-size: 14px; font-weight: 600">612</span>
+    </div>
+    <a href="Brief.dc.html" style="height: 52px; border-radius: 14px; background: #FF7A1A; color: #160B03; text-decoration: none; display: flex; align-items: center; justify-content: center; font-family: 'Chakra Petch', sans-serif; font-weight: 700; font-size: 15px; letter-spacing: 1px">TAKE ANOTHER SHOT</a>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    var gold = '#FF7A1A', base = '#9AA3AE';
+    return {
+      rows: [
+        { rank: '1', rankColor: gold, nick: 'voltage', build: 'tracks', brief: 'Careful', time: '36.2s', score: '742' },
+        { rank: '2', rankColor: gold, nick: 'mudlark', build: 'off-road', brief: '“hug the left”', time: '37.9s', score: '731' },
+        { rank: '3', rankColor: gold, nick: 'rivet_rae', build: 'tracks', brief: 'Eco', time: '39.4s', score: '718' },
+        { rank: '4', rankColor: base, nick: 'servo.k', build: 'off-road', brief: 'Daredevil', time: '33.1s', score: '702' },
+        { rank: '5', rankColor: base, nick: 'pcb_pablo', build: 'tracks', brief: 'Careful', time: '40.6s', score: '695' },
+        { rank: '6', rankColor: base, nick: 'gearhead', build: 'wheels', brief: '“never swim”', time: '35.0s', score: '681' },
+        { rank: '7', rankColor: base, nick: 'ohm_my', build: 'off-road', brief: 'Eco', time: '42.3s', score: '664' },
+        { rank: '8', rankColor: base, nick: 'tinkerbot', build: 'tracks', brief: 'Careful', time: '44.0s', score: '650' },
+        { rank: '9', rankColor: base, nick: 'lidarling', build: 'wheels', brief: 'Daredevil', time: '31.7s', score: '641' }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

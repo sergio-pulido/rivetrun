@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>RivetRun — Result</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;family=IBM+Plex+Mono:wght@500;600&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#3FD0E0}a:hover{color:#8BE6F0}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; box-sizing: border-box; background: #0E1013; font-family: 'IBM Plex Sans', sans-serif; color: #EDEFF2; display: flex; flex-direction: column; padding: 22px 16px 18px; gap: 12px; overflow: hidden">
+
+  <div style="display: flex; flex-direction: column; align-items: center; gap: 4px">
+    <span style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 2px; color: #9AA3AE">MISSION 03 · MUD RUN</span>
+    <span style="font-family: 'Chakra Petch', sans-serif; font-weight: 700; font-size: 20px; letter-spacing: 4px; color: #FF7A1A">FINISHED</span>
+    <span style="font-family: 'IBM Plex Mono', monospace; font-weight: 600; font-size: 54px; line-height: 1">27.4<span style="font-size: 22px; color: #9AA3AE"> s</span></span>
+    <div style="display: flex; gap: 6px; margin-top: 4px" role="img" aria-label="2 of 3 stars">
+      <svg width="30" height="30" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2l3 6.5 7 .8-5.2 4.8 1.4 7L12 17.6 5.8 21.1l1.4-7L2 9.3l7-.8z" fill="#FF7A1A"></path></svg>
+      <svg width="30" height="30" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2l3 6.5 7 .8-5.2 4.8 1.4 7L12 17.6 5.8 21.1l1.4-7L2 9.3l7-.8z" fill="#FF7A1A"></path></svg>
+      <svg width="30" height="30" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2l3 6.5 7 .8-5.2 4.8 1.4 7L12 17.6 5.8 21.1l1.4-7L2 9.3l7-.8z" fill="none" stroke="#3A414C" stroke-width="1.5"></path></svg>
+    </div>
+  </div>
+
+  <div style="border-radius: 14px; background: #151920; border: 1px solid #232932; padding: 10px 12px; font-size: 13px; color: #D7DBE0; line-height: 1.4">
+    <span style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 1.5px; color: #FFB27A">WHY · </span>Climb mode on the 15° slope kept you moving — the IMU felt the tilt. Third star: finish with zero damage.
+  </div>
+
+  <div style="border-radius: 16px; border: 1px solid #1F5A63; background: #0C1A1D; padding: 12px; display: flex; flex-direction: column; gap: 8px">
+    <div style="display: flex; justify-content: space-between; align-items: baseline">
+      <span style="font-family: 'Chakra Petch', sans-serif; font-weight: 700; font-size: 16px; letter-spacing: 2px; color: #3FD0E0">BRAIN DUEL</span>
+      <span style="font-size: 11px; color: #8FB2B8">same robot · same seed</span>
+    </div>
+    <div style="display: grid; grid-template-columns: 1.6fr 1fr 1fr 1fr; gap: 6px; font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 1px; color: #8FB2B8; padding: 0 8px">
+      <span>BRAIN</span><span style="text-align: right">TIME</span><span style="text-align: right">DMG</span><span style="text-align: right">SCORE</span>
+    </div>
+    <sc-for list="{{duel}}" as="d" hint-placeholder-count="3">
+      <div style="display: grid; grid-template-columns: 1.6fr 1fr 1fr 1fr; gap: 6px; align-items: center; height: 40px; padding: 0 8px; border-radius: 10px; background: {{d.bg}}; border: {{d.border}}; font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: {{d.color}}">
+        <span style="display: flex; flex-direction: column"><span style="font-weight: 600">{{d.name}}</span><span style="font-size: 9px; color: #8FB2B8">{{d.sub}}</span></span>
+        <span style="text-align: right">{{d.time}}</span><span style="text-align: right">{{d.dmg}}</span><span style="text-align: right; font-weight: 600">{{d.score}}</span>
+      </div>
+    </sc-for>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 0; border-radius: 14px; border: 1px solid #232932; background: #12161B; padding: 4px 12px">
+    <sc-for list="{{breakdown}}" as="b" hint-placeholder-count="5">
+      <div style="height: 26px; display: flex; justify-content: space-between; align-items: center; font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: {{b.color}}; border-bottom: 1px solid #1A1F25">
+        <span>{{b.label}}</span><span>{{b.value}}</span>
+      </div>
+    </sc-for>
+    <div style="height: 32px; display: flex; justify-content: space-between; align-items: center; font-family: 'IBM Plex Mono', monospace; font-size: 14px; font-weight: 600">
+      <span>SCORE</span><span style="color: #FF7A1A">704</span>
+    </div>
+  </div>
+
+  <div style="display: flex; align-items: center; gap: 10px">
+    <span style="font-family: 'IBM Plex Mono', monospace; font-size: 13px; font-weight: 600; color: #FFB27A">+120 PTS</span>
+    <div style="flex: 1; height: 6px; border-radius: 3px; background: #232932"><div style="width: 60%; height: 6px; border-radius: 3px; background: #FF7A1A"></div></div>
+    <span style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: #9AA3AE">Winch 180/300</span>
+  </div>
+
+  <div style="display: flex; gap: 8px">
+    <label for="nick" style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0)">Nickname</label>
+    <input id="nick" type="text" value="sergio_rr" style="flex: 1; min-width: 0; height: 48px; box-sizing: border-box; border-radius: 12px; border: 1px solid #3A414C; background: #151920; color: #EDEFF2; padding: 0 12px; font-family: 'IBM Plex Mono', monospace; font-size: 14px">
+    <a href="Leaderboard.dc.html" style="height: 48px; padding: 0 16px; border-radius: 12px; background: #FF7A1A; color: #160B03; text-decoration: none; display: flex; align-items: center; font-family: 'Chakra Petch', sans-serif; font-weight: 700; font-size: 14px; letter-spacing: 1px">SUBMIT</a>
+  </div>
+
+  <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-top: auto">
+    <a href="RunMud.dc.html" style="height: 52px; border-radius: 12px; border: 1px solid #3A414C; color: #EDEFF2; text-decoration: none; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 1px">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7"></path><path d="M3 4v5h5"></path></svg>RETRY</a>
+    <a href="Workshop.dc.html" style="height: 52px; border-radius: 12px; border: 1px solid #3A414C; color: #EDEFF2; text-decoration: none; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 1px">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.5 2.5-2.5-.5-.5-2.5z"></path></svg>UPGRADE</a>
+    <button type="button" style="height: 52px; border-radius: 12px; border: 1px solid #3A414C; background: transparent; color: #EDEFF2; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 1px">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><path d="M8.6 13.5l6.8 4"></path><path d="M15.4 6.5l-6.8 4"></path></svg>SHARE</button>
+    <button type="button" style="height: 52px; border-radius: 12px; border: 1px solid #3A414C; background: transparent; color: #EDEFF2; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 1px">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"></path><path d="M7 10l5 5 5-5"></path><path d="M5 21h14"></path></svg>EPISODE</button>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {
+      duel: [
+        { name: 'JEV · YOU', sub: 'brief: Careful', time: '27.4s', dmg: '11%', score: '704', bg: 'rgba(63,208,224,0.14)', border: '1px solid #3FD0E0', color: '#EDEFF2' },
+        { name: 'HEURISTIC', sub: 'fixed rules', time: '27.8s', dmg: '13%', score: '689', bg: 'transparent', border: '1px solid #1F3A3F', color: '#C9CED6' },
+        { name: 'RANDOM', sub: 'coin flips', time: 'DNF', dmg: '—', score: '96', bg: 'transparent', border: '1px solid #1F3A3F', color: '#8A929C' }
+      ],
+      breakdown: [
+        { label: 'base', value: '1000', color: '#C9CED6' },
+        { label: 'time 27.4 s × 4', value: '−110', color: '#9AA3AE' },
+        { label: 'damage 11 % × 6', value: '−66', color: '#9AA3AE' },
+        { label: 'energy 40 % × 2', value: '−80', color: '#9AA3AE' },
+        { label: 'cost €202 ÷ 5', value: '−40', color: '#9AA3AE' }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>
