@@ -3,7 +3,7 @@ import { TERRAINS, TUNING } from './data';
 import { mixSeed, nextRandom } from './rng';
 import { WHEEL_RADIUS_M, deriveSpec } from './spec';
 import type { RunConfig, RunState, RunStats, StepDamage } from './types';
-import { DEEP_WATER_CM, compileTrack, segmentIndexAt, waterDepthCmAt } from './world';
+import { compileTrack, segmentIndexAt, waterDepthCmAt } from './world';
 
 const G = 9.81;
 const DT_S = TUNING.dtMs / 1000;
@@ -32,6 +32,12 @@ export const PHYSICS = {
   /** A flooded hull takes this many times the normal water damage. */
   floodedDamageFactor: 1.5,
   hullHeightM: 0.25,
+  /** Speed lost per unit of sin(slope) when swimming up a rising bed, m/s. */
+  swimSlopeDragMps: 3,
+  /** Climb mode feels this fraction of slope and current drag. */
+  swimClimbRelief: 0.3,
+  /** Debris hits a swimming hull harder than a bump hits a wheeled one. */
+  submergedImpactFactor: 4,
   /** Driving onto rough ground (impactRisk at or above this) faster than the safe speed is an impact. */
   roughTerrainRisk: 0.7,
   roughEntrySafeMps: 1,
@@ -125,13 +131,23 @@ function driveMotion(state: RunState, action: Action, terrain: TerrainId, slopeD
   const profile = ACTION_PROFILES[action];
   const m = spec.massKg;
   const v = sim.v;
-  const depthCm = waterDepthCmAt(state.world.segments[state.segmentIndex]!, sim.x);
-  if (terrain === 'water' && depthCm > DEEP_WATER_CM) {
-    // Deep water: no bottom to push against. Thrusters swim; anything else drifts to a stop.
+  const here = state.world.segments[state.segmentIndex]!;
+  const depthCm = waterDepthCmAt(here, sim.x);
+  if (terrain === 'water' && depthCm > spec.maxWadingDepthCm) {
+    // Too deep to drive: thrusters swim, anything else sinks to a stop.
     const canSwim = spec.maxSwimDepthCm >= depthCm;
-    const swimTarget = canSwim ? profile.speed * PHYSICS.swimSpeedMps : 0;
+    if (!canSwim) {
+      const stopped = v - (v * DT_S) / PHYSICS.swimTauS;
+      return { v: Math.abs(stopped) < 1e-3 ? 0 : stopped, slipPct: 0, load: 0, accel: (stopped - v) / DT_S };
+    }
+    // Climbing the bed and fighting the current both cost speed; climb mode trades top speed for thrust.
+    const relief = action === 'climb_mode' ? PHYSICS.swimClimbRelief : 1;
+    const drag = (Math.max(0, Math.sin(slopeDeg * DEG)) * PHYSICS.swimSlopeDragMps + (here.currentMps ?? 0)) * relief;
+    const thrust = profile.speed * PHYSICS.swimSpeedMps;
+    const swimTarget = thrust - drag - Math.min(0, Math.sin(slopeDeg * DEG)) * PHYSICS.swimSlopeDragMps * 0.5;
     const next = v + ((swimTarget - v) * DT_S) / PHYSICS.swimTauS;
-    return { v: Math.abs(next) < 1e-3 ? 0 : next, slipPct: 0, load: PHYSICS.idleLoad, accel: (next - v) / DT_S, swimming: canSwim };
+    const load = Math.min(1.5, Math.abs(profile.speed) + drag / PHYSICS.swimSpeedMps);
+    return { v: Math.abs(next) < 1e-3 ? 0 : next, slipPct: 0, load, accel: (next - v) / DT_S, swimming: true };
   }
   if (action === 'deploy_winch') {
     const next = v + ((PHYSICS.winchSpeedMps - v) * DT_S) / 0.3;
@@ -165,7 +181,7 @@ function driveMotion(state: RunState, action: Action, terrain: TerrainId, slopeD
 
 function powerW(state: RunState, action: Action, load: number, swimming: boolean): number {
   const { spec } = state;
-  if (swimming) return spec.basePowerW + (action === 'brake' ? 0 : spec.thrusterPowerW * Math.abs(ACTION_PROFILES[action].speed || 0.5));
+  if (swimming) return spec.basePowerW + spec.thrusterPowerW * load;
   if (action === 'brake') return spec.basePowerW;
   const motor = spec.motorPowerW * (PHYSICS.idleLoad + (1 - PHYSICS.idleLoad) * load) * ACTION_PROFILES[action].power;
   return spec.basePowerW + motor + (action === 'deploy_winch' ? spec.winchPowerW : 0);
@@ -221,7 +237,8 @@ export function step(state: RunState, action: Action): RunState {
       const speed = Math.abs(v);
       const amountPct =
         Math.max(0, speed - PHYSICS.safeImpactSpeedMps) * PHYSICS.obstacleHardness[obstacle.kind] * PHYSICS.impactDamagePerMps *
-        (0.5 + TERRAINS[terrainId].impactRisk) * spec.impactDamageFactor * profile.impact;
+        (0.5 + TERRAINS[terrainId].impactRisk) * spec.impactDamageFactor * profile.impact *
+        (terrainId === 'water' && segment.depthCm > spec.maxWadingDepthCm ? PHYSICS.submergedImpactFactor : 1);
       hit = { cause: 'impact', amountPct, obstacle: obstacle.kind, speedMps: speed };
       v *= profile.impact < 1 ? 0.9 : 0.5;
     }
@@ -247,7 +264,7 @@ export function step(state: RunState, action: Action): RunState {
   if (hit) apply(hit);
   const depthCm = waterDepthCmAt(segment, sim.x);
   if (!spec.waterproof && depthCm > 0) {
-    const flooded = depthCm > DEEP_WATER_CM ? PHYSICS.floodedDamageFactor : 1;
+    const flooded = terrainId === 'water' && depthCm > PHYSICS.hullHeightM * 100 ? PHYSICS.floodedDamageFactor : 1;
     apply({ cause: 'water', amountPct: TERRAINS[terrainId].waterDamage * (depthCm / 10) * flooded * DT_S });
   }
   const overSlope = Math.abs(segment.slopeDeg) - spec.maxSlopeDeg;
@@ -301,7 +318,7 @@ export function step(state: RunState, action: Action): RunState {
       battery,
       damage,
       effects: effectsFor(nextSegment.terrain, v, motion.slipPct, damage, action, t < sparksUntilT, submergedDepthM),
-      ...(nextDepthM > 0 ? { waterDepthM: nextDepthM, submergedDepthM, thrusting: motion.swimming === true && Math.abs(v) > 0.05 } : {}),
+      ...(nextDepthM > 0 ? { waterDepthM: nextDepthM, submergedDepthM, thrusting: motion.swimming === true && Math.abs(v) > 0.05, ...(nextSegment.currentMps ? { waterCurrentMps: nextSegment.currentMps } : {}) } : {}),
     },
     action,
     segmentIndex,

@@ -13,8 +13,10 @@ const CORE_BUILDS: Readonly<Record<string, Build>> = {
   mud_crawler: PRESETS.mud_crawler.build,
   all_rounder: PRESETS.all_rounder.build,
   drone_sprinter: { locomotion: 'offroad_wheels', motor: 'motor_light', battery: 'battery_large', sensors: ['scout_drone', 'ultrasonic'], extras: ['bumper'] },
-  // Recommended for M6 Deep Water: sealed, thrusters, probe to read the depth.
-  deep_diver: { locomotion: 'offroad_wheels', motor: 'motor_torque', battery: 'battery_large', sensors: ['moisture_probe', 'ultrasonic'], extras: ['waterproof_case', 'thruster_kit'] },
+  // Recommended for M6 Deep Water (docs/inputs/m6-deep-water.md): sealed, thrusters, ultrasonic.
+  deep_diver: { locomotion: 'wheels', motor: 'motor_torque', battery: 'battery_large', sensors: ['ultrasonic'], extras: ['waterproof_case', 'thruster_kit'] },
+  // The same robot with the spare budget spent on a camera.
+  deep_diver_cam: { locomotion: 'wheels', motor: 'motor_torque', battery: 'battery_large', sensors: ['ultrasonic', 'camera'], extras: ['waterproof_case', 'thruster_kit'] },
 };
 const EXTRA_BUILDS: Readonly<Record<string, Build>> = {
   offroad_winch: { locomotion: 'offroad_wheels', motor: 'motor_torque', battery: 'battery_large', sensors: ['imu', 'ultrasonic'], extras: ['winch', 'bumper'] },

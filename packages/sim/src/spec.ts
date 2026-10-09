@@ -22,6 +22,8 @@ export interface RobotSpec {
   readonly grip: Partial<Record<TerrainId, number>>;
   readonly sinkageFactor: number;
   readonly maxSlopeDeg: number;
+  /** Deepest water the locomotion can drive through, cm. */
+  readonly maxWadingDepthCm: number;
   readonly roughGroundFactor: number;
   readonly sensorRangeM: Partial<Record<SensorKind, number>>;
   readonly extras: readonly ExtraKind[];
@@ -76,6 +78,7 @@ export function deriveSpec(build: Build): RobotSpec {
     grip: locomotion.effects.grip ?? {},
     sinkageFactor: locomotion.effects.sinkageFactor ?? 1,
     maxSlopeDeg: locomotion.effects.maxSlopeDeg ?? 20,
+    maxWadingDepthCm: locomotion.effects.maxWadingDepthCm ?? 25,
     roughGroundFactor: locomotion.effects.roughGroundFactor ?? 1,
     sensorRangeM,
     extras: extras.flatMap((p) => (p.effects.extra ? [p.effects.extra] : [])),

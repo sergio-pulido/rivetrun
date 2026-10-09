@@ -1,7 +1,7 @@
 // @rivetrun/sim — deterministic simulation core. Pure TS: no DOM, no React, no Node APIs.
 export * from './data';
 export * from './types';
-export { compileTrack, segmentIndexAt, waterDepthCmAt } from './world';
+export { SHORE_DEPTH_CM, SHORE_RAMP_M, compileTrack, segmentIndexAt, waterDepthCmAt } from './world';
 export type { World, WorldObstacle, WorldSegment } from './world';
 export { buildIssues, deriveSpec } from './spec';
 export type { RobotSpec } from './spec';

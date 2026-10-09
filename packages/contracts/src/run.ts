@@ -41,6 +41,8 @@ export const SimStateSchema = z.object({
   waterDepthM: z.number().min(0).optional(),
   /** How far the robot is below the surface, metres (0 or absent = not under water). */
   submergedDepthM: z.number().min(0).optional(),
+  /** Water current against the robot at its position, m/s (absent = none). */
+  waterCurrentMps: z.number().min(0).optional(),
   /** True while the thruster kit is propelling the robot under water. */
   thrusting: z.boolean().optional(),
 });

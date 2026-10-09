@@ -4,10 +4,12 @@ import { mixSeed, mulberry32 } from './rng';
 import { step } from './physics';
 import { deriveSpec } from './spec';
 import type { RunState } from './types';
+import { waterDepthCmAt } from './world';
 import type { World } from './world';
 
 const NOISE = { droneDistanceM: 0.5, distanceM: 0.2, obstacleM: 0.1, slipPct: 3, tiltDeg: 0.5, depthCm: 1 } as const;
 const ASSUMED_DEPTH_CM = 5;
+const UNDERWATER_ULTRASONIC = { rangeFactor: 0.5, noiseFactor: 3 } as const;
 /** Without an IMU, a robot that drives and does not move assumes it is on a hill this steep. */
 // 8° is enough to rule out plain cruising on soft or icy ground without ruling out climb mode.
 const STALL_INFERENCE = { afterS: 1, slopeDeg: 8 } as const;
@@ -53,8 +55,12 @@ export function perceive(state: RunState): Perception {
   let obstacleAheadM: Perception['obstacleAheadM'] = 'unknown';
   const ultrasonicRange = spec.sensorRangeM.ultrasonic;
   if (ultrasonicRange !== undefined) {
-    const obstacle = world.obstacles.find((o) => o.xM > sim.x && o.xM - sim.x <= ultrasonicRange);
-    obstacleAheadM = obstacle ? round(Math.max(0, obstacle.xM - sim.x + noise(NOISE.obstacleM)), 2) : null;
+    // Under water the ultrasonic is degraded: shorter range, noisier echo.
+    const submerged = (sim.submergedDepthM ?? 0) > 0;
+    const range = submerged ? ultrasonicRange * UNDERWATER_ULTRASONIC.rangeFactor : ultrasonicRange;
+    const jitter = submerged ? NOISE.obstacleM * UNDERWATER_ULTRASONIC.noiseFactor : NOISE.obstacleM;
+    const obstacle = world.obstacles.find((o) => o.xM > sim.x && o.xM - sim.x <= range);
+    obstacleAheadM = obstacle ? round(Math.max(0, obstacle.xM - sim.x + noise(jitter)), 2) : null;
   }
 
   const hasImu = spec.sensorRangeM.imu !== undefined;
@@ -82,11 +88,18 @@ function perceivedWorld(state: RunState, perceived: Perception): World {
     !wet(terrain) ? 0 : perceived.depthAheadCm === 'unknown' ? ASSUMED_DEPTH_CM : perceived.depthAheadCm;
   const blindSlopeDeg = state.stallS >= STALL_INFERENCE.afterS ? STALL_INFERENCE.slopeDeg : 0;
   const slopeDeg = perceived.tiltDeg === 'unknown' ? blindSlopeDeg : perceived.tiltDeg;
+  const trueDepthCm = waterDepthCmAt(current, x);
+  const afloat = current.terrain === 'water' && trueDepthCm > state.spec.maxWadingDepthCm;
   const far = x + 1000;
   const sees = perceived.terrainAhead !== 'unknown' && perceived.terrainAheadDistanceM !== 'unknown' && perceived.terrainAhead !== current.terrain;
   const boundary = sees ? x + (perceived.terrainAheadDistanceM as number) : far;
   const segments = [
-    { index: 0, startM: 0, endM: Math.max(boundary, x + 0.01), terrain: current.terrain, slopeDeg, depthCm: depthFor(current.terrain) },
+    {
+      index: 0, startM: 0, endM: Math.max(boundary, x + 0.01), terrain: current.terrain, slopeDeg,
+      // A robot that is afloat knows it: the hull it is in is the one thing it does not need a probe for.
+      depthCm: afloat ? trueDepthCm : depthFor(current.terrain),
+      ...(afloat && current.currentMps ? { currentMps: current.currentMps } : {}),
+    },
   ];
   if (sees && perceived.terrainAhead !== 'unknown') {
     segments.push({ index: 1, startM: segments[0]!.endM, endM: far, terrain: perceived.terrainAhead, slopeDeg: 0, depthCm: depthFor(perceived.terrainAhead) });

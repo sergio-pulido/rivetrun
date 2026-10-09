@@ -29,6 +29,8 @@ export const SegmentSchema = z.object({
   obstacle: ObstacleSchema.optional(),
   /** Water / mud depth. */
   depthCm: z.number().min(0).optional(),
+  /** Water current against the direction of travel, m/s (deep water only). */
+  currentMps: z.number().min(0).optional(),
 });
 export type Segment = z.infer<typeof SegmentSchema>;
 

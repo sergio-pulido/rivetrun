@@ -7,6 +7,11 @@ export interface WorldSegment {
   readonly terrain: TerrainId;
   readonly slopeDeg: number;
   readonly depthCm: number;
+  /** Depth at the start and end edges, cm (absent = flat at depthCm). */
+  readonly edgeInCm?: number;
+  readonly edgeOutCm?: number;
+  /** Current against the direction of travel, m/s. */
+  readonly currentMps?: number;
 }
 
 export interface WorldObstacle {
@@ -29,7 +34,17 @@ export function compileTrack(track: Track): World {
   track.segments.forEach((segment, index) => {
     const startM = cursor;
     cursor += segment.lengthM;
-    segments.push({ index, startM, endM: cursor, terrain: segment.terrain, slopeDeg: segment.slopeDeg, depthCm: segment.depthCm ?? 0 });
+    const depthCm = segment.depthCm ?? 0;
+    // Water meets a dry neighbour at shore depth and a wet neighbour halfway between the two depths.
+    const edge = (neighbour: Track['segments'][number] | undefined): number | undefined => {
+      if (segment.terrain !== 'water') return undefined;
+      return neighbour?.terrain === 'water' ? (depthCm + (neighbour.depthCm ?? 0)) / 2 : Math.min(depthCm, SHORE_DEPTH_CM);
+    };
+    segments.push({
+      index, startM, endM: cursor, terrain: segment.terrain, slopeDeg: segment.slopeDeg, depthCm,
+      edgeInCm: edge(track.segments[index - 1]), edgeOutCm: edge(track.segments[index + 1]),
+      ...(segment.currentMps ? { currentMps: segment.currentMps } : {}),
+    });
     if (segment.obstacle) {
       obstacles.push({ xM: startM + segment.lengthM / 2, kind: segment.obstacle, segmentIndex: index });
     }
@@ -37,17 +52,20 @@ export function compileTrack(track: Track): World {
   return { segments, obstacles, lengthM: cursor };
 }
 
-/** Deep water starts beyond this depth: wheels and tracks lose the bottom. */
-export const DEEP_WATER_CM = 25;
-/** Deep channels slope down and back up over this distance at each end. */
+/** A dry shore meets the water at no more than this depth. */
+export const SHORE_DEPTH_CM = 20;
+/** The bed slopes between depths over this distance at each end of a water segment. */
 export const SHORE_RAMP_M = 1.5;
 
-/** Water / mud depth under x, cm. Shallow segments are flat; deep water ramps in and out at the shores. */
+const lerp = (from: number, to: number, t: number): number => from + (to - from) * Math.min(1, Math.max(0, t));
+
+/** Water / mud depth under x, cm. The bed ramps from each edge depth to the segment depth. */
 export function waterDepthCmAt(segment: WorldSegment, xM: number): number {
-  if (segment.depthCm <= DEEP_WATER_CM) return segment.depthCm;
-  const fromShore = Math.min(xM - segment.startM, segment.endM - xM);
-  const ramp = Math.min(1, Math.max(0, fromShore / SHORE_RAMP_M));
-  return DEEP_WATER_CM + (segment.depthCm - DEEP_WATER_CM) * ramp;
+  const fromStart = xM - segment.startM;
+  const toEnd = segment.endM - xM;
+  return fromStart <= toEnd
+    ? lerp(segment.edgeInCm ?? segment.depthCm, segment.depthCm, fromStart / SHORE_RAMP_M)
+    : lerp(segment.edgeOutCm ?? segment.depthCm, segment.depthCm, toEnd / SHORE_RAMP_M);
 }
 
 /** Index of the segment containing x, searching from a hint. Clamped to the track. */
