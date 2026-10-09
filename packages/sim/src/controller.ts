@@ -145,7 +145,8 @@ export function runController(config: RunConfig, brain: Brain, options: RunContr
         state = markDecision(state);
         emit({ type: 'decisionPending', t: question.t, question });
         void decideSafe(brain, question).then((decision) => {
-          if (stopped) return;
+          // A decision that lands after the run ended is dropped: nothing follows finish / dnf.
+          if (stopped || state.done) return;
           decisions.push(record(question, decision));
           state = withAction(state, decision.selected);
           pending = false;

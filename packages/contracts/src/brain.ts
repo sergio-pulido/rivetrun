@@ -9,7 +9,7 @@ const reading = <T extends z.ZodType>(schema: T) => z.union([schema, z.literal('
  * camera → terrainAhead*, ultrasonic → obstacleAheadM, IMU → slipPct / tiltDeg,
  * moisture probe → depthAheadCm.
  * Noisy readings are clamped to the bounds below before they are emitted.
- * Camera with no terrain change in range: the current terrain and the distance to the end of its segment.
+ * Camera / drone with no terrain change in range: the current terrain and the distance to its end, capped at the sensor's range.
  */
 export const PerceptionSchema = z.object({
   terrainAhead: reading(TerrainIdSchema),

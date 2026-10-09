@@ -48,7 +48,8 @@ export function perceive(state: RunState): Perception {
     );
     const sameUntil = world.segments.slice(current.index).find((segment) => segment.terrain !== current.terrain);
     terrainAhead = change ? change.terrain : current.terrain;
-    const distance = change ? change.startM - sim.x : (sameUntil ? sameUntil.startM : world.lengthM) - sim.x;
+    // Nothing different in range: the sensor only knows the current terrain goes on at least as far as it can see.
+    const distance = change ? change.startM - sim.x : Math.min(cameraRange, (sameUntil ? sameUntil.startM : world.lengthM) - sim.x);
     terrainAheadDistanceM = round(Math.max(0, distance + noise(droneRange !== undefined ? NOISE.droneDistanceM : NOISE.distanceM)), 2);
   }
 

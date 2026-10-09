@@ -20,7 +20,9 @@ export function why(state: RunState): string {
     impact!.obstacle === undefined
       ? `Slammed onto ${TERRAINS[impact!.roughEntry ?? 'rock'].name.toLowerCase()} at ${round1(impact!.speedMps)} m/s${has('scout_drone') ? '' : ' — no scout drone to see it in time'}`
       : `Hit the ${impact!.obstacle} at ${round1(impact!.speedMps)} m/s${has('ultrasonic') ? '' : ' — no ultrasonic to see it coming'}`;
-  const waterLine = (): string => `Took ${Math.round(water)}% water damage — no waterproof case`;
+  // Mud ingress is logged as water damage; name the thing the player actually drove through.
+  const hasWater = state.world.segments.some((segment) => segment.terrain === 'water');
+  const waterLine = (): string => `Took ${Math.round(water)}% ${hasWater ? 'water' : 'mud ingress'} damage — no waterproof case`;
   const slipLine = (): string =>
     `Slipped ${Math.round(worstSlip![1])} s on ${TERRAINS[worstSlip![0]].name.toLowerCase()}${has('imu') ? '' : ' — no IMU'}`;
 
