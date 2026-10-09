@@ -1,9 +1,10 @@
-// Benchmark: every mission × every preset × N seeds × policies, headless, with real Jev calls.
+// Benchmark: every mission × every build (presets + a Scout drone build) × N seeds × policies, headless, with real Jev calls.
 // Writes docs/BENCHMARK.md. Measured numbers only.
-//   pnpm --filter @rivetrun/brain benchmark -- --seeds 3 --policies jev,heuristic,random
+//   pnpm --filter @rivetrun/brain benchmark -- --seeds 3 --policies jev,heuristic,random --briefings none,daredevil,careful,eco
+// Each briefing is its own Jev variant ("Brief the brain"); the heuristic and random policies ignore briefings.
 import { writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import type { Brain, Episode, MissionId, Policy, PresetId } from '@rivetrun/contracts';
+import { BRIEFING_PRESETS, type Brain, type Build, type Episode, type MissionId, type Policy } from '@rivetrun/contracts';
 import { heuristicBrain, MISSION_IDS, MISSIONS, PRESETS, randomBrain, runHeadless } from '@rivetrun/sim';
 import { createJevBrain, JEV_MODEL_ID, JEV_TIMEOUT_MS } from '../src/index';
 
@@ -12,9 +13,36 @@ const PRIORITY = 0.5;
 const SEED_BASE = 1001;
 const DEFAULT_OUT = fileURLToPath(new URL('../../../docs/BENCHMARK.md', import.meta.url));
 
+/** The builds every policy drives: the game's presets plus one build with the Scout drone, which no preset fits. */
+interface BenchBuild {
+  readonly id: string;
+  readonly name: string;
+  readonly build: Build;
+}
+const BUILDS: readonly BenchBuild[] = [
+  ...Object.values(PRESETS).map((preset) => ({ id: preset.id as string, name: preset.name, build: preset.build })),
+  {
+    id: 'scout',
+    name: 'Scout (All-rounder with the Scout drone instead of the camera)',
+    build: { ...PRESETS.all_rounder.build, sensors: ['scout_drone', 'ultrasonic'] },
+  },
+];
+
+const BRIEFING_IDS = ['none', ...BRIEFING_PRESETS.map((preset) => preset.id)] as const;
+type BriefingId = (typeof BRIEFING_IDS)[number];
+
+/** One row of the tables: a policy, and for Jev the briefing it drives by. */
+interface Variant {
+  readonly key: string;
+  readonly label: string;
+  readonly policy: Policy;
+  readonly briefing?: string;
+}
+
 interface Args {
   readonly seeds: number;
   readonly policies: readonly Policy[];
+  readonly briefings: readonly BriefingId[];
   readonly missions: readonly MissionId[];
   readonly concurrency: number;
   readonly out: string;
@@ -22,9 +50,9 @@ interface Args {
 
 interface RunResult {
   readonly missionId: MissionId;
-  readonly presetId: PresetId;
+  readonly buildId: string;
   readonly seed: number;
-  readonly policy: Policy;
+  readonly variant: Variant;
   readonly episode: Episode;
 }
 
@@ -33,9 +61,9 @@ function parseArgs(argv: readonly string[]): Args {
     const index = argv.indexOf(`--${flag}`);
     return index >= 0 ? argv[index + 1] : undefined;
   };
-  const list = <T extends string>(flag: string, all: readonly T[]): readonly T[] => {
+  const list = <T extends string>(flag: string, fallback: readonly T[], all: readonly T[] = fallback): readonly T[] => {
     const raw = value(flag);
-    if (!raw) return all;
+    if (!raw) return fallback;
     const picked = raw.split(',').filter((item): item is T => (all as readonly string[]).includes(item));
     if (picked.length === 0) throw new Error(`--${flag}: nothing valid in "${raw}" (allowed: ${all.join(', ')})`);
     return picked;
@@ -48,14 +76,32 @@ function parseArgs(argv: readonly string[]): Args {
   return {
     seeds: positiveInt('seeds', 3),
     policies: list('policies', ALL_POLICIES),
+    briefings: list('briefings', ['none'] as readonly BriefingId[], BRIEFING_IDS),
     missions: list('missions', MISSION_IDS),
     concurrency: positiveInt('concurrency', 6),
     out: value('out') ?? DEFAULT_OUT,
   };
 }
 
-const brainFor = (policy: Policy, seed: number, jev: Brain): Brain =>
-  policy === 'jev' ? jev : policy === 'heuristic' ? heuristicBrain : randomBrain(seed);
+function variantsFor(policies: readonly Policy[], briefings: readonly BriefingId[]): Variant[] {
+  return policies.flatMap((policy): Variant[] => {
+    if (policy === 'heuristic') return [{ key: 'heuristic', label: 'Heuristic', policy }];
+    if (policy === 'random') return [{ key: 'random', label: 'Random', policy }];
+    return briefings.map((id) => {
+      const preset = BRIEFING_PRESETS.find((candidate) => candidate.id === id);
+      return preset
+        ? { key: `jev:${id}`, label: `Jev + ${preset.name}`, policy, briefing: preset.text }
+        : { key: 'jev', label: 'Jev (no briefing)', policy };
+    });
+  });
+}
+
+function brainFor(variant: Variant, seed: number, jev: Brain): Brain {
+  if (variant.policy === 'heuristic') return heuristicBrain;
+  if (variant.policy === 'random') return randomBrain(seed);
+  const { briefing } = variant;
+  return briefing ? { decide: (question) => jev.decide({ ...question, briefing }) } : jev;
+}
 
 /** Runs tasks with a fixed number in flight (Jev runs are network-bound). */
 async function pool<T>(tasks: readonly (() => Promise<T>)[], limit: number): Promise<T[]> {
@@ -101,15 +147,16 @@ const TABLE_HEAD = [
   '| - | - | - | - | - | - | - |',
 ];
 
-function report(args: Args, policies: readonly Policy[], results: readonly RunResult[], wallS: number): string {
-  const byPolicy = (policy: Policy): RunResult[] => results.filter((r) => r.policy === policy);
+function report(args: Args, variants: readonly Variant[], results: readonly RunResult[], wallS: number): string {
+  const of = (variant: Variant): RunResult[] => results.filter((r) => r.variant.key === variant.key);
   const decisions = results.flatMap((r) => r.episode.decisions);
-  const jevDecisions = byPolicy('jev').flatMap((r) => r.episode.decisions);
+  const jevDecisions = results.filter((r) => r.variant.policy === 'jev').flatMap((r) => r.episode.decisions);
   const jevAnswered = jevDecisions.filter((d) => d.policy === 'jev' && !d.fallback);
   const jevFallbacks = jevDecisions.length - jevAnswered.length;
   const latencies = jevAnswered.map((d) => d.latencyMs);
   const models = [...new Set(jevAnswered.map((d) => d.model).filter((m): m is string => Boolean(m)))];
-  const policyName: Record<Policy, string> = { jev: 'Jev', heuristic: 'Heuristic', random: 'Random' };
+  const ranJev = variants.some((variant) => variant.policy === 'jev');
+  const briefed = variants.filter((variant) => variant.briefing);
 
   const lines: string[] = [
     '# RivetRun — Brain benchmark',
@@ -117,8 +164,8 @@ function report(args: Args, policies: readonly Policy[], results: readonly RunRe
     `Generated ${new Date().toISOString()} by \`packages/brain/scripts/benchmark.ts\`. Every number below is measured from headless runs of the game sim; nothing is estimated.`,
     '',
     '## Setup',
-    `- Missions: ${args.missions.join(', ')} · Presets: ${Object.keys(PRESETS).join(', ')} · Seeds per mission × preset: ${args.seeds} (${Array.from({ length: args.seeds }, (_, i) => SEED_BASE + i).join(', ')})`,
-    `- Policies: ${policies.map((p) => policyName[p]).join(', ')} · Player priority: ${PRIORITY} (balanced)`,
+    `- Missions: ${args.missions.join(', ')} · Builds: ${BUILDS.map((b) => b.id).join(', ')} · Seeds per mission × build: ${args.seeds} (${Array.from({ length: args.seeds }, (_, i) => SEED_BASE + i).join(', ')})`,
+    `- Rows: ${variants.map((variant) => variant.label).join(', ')} · Player priority: ${PRIORITY} (balanced)`,
     `- Total runs: ${results.length} · Total decisions: ${decisions.length} · Wall time: ${fmt(wallS, 0)} s`,
     '- Mean time counts finished runs only; damage, energy and score count every run (DNF included).',
   ];
@@ -127,8 +174,13 @@ function report(args: Args, policies: readonly Policy[], results: readonly RunRe
       `- M5 always runs on its fixed seed (${MISSIONS.M5.fixedSeed}), so its ${args.seeds} seeds repeat the same world; only the random policy's own draws differ.`,
     );
   }
+  if (briefed.length > 0) {
+    lines.push(
+      `- Briefings ("Brief the brain") are sent to Jev with every question: ${briefed.map((variant) => `${variant.label.replace('Jev + ', '')} = "${variant.briefing}"`).join(' · ')}. The heuristic and random policies never read a briefing.`,
+    );
+  }
   lines.push('', '## Jev');
-  if (!policies.includes('jev')) {
+  if (!ranJev) {
     lines.push('- Not run: JEV_API_KEY was not set (or jev was excluded with `--policies`).');
   } else {
     lines.push(
@@ -138,23 +190,41 @@ function report(args: Args, policies: readonly Policy[], results: readonly RunRe
       `- Calls were made ${args.concurrency} runs at a time, one call per decision, no cache, ${JEV_TIMEOUT_MS} ms timeout as in the game.`,
     );
   }
-  lines.push('', '## Overall, per policy', `| Policy ${TABLE_HEAD[0]}`, TABLE_HEAD[1]!);
-  for (const policy of policies) lines.push(`| ${summaryRow(policyName[policy], byPolicy(policy))} |`);
+  lines.push('', '## Overall, per policy and briefing', `| Policy ${TABLE_HEAD[0]}`, TABLE_HEAD[1]!);
+  for (const variant of variants) lines.push(`| ${summaryRow(variant.label, of(variant))} |`);
 
   lines.push('', '## Per mission', `| Mission | Policy ${TABLE_HEAD[0]}`, `| - ${TABLE_HEAD[1]}`);
   for (const missionId of args.missions) {
-    for (const policy of policies) {
-      const runs = byPolicy(policy).filter((r) => r.missionId === missionId);
-      lines.push(`| ${missionId} ${MISSIONS[missionId].name} | ${summaryRow(policyName[policy], runs)} |`);
+    for (const variant of variants) {
+      const runs = of(variant).filter((r) => r.missionId === missionId);
+      lines.push(`| ${missionId} ${MISSIONS[missionId].name} | ${summaryRow(variant.label, runs)} |`);
     }
   }
 
-  lines.push('', '## Per preset', `| Preset | Policy ${TABLE_HEAD[0]}`, `| - ${TABLE_HEAD[1]}`);
-  for (const presetId of Object.keys(PRESETS) as PresetId[]) {
-    for (const policy of policies) {
-      const runs = byPolicy(policy).filter((r) => r.presetId === presetId);
-      lines.push(`| ${PRESETS[presetId].name} | ${summaryRow(policyName[policy], runs)} |`);
+  lines.push('', '## Per build', `| Build | Policy ${TABLE_HEAD[0]}`, `| - ${TABLE_HEAD[1]}`);
+  for (const bench of BUILDS) {
+    for (const variant of variants) {
+      const runs = of(variant).filter((r) => r.buildId === bench.id);
+      lines.push(`| ${bench.name.split(' (')[0]} | ${summaryRow(variant.label, runs)} |`);
     }
+  }
+
+  // The two builds made for one mission each: thrusters for Deep Water, the Scout drone for Frozen Pass.
+  const spotlight = [
+    { missionId: 'M6', buildId: 'deep_diver' },
+    { missionId: 'M4', buildId: 'scout' },
+    { missionId: 'M4', buildId: 'all_rounder' },
+  ].filter((pair) => args.missions.includes(pair.missionId as MissionId));
+  if (spotlight.length > 0) {
+    lines.push('', '## Specialist builds on their mission', `| Mission · build | Policy ${TABLE_HEAD[0]}`, `| - ${TABLE_HEAD[1]}`);
+    for (const pair of spotlight) {
+      const bench = BUILDS.find((b) => b.id === pair.buildId)!;
+      for (const variant of variants) {
+        const runs = of(variant).filter((r) => r.missionId === pair.missionId && r.buildId === pair.buildId);
+        lines.push(`| ${pair.missionId} · ${bench.name.split(' (')[0]} | ${summaryRow(variant.label, runs)} |`);
+      }
+    }
+    lines.push('', `Scout = ${BUILDS.find((b) => b.id === 'scout')!.name.split('(')[1]!.replace(')', '')}; the sim then simulates each option further ahead and Jev is told the longer window.`);
   }
   lines.push('');
   return lines.join('\n');
@@ -163,26 +233,30 @@ function report(args: Args, policies: readonly Policy[], results: readonly RunRe
 async function main(): Promise<void> {
   const args = parseArgs(process.argv.slice(2));
   const hasKey = Boolean(process.env.JEV_API_KEY);
-  const policies = args.policies.filter((policy) => policy !== 'jev' || hasKey);
+  const variants = variantsFor(
+    args.policies.filter((policy) => policy !== 'jev' || hasKey),
+    args.briefings,
+  );
   if (args.policies.includes('jev') && !hasKey) console.warn('JEV_API_KEY is not set: skipping the jev policy.');
 
   const jev = createJevBrain();
   const tasks: (() => Promise<RunResult>)[] = [];
-  for (const policy of policies) {
+  for (const variant of variants) {
+    const { policy } = variant;
     for (const missionId of args.missions) {
-      for (const presetId of Object.keys(PRESETS) as PresetId[]) {
+      for (const bench of BUILDS) {
         for (let i = 0; i < args.seeds; i++) {
           const seed = SEED_BASE + i;
           tasks.push(async () => {
-            const { episode } = await runHeadless(MISSIONS[missionId], seed, PRESETS[presetId].build, brainFor(policy, seed, jev), {
+            const { episode } = await runHeadless(MISSIONS[missionId], seed, bench.build, brainFor(variant, seed, jev), {
               priority: PRIORITY,
               policy,
             });
             const o = episode.outcome;
             console.info(
-              `${policy.padEnd(9)} ${missionId} ${presetId.padEnd(11)} seed ${seed}: ${o.finished ? 'finished' : `DNF ${o.dnfReason ?? ''}`} score ${o.score.toFixed(0)} (${episode.decisions.length} decisions)`,
+              `${variant.key.padEnd(13)} ${missionId} ${bench.id.padEnd(11)} seed ${seed}: ${o.finished ? 'finished' : `DNF ${o.dnfReason ?? ''}`} score ${o.score.toFixed(0)} (${episode.decisions.length} decisions)`,
             );
-            return { missionId, presetId, seed, policy, episode };
+            return { missionId, buildId: bench.id, seed, variant, episode };
           });
         }
       }
@@ -191,7 +265,7 @@ async function main(): Promise<void> {
 
   const started = performance.now();
   const results = await pool(tasks, args.concurrency);
-  const markdown = report(args, policies, results, (performance.now() - started) / 1000);
+  const markdown = report(args, variants, results, (performance.now() - started) / 1000);
   writeFileSync(args.out, markdown);
   console.info(`\nWrote ${args.out}\n`);
   console.info(markdown);

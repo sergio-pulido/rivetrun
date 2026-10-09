@@ -135,7 +135,7 @@ export function buildJevRequest(question: BrainQuestion, model: string = JEV_MOD
   const stopped = Math.abs(question.status.speedMps) < STOPPED_SPEED_MPS;
   const briefing = cleanBriefing(question.briefing);
   const briefingLine = briefing
-    ? `The player gave the driver these instructions: "${briefing}" Follow them when choosing between the forward options, even where they differ from the priority rule below. `
+    ? `The player gave the driver these instructions: "${briefing}" These instructions outrank the priority rule below: among the options that move forward, choose the one that best fits the instructions, even when the rule would pick a faster or a slower one. `
     : '';
   return {
     model,
@@ -200,13 +200,11 @@ export function createJevBrain(options: JevBrainOptions = {}): Brain {
   const timeoutMs = options.timeoutMs ?? JEV_TIMEOUT_MS;
   const doFetch = options.fetch ?? fetch;
 
-  const decide = async (question: BrainQuestion): Promise<BrainDecision> => {
+  const ask = async (question: BrainQuestion, controller: AbortController): Promise<BrainDecision> => {
     const apiKey = options.apiKey ?? process.env.JEV_API_KEY;
     if (!apiKey) throw new JevError('missing_key', 'JEV_API_KEY is not set');
 
     const started = performance.now();
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), timeoutMs);
     try {
       const response = await doFetch(JEV_ENDPOINT, {
         method: 'POST',
@@ -231,9 +229,24 @@ export function createJevBrain(options: JevBrainOptions = {}): Brain {
       if (error instanceof JevError) throw error;
       if (controller.signal.aborted) throw new JevError('timeout', `Jev exceeded ${timeoutMs} ms`);
       throw new JevError('network', error instanceof Error ? error.message : String(error));
-    } finally {
-      clearTimeout(timer);
     }
+  };
+
+  // The deadline is enforced twice: the abort signal cancels the request, and the race guarantees that
+  // decide() settles even if an aborted body read never does (seen as a hung run in the benchmark).
+  const decide = (question: BrainQuestion): Promise<BrainDecision> => {
+    const controller = new AbortController();
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const deadline = new Promise<never>((_resolve, reject) => {
+      timer = setTimeout(() => {
+        controller.abort();
+        reject(new JevError('timeout', `Jev exceeded ${timeoutMs} ms`));
+      }, timeoutMs);
+    });
+    const answer = ask(question, controller);
+    // A late rejection of the losing promise must not surface as unhandled.
+    answer.catch(() => undefined);
+    return Promise.race([answer, deadline]).finally(() => clearTimeout(timer));
   };
 
   return { decide };
