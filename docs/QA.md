@@ -8,7 +8,7 @@ Status: **OPEN** = reproduces now · **FIXED** = fix retested in the browser · 
 
 | # | Owner | Status | What | Repro |
 |---|---|---|---|---|
-| R12 | ui | OPEN (needs a visible device to confirm) | The 3D bench on Home and in the Workshop stayed on its drawn placeholder ("POWERING UP THE BENCH") for 8 s after a hard load; no `<canvas>` was created. On Home it appeared after the first tap. | Hard-load `/` or `/workshop`, wait 8 s without touching. The pane reports `document.visibilityState === 'hidden'`, so an on-screen / idle trigger may simply never fire here; check once on a phone. |
+| R12 | human check | OPEN (needs one look on a real phone or a visible tab) | The 3D bench on Home and in the Workshop stayed on its drawn placeholder ("POWERING UP THE BENCH") after a hard load. ui found and fixed two causes (trigger waited on IntersectionObserver + requestIdleCallback, which a non-rendering page never delivers; placeholder faded out before the 3D had drawn). Neither the sim nor the ui session can confirm the result: both test panes are hidden and get no animation frames. | Hard-load `/` and `/workshop` on a phone or a visible Chrome tab. Expected: 3D within about a second. In a hidden pane the drawn robot stays up indefinitely with an unsized canvas — that is the no-frames state, not a failure. |
 | R13 | game | OPEN (cosmetic) | Grass tufts are drawn inside the dark gap pit, along one wall. | `/run/M7`, first gap after the ramp. |
 | R14 | sim | OPEN (design) | M7: the log sits 4 m before the bare 0.9 m gap and the piston re-arms in 3 s, so hopping the log costs the gap jump. Hint requested from game (re-arm seconds on the JUMP button). | `/run/M7` with a piston build, jump the log at 2 m/s. |
 
