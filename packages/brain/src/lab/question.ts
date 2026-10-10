@@ -11,6 +11,10 @@ export interface LabOptionLike {
   readonly description: string;
   readonly predicted?: {
     readonly steps?: number;
+    /** To the thing and on to where it goes. */
+    readonly jobSteps?: number;
+    /** All the known work if this goes first and the rest in its best order. */
+    readonly tourSteps?: number;
     readonly timeS?: number;
     readonly energyPct?: number;
     readonly batteryAfterPct?: number;
@@ -31,7 +35,7 @@ export interface LabQuestionLike {
   readonly trigger: { readonly label: string };
   readonly knew: readonly string[];
   readonly unknown: readonly string[];
-  readonly energy: { readonly batteryPct: number; readonly projectedPct?: number; readonly rangeTiles: number };
+  readonly energy: { readonly batteryPct: number; readonly projectedPct?: number; readonly rangeTiles: number; readonly workPct?: number };
   readonly objectives: readonly { readonly id: string; readonly label: string; readonly done: boolean; readonly have: number; readonly need: number }[];
   readonly options: readonly LabOptionLike[];
   readonly observation: { readonly blind: boolean; readonly exploredPct: number; readonly carrying: readonly string[]; readonly damagePct: number; readonly pace: string };
@@ -39,7 +43,7 @@ export interface LabQuestionLike {
 }
 
 /** Version of the Lab question wording; part of the arena's Lab prompt hash. */
-export const LAB_QUESTION_VERSION = 'lab-q1';
+export const LAB_QUESTION_VERSION = 'lab-q3';
 
 const round = (value: number, digits = 0): number => {
   const factor = 10 ** digits;
@@ -65,6 +69,8 @@ function describeOption(option: LabOptionLike): string {
   if (p) {
     const predicted = [
       p.steps !== undefined ? `${p.steps} tiles` : null,
+      p.jobSteps !== undefined ? `${p.jobSteps} tiles for the whole job` : null,
+      p.tourSteps !== undefined ? `${p.tourSteps} tiles for all the known work if this goes first` : null,
       p.timeS !== undefined ? `${round(p.timeS)} s` : null,
       p.energyPct !== undefined ? `costs ${round(p.energyPct, 1)} % charge` : null,
       p.batteryAfterPct !== undefined ? `battery then ${round(p.batteryAfterPct)} %` : null,
@@ -78,6 +84,36 @@ function describeOption(option: LabOptionLike): string {
   if (option.visited) parts.push('The first tile that way has been driven before.');
   if (option.current) parts.push('The robot is already doing this.');
   return parts.join(' ');
+}
+
+const chargeCritical = (question: LabQuestionLike): boolean => question.energy.projectedPct !== undefined && question.energy.projectedPct < 10;
+
+/**
+ * Where an option stands among the others, computed here and stated as a fact (docs/JEV.md: literal reading):
+ * the model is not left to compare tile counts across options or to weigh "already doing this" against them.
+ */
+function standing(option: LabOptionLike, question: LabQuestionLike): string {
+  const jobs = question.options.filter((o) => (o.kind === 'objective' || o.kind === 'interact') && o.predicted?.tourSteps !== undefined);
+  const work = question.options.some((o) => o.kind === 'objective' || o.kind === 'interact');
+  const openObjectives = question.objectives.some((objective) => !objective.done);
+  if ((option.kind === 'objective' || option.kind === 'interact') && jobs.length > 1 && option.predicted?.tourSteps !== undefined) {
+    const best = Math.min(...jobs.map((o) => o.predicted!.tourSteps!));
+    const extra = option.predicted.tourSteps - best;
+    return extra === 0 ? ' Of the jobs on offer this one gives the shortest total route: it is the correct job to start.' : ` Starting with this job makes the total route ${extra} tiles longer than the best job on offer.`;
+  }
+  if (option.kind === 'explore') {
+    if (work) return ' A known objective is reachable, so exploring is not correct now.';
+    const cost = (o: LabOptionLike): number => (o.predicted?.steps ?? 0) + (o.towardTiles ?? 0) + (o.visited ? 4 : 0);
+    const explores = question.options.filter((o) => o.kind === 'explore');
+    const best = Math.min(...explores.map(cost));
+    return explores.length > 1 && cost(option) === best ? ' Of the directions on offer this one is the correct one to explore: it leads soonest toward what the robot still wants.' : '';
+  }
+  if (option.kind === 'return' && openObjectives && !option.completes) {
+    return chargeCritical(question) ? ' The charge is critical, so returning now is correct.' : ' Objectives are still open and the charge is not critical, so this is not correct now.';
+  }
+  if (option.kind === 'wait') return question.options.some((o) => o.kind !== 'wait' && o.kind !== 'pace') ? ' Another move is on offer, and the robot plans its own way around traffic, so waiting is not correct now.' : '';
+  if (option.kind === 'pace') return question.energy.projectedPct !== undefined && question.energy.projectedPct < 30 && /eco/.test(option.id) ? ' The charge is short, so the eco pace is correct now.' : ' The charge does not call for a change of pace, so this is not correct now.';
+  return '';
 }
 
 /** Briefing as one quotable line (same cleaning as the rail question). */
@@ -108,9 +144,11 @@ export function buildLabPromptParts(question: LabQuestionLike): LabPromptParts {
       : 'Every objective is done: what remains is reaching the end point. ') +
     `Energy: the battery is at ${round(question.energy.batteryPct)} %, enough for about ${question.energy.rangeTiles} tiles at this pace` +
     (projected === undefined ? '; the robot knows no way to the end point yet. ' : `; after the known way to the end point it would have ${round(projected)} % left (${marginLevel(projected)}). `) +
+    (question.energy.workPct !== undefined ? `The known work still to do would cost about ${round(question.energy.workPct)} % charge at this pace. ` : '') +
     'A robot that runs out of charge before the end point fails the mission, so an option whose charge after driving on to the end point "would not get back" is only correct when no other option makes progress. ' +
     (briefing ? `The player gave the driver these instructions: "${briefing}" Follow them where the options allow. ` : '') +
-    'Rule: prefer doing a known open objective; explore when no open objective is reachable; return to the end point when every objective is done or when the charge is critical; wait only for moving traffic to pass. ' +
+    'Rule: prefer doing a known open objective; explore when no open objective is reachable; return to the end point when every objective is done or when the charge is critical; wait only for moving traffic to pass; change pace only when the charge calls for it. ' +
+    'When several options start a job, the correct one is the one with the fewest tiles for all the known work if it goes first, not the nearest. ' +
     'Each option states what the move is and what the simulation predicts for it; a prediction over unseen ground is a guess.';
   return {
     state: {
@@ -123,7 +161,7 @@ export function buildLabPromptParts(question: LabQuestionLike): LabPromptParts {
       askedBecause: question.trigger.label,
     },
     instructions,
-    criteria: Object.fromEntries(question.options.map((option) => [option.id, describeOption(option)])),
+    criteria: Object.fromEntries(question.options.map((option) => [option.id, `${describeOption(option)}${standing(option, question)}`])),
     optionIds: question.options.map((option) => option.id),
   };
 }

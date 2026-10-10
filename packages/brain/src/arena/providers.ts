@@ -275,3 +275,15 @@ export async function resolveContestants(wanted: (spec: { id: string; tier: Tier
   const locals = [jevContestant(), heuristicContestant(), randomContestant()].filter((contestant) => wanted({ id: contestant.id, tier: contestant.tier }) || wanted({ id: contestant.kind, tier: contestant.tier }));
   return [...locals, ...llms];
 }
+
+/**
+ * A "not run" reason fit for a public page: the kind of failure, never the provider's raw error body
+ * (which can describe the account).
+ */
+export function publicReason(reason: string | undefined): string {
+  if (!reason) return 'unavailable';
+  if (/credit balance/i.test(reason)) return 'the provider refused the request: the account has no credit left (HTTP 400)';
+  const http = /HTTP \d+/.exec(reason)?.[0];
+  if (http) return `the provider refused the request (${http})`;
+  return reason.split(':')[0]!.slice(0, 80);
+}

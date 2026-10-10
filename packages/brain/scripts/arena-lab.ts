@@ -12,7 +12,7 @@ import type { Build } from '@rivetrun/contracts';
 import { labHeuristicBrain, labRandomBrain, LAB_DEFAULT_BUILDS, LAB_PLAYER, LAB_RIVAL_LATENCY_MS, LAB_SCENARIOS, LAB_SCENARIO_IDS, LAB_SEEDS, LAB_VERSION, runLabHeadless, type LabBrain, type LabQuestion, type LabRunResult, type LabScenario } from '@rivetrun/lab';
 import { scenarioOf, withSensors } from '../../lab/src/testkit';
 import { labDecider } from '../src/arena/lab';
-import { ARENA_TIMEOUT_MS, PRICE_SOURCES, resolveContestants, type Contestant, type Tier } from '../src/arena/providers';
+import { ARENA_TIMEOUT_MS, PRICE_SOURCES, publicReason, resolveContestants, type Contestant, type Tier } from '../src/arena/providers';
 import { buildLabTextPrompt, LAB_QUESTION_VERSION, LAB_SYSTEM } from '../src/lab/question';
 
 const OUT_JSON = fileURLToPath(new URL('../../../docs/arena-results.json', import.meta.url));
@@ -181,7 +181,11 @@ async function main(): Promise<void> {
     timeoutMs: ARENA_TIMEOUT_MS,
     priceSources: PRICE_SOURCES,
     contestants: [...rows, ...contestants.filter((c) => c.status === 'not_configured').map((c) => ({ id: c.id, modelId: c.id, label: c.label, kind: c.kind, tier: c.tier, status: 'not_configured' }))],
-    notRun: contestants.filter((c) => c.status === 'unavailable').map((c) => ({ id: c.id, label: c.label, reason: c.reason ?? 'unavailable' })),
+    notRun: contestants.filter((c) => c.status === 'unavailable').map((c) => ({ id: c.id, label: c.label, reason: publicReason(c.reason) })),
+    notes: [
+      `CTF is a race against a heuristic rival answering in ${LAB_RIVAL_LATENCY_MS} ms, so a slower contestant loses the flag and scores 0.`,
+      'Seeds move the forklifts and the storm, never the map: maze, house and ctf have the same layout on every seed.',
+    ],
   };
 
   const table = [
