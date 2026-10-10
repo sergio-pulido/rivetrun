@@ -915,3 +915,16 @@
   text-overflow: ellipsis;
   min-width: 0;
 }
+
+/* Idle board with six rows or fewer: rows keep their height and the demo loop takes the rest of the column. */
+.scoresShort {
+  grid-auto-flow: row;
+  grid-template-rows: none;
+  grid-auto-rows: calc(var(--u) * 46);
+  flex: none;
+}
+.attractIdle {
+  flex: 1;
+  height: auto;
+  min-height: 0;
+}

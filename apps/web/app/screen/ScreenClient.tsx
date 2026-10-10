@@ -5,11 +5,16 @@ import { useState } from 'react';
 import { POLICY_LABEL, formatDamage, formatScore, formatTime } from '../leaderboard/_lib/format';
 import { useLeaderboard } from '../leaderboard/_lib/useLeaderboard';
 import { RaceSnapshotSchema } from '../race/_lib/protocol';
+import { MISSIONS } from '@rivetrun/sim';
+import { AttractCanvas } from '@/game';
 import { AppHeader } from '@/ui/AppHeader';
 import { Side } from './Side';
 import styles from './screen.module.css';
 
 const TOP_ROWS = 5;
+/** With this many rows or fewer the board leaves room under it: the demo loop plays there (docs/DEMO_PLAN.md: idle → attract loop). */
+const ATTRACT_MAX_ROWS = 6;
+const ROOM_MISSION = MISSIONS.M5;
 
 /** Opens a Room Race room and switches this screen to it. */
 function RoomRaceButton() {
@@ -37,6 +42,7 @@ function RoomRaceButton() {
 export function ScreenClient({ siteUrl }: { readonly siteUrl: string }) {
   const feed = useLeaderboard('M5');
   const live = feed.status === 'live';
+  const attract = feed.status !== 'loading' && feed.entries.length <= ATTRACT_MAX_ROWS;
   return (
     <div className={styles.stage}>
       <div className={styles.board}>
@@ -63,7 +69,7 @@ export function ScreenClient({ siteUrl }: { readonly siteUrl: string }) {
               {feed.status === 'loading' ? 'Reading the board…' : 'No runs yet. The first plate is up for grabs.'}
             </div>
           ) : (
-            <div className={styles.scores} aria-live="polite">
+            <div className={`${styles.scores} ${attract ? styles.scoresShort : ''}`} aria-live="polite">
               {feed.entries.map((entry) => (
                 <div key={`${entry.rank}-${entry.nickname}`} className={styles.scoreRow}>
                   <span className={`${styles.bigPos} ${entry.rank <= 3 ? styles.posTop : ''}`}>{entry.rank}</span>
@@ -76,6 +82,13 @@ export function ScreenClient({ siteUrl }: { readonly siteUrl: string }) {
               ))}
             </div>
           )}
+          {attract ? (
+            // A short board leaves the wall half empty: the four presets replay the Room Challenge track under it.
+            <div className={`${styles.attract} ${styles.attractIdle}`}>
+              <AttractCanvas mission={ROOM_MISSION} legend={false} />
+              <span className={styles.attractNote}>Demo replay · scan the code and beat these robots</span>
+            </div>
+          ) : null}
         </div>
 
         <Side
