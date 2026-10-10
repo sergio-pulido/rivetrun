@@ -1,7 +1,8 @@
 # [LAB] handover — Lab Missions: grid scenarios with fog of war (packages/lab, /scenarios)
 
-Written Sat 06:50 for the 16:15 demo. Checked on the dev server (:3000) by unit tests and by reading the page;
-nothing was seen on a real phone, on :3001 or through the tunnel. The way in is "Lab Missions" in the header menu
+Written Sat 06:50, updated 11:15, for the 16:15 demo. Checked on the dev server (:3000) by unit tests, by reading
+the page and, for the sprite board, by headless screenshots at 390×844, 844×390 and 1280×720; nothing was seen on a
+real phone, on :3001 or through the tunnel. The way in is "Lab Missions" in the header menu
 (added by [UI] at 10:00, 27de0c8) or the card on /lab; there is no card on Home.
 
 ## Built tonight (commit)
@@ -14,6 +15,7 @@ nothing was seen on a real phone, on :3001 or through the tunnel. The way in is 
 - The real Jev drives, or plays the rival, through /api/lab/decide; after 1.2 s the fixed rules decide and the chip says FALLBACK (a0193a7).
 - The brief says what Jev is told, with a switch to the facts-only question (4813b9f). The game's rover and ground colours (6ab4b1d).
 - Review round on the page, 17 of 19 findings fixed (c8c22ae). Sideways phone, reload and back mid-run, Jev never answering (bec0ef2).
+- The board drawn with the Blender agent's sprites: floors, walls, doors, stairs, parcels, bays, forklift, samples, lander, flag, the rover per locomotion; the SVG board is the fallback (88de47c).
 
 ## Simplified or assumed
 - The list under "What is simplified" on every brief (the sim's `SIMPLIFICATIONS`, screen 'lab'): tiles instead of the track's physics, a ramp costs both ways, lidar all round, ultrasonic one tile, forklifts turn back, no cold, no night.
@@ -23,13 +25,15 @@ nothing was seen on a real phone, on :3001 or through the tunnel. The way in is 
 - When Jev cannot be reached its seat is filled by the fixed rules answering in 400 ms, and the brief says so.
 - Decisions are event-driven: the last command holds until a sensor, the body or the battery reports a change.
 - On the page every run of a mission uses the same map and seed (1001); the other seeds are used in tests only.
+- The rover picture follows the build's locomotion only, not its sensors. The flag is drawn orange on the ground and in the colour of whoever carries it. Exit, checkpoint, base, ramp and crater have no sprite and keep their SVG marks.
 - Two review findings left as they are: a call to Jev in flight is not cancelled by RETRY, and the thread title still reads "Jev decides, live" when every answer is a fallback.
 
 ## Nobody has verified
 - A real phone: thumbs on the pad, rotation in the hand, iOS Safari's toolbars (844×390 was emulated).
 - A production build (:3001, `pnpm demo:stable`) and the tunnel. I only used :3000.
 - A full Capture the flag against the live Jev: I have the fallback path on record, not a live rival run.
-- The last three commits by eye: the browser pane was hidden, so they were checked by reading the page, not by screenshots.
+- The sprite board on a real phone or iOS Safari. Its frame rate was measured in headless Chromium on the dev build under 4× CPU throttle only: 72 to 83 fps, the SVG board 58 to 70.
+- The last-run note (bec0ef2) by eye: it was read from the page, not seen.
 - Jev against the fixed rules over many runs: that table is [BRAIN]'s. Mine are single runs on seed 1001 (Maze 729, Warehouse 497 told and 520 facts only, Mars 552, House 759).
 - A real radio drop (I cut fetch inside the page). An hour of retries in one tab. Two tabs at once.
 
@@ -46,5 +50,7 @@ nothing was seen on a real phone, on :3001 or through the tunnel. The way in is 
    once if the keys go elsewhere. A robot stopped before a forklift is waiting for it (the thread says "the way
    is blocked by something moving"). The "Blind" loadout stops at every wall: that is its point; pick
    "Recommended" for a clean run, and "The brain drives" to show Jev.
-Also useful: Esc stops the robot. Best scores live in the browser (localStorage `rivetrun.lab.bests.v1`); clear
+Also useful: if the map pictures look wrong or a phone stutters, add `?sprites=0` to the address and reload: that tab
+goes back to the SVG board (`?sprites=1` brings the pictures back; the board also falls back by itself when a
+sprite file does not load). Esc stops the robot. Best scores live in the browser (localStorage `rivetrun.lab.bests.v1`); clear
 site data for an empty board. A mission ends by itself at its time limit (120 to 240 s) with "Out of time".
