@@ -75,7 +75,10 @@ async function compute(key: string, request: GhostRequest): Promise<void> {
     if (decisions > 0 && fallbacks === decisions) {
       remember(key, { state: 'failed', at: Date.now(), reason: 'Jev answered none of the decisions' });
     } else {
-      remember(key, { state: 'ready', body: { ghost, decisions, fallbacks } });
+      // The telemetry console replays this thread against the ghost's clock. Only entries the sim logged are
+      // passed on: nothing is reconstructed here, and Jev's answer is a choice with probabilities, never text.
+      const log = episode.decisions.flatMap((decision) => (decision.log ? [decision.log] : []));
+      remember(key, { state: 'ready', body: { ghost: { ...ghost, log }, decisions, fallbacks } });
     }
   } catch (error) {
     console.error('[ghost] run failed', error);

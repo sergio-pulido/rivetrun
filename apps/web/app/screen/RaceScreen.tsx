@@ -10,6 +10,7 @@ import { duelVerdict, MAX_BOTS, rankPlayers, resultText, SEAT_OPTIONS, seatsTake
 import { postRaceAction, useRaceRoom, useServerNow } from '../race/_lib/useRaceRoom';
 import { RaceTrack } from './RaceTrack';
 import { Side, useEpisodeCount } from './Side';
+import { ThreadPanel } from './ThreadPanel';
 import { useJevBots, type JevBots } from './useJevBots';
 import styles from './screen.module.css';
 
@@ -287,6 +288,8 @@ export function RaceScreen({ code, siteUrl }: RaceScreenProps) {
           joinUrl={joinUrl}
           episodes={episodes}
           seats={`${seatsTaken(snapshot)}/${snapshot.seats}`}
+          // During and after a race with JEV bots, their live decision thread takes the QR block's place.
+          extra={racing && hasJev && bots.running > 0 ? <ThreadPanel thread={bots.thread} /> : undefined}
           stat={`${snapshot.players.length} in the room`}
         >
           <Order snapshot={snapshot} />

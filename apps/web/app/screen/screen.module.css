@@ -754,3 +754,106 @@
   text-transform: uppercase;
   white-space: nowrap;
 }
+
+/* Telemetry: the JEV bots' live decision thread (side column, during a race). */
+.thread {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--u) * 4);
+  border-radius: calc(var(--u) * 18);
+  border: 1px solid #1f5a63;
+  background: #0c1a1d;
+  padding: calc(var(--u) * 14) calc(var(--u) * 14) calc(var(--u) * 8);
+  overflow: hidden;
+}
+.threadNote {
+  font-family: var(--body);
+  font-size: calc(var(--u) * 10.5);
+  color: #8fb8bf;
+}
+.threadList {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--u) * 8);
+  overflow: hidden;
+  min-height: 0;
+}
+.threadEntry {
+  border-top: 1px solid #1f3f45;
+  padding-top: calc(var(--u) * 6);
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--u) * 2);
+  flex-shrink: 0;
+}
+.threadHead {
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--data);
+  font-size: calc(var(--u) * 11);
+  color: var(--cyan);
+  font-variant-numeric: tabular-nums;
+}
+.threadTrigger {
+  font-family: var(--display);
+  font-weight: 600;
+  font-size: calc(var(--u) * 14);
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.threadLine {
+  font-family: var(--data);
+  font-size: calc(var(--u) * 10.5);
+  color: #9fb4b8;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.threadOption {
+  display: grid;
+  grid-template-columns: calc(var(--u) * 92) minmax(0, 1fr) calc(var(--u) * 38);
+  align-items: center;
+  gap: calc(var(--u) * 6);
+  font-family: var(--data);
+  font-size: calc(var(--u) * 11);
+  color: #9aa3ae;
+}
+.threadAction {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.threadBar {
+  height: calc(var(--u) * 6);
+  border-radius: calc(var(--u) * 3);
+  background: #14282c;
+  overflow: hidden;
+}
+.threadBar span {
+  display: block;
+  height: 100%;
+  background: #4d6f75;
+}
+.threadPct {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.threadChosen {
+  color: #bfeff5;
+  font-weight: 600;
+}
+.threadChosen .threadBar span {
+  background: var(--cyan);
+}
+.threadFallback {
+  font-family: var(--data);
+  font-size: calc(var(--u) * 10.5);
+  color: #ffb27a;
+}

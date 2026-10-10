@@ -40,30 +40,34 @@ interface SideProps {
   readonly episodes: number | null;
   /** Shown next to the QR, e.g. "5/6" with the caption "seats taken". */
   readonly seats?: string;
+  /** Shown between the panel and the QR block; while it is shown the QR block makes room for it. */
+  readonly extra?: ReactNode;
   /** Right-hand stat, e.g. "12 IN THE ROOM". */
   readonly stat: string;
 }
 
 /** Right column of the board: a panel, the QR block, two stats and the footer line. */
-export function Side({ children, joinLabel, joinCode, joinUrl, episodes, seats, stat }: SideProps) {
+export function Side({ children, joinLabel, joinCode, joinUrl, episodes, seats, extra, stat }: SideProps) {
   return (
     <div className={styles.side}>
       {children}
-      <div className={styles.join}>
-        <div className={styles.qr}>
-          <QrCode value={joinUrl} />
+      {extra ?? (
+        <div className={styles.join}>
+          <div className={styles.qr}>
+            <QrCode value={joinUrl} />
+          </div>
+          <div className={styles.joinText}>
+            <span className={styles.joinLabel}>{joinLabel}</span>
+            <span className={styles.code}>{joinCode}</span>
+            <span className={styles.url}>{joinUrl.replace(/^https?:\/\//, '')}</span>
+            {seats ? (
+              <span className={styles.seats}>
+                <strong>{seats}</strong> seats taken
+              </span>
+            ) : null}
+          </div>
         </div>
-        <div className={styles.joinText}>
-          <span className={styles.joinLabel}>{joinLabel}</span>
-          <span className={styles.code}>{joinCode}</span>
-          <span className={styles.url}>{joinUrl.replace(/^https?:\/\//, '')}</span>
-          {seats ? (
-            <span className={styles.seats}>
-              <strong>{seats}</strong> seats taken
-            </span>
-          ) : null}
-        </div>
-      </div>
+      )}
       <div className={styles.stats}>
         <span>{episodes === null ? '—' : episodes} {episodes === 1 ? 'episode' : 'episodes'} logged</span>
         <span>{stat}</span>

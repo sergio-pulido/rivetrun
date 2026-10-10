@@ -4,12 +4,15 @@ import { BRIEFING_PRESETS, type Build } from '@rivetrun/contracts';
 import { MISSIONS } from '@rivetrun/sim';
 import { useCallback, useEffect, useState } from 'react';
 import { z } from 'zod';
+import type { ThreadEntry } from '@/brain/thread';
 import { startJevRun } from '../race/_lib/jevRun';
 import { JoinResponseSchema, type RaceSnapshot } from '../race/_lib/protocol';
 import type { RaceSeat } from '../race/_lib/report';
 import { postRaceAction } from '../race/_lib/useRaceRoom';
 
 const SeatsSchema = z.array(z.object({ playerId: z.string(), token: z.string() }));
+/** Decisions kept for the thread panel. */
+const THREAD_KEEP = 40;
 const storageKey = (code: string): string => `rivetrun.race.bots.${code}`;
 
 function loadSeats(code: string): RaceSeat[] {
@@ -32,6 +35,8 @@ function saveSeats(code: string, seats: readonly RaceSeat[]): void {
 export interface JevBots {
   /** Bots in the room that this screen holds the seat for (and therefore runs). */
   readonly running: number;
+  /** The bots' decisions in the current race, newest first. */
+  readonly thread: readonly ThreadEntry[];
   readonly add: (build: Build) => Promise<void>;
   readonly remove: (playerId: string) => Promise<void>;
 }
@@ -43,6 +48,7 @@ export interface JevBots {
 export function useJevBots(snapshot: RaceSnapshot | null, clockOffsetMs: number): JevBots {
   const code = snapshot?.code;
   const [seats, setSeats] = useState<readonly RaceSeat[]>([]);
+  const [thread, setThread] = useState<readonly ThreadEntry[]>([]);
   useEffect(() => {
     if (code) setSeats(loadSeats(code));
   }, [code]);
@@ -59,11 +65,13 @@ export function useJevBots(snapshot: RaceSnapshot | null, clockOffsetMs: number)
   useEffect(() => {
     if (!live || !code || !missionId || seed === undefined || startAt === null || botsKey === '') return undefined;
     const stops: (() => void)[] = [];
+    setThread([]);
+    const onDecision = (entry: ThreadEntry): void => setThread((previous) => [entry, ...previous].slice(0, THREAD_KEEP));
     const timer = setTimeout(
       () => {
         for (const bot of bots) {
           const seat = seats.find((candidate) => candidate.playerId === bot.id);
-          if (seat) stops.push(startJevRun({ code, raceNo, seat, mission: MISSIONS[missionId], seed, build: bot.build, briefing: bot.briefing }));
+          if (seat) stops.push(startJevRun({ code, raceNo, seat, mission: MISSIONS[missionId], seed, build: bot.build, briefing: bot.briefing, who: bot.nickname, onDecision }));
         }
       },
       Math.max(0, startAt - (Date.now() + clockOffsetMs)),
@@ -97,5 +105,5 @@ export function useJevBots(snapshot: RaceSnapshot | null, clockOffsetMs: number)
     [code],
   );
 
-  return { running: bots.length, add, remove };
+  return { running: bots.length, thread, add, remove };
 }

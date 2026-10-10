@@ -89,11 +89,6 @@ export const OutcomeSchema = z.object({
 export type Outcome = z.infer<typeof OutcomeSchema>;
 
 /** A headless run recorded for the Brain Duel: frames at 10 Hz against sim time. */
-export const GhostTraceSchema = z.object({
-  policy: PolicySchema,
-  frames: z.array(SimStateSchema),
-  outcome: OutcomeSchema,
-});
 export type GhostTrace = z.infer<typeof GhostTraceSchema>;
 
 /** One decision as the showcase shows it: what fired, what the brain knew, what it chose and what the wait cost. */
@@ -125,6 +120,18 @@ export const DecisionLogSchema = z.object({
   chip: z.string(),
 });
 export type DecisionLog = z.infer<typeof DecisionLogSchema>;
+
+export const GhostTraceSchema = z.object({
+  policy: PolicySchema,
+  frames: z.array(SimStateSchema),
+  outcome: OutcomeSchema,
+  /**
+   * The driver's decision log, in order, each entry stamped with the ghost's own sim clock (`t` requested,
+   * `appliedT` in effect), so a replay can show the thread in sync with `frames`. Telemetry console, RR-BRAIN-V3.
+   */
+  log: z.array(DecisionLogSchema).optional(),
+});
+
 
 export const DecisionRecordSchema = z.object({
   t: z.number().min(0),
