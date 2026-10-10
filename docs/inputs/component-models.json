@@ -1,0 +1,492 @@
+[
+  {
+    "key": "pi_regulator_s13v30f5",
+    "blend": "assets/blender/parts/pi_regulator_s13v30f5.blend",
+    "glb": "apps/web/public/models/parts/pi_regulator_s13v30f5.glb",
+    "render": "apps/web/public/renders/parts/pi_regulator_s13v30f5.png",
+    "envelopeMm": [
+      22.9,
+      22.9,
+      9.57
+    ],
+    "dimsSource": "Official 0J1807 drawing: outline 22.9x22.9; hole spacing 18.5; hole y=2.2 from edge; PCB 1.57 + tallest 8.0 mm",
+    "approximations": [
+      "Small IC packages, capacitor diameters and solder details approximated within the documented envelope."
+    ],
+    "tris": 996,
+    "glbKb": 13.16,
+    "author": "sergio.pulido@alodai.com",
+    "units": "metres",
+    "upAxis": "+Y",
+    "origin": "mounting-face centre",
+    "renderFrameMm": 220,
+    "compression": "Draco"
+  },
+  {
+    "key": "motor_driver_max14870_rpi",
+    "blend": "assets/blender/parts/motor_driver_max14870_rpi.blend",
+    "glb": "apps/web/public/models/parts/motor_driver_max14870_rpi.glb",
+    "render": "apps/web/public/renders/parts/motor_driver_max14870_rpi.png",
+    "envelopeMm": [
+      43.2,
+      16.5,
+      null
+    ],
+    "dimsSource": "BOM mechanical + official product specs 1.7x0.65 inches; photo 0J8599 conflicts (0.8 inch); no unsupported mounting holes used",
+    "approximations": [
+      "PCB thickness 1.6 mm and connector heights approximated as small details.",
+      "No chassis mount: female 2x17 connector engages Pi GPIO."
+    ],
+    "tris": 804,
+    "glbKb": 10.42,
+    "author": "sergio.pulido@alodai.com",
+    "units": "metres",
+    "upAxis": "+Y",
+    "origin": "mounting-face centre",
+    "renderFrameMm": 220,
+    "compression": "Draco"
+  },
+  {
+    "key": "wheels_60x8",
+    "blend": "assets/blender/parts/wheels_60x8.blend",
+    "glb": "apps/web/public/models/parts/wheels_60x8.glb",
+    "render": "apps/web/public/renders/parts/wheels_60x8.png",
+    "envelopeMm": [
+      60,
+      60,
+      11
+    ],
+    "dimsSource": "Official Pololu 0J1708 drawing, wheel 60 mm page: bare diameter, width, collar and shaft",
+    "approximations": [
+      "Spoke edge radii, slots, tyre grooves and central-web outline are minor visual approximations; documented mounting dimensions are retained."
+    ],
+    "tris": 2158,
+    "glbKb": 20.376,
+    "author": "sergio.pulido@alodai.com",
+    "units": "metres",
+    "upAxis": "+Y",
+    "origin": "mounting-face centre",
+    "renderFrameMm": 220,
+    "compression": "Draco"
+  },
+  {
+    "key": "wheels_80x10",
+    "blend": "assets/blender/parts/wheels_60x8.blend",
+    "glb": "apps/web/public/models/parts/wheels_80x10.glb",
+    "render": "apps/web/public/renders/parts/wheels_80x10.png",
+    "envelopeMm": [
+      80,
+      80,
+      11.8
+    ],
+    "dimsSource": "Official Pololu 0J1708 drawing, wheel 80 mm page: bare diameter, width, collar and shaft",
+    "approximations": [
+      "Spoke edge radii, slots, tyre grooves and central-web outline are minor visual approximations; documented mounting dimensions are retained."
+    ],
+    "tris": 2614,
+    "glbKb": 22.552,
+    "author": "sergio.pulido@alodai.com",
+    "units": "metres",
+    "upAxis": "+Y",
+    "origin": "mounting-face centre",
+    "renderFrameMm": 220,
+    "compression": "Draco"
+  },
+  {
+    "key": "wheels_90x10",
+    "blend": "assets/blender/parts/wheels_60x8.blend",
+    "glb": "apps/web/public/models/parts/wheels_90x10.glb",
+    "render": "apps/web/public/renders/parts/wheels_90x10.png",
+    "envelopeMm": [
+      90,
+      90,
+      11.8
+    ],
+    "dimsSource": "Official Pololu 0J1708 drawing, wheel 90 mm page: bare diameter, width, collar and shaft",
+    "approximations": [
+      "Spoke edge radii, slots, tyre grooves and central-web outline are minor visual approximations; documented mounting dimensions are retained."
+    ],
+    "tris": 2614,
+    "glbKb": 22.44,
+    "author": "sergio.pulido@alodai.com",
+    "units": "metres",
+    "upAxis": "+Y",
+    "origin": "mounting-face centre",
+    "renderFrameMm": 220,
+    "compression": "Draco"
+  },
+  {
+    "key": "battery_4s_small",
+    "blend": "assets/blender/parts/battery_4s_small.blend",
+    "glb": "apps/web/public/models/parts/battery_4s_small.glb",
+    "render": "apps/web/public/renders/parts/battery_4s_small.png",
+    "envelopeMm": [
+      58.0,
+      31.0,
+      29.0
+    ],
+    "dimsSource": "docs/inputs/bom-mk2.json: battery_4s_small",
+    "approximations": [
+      "Shrink-wrap corner radius and seam approximate small details. Leads/connectors omitted because their envelope is not supplied."
+    ],
+    "tris": 216,
+    "glbKb": 5.484,
+    "author": "sergio.pulido@alodai.com",
+    "units": "metres",
+    "upAxis": "+Y",
+    "origin": "mounting-face centre",
+    "renderFrameMm": 220,
+    "compression": "Draco"
+  },
+  {
+    "key": "battery_4s_large",
+    "blend": "assets/blender/parts/battery_4s_small.blend",
+    "glb": "apps/web/public/models/parts/battery_4s_large.glb",
+    "render": "apps/web/public/renders/parts/battery_4s_large.png",
+    "envelopeMm": [
+      107.0,
+      35.0,
+      27.0
+    ],
+    "dimsSource": "docs/inputs/bom-mk2.json: battery_4s_large",
+    "approximations": [
+      "Shrink-wrap corner radius and seam approximate small details. Leads/connectors omitted because their envelope is not supplied."
+    ],
+    "tris": 216,
+    "glbKb": 5.208,
+    "author": "sergio.pulido@alodai.com",
+    "units": "metres",
+    "upAxis": "+Y",
+    "origin": "mounting-face centre",
+    "renderFrameMm": 220,
+    "compression": "Draco"
+  },
+  {
+    "key": "ultrasonic_hc_sr04",
+    "blend": "assets/blender/parts/ultrasonic_hc_sr04.blend",
+    "glb": "apps/web/public/models/parts/ultrasonic_hc_sr04.glb",
+    "render": "apps/web/public/renders/parts/ultrasonic_hc_sr04.png",
+    "envelopeMm": [
+      45.5,
+      20,
+      15.5
+    ],
+    "dimsSource": "docs/inputs/bom-mk2.json: ultrasonic_hc_sr04",
+    "approximations": [
+      "PCB thickness, transducer radii and header heights approximate small details within the supplied envelope."
+    ],
+    "tris": 1040,
+    "glbKb": 12.568,
+    "author": "sergio.pulido@alodai.com",
+    "units": "metres",
+    "upAxis": "+Y",
+    "origin": "mounting-face centre",
+    "renderFrameMm": 220,
+    "compression": "Draco"
+  },
+  {
+    "key": "imu_mpu6050",
+    "blend": "assets/blender/parts/imu_mpu6050.blend",
+    "glb": "apps/web/public/models/parts/imu_mpu6050.glb",
+    "render": "apps/web/public/renders/parts/imu_mpu6050.png",
+    "envelopeMm": [
+      26,
+      17.8,
+      4.6
+    ],
+    "dimsSource": "docs/inputs/bom-mk2.json: imu_mpu6050",
+    "approximations": [
+      "PCB thickness and small connector/package placements approximate; no unsourced mounting hole pattern modelled."
+    ],
+    "tris": 612,
+    "glbKb": 11.4,
+    "author": "sergio.pulido@alodai.com",
+    "units": "metres",
+    "upAxis": "+Y",
+    "origin": "mounting-face centre",
+    "renderFrameMm": 220,
+    "compression": "Draco"
+  },
+  {
+    "key": "camera_module_3",
+    "blend": "assets/blender/parts/camera_module_3.blend",
+    "glb": "apps/web/public/models/parts/camera_module_3.glb",
+    "render": "apps/web/public/renders/parts/camera_module_3.png",
+    "envelopeMm": [
+      25,
+      24,
+      11.5
+    ],
+    "dimsSource": "docs/inputs/bom-mk2.json: camera_module_3",
+    "approximations": [
+      "Lens barrel diameter and minor connector detail approximated; overall envelope follows BOM; no invented mounting hole pattern."
+    ],
+    "tris": 588,
+    "glbKb": 9.8,
+    "author": "sergio.pulido@alodai.com",
+    "units": "metres",
+    "upAxis": "+Y",
+    "origin": "mounting-face centre",
+    "renderFrameMm": 220,
+    "compression": "Draco"
+  },
+  {
+    "key": "waterproof_case_hammond_1554j2gy",
+    "blend": "assets/blender/parts/waterproof_case_hammond_1554j2gy.blend",
+    "glb": "apps/web/public/models/parts/waterproof_case_hammond_1554j2gy.glb",
+    "render": "apps/web/public/renders/parts/waterproof_case_hammond_1554j2gy.png",
+    "envelopeMm": [
+      160,
+      89,
+      61
+    ],
+    "dimsSource": "docs/inputs/bom-mk2.json: waterproof_case_hammond_1554j2gy",
+    "approximations": [
+      "Wall thickness, lid seam and corner radii are small visual approximations, not a new seal or machining specification."
+    ],
+    "tris": 296,
+    "glbKb": 5.02,
+    "author": "sergio.pulido@alodai.com",
+    "units": "metres",
+    "upAxis": "+Y",
+    "origin": "mounting-face centre",
+    "renderFrameMm": 220,
+    "compression": "Draco"
+  },
+  {
+    "key": "raspberry_pi_5_4gb",
+    "blend": "assets/blender/parts/raspberry_pi_5_4gb.blend",
+    "glb": "apps/web/public/models/parts/raspberry_pi_5_4gb.glb",
+    "render": "apps/web/public/renders/parts/raspberry_pi_5_4gb.png",
+    "envelopeMm": [
+      88.5,
+      57.2,
+      18.976
+    ],
+    "dimsSource": "Official Pi 5 STEP without graphics + visually confirmed mechanical drawing",
+    "approximations": [
+      "Material colours approximated; minor sub-8mm passives and thin solder/pads omitted; IC/connector packages simplified within their exact CAD bounding boxes; connector cavity/contact contours simplified; hidden internal connector solids omitted; no silkscreen, logos or wordmarks."
+    ],
+    "tris": 3436,
+    "glbKb": 21.764,
+    "author": "sergio.pulido@alodai.com",
+    "units": "metres",
+    "upAxis": "+Y",
+    "origin": "mounting-face centre",
+    "renderFrameMm": 220,
+    "compression": "Draco"
+  },
+  {
+    "key": "motor_50to1_hpcb_12v_ext",
+    "blend": "assets/blender/parts/motor_50to1_hpcb_12v_ext.blend",
+    "glb": "apps/web/public/models/parts/motor_50to1_hpcb_12v_ext.glb",
+    "render": "apps/web/public/renders/parts/motor_50to1_hpcb_12v_ext.png",
+    "envelopeMm": [
+      12,
+      11.6,
+      39.1
+    ],
+    "dimsSource": "Official Pololu 0J949 drawing page 3 (HPCB), page 4 (1000:1 HP), plus 3081 specs 10.6x11.6 PCB and 7.65mm magnetic disc",
+    "approximations": [
+      "Gear tooth/spacer details and encoder PCB thickness (1.6 mm), clearance aperture and Hall-package contours approximate minor details.",
+      "Encoder disc thickness 1 mm and PCB-to-disc spacing 1 mm are minor visual/assembly approximations."
+    ],
+    "tris": 1412,
+    "glbKb": 16.712,
+    "author": "sergio.pulido@alodai.com",
+    "units": "metres",
+    "upAxis": "+Y",
+    "origin": "mounting-face centre",
+    "renderFrameMm": 220,
+    "compression": "Draco"
+  },
+  {
+    "key": "motor_298to1_hpcb_12v_ext",
+    "blend": "assets/blender/parts/motor_50to1_hpcb_12v_ext.blend",
+    "glb": "apps/web/public/models/parts/motor_298to1_hpcb_12v_ext.glb",
+    "render": "apps/web/public/renders/parts/motor_298to1_hpcb_12v_ext.png",
+    "envelopeMm": [
+      12,
+      11.6,
+      39.1
+    ],
+    "dimsSource": "Official Pololu 0J949 drawing page 3 (HPCB), page 4 (1000:1 HP), plus 3081 specs 10.6x11.6 PCB and 7.65mm magnetic disc",
+    "approximations": [
+      "Gear tooth/spacer details and encoder PCB thickness (1.6 mm), clearance aperture and Hall-package contours approximate minor details.",
+      "Encoder disc thickness 1 mm and PCB-to-disc spacing 1 mm are minor visual/assembly approximations."
+    ],
+    "tris": 1412,
+    "glbKb": 16.764,
+    "author": "sergio.pulido@alodai.com",
+    "units": "metres",
+    "upAxis": "+Y",
+    "origin": "mounting-face centre",
+    "renderFrameMm": 220,
+    "compression": "Draco"
+  },
+  {
+    "key": "encoder_kit_magnetic_12cpr",
+    "blend": "assets/blender/parts/encoder_kit_magnetic_12cpr.blend",
+    "glb": "apps/web/public/models/parts/encoder_kit_magnetic_12cpr.glb",
+    "render": "apps/web/public/renders/parts/encoder_kit_magnetic_12cpr.png",
+    "envelopeMm": [
+      10.6,
+      11.6,
+      null
+    ],
+    "dimsSource": "Pololu 3081 specs: 10.6x11.6 PCB; official 3081 page linked magnetic disc OD7.65, ID1.0 mm",
+    "approximations": [
+      "PCB/disc thicknesses, Hall package contours and assembly gap approximated as minor details. One fitted encoder shown; purchased kit contains two."
+    ],
+    "tris": 300,
+    "glbKb": 5.4,
+    "author": "sergio.pulido@alodai.com",
+    "units": "metres",
+    "upAxis": "+Y",
+    "origin": "mounting-face centre",
+    "renderFrameMm": 220,
+    "compression": "Draco"
+  },
+  {
+    "key": "winch_pololu_1000to1",
+    "blend": "assets/blender/parts/motor_50to1_hpcb_12v_ext.blend",
+    "glb": "apps/web/public/models/parts/winch_pololu_1000to1.glb",
+    "render": "apps/web/public/renders/parts/winch_pololu_1000to1.png",
+    "envelopeMm": [
+      12,
+      10,
+      38.1
+    ],
+    "dimsSource": "Official Pololu 0J949 drawing page 3 (HPCB), page 4 (1000:1 HP), plus 3081 specs 10.6x11.6 PCB and 7.65mm magnetic disc",
+    "approximations": [
+      "Gear tooth/spacer details and encoder PCB thickness (1.6 mm), clearance aperture and Hall-package contours approximate minor details.",
+      "Encoder disc thickness 1 mm and PCB-to-disc spacing 1 mm are minor visual/assembly approximations.",
+      "Empty printed spool is a design, not a purchased rope; radial insert pilot requires coupon calibration."
+    ],
+    "tris": 1760,
+    "glbKb": 17.972,
+    "author": "sergio.pulido@alodai.com",
+    "units": "metres",
+    "upAxis": "+Y",
+    "origin": "mounting-face centre",
+    "renderFrameMm": 220,
+    "compression": "Draco"
+  },
+  {
+    "key": "bumper_romi_switch_kit",
+    "blend": "assets/blender/parts/bumper_romi_switch_kit.blend",
+    "glb": "apps/web/public/models/parts/bumper_romi_switch_kit.glb",
+    "render": "apps/web/public/renders/parts/bumper_romi_switch_kit.png",
+    "envelopeMm": [
+      63.132,
+      64.343,
+      11.875
+    ],
+    "dimsSource": "Official Pololu 0J1672 STEP and 0J1671 dimension drawing",
+    "approximations": [
+      "CAD tessellation/roller contours simplified for browser budget; all physical outlines derive from the official assembly STEP. No PCB silkscreen.",
+      "CAD/render tessellation simplified for browser budget; source dimensions retained as references."
+    ],
+    "tris": 4798,
+    "glbKb": 52.904,
+    "author": "sergio.pulido@alodai.com",
+    "units": "metres",
+    "upAxis": "+Y",
+    "origin": "mounting-face centre",
+    "renderFrameMm": 220,
+    "compression": "Draco"
+  },
+  {
+    "key": "moisture_probe_sen0193",
+    "blend": "assets/blender/parts/moisture_probe_sen0193.blend",
+    "glb": "apps/web/public/models/parts/moisture_probe_sen0193.glb",
+    "render": "apps/web/public/renders/parts/moisture_probe_sen0193.png",
+    "envelopeMm": [
+      98,
+      23,
+      null
+    ],
+    "dimsSource": "docs/inputs/bom-mk2.json: moisture_probe_sen0193",
+    "approximations": [
+      "PCB thickness 1.6 mm, tip rounding, printed capacitive electrode layout and small IC/connector details are visual approximations; outline length and width are sourced."
+    ],
+    "tris": 720,
+    "glbKb": 12.912,
+    "author": "sergio.pulido@alodai.com",
+    "units": "metres",
+    "upAxis": "+Y",
+    "origin": "mounting-face centre",
+    "renderFrameMm": 220,
+    "compression": "Draco"
+  },
+  {
+    "key": "offroad_tread_tpu",
+    "blend": "assets/blender/parts/offroad_tread_tpu.blend",
+    "glb": "apps/web/public/models/parts/offroad_tread_tpu.glb",
+    "render": "apps/web/public/renders/parts/offroad_tread_tpu.png",
+    "envelopeMm": [
+      88,
+      88,
+      10.4
+    ],
+    "dimsSource": "Printed design assets/print/mk2/offroad_tread_80.stl; Pololu 0J1708 bare 80mm wheel diameter 76.5mm",
+    "approximations": [
+      "Designed TPU bore 76.2mm stretch fit and lug geometry require physical validation."
+    ],
+    "tris": 5018,
+    "glbKb": 37.444,
+    "author": "sergio.pulido@alodai.com",
+    "units": "metres",
+    "upAxis": "+Y",
+    "origin": "mounting-face centre",
+    "renderFrameMm": 220,
+    "compression": "Draco"
+  },
+  {
+    "key": "tracks_pololu_30t",
+    "blend": "assets/blender/parts/tracks_pololu_30t.blend",
+    "glb": "apps/web/public/models/parts/tracks_pololu_30t.glb",
+    "render": "apps/web/public/renders/parts/tracks_pololu_30t.png",
+    "envelopeMm": [
+      124,
+      39,
+      14.6
+    ],
+    "dimsSource": "docs/inputs/bom-mk2.json: tracks_pololu_30t",
+    "approximations": [
+      "One track train shown; purchased set supplies two. Minor belt teeth/sprocket recess profiles approximated; 85mm centre spacing, 35mm sprockets, 39mm over-track diameter and 14.6mm belt width sourced."
+    ],
+    "tris": 1472,
+    "glbKb": 11.912,
+    "author": "sergio.pulido@alodai.com",
+    "units": "metres",
+    "upAxis": "+Y",
+    "origin": "mounting-face centre",
+    "renderFrameMm": 220,
+    "compression": "Draco"
+  },
+  {
+    "key": "scout_drone_crazyflie_21_plus",
+    "blend": "assets/blender/parts/scout_drone_crazyflie_21_plus.blend",
+    "glb": "apps/web/public/models/parts/scout_drone_crazyflie_21_plus.glb",
+    "render": "apps/web/public/renders/parts/scout_drone_crazyflie_21_plus.png",
+    "envelopeMm": [
+      92,
+      92,
+      29
+    ],
+    "dimsSource": "Bitcraze official CF2 family simulation source + official stock BCP47-17 STL for 2.1+; BOM frame size",
+    "approximations": [
+      "Older manufacturer CF2 mechanical family reference: PCB population is approximate for 2.1+. Stock 47mm propeller geometry is official. Nominal envelope is the frame; propeller sweep is larger. No textures or silkscreen.",
+      "CAD/render tessellation simplified for browser budget; source dimensions retained as references."
+    ],
+    "tris": 9794,
+    "glbKb": 119.868,
+    "author": "sergio.pulido@alodai.com",
+    "units": "metres",
+    "upAxis": "+Y",
+    "origin": "mounting-face centre",
+    "renderFrameMm": 220,
+    "compression": "Draco"
+  }
+]
