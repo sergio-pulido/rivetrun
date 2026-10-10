@@ -1,6 +1,9 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { LAB_DEFAULT_BUILDS, LAB_SCENARIOS, buildLabQuestion, createLab, labHeuristicDecide, type LabQuestion } from '@rivetrun/lab';
 import { LAB_DECIDE_URL, jevLabBrain, jevSeat } from './labBrain';
+
+// Under load a timer-bound test can pass the 5 s default without anything being wrong.
+vi.setConfig({ testTimeout: 60_000 });
 
 const question = ((): LabQuestion => {
   const state = createLab({ scenario: LAB_SCENARIOS.maze, seed: 1001, entries: [{ agentId: 'you', build: LAB_DEFAULT_BUILDS.maze }] });

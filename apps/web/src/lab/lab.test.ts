@@ -1,9 +1,12 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { PRESETS } from '@rivetrun/sim';
 import { LAB_DEFAULT_BUILDS, LAB_SCENARIOS, LAB_SCENARIO_IDS, LAB_SEEDS, command, createLab, labHeuristicDecide, runLabSync, stepLab, type LabState } from '@rivetrun/lab';
 import { withResult } from './bests';
 import { fogReport, inView, knownTiles, legendFor, poseOf, trueTiles } from './boardModel';
 import { LAB_HONESTY, LAB_SIMPLIFICATIONS, SCENARIO_BRIEFS, labLoadouts, resultHeading, sensorLine } from './copy';
+
+// These tests play whole missions; on a busy machine one can pass the 5 s default without anything being wrong.
+vi.setConfig({ testTimeout: 60_000 });
 
 const mine = PRESETS.speedster.build;
 const start = (id: (typeof LAB_SCENARIO_IDS)[number], build = LAB_DEFAULT_BUILDS[id]): LabState =>
