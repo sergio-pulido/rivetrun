@@ -1,0 +1,128 @@
+{
+  "date": "2026-10-10",
+  "runs": 120,
+  "promptHash": "c3a9e5b59c",
+  "gameplayVersion": 3,
+  "missions": [
+    "M1",
+    "M2",
+    "M3",
+    "M4",
+    "M5",
+    "M6",
+    "M7"
+  ],
+  "seeds": [
+    1001,
+    1002,
+    1003
+  ],
+  "builds": [
+    "all_rounder",
+    "deep_diver"
+  ],
+  "timeoutMs": 10000,
+  "contestants": [
+    {
+      "id": "jev-1.13.0",
+      "modelId": "jev-1.13.0",
+      "label": "Jev",
+      "kind": "jev",
+      "status": "ok",
+      "runs": 24,
+      "finishPct": 75,
+      "meanScore": 476,
+      "meanTimeS": 50.5,
+      "meanDamagePct": 29.1,
+      "scansDone": 0,
+      "decisionsPerRun": 19.6,
+      "noDecisions": 0,
+      "latencyP50Ms": 240,
+      "latencyP95Ms": 347,
+      "lateCrashes": 59
+    },
+    {
+      "id": "heuristic",
+      "modelId": "heuristic",
+      "label": "Heuristic",
+      "kind": "heuristic",
+      "status": "ok",
+      "runs": 24,
+      "finishPct": 75,
+      "meanScore": 495,
+      "meanTimeS": 47.1,
+      "meanDamagePct": 22.2,
+      "scansDone": 12,
+      "decisionsPerRun": 20.7,
+      "noDecisions": 0,
+      "latencyP50Ms": 0,
+      "latencyP95Ms": 0,
+      "lateCrashes": 0
+    },
+    {
+      "id": "random",
+      "modelId": "random",
+      "label": "Random",
+      "kind": "random",
+      "status": "ok",
+      "runs": 24,
+      "finishPct": 8,
+      "meanScore": 76,
+      "meanTimeS": 74,
+      "meanDamagePct": 6.9,
+      "scansDone": 4,
+      "decisionsPerRun": 10.7,
+      "noDecisions": 0,
+      "latencyP50Ms": 0,
+      "latencyP95Ms": 0,
+      "lateCrashes": 0
+    },
+    {
+      "id": "claude-haiku-5-5",
+      "modelId": "claude-haiku-5-5",
+      "label": "Claude Haiku 5.5",
+      "kind": "llm",
+      "status": "ok",
+      "runs": 24,
+      "finishPct": 75,
+      "meanScore": 464,
+      "meanTimeS": 47,
+      "meanDamagePct": 32.1,
+      "scansDone": 0,
+      "decisionsPerRun": 17.3,
+      "noDecisions": 0,
+      "latencyP50Ms": 887,
+      "latencyP95Ms": 992,
+      "lateCrashes": 55,
+      "inputTokens": 35732,
+      "outputTokens": 401
+    },
+    {
+      "id": "claude-sonnet-5-5",
+      "modelId": "claude-sonnet-5-5",
+      "label": "Claude Sonnet 5.5",
+      "kind": "llm",
+      "status": "ok",
+      "runs": 24,
+      "finishPct": 75,
+      "meanScore": 435,
+      "meanTimeS": 56.4,
+      "meanDamagePct": 28.5,
+      "scansDone": 0,
+      "decisionsPerRun": 15.3,
+      "noDecisions": 2,
+      "latencyP50Ms": 1136,
+      "latencyP95Ms": 1335,
+      "lateCrashes": 42,
+      "inputTokens": 31381,
+      "outputTokens": 354
+    }
+  ],
+  "notRun": [
+    {
+      "id": "claude-opus-5-5",
+      "label": "Claude Opus 5.5 (reasoning)",
+      "reason": "held until the cost of the row is approved"
+    }
+  ]
+}

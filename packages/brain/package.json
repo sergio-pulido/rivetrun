@@ -12,7 +12,8 @@
     "lint": "eslint .",
     "test": "vitest run",
     "benchmark": "tsx --env-file-if-exists=../../apps/web/.env.local scripts/benchmark.ts",
-    "tune": "tsx --env-file-if-exists=../../apps/web/.env.local scripts/tune.ts"
+    "tune": "tsx --env-file-if-exists=../../apps/web/.env.local scripts/tune.ts",
+    "arena": "tsx --env-file-if-exists=../../apps/web/.env.local scripts/arena.ts"
   },
   "devDependencies": {
     "@types/node": "^26.6.4",
