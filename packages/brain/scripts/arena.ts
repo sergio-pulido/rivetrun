@@ -1,23 +1,23 @@
 // Brain Arena runner (docs/BRAIN_ARENA.md, RR-ARENA): same robot, same seed, same sensors, same question,
 // different brains. Offline: M1–M7 × seeds × contestants on the default build, plus Deep Diver on M6.
 // Writes docs/ARENA.md and docs/arena-results.json. Measured numbers only.
-//   pnpm --filter @rivetrun/brain arena                       every configured contestant except Opus
-//   pnpm --filter @rivetrun/brain arena -- --include-opus     also the Opus row (read the cost estimate first)
+//   pnpm --filter @rivetrun/brain arena                                  fast and mid tiers plus the baselines, all seeds
+//   pnpm --filter @rivetrun/brain arena -- --contestants claude-opus-5-5 --seeds 1 --default-build-only --cap-usd 10 --keep
 //   pnpm --filter @rivetrun/brain arena -- --contestants heuristic,random --seeds 1
-// Optional prices, to turn reported tokens into dollars (never guessed):
-//   ARENA_PRICES_USD_PER_MTOK='{"claude-haiku-5-5":{"in":1,"out":5}}'
+// The reasoning tier only runs when named with --contestants, and always under a spending cap (--cap-usd, default 10):
+// cost is computed from the tokens the provider reports and its official prices, and the row stops before the cap.
 import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { GAMEPLAY_VERSION, type Action, type Brain, type Build, type DecisionLog, type Episode, type MissionId } from '@rivetrun/contracts';
 import { DEFAULT_PRESET_ID, MISSION_IDS, MISSIONS, PRESETS, runHeadless } from '@rivetrun/sim';
 import { arenaPromptHash, buildArenaPrompt } from '../src/arena/prompt';
-import { allContestants, ARENA_TIMEOUT_MS, type Contestant } from '../src/arena/providers';
+import { ARENA_TIMEOUT_MS, PRICE_SOURCES, resolveContestants, type Contestant, type Tier } from '../src/arena/providers';
 
 const SEED_BASE = 1001;
 const OUT_MD = fileURLToPath(new URL('../../../docs/ARENA.md', import.meta.url));
 const OUT_JSON = fileURLToPath(new URL('../../../docs/arena-results.json', import.meta.url));
-const OPUS_ID = 'claude-opus-5-5';
+const DEFAULT_CAP_USD = 10;
 /**
  * Triggers that mean the robot hit or fell into something. Not 'damage' (it fires at every 5 % of total damage,
  * including water and mud ingress while wading) and not 'landing' (a clean landing fires it too).
@@ -57,10 +57,25 @@ const has = (name: string): boolean => process.argv.includes(`--${name}`);
  * not answer within 10 s, that is "no decision": the robot keeps the command it already has for those 10 s.
  * (runHeadless would otherwise let the heuristic answer; returning the held command keeps it out.)
  */
-function arenaBrain(decide: ReturnType<Contestant['forRun']>, stats: RunStats): Brain {
+/** Spending of one contestant's row, in USD, from reported tokens and official prices. */
+interface Budget {
+  spentUsd: number;
+  readonly capUsd: number | null;
+  /** Worst case for one more call, so the row stops before the cap rather than after it. */
+  readonly worstCallUsd: number;
+  stopped: boolean;
+}
+
+class CapReached extends Error {}
+
+function arenaBrain(decide: ReturnType<Contestant['forRun']>, stats: RunStats, budget: Budget, price: Contestant['price']): Brain {
   let held: Action | null = null;
   return {
     decide: async (question) => {
+      if (budget.capUsd !== null && budget.spentUsd + budget.worstCallUsd > budget.capUsd) {
+        budget.stopped = true;
+        throw new CapReached();
+      }
       const prompt = buildArenaPrompt(question);
       stats.promptTokensEstimate += Math.ceil((prompt.system.length + prompt.user.length) / 4);
       try {
@@ -71,9 +86,11 @@ function arenaBrain(decide: ReturnType<Contestant['forRun']>, stats: RunStats): 
           stats.usageReported = true;
           stats.inputTokens += answer.usage.inputTokens;
           stats.outputTokens += answer.usage.outputTokens;
+          if (price) budget.spentUsd += (answer.usage.inputTokens * price.in + answer.usage.outputTokens * price.out) / 1e6;
         }
         return { probabilities: answer.probabilities, selected: answer.choice, policy: 'jev', fallback: false, latencyMs: answer.latencyMs };
       } catch (error) {
+        if (error instanceof CapReached) throw error;
         stats.noDecisions += 1;
         // Short reason only (status code or kind of failure): never the request, its headers or a key.
         const message = error instanceof Error ? error.message : 'error';
@@ -118,29 +135,25 @@ const percentile = (values: readonly number[], p: number): number | null => {
 const fmt = (value: number | null | undefined, digits = 0): string => (value === null || value === undefined ? '—' : value.toFixed(digits));
 const round = (value: number | null, digits = 1): number | undefined => (value === null ? undefined : Number(value.toFixed(digits)));
 
-function prices(): Record<string, { in: number; out: number }> {
-  try {
-    return JSON.parse(process.env.ARENA_PRICES_USD_PER_MTOK ?? '{}') as Record<string, { in: number; out: number }>;
-  } catch {
-    console.warn('ARENA_PRICES_USD_PER_MTOK is not valid JSON: costs are reported in tokens only.');
-    return {};
-  }
-}
-
-function summarise(contestant: Contestant, runs: readonly RunStats[]) {
+function summarise(contestant: Contestant, runs: readonly RunStats[], budget: Budget, seeds: readonly number[]) {
   const outcomes = runs.map((run) => run.episode.outcome);
   const finished = outcomes.filter((outcome) => outcome.finished);
   const latencies = runs.flatMap((run) => run.latenciesMs);
   const usage = runs.some((run) => run.usageReported);
   const inTok = mean(runs.map((run) => run.inputTokens));
   const outTok = mean(runs.map((run) => run.outputTokens));
-  const price = prices()[contestant.id];
+  const local = contestant.kind === 'heuristic' || contestant.kind === 'random';
+  const priced = usage && contestant.price !== undefined;
   return {
     id: contestant.id,
     modelId: contestant.id,
     label: contestant.label,
     kind: contestant.kind,
+    tier: contestant.tier,
     status: 'ok' as const,
+    /** The exact mode parameters sent with every call. */
+    params: contestant.params,
+    seeds,
     runs: runs.length,
     finishPct: Math.round((finished.length / runs.length) * 100),
     meanScore: Math.round(mean(outcomes.map((outcome) => outcome.score)) ?? 0),
@@ -149,81 +162,99 @@ function summarise(contestant: Contestant, runs: readonly RunStats[]) {
     scansDone: runs.reduce((sum, run) => sum + (run.episode.outcome.breakdown?.scansDone ?? 0), 0),
     decisionsPerRun: round(mean(runs.map((run) => run.episode.decisions.length))),
     noDecisions: runs.reduce((sum, run) => sum + run.noDecisions, 0),
-    latencyP50Ms: contestant.kind === 'heuristic' || contestant.kind === 'random' ? 0 : round(percentile(latencies, 50), 0),
-    latencyP95Ms: contestant.kind === 'heuristic' || contestant.kind === 'random' ? 0 : round(percentile(latencies, 95), 0),
+    latencyP50Ms: local ? 0 : round(percentile(latencies, 50), 0),
+    latencyP95Ms: local ? 0 : round(percentile(latencies, 95), 0),
     lateCrashes: runs.reduce((sum, run) => sum + lateCrashes(run.episode), 0) as number | undefined,
     lateCrashRule: LATE_CRASH_RULE,
     /** The commit of the sim these runs were driven on: rows from different commits are not strictly comparable. */
     simCommit: SIM_COMMIT,
     ...(usage ? { inputTokens: round(inTok, 0), outputTokens: round(outTok, 0) } : {}),
-    ...(usage && price && inTok !== null && outTok !== null ? { costPerRunUsd: Number(((inTok * price.in + outTok * price.out) / 1e6).toFixed(5)) } : {}),
+    // Dollars only from reported tokens and the provider's official price page.
+    ...(priced ? { costPerRunUsd: Number((budget.spentUsd / runs.length).toFixed(5)), totalCostUsd: Number(budget.spentUsd.toFixed(4)), priceUsdPerMTok: contestant.price, priceSource: contestant.priceSource } : {}),
+    ...(budget.capUsd !== null ? { capUsd: budget.capUsd, stoppedAtCap: budget.stopped } : {}),
   };
 }
+type Row = ReturnType<typeof summarise>;
 
 async function main(): Promise<void> {
-  const seeds = Number(flag('seeds') ?? 3);
+  const seedCount = Number(flag('seeds') ?? 3);
+  const seeds = Array.from({ length: seedCount }, (_, i) => SEED_BASE + i);
   const missions = (flag('missions')?.split(',') as MissionId[] | undefined) ?? [...MISSION_IDS];
-  const wanted = flag('contestants')?.split(',');
+  const named = flag('contestants')?.split(',');
   const concurrency = Number(flag('concurrency') ?? 6);
+  const capFlag = flag('cap-usd');
   const defaultBuild = PRESETS[DEFAULT_PRESET_ID];
   const entries: Entry[] = [
     ...missions.map((missionId) => ({ missionId, buildId: defaultBuild.id as string, build: defaultBuild.build })),
-    ...(missions.includes('M6') ? [{ missionId: 'M6' as MissionId, buildId: 'deep_diver', build: PRESETS.deep_diver.build }] : []),
+    ...(missions.includes('M6') && !has('default-build-only') ? [{ missionId: 'M6' as MissionId, buildId: 'deep_diver', build: PRESETS.deep_diver.build }] : []),
   ];
-  const everyone = allContestants();
-  const selected = everyone.filter((contestant) => {
-    if (wanted) return wanted.includes(contestant.id) || wanted.includes(contestant.kind);
-    return contestant.id !== OPUS_ID || has('include-opus');
-  });
-  // Opus only ever runs when asked for by name or with --include-opus.
-  const skippedOpus = !selected.some((c) => c.id === OPUS_ID) && everyone.some((c) => c.id === OPUS_ID && c.status === 'ok');
-  const runsPerContestant = entries.length * seeds;
+  // Without --contestants: the fast and mid tiers and the baselines. The reasoning tier must be named.
+  const wanted = (spec: { id: string; tier: Tier }): boolean => (named ? named.includes(spec.id) : spec.tier !== 'reasoning');
+  const contestants = await resolveContestants(wanted);
+  for (const c of contestants) console.info(`${c.id.padEnd(20)} ${c.tier.padEnd(9)} ${c.status}${c.reason ? ` (${c.reason})` : ''}${c.params ? ` ${JSON.stringify(c.params)}` : ''}`);
 
-  const summaries: ReturnType<typeof summarise>[] = [];
-  const notConfigured = selected.filter((contestant) => contestant.status === 'not_configured');
-  let promptTokensPerRun: number | null = null;
+  const rows: Row[] = [];
+  const runsPerContestant = entries.length * seedCount;
   const started = performance.now();
-  for (const contestant of selected.filter((c) => c.status === 'ok')) {
+  for (const contestant of contestants.filter((c) => c.status === 'ok')) {
+    const capUsd = contestant.tier === 'reasoning' ? Number(capFlag ?? DEFAULT_CAP_USD) : capFlag ? Number(capFlag) : null;
+    const price = contestant.price;
+    // Worst case of one call: a full prompt in, the whole answer budget out.
+    const maxOut = Number(contestant.params?.max_tokens ?? contestant.params?.max_completion_tokens ?? 0);
+    const budget: Budget = { spentUsd: 0, capUsd, worstCallUsd: price ? (4000 * price.in + maxOut * price.out) / 1e6 : 0, stopped: false };
+    const rowStarted = performance.now();
     const tasks = entries.flatMap((entry) =>
-      Array.from({ length: seeds }, (_, i) => async (): Promise<RunStats> => {
-        const seed = SEED_BASE + i;
+      seeds.map((seed) => async (): Promise<RunStats | null> => {
+        if (budget.stopped) return null;
         const stats: RunStats = { entry, seed, episode: undefined as unknown as Episode, latenciesMs: [], noDecisions: 0, reasons: {}, inputTokens: 0, outputTokens: 0, usageReported: false, promptTokensEstimate: 0 };
-        const { episode } = await runHeadless(MISSIONS[entry.missionId], seed, entry.build, arenaBrain(contestant.forRun(seed), stats), { priority: 0.5, policy: 'jev' });
-        const done: RunStats = { ...stats, episode };
-        const o = episode.outcome;
-        console.info(`${contestant.id.padEnd(18)} ${entry.missionId} ${entry.buildId.padEnd(11)} seed ${seed}: ${o.finished ? 'finished' : `DNF ${o.dnfReason ?? ''}`} score ${o.score.toFixed(0)} · ${episode.decisions.length} decisions · ${stats.noDecisions} unanswered`);
-        return done;
+        try {
+          const { episode } = await runHeadless(MISSIONS[entry.missionId], seed, entry.build, arenaBrain(contestant.forRun(seed), stats, budget, price), { priority: 0.5, policy: 'jev' });
+          const o = episode.outcome;
+          console.info(`${contestant.id.padEnd(18)} ${entry.missionId} ${entry.buildId.padEnd(11)} seed ${seed}: ${o.finished ? 'finished' : `DNF ${o.dnfReason ?? ''}`} score ${o.score.toFixed(0)} · ${episode.decisions.length} decisions · ${stats.noDecisions} unanswered${price ? ` · $${budget.spentUsd.toFixed(3)} so far` : ''}`);
+          return { ...stats, episode };
+        } catch (error) {
+          // The cap stops the row: a run cut short by it is dropped, not scored.
+          if (error instanceof CapReached || budget.stopped) return null;
+          throw error;
+        }
       }),
     );
     const local = contestant.kind === 'heuristic' || contestant.kind === 'random';
-    const runs = await pool(tasks, local ? 1 : concurrency);
-    const summary = summarise(contestant, runs);
-    summaries.push(summary);
-    promptTokensPerRun ??= mean(runs.map((run) => run.promptTokensEstimate));
-    const reasons: Record<string, number> = {};
-    for (const run of runs) for (const [reason, count] of Object.entries(run.reasons)) reasons[reason] = (reasons[reason] ?? 0) + count;
-    if (summary.noDecisions > 0) console.info(`→ ${contestant.id}: ${summary.noDecisions} unanswered (${Object.entries(reasons).map(([reason, count]) => `${reason} × ${count}`).join(', ')})`);
-    if (summary.inputTokens !== undefined) {
-      console.info(`→ ${contestant.id}: ${summary.inputTokens} input + ${summary.outputTokens} output tokens per run, ${runsPerContestant} runs = ${(summary.inputTokens * runsPerContestant).toLocaleString('en-US')} input tokens for a full arena row${summary.costPerRunUsd !== undefined ? ` ($${(summary.costPerRunUsd * runsPerContestant).toFixed(2)})` : ''}`);
+    // A capped row runs two at a time so the spend is checked between calls.
+    const done = (await pool(tasks, local ? 1 : capUsd !== null ? 2 : concurrency)).filter((run): run is RunStats => run !== null);
+    if (done.length === 0) {
+      console.info(`→ ${contestant.id}: no run completed${budget.stopped ? ' before the cap' : ''}`);
+      continue;
     }
+    const row = summarise(contestant, done, budget, seeds);
+    rows.push(row);
+    const reasons: Record<string, number> = {};
+    for (const run of done) for (const [reason, count] of Object.entries(run.reasons)) reasons[reason] = (reasons[reason] ?? 0) + count;
+    console.info(
+      `→ ${contestant.id}: ${done.length}/${runsPerContestant} runs in ${((performance.now() - rowStarted) / 1000).toFixed(0)} s` +
+        (row.totalCostUsd !== undefined ? ` · $${row.totalCostUsd} total ($${row.costPerRunUsd} per run)` : '') +
+        (budget.stopped ? ` · STOPPED at the $${capUsd} cap` : '') +
+        (row.noDecisions > 0 ? ` · ${row.noDecisions} unanswered (${Object.entries(reasons).map(([reason, count]) => `${reason} × ${count}`).join(', ')})` : ''),
+    );
   }
   const wallS = (performance.now() - started) / 1000;
 
-  // --keep: rows of contestants not run this time are carried over from the last results file, so a free
-  // re-run of Jev and the local policies does not have to re-spend LLM tokens. A carried row keeps its own
-  // simCommit, and loses its late-crash count when that was counted under an older rule.
-  if (has('keep') && existsSync(OUT_JSON)) {
-    const previous = JSON.parse(readFileSync(OUT_JSON, 'utf8')) as { contestants?: ReturnType<typeof summarise>[] };
-    const ran = new Set(summaries.map((s) => s.id));
-    for (const row of previous.contestants ?? []) {
-      if (row.status !== 'ok' || ran.has(row.id)) continue;
-      summaries.push({ ...row, lateCrashes: row.lateCrashRule === LATE_CRASH_RULE ? row.lateCrashes : undefined, simCommit: row.simCommit ?? 'unknown' });
-    }
+  // --keep: rows of contestants not run this time are carried over from the last results file. A carried row
+  // keeps its own simCommit, and loses its late-crash count when that was counted under an older rule.
+  const previous = has('keep') && existsSync(OUT_JSON) ? (JSON.parse(readFileSync(OUT_JSON, 'utf8')) as { contestants?: Row[] }) : {};
+  const ran = new Set(rows.map((row) => row.id));
+  for (const row of previous.contestants ?? []) {
+    if (row.status !== 'ok' || ran.has(row.id)) continue;
+    rows.push({ ...row, lateCrashes: row.lateCrashRule === LATE_CRASH_RULE ? row.lateCrashes : undefined, simCommit: row.simCommit ?? 'unknown' });
   }
-  const commits = [...new Set(summaries.map((s) => s.simCommit))];
+  const order = ['fast', 'mid', 'reasoning', 'baseline'];
+  rows.sort((a, b) => order.indexOf(a.tier ?? 'fast') - order.indexOf(b.tier ?? 'fast'));
+  const commits = [...new Set(rows.map((row) => row.simCommit))];
+  const have = new Set(rows.map((row) => row.id));
+  const notOk = contestants.filter((c) => c.status !== 'ok' && !have.has(c.id));
 
   const date = new Date().toISOString().slice(0, 10);
-  const totalRuns = summaries.reduce((sum, s) => sum + s.runs, 0);
+  const totalRuns = rows.reduce((sum, row) => sum + row.runs, 0);
   const promptHash = arenaPromptHash();
   const results = {
     date,
@@ -231,50 +262,51 @@ async function main(): Promise<void> {
     promptHash,
     gameplayVersion: GAMEPLAY_VERSION,
     missions,
-    seeds: Array.from({ length: seeds }, (_, i) => SEED_BASE + i),
+    seeds,
     builds: [...new Set(entries.map((entry) => entry.buildId))],
     timeoutMs: ARENA_TIMEOUT_MS,
+    priceSources: PRICE_SOURCES,
     contestants: [
-      ...summaries,
-      ...notConfigured.map((c) => ({ id: c.id, modelId: c.id, label: c.label, kind: c.kind, status: 'not_configured' as const })),
+      ...rows,
+      ...notOk.filter((c) => c.status === 'not_configured').map((c) => ({ id: c.id, modelId: c.id, label: c.label, kind: c.kind, tier: c.tier, status: 'not_configured' as const })),
     ],
-    // Configured but deliberately not run (kept out of `contestants`, whose status is only ok / not_configured).
-    notRun: skippedOpus ? [{ id: OPUS_ID, label: 'Claude Opus 5.5 (reasoning)', reason: 'held until the cost of the row is approved' }] : [],
+    // In the lineup but without a row: the account cannot use the model, or no mode was accepted.
+    notRun: notOk.filter((c) => c.status === 'unavailable').map((c) => ({ id: c.id, label: c.label, reason: c.reason ?? 'unavailable' })),
   };
   writeFileSync(OUT_JSON, `${JSON.stringify(results, null, 2)}\n`);
 
+  const cost = (row: Row): string => (row.costPerRunUsd !== undefined ? `$${row.costPerRunUsd.toFixed(4)} ($${row.totalCostUsd} row)` : '—');
   const lines = [
     '# RivetRun — Brain Arena',
     '',
     `Our sim, our prompts, ${totalRuns} runs, ${date}. Not a general model ranking.`,
     '',
-    `Generated by \`packages/brain/scripts/arena.ts\` · gameplay version ${GAMEPLAY_VERSION} · prompt hash \`${promptHash}\` · wall time ${fmt(wallS)} s. Every number is measured from headless runs; nothing is estimated except where it says so.`,
+    `Generated by \`packages/brain/scripts/arena.ts\` · gameplay version ${GAMEPLAY_VERSION} · prompt hash \`${promptHash}\` · this invocation ${fmt(wallS)} s. Every number is measured from headless runs.`,
     '',
     '## Rules',
-    `- Same robot, seed, sensors and question for everyone: ${missions.join(', ')} × seeds ${results.seeds.join(', ')} on the ${defaultBuild.name}${missions.includes('M6') ? ', plus Deep Diver on M6' : ''} (${runsPerContestant} runs per contestant), priority 0.5, no briefing.`,
+    `- Same robot, seed, sensors and question for everyone: ${missions.join(', ')} on the ${defaultBuild.name}, plus Deep Diver on M6, priority 0.5, no briefing. Fast and mid tiers and the baselines: seeds ${SEED_BASE}–${SEED_BASE + 2} (24 runs). Reasoning tier: 1 seed on the ${defaultBuild.name} first (7 runs), under a spending cap.`,
     '- One call per trigger. Latency is applied in sim time: the robot holds its last command until the answer arrives.',
     `- No fallback for anyone, Jev included. No answer within ${ARENA_TIMEOUT_MS / 1000} s, or an error, is "unanswered": the robot keeps its command for those ${ARENA_TIMEOUT_MS / 1000} s.`,
-    '- LLMs get the question as plain text and answer `{ "choice", "confidence" }`; no tools. Extended reasoning is off for Haiku and Sonnet; Opus 5.5 cannot switch it off, so its row is labelled "(reasoning)" and runs at the lowest effort. Temperature 0 where the model accepts it: the Claude 5.5 models reject the parameter, so they run on their default sampling.',
+    '- LLMs get the question as plain text and answer `{ "choice", "confidence" }`, no tools. Fast and mid tiers run with reasoning off or at the lowest effort the model accepts; entries labelled "(reasoning)" use the model\'s default reasoning. Temperature 0 where the model accepts it. The exact parameters per contestant are in the table below and in `docs/arena-results.json`.',
+    '- Each model id is checked against its provider\'s models endpoint before its row starts.',
     '',
     '## Results',
-    '| Contestant | Runs | Finish | Score | Time s (finished) | Damage % | Decisions / run | Unanswered | Latency p50 / p95 ms | Late crashes | Tokens / run (in / out) | Cost / run |',
-    '| - | - | - | - | - | - | - | - | - | - | - | - |',
-    ...summaries.map((s) =>
-      `| ${s.label} (\`${s.id}\`) | ${s.runs} | ${s.finishPct} % | ${s.meanScore} | ${fmt(s.meanTimeS, 1)} | ${fmt(s.meanDamagePct, 1)} | ${fmt(s.decisionsPerRun, 1)} | ${s.noDecisions} | ${fmt(s.latencyP50Ms)} / ${fmt(s.latencyP95Ms)} | ${s.lateCrashes ?? '—'} | ${s.inputTokens !== undefined ? `${s.inputTokens} / ${s.outputTokens}` : '—'} | ${s.costPerRunUsd !== undefined ? `$${s.costPerRunUsd}` : '—'} |`,
+    '| Tier | Contestant | Runs | Finish | Score | Time s (finished) | Damage % | Decisions / run | Unanswered | Latency p50 / p95 ms | Late crashes | Tokens / run (in / out) | Cost / run |',
+    '| - | - | - | - | - | - | - | - | - | - | - | - | - |',
+    ...rows.map(
+      (row) =>
+        `| ${row.tier ?? ''} | ${row.label} (\`${row.id}\`) | ${row.runs}${row.stoppedAtCap ? ' (stopped at cap)' : ''} | ${row.finishPct} % | ${row.meanScore} | ${fmt(row.meanTimeS, 1)} | ${fmt(row.meanDamagePct, 1)} | ${fmt(row.decisionsPerRun, 1)} | ${row.noDecisions} | ${fmt(row.latencyP50Ms)} / ${fmt(row.latencyP95Ms)} | ${row.lateCrashes ?? '—'} | ${row.inputTokens !== undefined ? `${row.inputTokens} / ${row.outputTokens}` : '—'} | ${cost(row)} |`,
     ),
-    ...notConfigured.map((c) => `| ${c.label} (\`${c.id}\`) | not configured: no API key in apps/web/.env.local | | | | | | | | | | |`),
-    ...(skippedOpus ? [`| Claude Opus 5.5 (reasoning) (\`${OPUS_ID}\`) | not run: pass --include-opus after reading the cost estimate | | | | | | | | | | |`] : []),
+    ...notOk.map((c) => `| ${c.tier} | ${c.label} (\`${c.id}\`) | ${c.status === 'not_configured' ? 'not configured' : 'not run'}: ${c.reason ?? ''} | | | | | | | | | | |`),
     '',
     '- Late crashes: the robot hit something, got blocked or fell while its previous answer had not arrived yet. "—" = that row was run before this rule and has not been re-counted.',
     commits.length > 1
-      ? `- Rows were driven on different commits of the sim (${summaries.map((s) => `${s.label}: ${s.simCommit}`).join(', ')}), so they are not strictly comparable until all are re-run together.`
+      ? `- Rows were driven on different commits of the sim (${rows.map((row) => `${row.label}: ${row.simCommit}`).join(', ')}), so they are not strictly comparable until all are re-run together.`
       : `- Every row was driven on sim commit ${commits[0] ?? SIM_COMMIT}.`,
-    '- Cost is shown only when the provider reports token usage and a price is configured in `ARENA_PRICES_USD_PER_MTOK`; prices are never assumed.',
+    `- Cost = tokens the provider reported × its official price per million tokens on ${date}: Anthropic ${PRICE_SOURCES.anthropic} · OpenAI ${PRICE_SOURCES.openai} (each model's page) · DeepSeek ${PRICE_SOURCES.deepseek} (peak-hour, cache-miss rate, so an upper bound).`,
     '',
-    '## Size of one LLM row',
-    promptTokensPerRun === null
-      ? '- Not measured in this run.'
-      : `- Rough size before any call is made: the questions of one run add up to about ${Math.round(promptTokensPerRun).toLocaleString('en-US')} input tokens (characters / 4 of the prompts actually built; the providers' own counts in the table are the real ones and run higher), so one contestant's ${runsPerContestant} runs are about ${Math.round(promptTokensPerRun * runsPerContestant).toLocaleString('en-US')} input tokens by that estimate.`,
+    '## Mode parameters sent, per contestant',
+    ...rows.filter((row) => row.params).map((row) => `- \`${row.id}\`: \`${JSON.stringify(row.params)}\`${row.priceUsdPerMTok ? ` · $${row.priceUsdPerMTok.in} in / $${row.priceUsdPerMTok.out} out per million tokens` : ''}`),
     '',
   ];
   writeFileSync(OUT_MD, lines.join('\n'));

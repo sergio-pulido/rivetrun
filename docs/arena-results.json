@@ -1,6 +1,6 @@
 {
   "date": "2026-10-10",
-  "runs": 120,
+  "runs": 216,
   "promptHash": "9a0e9a761a",
   "gameplayVersion": 3,
   "missions": [
@@ -22,33 +22,297 @@
     "deep_diver"
   ],
   "timeoutMs": 10000,
+  "priceSources": {
+    "anthropic": "https://claude.com/pricing",
+    "openai": "https://developers.openai.com/api/docs/models",
+    "deepseek": "https://api-docs.deepseek.com/quick_start/pricing"
+  },
   "contestants": [
     {
       "id": "jev-1.13.0",
       "modelId": "jev-1.13.0",
       "label": "Jev",
       "kind": "jev",
+      "tier": "fast",
       "status": "ok",
+      "params": {
+        "api": "TypeSafe systemone",
+        "question": "choice"
+      },
+      "seeds": [
+        1001,
+        1002,
+        1003
+      ],
       "runs": 24,
       "finishPct": 75,
-      "meanScore": 493,
-      "meanTimeS": 50.5,
-      "meanDamagePct": 27.4,
-      "scansDone": 3,
-      "decisionsPerRun": 19.3,
+      "meanScore": 490,
+      "meanTimeS": 49.7,
+      "meanDamagePct": 28.4,
+      "scansDone": 1,
+      "decisionsPerRun": 18.9,
       "noDecisions": 0,
-      "latencyP50Ms": 243,
-      "latencyP95Ms": 300,
-      "lateCrashes": 9,
+      "latencyP50Ms": 247,
+      "latencyP95Ms": 299,
+      "lateCrashes": 8,
       "lateCrashRule": "impact|blocked|fell",
-      "simCommit": "9166887"
+      "simCommit": "d966fc9"
+    },
+    {
+      "id": "claude-haiku-5-5",
+      "modelId": "claude-haiku-5-5",
+      "label": "Claude Haiku 5.5",
+      "kind": "llm",
+      "tier": "fast",
+      "status": "ok",
+      "params": {
+        "thinking": {
+          "type": "disabled"
+        },
+        "max_tokens": 64
+      },
+      "seeds": [
+        1001,
+        1002,
+        1003
+      ],
+      "runs": 24,
+      "finishPct": 75,
+      "meanScore": 481,
+      "meanTimeS": 46.4,
+      "meanDamagePct": 31.5,
+      "scansDone": 0,
+      "decisionsPerRun": 16.2,
+      "noDecisions": 0,
+      "latencyP50Ms": 890,
+      "latencyP95Ms": 1039,
+      "lateCrashes": 28,
+      "lateCrashRule": "impact|blocked|fell",
+      "simCommit": "d966fc9",
+      "inputTokens": 33479,
+      "outputTokens": 378,
+      "costPerRunUsd": 0.00354,
+      "totalCostUsd": 0.0849,
+      "priceUsdPerMTok": {
+        "in": 0.1,
+        "out": 0.5
+      },
+      "priceSource": "https://claude.com/pricing"
+    },
+    {
+      "id": "gpt-5-nano",
+      "modelId": "gpt-5-nano",
+      "label": "GPT-5 nano",
+      "kind": "llm",
+      "tier": "fast",
+      "status": "ok",
+      "params": {
+        "reasoning_effort": "minimal",
+        "max_completion_tokens": 512
+      },
+      "seeds": [
+        1001,
+        1002,
+        1003
+      ],
+      "runs": 24,
+      "finishPct": 67,
+      "meanScore": 425,
+      "meanTimeS": 42.4,
+      "meanDamagePct": 43.8,
+      "scansDone": 0,
+      "decisionsPerRun": 15.8,
+      "noDecisions": 0,
+      "latencyP50Ms": 763,
+      "latencyP95Ms": 1094,
+      "lateCrashes": 33,
+      "lateCrashRule": "impact|blocked|fell",
+      "simCommit": "d966fc9",
+      "inputTokens": 22340,
+      "outputTokens": 369,
+      "costPerRunUsd": 0.00126,
+      "totalCostUsd": 0.0304,
+      "priceUsdPerMTok": {
+        "in": 0.05,
+        "out": 0.4
+      },
+      "priceSource": "https://developers.openai.com/api/docs/models"
+    },
+    {
+      "id": "gpt-6-luna",
+      "modelId": "gpt-6-luna",
+      "label": "GPT-6 Luna",
+      "kind": "llm",
+      "tier": "fast",
+      "status": "ok",
+      "params": {
+        "reasoning_effort": "none",
+        "temperature": 0,
+        "max_completion_tokens": 128
+      },
+      "seeds": [
+        1001,
+        1002,
+        1003
+      ],
+      "runs": 24,
+      "finishPct": 75,
+      "meanScore": 482,
+      "meanTimeS": 52,
+      "meanDamagePct": 24.7,
+      "scansDone": 0,
+      "decisionsPerRun": 16.4,
+      "noDecisions": 0,
+      "latencyP50Ms": 776,
+      "latencyP95Ms": 1605,
+      "lateCrashes": 17,
+      "lateCrashRule": "impact|blocked|fell",
+      "simCommit": "d966fc9",
+      "inputTokens": 22983,
+      "outputTokens": 252,
+      "costPerRunUsd": 0.00242,
+      "totalCostUsd": 0.0582,
+      "priceUsdPerMTok": {
+        "in": 0.1,
+        "out": 0.5
+      },
+      "priceSource": "https://developers.openai.com/api/docs/models"
+    },
+    {
+      "id": "deepseek-flash",
+      "modelId": "deepseek-flash",
+      "label": "DeepSeek Flash",
+      "kind": "llm",
+      "tier": "fast",
+      "status": "ok",
+      "params": {
+        "thinking": {
+          "type": "disabled"
+        },
+        "temperature": 0,
+        "max_tokens": 64
+      },
+      "seeds": [
+        1001,
+        1002,
+        1003
+      ],
+      "runs": 24,
+      "finishPct": 75,
+      "meanScore": 457,
+      "meanTimeS": 46,
+      "meanDamagePct": 36.1,
+      "scansDone": 0,
+      "decisionsPerRun": 16.8,
+      "noDecisions": 0,
+      "latencyP50Ms": 789,
+      "latencyP95Ms": 1033,
+      "lateCrashes": 30,
+      "lateCrashRule": "impact|blocked|fell",
+      "simCommit": "d966fc9",
+      "inputTokens": 24186,
+      "outputTokens": 257,
+      "costPerRunUsd": 0.00756,
+      "totalCostUsd": 0.1816,
+      "priceUsdPerMTok": {
+        "in": 0.3,
+        "out": 1.2
+      },
+      "priceSource": "https://api-docs.deepseek.com/quick_start/pricing"
+    },
+    {
+      "id": "claude-sonnet-5-5",
+      "modelId": "claude-sonnet-5-5",
+      "label": "Claude Sonnet 5.5",
+      "kind": "llm",
+      "tier": "mid",
+      "status": "ok",
+      "params": {
+        "thinking": {
+          "type": "between_tools"
+        },
+        "max_tokens": 64
+      },
+      "seeds": [
+        1001,
+        1002,
+        1003
+      ],
+      "runs": 24,
+      "finishPct": 71,
+      "meanScore": 425,
+      "meanTimeS": 55.8,
+      "meanDamagePct": 31.6,
+      "scansDone": 0,
+      "decisionsPerRun": 15.2,
+      "noDecisions": 1,
+      "latencyP50Ms": 1138,
+      "latencyP95Ms": 1325,
+      "lateCrashes": 20,
+      "lateCrashRule": "impact|blocked|fell",
+      "simCommit": "d966fc9",
+      "inputTokens": 31455,
+      "outputTokens": 355,
+      "costPerRunUsd": 0.06645,
+      "totalCostUsd": 1.5949,
+      "priceUsdPerMTok": {
+        "in": 2,
+        "out": 10
+      },
+      "priceSource": "https://claude.com/pricing"
+    },
+    {
+      "id": "gpt-5.6-luna",
+      "modelId": "gpt-5.6-luna",
+      "label": "GPT-5.6 Luna",
+      "kind": "llm",
+      "tier": "mid",
+      "status": "ok",
+      "params": {
+        "reasoning_effort": "none",
+        "temperature": 0,
+        "max_completion_tokens": 128
+      },
+      "seeds": [
+        1001,
+        1002,
+        1003
+      ],
+      "runs": 24,
+      "finishPct": 75,
+      "meanScore": 475,
+      "meanTimeS": 47.2,
+      "meanDamagePct": 32,
+      "scansDone": 0,
+      "decisionsPerRun": 16.3,
+      "noDecisions": 0,
+      "latencyP50Ms": 901,
+      "latencyP95Ms": 1367,
+      "lateCrashes": 27,
+      "lateCrashRule": "impact|blocked|fell",
+      "simCommit": "d966fc9",
+      "inputTokens": 22963,
+      "outputTokens": 251,
+      "costPerRunUsd": 0.00489,
+      "totalCostUsd": 0.1174,
+      "priceUsdPerMTok": {
+        "in": 0.2,
+        "out": 1.2
+      },
+      "priceSource": "https://developers.openai.com/api/docs/models"
     },
     {
       "id": "heuristic",
       "modelId": "heuristic",
       "label": "Heuristic",
       "kind": "heuristic",
+      "tier": "baseline",
       "status": "ok",
+      "seeds": [
+        1001,
+        1002,
+        1003
+      ],
       "runs": 24,
       "finishPct": 75,
       "meanScore": 497,
@@ -61,14 +325,20 @@
       "latencyP95Ms": 0,
       "lateCrashes": 0,
       "lateCrashRule": "impact|blocked|fell",
-      "simCommit": "9166887"
+      "simCommit": "d966fc9"
     },
     {
       "id": "random",
       "modelId": "random",
       "label": "Random",
       "kind": "random",
+      "tier": "baseline",
       "status": "ok",
+      "seeds": [
+        1001,
+        1002,
+        1003
+      ],
       "runs": 24,
       "finishPct": 8,
       "meanScore": 78,
@@ -81,54 +351,8 @@
       "latencyP95Ms": 0,
       "lateCrashes": 0,
       "lateCrashRule": "impact|blocked|fell",
-      "simCommit": "9166887"
-    },
-    {
-      "id": "claude-haiku-5-5",
-      "modelId": "claude-haiku-5-5",
-      "label": "Claude Haiku 5.5",
-      "kind": "llm",
-      "status": "ok",
-      "runs": 24,
-      "finishPct": 75,
-      "meanScore": 464,
-      "meanTimeS": 47,
-      "meanDamagePct": 32.1,
-      "scansDone": 0,
-      "decisionsPerRun": 17.3,
-      "noDecisions": 0,
-      "latencyP50Ms": 887,
-      "latencyP95Ms": 992,
-      "inputTokens": 35732,
-      "outputTokens": 401,
-      "simCommit": "unknown"
-    },
-    {
-      "id": "claude-sonnet-5-5",
-      "modelId": "claude-sonnet-5-5",
-      "label": "Claude Sonnet 5.5",
-      "kind": "llm",
-      "status": "ok",
-      "runs": 24,
-      "finishPct": 75,
-      "meanScore": 435,
-      "meanTimeS": 56.4,
-      "meanDamagePct": 28.5,
-      "scansDone": 0,
-      "decisionsPerRun": 15.3,
-      "noDecisions": 2,
-      "latencyP50Ms": 1136,
-      "latencyP95Ms": 1335,
-      "inputTokens": 31381,
-      "outputTokens": 354,
-      "simCommit": "unknown"
+      "simCommit": "d966fc9"
     }
   ],
-  "notRun": [
-    {
-      "id": "claude-opus-5-5",
-      "label": "Claude Opus 5.5 (reasoning)",
-      "reason": "held until the cost of the row is approved"
-    }
-  ]
+  "notRun": []
 }
