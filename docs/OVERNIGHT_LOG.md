@@ -24,5 +24,8 @@ Written by [MASTER] for the human. Newest status first. Program: docs/OVERNIGHT.
 
 ## Status log
 
+### 04:32 · second tag
+`demo-good-0432` → ee76275, all steps green on the first attempt. Adds since 0426: v3 coach marks, the Result breakdown ("Where the run went"), weather chips fixed, one air rule for brains and players, the heuristic's approach to rough ground, replayable Drive runs, packages/lab (grid sim, not yet on a screen), arena Lab runner. Q6, Q7 and Q8 retested from the screens and closed.
+
 ### 04:26 · first tag
 `demo-good-0426` → b5cda43. Green: typecheck, unit tests, determinism, balance, production build, the e2e on that build (Drive run on M1 with the scan, all nine Briefs and run scenes, Room Race with two JEV bots, /lab), and `pnpm demo:stable -- --build-only`. The first e2e attempt of that run failed its scan step because my own screenshot blocked the script through the whole scan (laptop load average 22); the retry passed and the script no longer does that.

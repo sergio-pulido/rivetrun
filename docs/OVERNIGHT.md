@@ -52,7 +52,7 @@ Rules while this lasts:
 - Before every push: `pnpm typecheck` and `pnpm test` from the repo root. The gate judges committed HEAD in a clean worktree and runs the e2e on a production build of that commit, so only committed code counts.
 - Robustness of the demo comes before new features. New features sit behind a flag or on their own route.
 
-State: first tag `demo-good-0426` (b5cda43). The gate is running on the ~20 commits since.
+State: latest tag `demo-good-0432` (ee76275), all green. Next gate about 04:50.
 
 [SIM] (received through OVN-SIM-8 and the benchmark, c241dc4.)
 1. OVN-SIM-9 (new): the stranger on every mission. Two scripted drivers with the default build: "naive" (holds full throttle, never brakes, never touches anything else) and "careful" (the heuristic's commands replayed as a player). Table for M1–M9: finish, time, damage, stars, why. Accept: the naive driver finishes M1 with at least one star and a why-line a stranger understands; every mission where it does not finish has a Brief warning that says what to do. [BRAIN] saw "DNF · stuck" at 25.7 s on M1 at full throttle in a Room Race: reproduce or rule out in the sim first.
@@ -61,8 +61,8 @@ State: first tag `demo-good-0426` (b5cda43). The gate is running on the ~20 comm
 4. OVN-SIM-12 (new): timing. `assessBuild` on M8 and M9 and a full heuristic `runHeadless` on M6 (100 m) and M9, measured in Node: report ms. Accept: assessBuild under 200 ms, a ghost under 1 s; fix what is over.
 5. Whatever [LAB], [BRAIN] or [UI] ask of the sim. Then the wake-up rule above.
 
-[GAME] (received: OVN-GAME-1…4, QA-G1 in progress, ee76275.)
-1. QA-G1, the rest: (a) the red speedometer above a safe speed, one screenshot; (b) /screen at 1280×720 during a bot race on M8 and M9 with the weather line, 2 lanes and 10 lanes; (c) fog, wind streaks in motion, weather on the attract loop; (d) R13: grass tufts in the gap pit on /run/M7; (e) Q9: chips over the START sign and overlapping ghost name tags at the start of M8/M9.
+[GAME] (received: OVN-GAME-1…4 and QA-G1, ee76275. Your rooms and the two JEV scores on the M5 board in the dev store are noted; the QA server has its own store.)
+1. Left over from QA-G1, only if cheap: (a) the red speedometer above a safe speed, one screenshot; (b) /screen at 1280×720 during a bot race on M8 and M9 with the weather line, 2 lanes and 10 lanes; (c) fog, wind streaks in motion, weather on the attract loop; (d) R13: grass tufts in the gap pit on /run/M7; (e) Q9: chips over the START sign and overlapping ghost name tags at the start of M8/M9.
 2. OVN-GAME-5 (new): landscape pass — the run view at 1280×720 and 844×390 on M1, M5 and M9: HUD, pedals, telemetry drawer and result card never cover the robot. Screenshots.
 3. OVN-GAME-8 (new): a frame budget nobody needs a phone for. From `renderer.info` after 5 s of driving: draw calls and triangles for M1–M9 at high and low quality, as a table in your report. Accept: no mission above 150 draw calls or 150 k triangles at low quality; cut what is over (M8 rain and M9 snow, night and headlight are the new costs).
 4. OVN-GAME-6 (new): Room Race phones (apps/web/app/race/[code]/RaceRun.tsx is [BRAIN]'s, the controls are yours): with [BRAIN], confirm race phones get the v3 sliders, the charged jump and the air chip exactly as solo Drive does at 390×844, and that nothing of the solo HUD hides the pedals there.
@@ -86,8 +86,8 @@ State: first tag `demo-good-0426` (b5cda43). The gate is running on the ~20 comm
 6. OVN-BRAIN-8 (new): a phone that drops off. Mid-race, a phone loses the network for 5 s (and, separately, reloads the page): it rejoins the same seat, its run continues or ends with a stated reason, and the final order on the big screen and on every phone is identical. Accept: headless run for both cases, the two orders in your report.
 7. OVN-BRAIN-6 (stretch, own route `/screen?arena=1`, nothing on the default /screen changes): the live Arena race — up to 4 brain bots on one seed, each lane labelled with its model and latest latency. "DNF · race closed" stays at 45 s; the human decides at rehearsal. Then the wake-up rule above.
 
-[LAB] (received: OVN-LAB-1, 6d28f70.)
-1. OVN-LAB-2, then OVN-LAB-3. [BRAIN] waits for the exported scenario registry: tell it the moment it is on main.
+[LAB] (received: OVN-LAB-1, 6d28f70; OVN-LAB-2, d2dbd53.)
+1. OVN-LAB-3. [BRAIN] waits for the exported scenario registry (OVN-BRAIN-3): tell it now that d2dbd53 is on main.
 2. Approved for the OVN-LAB-3 commit: `"@rivetrun/lab": "workspace:*"` in apps/web/package.json and `'@rivetrun/lab'` in `transpilePackages` in apps/web/next.config.ts, with the pnpm-lock.yaml change, all in that one commit. Nothing else outside your paths.
 3. For the e2e: arrow keys and WASD, a visible objective line, a result heading with a score, `data-testid` on `scenario-<id>`, `scenario-start`, `pad-up|down|left|right`, `scenario-result`; the grid-simulation sentence; linked from /lab only. Send the Maze seed and key sequence when it plays.
 4. After OVN-LAB-3: a result worth showing for each scenario — Jev's decision thread beside the grid, and "what your sensors could not see" (the fog of war at the end). Then the wake-up rule above.
@@ -126,10 +126,12 @@ Items are in priority order. IDs are OVN-<owner>-<n>.
 | OVN-GAME-3 | reported done | 927f411 | Air chip and landing toast seen as DOM text, not pixels. CRASH LANDING never produced. Jump now charges while held: a tap is a 40 % jump. |
 | OVN-BRAIN-3 | in progress: runner done, waits for [LAB]'s scenario registry | 9e64a85, 133f77c | Smoke maze completed by Jev, GPT-6 Luna, heuristic, random. |
 | OVN-SIM-5…8 | committed 04:18–04:26, reports pending | 1a808a5, d88704e, 0e802de, a8b0d52 | In the gate running now. |
-| OVN-UI-6, OVN-UI-7 | reported done | 3ed48f0, 7e19e69, f0f6852 | Q6–Q8: retest in the next e2e screens. |
+| OVN-UI-6, OVN-UI-7 | done, retested | 3ed48f0, 7e19e69, f0f6852 | Q6–Q8 closed from the 04:27 screens. |
 | OVN-UI-5 | reported done | 1615aa1 | /lab shells out to `git log`; to be seen in the build under test. No docs/tokens.json yet (the human's). |
 | OVN-LAB-1 | reported done | 6d28f70 | 48 unit tests by lab. First judged by the gate after 927f411. |
-| OVN-LAB-2 | in progress | — | — |
+| OVN-LAB-2 | reported done | d2dbd53 | 69 unit tests by lab; five scenarios; no screen yet. |
+| OVN-LAB-3 | in progress | — | — |
+| QA-G1 | reported done | ee76275 | Red speedometer, /screen with weather on M8/M9 at 2 lanes, fog, R13 seen by game; 10 lanes and the attract loop with weather not checked. |
 
 Now: see "Orders from [MASTER]" above.
 

@@ -2,7 +2,7 @@
 // Headless Chromium against QA_BASE_URL. scripts/qa.sh points it at a production build of the commit under test;
 // on its own it defaults to the dev server. It starts no server and writes nothing outside e2e/screens.
 //   node e2e/smoke.mjs                 all steps
-//   QA_ONLY=drive node e2e/smoke.mjs   one step group: pages | drive | lab | missions | race | desktop
+//   QA_ONLY=drive node e2e/smoke.mjs   one step group: pages | drive | jev | lab | missions | race | desktop
 // Env: QA_BASE_URL (default http://localhost:3000), QA_SCREENS (output directory), QA_HEADED=1 to watch.
 // Exit code: 0 when no step failed (skips are allowed), 1 otherwise. A summary lands in <QA_SCREENS>/summary.json.
 import { mkdirSync, writeFileSync } from 'node:fs';
@@ -358,6 +358,50 @@ try {
       await shot(page, 'phone-07b-brief-best');
       const line = (await page.locator('body').innerText()).match(/your best[^\n]*(\n[^\n]*)?/i)?.[0].replace(/\s+/g, ' ') ?? '';
       return line.slice(0, 90);
+    }, page);
+  }
+
+  // ---- The other half of the 60-second path: Jev drives M1 from Play Now to the Result -----------------------------
+  if (wants('jev')) {
+    await step('jev M1 · finish', async () => {
+      await go(page, '/');
+      await page.getByRole('button', { name: 'Jev drives' }).click();
+      await visibleText(page, '· Jev drives ·');
+      await page.getByRole('link', { name: /PLAY NOW/ }).click();
+      const coachStart = page.locator('button.rr-btn-primary').first();
+      const coached = await coachStart.waitFor({ state: 'visible', timeout: 4000 }).then(
+        () => true,
+        () => false,
+      );
+      if (coached) {
+        await shot(page, 'phone-10-coach-jev');
+        await coachStart.click();
+      }
+      await page.waitForURL('**/run/M1', { timeout: NAV_MS });
+      let fallback = false;
+      let midRun = false;
+      const deadline = Date.now() + 150_000;
+      while (Date.now() < deadline && new URL(page.url()).pathname !== '/result') {
+        const text = await page.locator('body').innerText().catch(() => '');
+        if (/FALLBACK/.test(text)) fallback = true;
+        if (!midRun && /00:(0[6-9]|1\d)\.\d/.test(text)) {
+          midRun = true;
+          await shot(page, 'phone-11-run-jev');
+        }
+        await sleep(500);
+      }
+      await page.waitForURL('**/result', { timeout: 10_000 });
+      const headline = (await page.locator('h1').first().innerText()).trim();
+      await sleep(2000);
+      await shot(page, 'phone-12-result-jev');
+      await assertHealthy(page, seen);
+      if (!/finished/i.test(headline)) throw new Error(`result headline is "${headline}"`);
+      if (fallback) warnings.push('jev run: FALLBACK was shown on the HUD (Jev slow or unavailable for at least one decision)');
+      const time = (await page.locator('body').innerText()).match(/(\d+\.\d)\s*s/)?.[1];
+      // Back to Drive mode for the steps that follow.
+      await go(page, '/');
+      await page.getByRole('button', { name: 'You drive' }).click();
+      return `${coached ? 'coach marks shown, ' : ''}Jev finished${time ? ` in ${time} s` : ''}${fallback ? ', with FALLBACK decisions' : ', no FALLBACK'}`;
     }, page);
   }
 
