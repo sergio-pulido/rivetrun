@@ -1,7 +1,8 @@
 import { createJevBrain } from '@rivetrun/brain';
-import type { Build, GhostTrace, MissionId } from '@rivetrun/contracts';
+import type { Brain, Build, GhostTrace, MissionId } from '@rivetrun/contracts';
 import { driveSeed, MISSION_IDS, MISSIONS, runHeadless } from '@rivetrun/sim';
 import { faultedJev, type JevFault } from './jevFault';
+import { waitForQuiet } from './liveTraffic';
 import { CACHE_VERSION } from './version';
 
 // Jev ghosts for Drive mode: the server drives the same mission, seed, build and briefing once with Jev and
@@ -53,11 +54,25 @@ interface GhostState {
 const holder = globalThis as typeof globalThis & { __rivetrunGhostsV2?: GhostState };
 const state: GhostState = (holder.__rivetrunGhostsV2 ??= { entries: new Map(), waiting: [], active: 0 });
 /** Warm-up runs in flight at once; the rest of MAX_CONCURRENT stays free for ghosts a player is waiting for. */
-const MAX_WARMING = 2;
+const MAX_WARMING = 1;
 /** Warm-up runs waiting at once: beyond this, new warm-ups are skipped rather than queued. */
 const MAX_WARM_QUEUE = 18;
 /** Requested ghosts waiting at once; beyond this a request is turned away instead of queued. */
 const MAX_REQUEST_QUEUE = 24;
+
+/** Warm-up runs nobody has asked for yet. A request for one takes it out of this set: it then runs at full pace. */
+const warming = new Set<string>();
+
+/**
+ * Jev for a warm-up run: before every decision it waits until no visitor's live decision is in flight or just
+ * answered (liveTraffic.ts). The wait happens before the call, so Jev's measured latency in the ghost is its own.
+ */
+const politeJev = (key: string): Brain => ({
+  decide: async (question) => {
+    if (warming.has(key)) await waitForQuiet();
+    return jev.decide(question);
+  },
+});
 
 /** Starts whatever may run now: requested ghosts first, warm-ups only while few runs are active. */
 function pump(): void {
@@ -101,7 +116,7 @@ async function compute(key: string, request: GhostRequest, low = false): Promise
     pump();
   });
   try {
-    const { episode, ghost } = await runHeadless(MISSIONS[request.missionId], request.seed, request.build, request.fault ? faultedJev(request.fault) : jev, {
+    const { episode, ghost } = await runHeadless(MISSIONS[request.missionId], request.seed, request.build, request.fault ? faultedJev(request.fault) : low ? politeJev(key) : jev, {
       priority: request.priority,
       policy: 'jev',
       briefing: request.briefing,
@@ -150,7 +165,8 @@ function warmSiblings(request: GhostRequest): void {
     const key = keyOf(sibling);
     if (state.entries.has(key)) continue;
     remember(key, { state: 'pending', since: Date.now() });
-    void compute(key, sibling, true);
+    warming.add(key);
+    void compute(key, sibling, true).finally(() => warming.delete(key));
   }
 }
 
@@ -162,6 +178,7 @@ export function requestGhost(request: GhostRequest): GhostAnswer {
   if (entry?.state === 'pending') {
     // Somebody wants it now: a warm-up still waiting its turn moves up.
     const waiting = state.waiting.find((item) => item.key === key);
+    warming.delete(key);
     if (waiting?.low) {
       waiting.low = false;
       pump();

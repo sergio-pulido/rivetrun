@@ -3,6 +3,7 @@ import { DecideRequestSchema, type BrainDecision } from '@rivetrun/contracts';
 import { apiError, parseJsonBody } from '@/api/respond';
 import { ARENA_DECIDE_TIMEOUT_MS, ArenaBrainIdSchema, type ArenaBrainId } from '../../../race/_lib/protocol';
 import { decideFault, jevFaultOf } from '../../_lib/jevFault';
+import { liveDecisionStarted } from '../../_lib/liveTraffic';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -49,6 +50,8 @@ export async function POST(request: Request): Promise<Response> {
   const parsed = await parseJsonBody(request, DecideRequestSchema);
   if (!parsed.ok) return parsed.response;
 
+  // Background ghost runs step aside while this is answered (liveTraffic.ts).
+  const liveDone = liveDecisionStarted();
   try {
     const fault = jevFaultOf(request);
     if (fault) await decideFault(fault);
@@ -65,5 +68,7 @@ export async function POST(request: Request): Promise<Response> {
     // Short reason only: never the request, a header or a key.
     console.error(`[arena/decide] ${model.data}: ${message.slice(0, 120)}`);
     return message === 'timeout' || /no answer within|timeout/i.test(message) ? apiError(504, 'upstream_timeout', `${model.data} did not answer in time`) : apiError(502, 'upstream_error', `${model.data} failed`);
+  } finally {
+    liveDone();
   }
 }

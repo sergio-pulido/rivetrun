@@ -3,6 +3,7 @@ import { DecideRequestSchema, type DecideResponse } from '@rivetrun/contracts';
 import { apiError, parseJsonBody } from '@/api/respond';
 import { decideFault, jevFaultOf } from '../_lib/jevFault';
 import { cacheDecision, decisionKey, getCachedDecision } from '../_lib/store';
+import { liveDecisionStarted } from '../_lib/liveTraffic';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -30,6 +31,8 @@ export async function POST(request: Request): Promise<Response> {
     return Response.json(hit, { headers: { 'x-rivetrun-cache': 'hit' } });
   }
 
+  // Background ghost runs step aside while this is answered (liveTraffic.ts).
+  const liveDone = liveDecisionStarted();
   try {
     if (fault) await decideFault(fault);
     const joined = inFlight.get(key);
@@ -56,5 +59,7 @@ export async function POST(request: Request): Promise<Response> {
     }
     console.error('[decide] unexpected', error);
     return apiError(500, 'internal', 'decide failed');
+  } finally {
+    liveDone();
   }
 }

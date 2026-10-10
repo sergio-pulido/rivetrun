@@ -7,6 +7,7 @@ import { decideFault, jevFaultOf } from '../../_lib/jevFault';
 
 /** The answer also says which wording of the question it answered. */
 type LabDecision = LabDecisionBase & { readonly question: string };
+import { liveDecisionStarted } from '../../_lib/liveTraffic';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -51,6 +52,8 @@ export async function POST(request: Request): Promise<Response> {
   const cached = fault ? undefined : state.cache.get(key);
   if (cached) return Response.json({ ...cached, latencyMs: Math.round(performance.now() - started) } satisfies LabDecision, { headers: { 'x-rivetrun-cache': 'hit' } });
 
+  // Background ghost runs step aside while this is answered (liveTraffic.ts).
+  const liveDone = liveDecisionStarted();
   try {
     if (fault) await decideFault(fault);
     const joined = state.inFlight.get(key);
@@ -77,5 +80,7 @@ export async function POST(request: Request): Promise<Response> {
     }
     console.error('[lab/decide] unexpected', error);
     return apiError(500, 'internal', 'lab decide failed');
+  } finally {
+    liveDone();
   }
 }
