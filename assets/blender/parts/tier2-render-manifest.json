@@ -1,0 +1,261 @@
+[
+  {
+    "key": "arduino_uno_r4_wifi",
+    "blend": "assets/blender/parts/arduino_uno_r4_wifi.blend",
+    "glb": null,
+    "render": "apps/web/public/renders/parts/arduino_uno_r4_wifi.png",
+    "envelopeMm": [
+      68.85,
+      53.34,
+      null
+    ],
+    "dimsSource": "https://store.arduino.cc/products/uno-r4-wifi",
+    "approximations": [
+      "PCB thickness 1.6 mm and minor connector/package contours approximate; published outline retained."
+    ],
+    "tris": 1972,
+    "glbKb": null,
+    "author": "sergio.pulido@alodai.com"
+  },
+  {
+    "key": "ir_distance_sharp_gp2y0a21",
+    "blend": "assets/blender/parts/ir_distance_sharp_gp2y0a21.blend",
+    "glb": null,
+    "render": "apps/web/public/renders/parts/ir_distance_sharp_gp2y0a21.png",
+    "envelopeMm": [
+      44.5,
+      18.9,
+      13.5
+    ],
+    "dimsSource": "docs/inputs/bom-mk2.json: ir_distance_sharp_gp2y0a21",
+    "approximations": [],
+    "tris": 712,
+    "glbKb": null,
+    "author": "sergio.pulido@alodai.com"
+  },
+  {
+    "key": "ambient_light_veml7700",
+    "blend": "assets/blender/parts/ambient_light_veml7700.blend",
+    "glb": null,
+    "render": "apps/web/public/renders/parts/ambient_light_veml7700.png",
+    "envelopeMm": null,
+    "dimsSource": "not published; proportions from product photos",
+    "approximations": [
+      "Entire unmeasured envelope and component sizes are illustrative proportions from official Adafruit 4162 product photos. No engineering dimensions or GLB supplied."
+    ],
+    "tris": 564,
+    "glbKb": null,
+    "author": "sergio.pulido@alodai.com",
+    "approximate": true
+  },
+  {
+    "key": "thermal_camera_mlx90640",
+    "blend": "assets/blender/parts/thermal_camera_mlx90640.blend",
+    "glb": null,
+    "render": "apps/web/public/renders/parts/thermal_camera_mlx90640.png",
+    "envelopeMm": [
+      25.7,
+      17.7,
+      16
+    ],
+    "dimsSource": "https://www.adafruit.com/product/4407",
+    "approximations": [
+      "Small package placement, connector outlines, solder pads and board thickness simplified for a demo render; no fabrication hole pattern asserted."
+    ],
+    "tris": 704,
+    "glbKb": null,
+    "author": "sergio.pulido@alodai.com"
+  },
+  {
+    "key": "stepper_nema17_pololu",
+    "blend": "assets/blender/parts/stepper_nema17_pololu.blend",
+    "glb": null,
+    "render": "apps/web/public/renders/parts/stepper_nema17_pololu.png",
+    "envelopeMm": [
+      42.3,
+      42.3,
+      48
+    ],
+    "dimsSource": "https://www.pololu.com/product/1200",
+    "approximations": [
+      "Endcap division, recesses and surface details simplified. Shaft length not in BOM; front bearing opening shown without inventing an exposed shaft length. Envelope excludes shaft as manufacturer specifies."
+    ],
+    "tris": 572,
+    "glbKb": null,
+    "author": "sergio.pulido@alodai.com"
+  },
+  {
+    "key": "servo_metal_gear_mg92b",
+    "blend": "assets/blender/parts/servo_metal_gear_mg92b.blend",
+    "glb": null,
+    "render": "apps/web/public/renders/parts/servo_metal_gear_mg92b.png",
+    "envelopeMm": [
+      36,
+      12,
+      31
+    ],
+    "dimsSource": "https://www.adafruit.com/product/2307",
+    "approximations": [
+      "Body/endcap split and spline detail approximate within official 36x12x31 mm external envelope; no optional horn or cable shown."
+    ],
+    "tris": 340,
+    "glbKb": null,
+    "author": "sergio.pulido@alodai.com"
+  },
+  {
+    "key": "battery_holder_4aa",
+    "blend": "assets/blender/parts/battery_holder_4aa.blend",
+    "glb": null,
+    "render": "apps/web/public/renders/parts/battery_holder_4aa.png",
+    "envelopeMm": [
+      58,
+      63,
+      16
+    ],
+    "dimsSource": "docs/inputs/bom-mk2.json: battery_holder_4aa",
+    "approximations": [
+      "Walls, battery channels and spring winding are simplified small details; cells and unsourced lead diameter omitted."
+    ],
+    "tris": 1116,
+    "glbKb": null,
+    "author": "sergio.pulido@alodai.com"
+  },
+  {
+    "key": "lidar_rplidar_c1",
+    "blend": "assets/blender/parts/lidar_rplidar_c1.blend",
+    "glb": null,
+    "render": "apps/web/public/renders/parts/lidar_rplidar_c1.png",
+    "envelopeMm": [
+      55.6,
+      55.6,
+      41.3
+    ],
+    "dimsSource": "docs/inputs/bom-mk2.json: lidar_rplidar_c1",
+    "approximations": [
+      "Rotating head seam, optical window contours and mounting base details simplified within BOM dimensions."
+    ],
+    "tris": 340,
+    "glbKb": null,
+    "author": "sergio.pulido@alodai.com"
+  },
+  {
+    "key": "camera_module_3_noir",
+    "blend": "assets/blender/parts/camera_module_3.blend",
+    "glb": null,
+    "render": "apps/web/public/renders/parts/camera_module_3_noir.png",
+    "envelopeMm": [
+      25,
+      24,
+      11.5
+    ],
+    "dimsSource": "https://www.raspberrypi.com/products/camera-module-3/",
+    "approximations": [
+      "Shares Camera Module 3 mechanical outline; filter variant has no external branding. Minor socket/lens rim details approximate."
+    ],
+    "tris": 588,
+    "glbKb": null,
+    "author": "sergio.pulido@alodai.com"
+  },
+  {
+    "key": "tof_vl53l1x_pololu",
+    "blend": "assets/blender/parts/tof_vl53l1x_pololu.blend",
+    "glb": null,
+    "render": "apps/web/public/renders/parts/tof_vl53l1x_pololu.png",
+    "envelopeMm": [
+      12.7,
+      17.78,
+      2.159
+    ],
+    "dimsSource": "https://www.pololu.com/product/3415",
+    "approximations": [
+      "Small package placement, connector outlines, solder pads and board thickness simplified for a demo render; no fabrication hole pattern asserted."
+    ],
+    "tris": 252,
+    "glbKb": null,
+    "author": "sergio.pulido@alodai.com"
+  },
+  {
+    "key": "gps_adafruit_ultimate",
+    "blend": "assets/blender/parts/gps_adafruit_ultimate.blend",
+    "glb": null,
+    "render": "apps/web/public/renders/parts/gps_adafruit_ultimate.png",
+    "envelopeMm": [
+      25.5,
+      35,
+      6.5
+    ],
+    "dimsSource": "https://www.adafruit.com/product/746",
+    "approximations": [
+      "Small package placement, connector outlines, solder pads and board thickness simplified for a demo render; no fabrication hole pattern asserted."
+    ],
+    "tris": 688,
+    "glbKb": null,
+    "author": "sergio.pulido@alodai.com"
+  },
+  {
+    "key": "gas_sensor_bme688",
+    "blend": "assets/blender/parts/gas_sensor_bme688.blend",
+    "glb": null,
+    "render": "apps/web/public/renders/parts/gas_sensor_bme688.png",
+    "envelopeMm": [
+      25.5,
+      17.6,
+      4.6
+    ],
+    "dimsSource": "https://www.adafruit.com/product/5046",
+    "approximations": [
+      "Small package placement, connector outlines, solder pads and board thickness simplified for a demo render; no fabrication hole pattern asserted."
+    ],
+    "tris": 468,
+    "glbKb": null,
+    "author": "sergio.pulido@alodai.com"
+  },
+  {
+    "key": "geiger_counter_mightyohm",
+    "blend": "assets/blender/parts/geiger_counter_mightyohm.blend",
+    "glb": null,
+    "render": "apps/web/public/renders/parts/geiger_counter_mightyohm.png",
+    "envelopeMm": null,
+    "dimsSource": "not published; proportions from product photos",
+    "approximations": [
+      "Whole geometry uses unmeasured proportions from official kit photographs; values are internal drawing proportions, not manufacturing dimensions. No GLB supplied."
+    ],
+    "tris": 828,
+    "glbKb": null,
+    "author": "sergio.pulido@alodai.com",
+    "approximate": true
+  },
+  {
+    "key": "brushless_motor_dfrobot_fit0441",
+    "blend": "assets/blender/parts/brushless_motor_dfrobot_fit0441.blend",
+    "glb": null,
+    "render": "apps/web/public/renders/parts/brushless_motor_dfrobot_fit0441.png",
+    "envelopeMm": null,
+    "dimsSource": "not published; proportions from product photos",
+    "approximations": [
+      "Body length not published (L in official drawing); full model is illustrative photo proportion only. No measured envelope or GLB supplied."
+    ],
+    "tris": 496,
+    "glbKb": null,
+    "author": "sergio.pulido@alodai.com",
+    "approximate": true
+  },
+  {
+    "key": "microphone_i2s_sph0645",
+    "blend": "assets/blender/parts/microphone_i2s_sph0645.blend",
+    "glb": null,
+    "render": "apps/web/public/renders/parts/microphone_i2s_sph0645.png",
+    "envelopeMm": [
+      16.7,
+      12.7,
+      1.8
+    ],
+    "dimsSource": "https://www.adafruit.com/product/3421",
+    "approximations": [
+      "Small package placement, connector outlines, solder pads and board thickness simplified for a demo render; no fabrication hole pattern asserted."
+    ],
+    "tris": 300,
+    "glbKb": null,
+    "author": "sergio.pulido@alodai.com"
+  }
+]

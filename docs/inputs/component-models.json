@@ -488,5 +488,50 @@
     "origin": "mounting-face centre",
     "renderFrameMm": 220,
     "compression": "Draco"
+  },
+  {
+    "key": "ambient_light_veml7700",
+    "blend": "assets/blender/parts/ambient_light_veml7700.blend",
+    "glb": null,
+    "render": "apps/web/public/renders/parts/ambient_light_veml7700.png",
+    "envelopeMm": null,
+    "dimsSource": "not published; proportions from product photos",
+    "approximations": [
+      "Entire unmeasured envelope and component sizes are illustrative proportions from official Adafruit 4162 product photos. No engineering dimensions or GLB supplied."
+    ],
+    "tris": 564,
+    "glbKb": null,
+    "author": "sergio.pulido@alodai.com",
+    "approximate": true
+  },
+  {
+    "key": "geiger_counter_mightyohm",
+    "blend": "assets/blender/parts/geiger_counter_mightyohm.blend",
+    "glb": null,
+    "render": "apps/web/public/renders/parts/geiger_counter_mightyohm.png",
+    "envelopeMm": null,
+    "dimsSource": "not published; proportions from product photos",
+    "approximations": [
+      "Whole geometry uses unmeasured proportions from official kit photographs; values are internal drawing proportions, not manufacturing dimensions. No GLB supplied."
+    ],
+    "tris": 828,
+    "glbKb": null,
+    "author": "sergio.pulido@alodai.com",
+    "approximate": true
+  },
+  {
+    "key": "brushless_motor_dfrobot_fit0441",
+    "blend": "assets/blender/parts/brushless_motor_dfrobot_fit0441.blend",
+    "glb": null,
+    "render": "apps/web/public/renders/parts/brushless_motor_dfrobot_fit0441.png",
+    "envelopeMm": null,
+    "dimsSource": "not published; proportions from product photos",
+    "approximations": [
+      "Body length not published (L in official drawing); full model is illustrative photo proportion only. No measured envelope or GLB supplied."
+    ],
+    "tris": 496,
+    "glbKb": null,
+    "author": "sergio.pulido@alodai.com",
+    "approximate": true
   }
 ]
