@@ -31,6 +31,7 @@ export function why(state: RunState): string {
   const slipLine = (): string =>
     `Slipped ${Math.round(worstSlip![1])} s on ${TERRAINS[worstSlip![0]].name.toLowerCase()}${has('imu') ? '' : ' — no IMU'}`;
 
+  if (state.neverStarted) return `Never started: no throttle in the first ${PHYSICS.startWaitS} s`;
   if (state.dnfReason === 'stuck' && state.falls >= 3) return `Fell into the gap ${state.falls} times${spec.jumpImpulseMps > 0 ? '' : ' — no piston to jump it'}`;
   if (state.dnfReason === 'stuck' && state.blockedBy) {
     return `Blocked by a ${state.blockedBy} — ${spec.wheelSizeMm} mm ${spec.locomotionName.toLowerCase()} clear ${round1(spec.clearanceCm)} cm; it needs climb mode, bigger wheels or a jump`;
@@ -159,6 +160,7 @@ export function score(state: RunState): Outcome {
     progressFraction: Math.round(progressFraction * 1000) / 1000,
     stars,
     ...(state.finished ? {} : { dnfReason: state.dnfReason ?? 'timeout' }),
+    ...(state.neverStarted ? { neverStarted: true } : {}),
     why: why(state),
     breakdown: breakdown(state, scanPenaltyS, scanBonus),
   };

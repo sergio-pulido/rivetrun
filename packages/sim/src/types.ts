@@ -117,6 +117,10 @@ export interface RunState {
   /** Sim time at which the piston can fire again. */
   readonly jumpReadyT: number;
   readonly lastAir?: AirEvent;
+  /** A player's run: true once a throttle (or the winch or piston) has been used. Until then nothing counts as stuck. */
+  readonly started?: boolean;
+  /** The run ended because the player never touched the throttle. */
+  readonly neverStarted?: boolean;
   /** The body's pitch in the air, degrees. It levels itself; a player's brake or added throttle overrides that. */
   readonly airPitchDeg?: number;
   /** The command held at take-off: keeping it in the air is not an air input. */

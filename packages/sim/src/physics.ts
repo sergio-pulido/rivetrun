@@ -40,6 +40,8 @@ export const PHYSICS = {
   stuckAfterS: 8,
   /** No progress for this long: the countdown to stuck is shown. */
   stuckWarnS: 1.5,
+  /** A player who has not touched the throttle yet is reading the screen, not stuck. The run waits this long for a first input. */
+  startWaitS: 30,
   winchSpeedMps: 0.6,
   slipEffectPct: 25,
   smokeAboveDamagePct: 50,
@@ -574,7 +576,10 @@ export function step(state: RunState, action: Action): RunState {
   const progressed = x > state.bestX + 0.02;
   const bestX = progressed ? x : state.bestX;
   // Stuck means not getting anywhere: a robot climbing back after a slide is moving forward, so it is not stuck.
-  const lastProgressT = progressed || fell || airborne || v >= PHYSICS.rollbackMps ? t : state.lastProgressT;
+  // A player's stuck clock starts with the first throttle: before it they are reading the screen.
+  const started = !state.config.manual || state.started === true || profile.speed > 0 || action === 'deploy_winch' || action === 'jump';
+  const neverStarted = !started && t >= PHYSICS.startWaitS;
+  const lastProgressT = !started || progressed || fell || airborne || v >= PHYSICS.rollbackMps ? t : state.lastProgressT;
 
   const finished = x >= world.lengthM;
   const dnfReason = finished
@@ -582,6 +587,7 @@ export function step(state: RunState, action: Action): RunState {
     : damage >= 100 ? 'damage'
     : battery <= 0 ? 'battery'
     : falls >= PHYSICS.maxFalls ? 'stuck'
+    : neverStarted ? 'stuck'
     : t - lastProgressT >= PHYSICS.stuckAfterS ? 'stuck'
     : t >= TUNING.maxRunS ? 'timeout'
     : undefined;
@@ -651,6 +657,8 @@ export function step(state: RunState, action: Action): RunState {
     falls,
     jumpReadyT,
     lastAir,
+    started,
+    ...(neverStarted ? { neverStarted: true } : {}),
     airPitchDeg,
     airAction,
     jumpChargeS: state.jumpChargeS,

@@ -78,9 +78,11 @@ describe('bogged down: a countdown and a way out (OVN-SIM-13)', () => {
   });
 
   it('names nothing when no command frees the build, and counts down while the robot stands still', () => {
+    // Driven off the line, then let go: now standing still counts.
     let state = createRun({ mission: MISSIONS.M1, seed: 1, build: allRounder, priority: 0.5, manual: true });
-    for (let i = 0; i < 60; i += 1) state = step(state, 'coast');
-    expect(state.sim.stuckInS).toBeCloseTo(STUCK_RULES.afterS - 3, 1);
+    for (let i = 0; i < 20; i += 1) state = step(state, 'accelerate');
+    for (let i = 0; i < 400 && (state.sim.stuckInS === undefined || state.sim.stuckInS > 5); i += 1) state = step(state, 'coast');
+    expect(state.sim.stuckInS).toBeCloseTo(5, 1);
     expect(wayOut(state)).toBe('throttle');
     // The Speedster on M3's 15° mud slope: nothing it can do climbs it.
     let wall = createRun({ mission: MISSIONS.M3, seed: driveSeed(MISSIONS.M3), build: PRESETS.speedster.build, priority: 0.5, manual: true });
@@ -88,5 +90,48 @@ describe('bogged down: a countdown and a way out (OVN-SIM-13)', () => {
     expect(wall.done).toBe(false);
     expect(wall.sim.stuckInS).toBeDefined();
     expect(wayOut(wall)).toBeUndefined();
+  });
+});
+
+describe('a visitor reading the screen is not stuck (Q15)', () => {
+  const idle = (seconds: number, manual: boolean) => {
+    let state = createRun({ mission: MISSIONS.M1, seed: 1, build: allRounder, priority: 0.5, manual });
+    for (let i = 0; i < seconds * 20 && !state.done; i += 1) state = step(state, 'coast');
+    return state;
+  };
+
+  it('before the first throttle there is no countdown, and the run waits 30 s before ending as "never started"', () => {
+    const waiting = idle(29, true);
+    expect(waiting.done).toBe(false);
+    expect(waiting.sim.stuckInS).toBeUndefined();
+    const gaveUp = idle(31, true);
+    expect(gaveUp.done).toBe(true);
+    expect(gaveUp.sim.t).toBe(30);
+    const outcome = score(gaveUp);
+    expect(outcome.neverStarted).toBe(true);
+    expect(outcome.dnfReason).toBe('stuck');
+    expect(outcome.why).toBe('Never started: no throttle in the first 30 s');
+  });
+
+  it('the stuck clock starts with the first throttle: a late starter drives a normal run', () => {
+    let state = idle(20, true);
+    for (let i = 0; i < 2000 && !state.done; i += 1) state = step(state, 'accelerate');
+    expect(state.finished).toBe(true);
+    expect(score(state).neverStarted).toBeUndefined();
+    // After a start, 8 s without progress is stuck as before.
+    let stalled = createRun({ mission: MISSIONS.M1, seed: 1, build: allRounder, priority: 0.5, manual: true });
+    for (let i = 0; i < 10; i += 1) stalled = step(stalled, 'accelerate');
+    const from = stalled.sim.t;
+    for (let i = 0; i < 400 && !stalled.done; i += 1) stalled = step(stalled, 'brake');
+    expect(stalled.dnfReason).toBe('stuck');
+    expect(stalled.sim.t - from).toBeLessThan(STUCK_RULES.afterS + 3);
+    expect(score(stalled).neverStarted).toBeUndefined();
+  });
+
+  it('brains are unchanged: a brain that does nothing is stuck after 8 s', () => {
+    const brain = idle(12, false);
+    expect(brain.done).toBe(true);
+    expect(brain.sim.t).toBe(STUCK_RULES.afterS);
+    expect(score(brain).neverStarted).toBeUndefined();
   });
 });

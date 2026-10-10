@@ -119,6 +119,8 @@ export const OutcomeSchema = z.object({
      */
     inputLog: z.array(z.object({ t: z.number(), throttle: z.number().min(0).max(1), brake: z.number().min(0).max(1), special: ControlSpecialSchema.optional(), jumpHeld: z.boolean().optional(), action: ActionSchema })).optional(),
   }).optional(),
+  /** Drive mode: the run ended because the player gave no throttle in the first 30 s (`dnfReason` is then 'stuck'). */
+  neverStarted: z.boolean().optional(),
   /** One-line explanation derived by the sim from ground truth, e.g. "Slipped 6 s on ice — no IMU". */
   why: z.string().max(200).optional(),
 });
