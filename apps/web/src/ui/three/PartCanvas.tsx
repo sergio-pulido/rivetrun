@@ -3,7 +3,6 @@
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Box3, Sphere, Vector3, type Group, type Object3D, type PerspectiveCamera } from 'three';
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import type { Part } from '@rivetrun/contracts';
 // The game session's own part models, mounted alone.
 import { Attachments } from '@/game/robot/Attachments';
@@ -11,6 +10,7 @@ import { Battery, Motors } from '@/game/robot/Body';
 import { locomotionGeometry } from '@/game/robot/drive';
 import { Locomotion } from '@/game/robot/Locomotion';
 import { BenchLight } from './BenchLight';
+import { createPartLoader } from './partLoader';
 import { PartsProvider } from './PartsProvider';
 
 const MAX_DPR = 1.5;
@@ -30,7 +30,7 @@ function GlbModel({ url, onLoaded, onError }: { readonly url: string; readonly o
   const [scene, setScene] = useState<Object3D | null>(null);
   useEffect(() => {
     let cancelled = false;
-    new GLTFLoader()
+    createPartLoader()
       .loadAsync(url)
       .then((gltf) => {
         if (cancelled) return;
