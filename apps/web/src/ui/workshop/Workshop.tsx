@@ -25,7 +25,10 @@ import { Tuning } from './Tuning';
 
 const PRESET_LIST = Object.values(PRESETS);
 const BAR_COLOR = { speed: 'var(--color-orange)', grip: 'var(--color-pcb)', endurance: '#E3B341', perception: 'var(--color-cyan)' } as const;
-const CALLOUT = 'absolute flex items-center gap-1.5 font-mono text-[10px] font-medium tracking-[1px]';
+// A dark pill behind each hotspot label: the stage behind them may be light (the Workshop's studio) or dark.
+const CALLOUT = 'absolute flex items-center gap-1.5 rounded-full bg-[#10151C]/85 py-1 pl-1 pr-2.5 font-mono text-[10px] font-medium tracking-[1px] backdrop-blur-sm';
+/** The stat bars sit on their own dark strip at the foot of the stage; the 3D view ends above it. */
+const STAT_STRIP = 'h-[38px]';
 const DOT = 'grid h-[22px] w-[22px] place-items-center rounded-full text-[11px] font-semibold';
 
 interface WorkshopProps {
@@ -122,19 +125,21 @@ export function Workshop({ makers, locked, printedIds }: WorkshopProps) {
         </div>
       }
     >
-      <section className="rr-stage h-[270px] shrink-0">
-        <Bench3D build={build} onPick={openPicked} className="bottom-7" />
+      {/* The Workshop's 3D view is a light studio (the game's backdrop colour): the same light grey sits behind the canvas, so
+          nothing dark flashes before its first frame, and the loading label is dark enough to read on it. */}
+      <section className="rr-stage h-[270px] shrink-0 !bg-[#e6e8eb] [background-image:none] [&_.rr-label]:!text-[#3F4854]">
+        <Bench3D build={build} onPick={openPicked} className="bottom-[38px]" />
         <button type="button" onClick={() => setSlot('sensor')} className={`${CALLOUT} right-3 top-[18px] text-[#CFE9EE]`}>
           <span className={`${DOT} bg-cyan text-on-cyan`}>1</span>SENSORS
         </button>
         <Link href="/workshop/assembly" className={`${CALLOUT} left-3 top-[18px] text-[#CDE9D9]`}>
           <span className={`${DOT} bg-pcb text-[#04140B]`}>2</span>BRAIN BOARD
         </Link>
-        <button type="button" onClick={() => setSlot('locomotion')} className={`${CALLOUT} left-3 bottom-[46px] text-[#D7DBE0]`}>
+        <button type="button" onClick={() => setSlot('locomotion')} className={`${CALLOUT} left-3 bottom-[48px] text-[#D7DBE0]`}>
           <span className={`${DOT} bg-text text-ground`}>3</span>DRIVE
         </button>
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-[#10151C] from-45% to-transparent" />
-        <div className="absolute inset-x-3 bottom-2.5 grid grid-cols-4 gap-2">
+        <div className={`pointer-events-none absolute inset-x-0 bottom-0 ${STAT_STRIP} border-t border-[#262b33] bg-[#10151C]`} />
+        <div className="absolute inset-x-3 bottom-2 grid grid-cols-4 gap-2">
           {stats.bars.map((bar) => (
             <div key={bar.key} className="flex flex-col gap-1" title={bar.figure}>
               <span className="font-mono text-[9px] font-medium uppercase tracking-[1px] text-muted">{bar.label}</span>
