@@ -173,7 +173,7 @@ function Pad({ side, value, color, title, unit, caption, tone, alert = false, ca
         {title}
         {unit && <span className="ml-1 font-mono text-[10px] font-semibold tracking-[1px]">{unit}</span>}
       </span>
-      <span className="relative whitespace-nowrap font-mono text-[9px] font-semibold leading-none tracking-[1.5px]" style={{ color: alert ? UI.warn : UI.text }}>
+      <span className="relative whitespace-pre text-center font-mono text-[9px] font-semibold leading-[11px] tracking-[1.5px]" style={{ color: alert ? UI.warn : UI.text }}>
         {caption}
       </span>
     </div>
@@ -351,7 +351,7 @@ export function DriveControls({ drive, feed, build }: DriveControlsProps) {
       {!done && (
         <>
           {/* In the air the pedals are the attitude: throttle lifts the nose, brake drops it (gameplay v3 P2). */}
-          <Pad side="left" value={input.brake} color={UI.bad} title={input.brake > 0 ? `${Math.round(input.brake * 100)} %` : airborne ? 'NOSE' : 'BRAKE'} caption={airborne ? 'NOSE DOWN' : input.brake > 0 ? `BRAKE ${brakeBand(input.brake)}` : 'SLIDE UP · HOLD TO REVERSE'} />
+          <Pad side="left" value={input.brake} color={UI.bad} title={input.brake > 0 ? `${Math.round(input.brake * 100)} %` : airborne ? 'NOSE' : 'BRAKE'} caption={airborne ? 'NOSE DOWN' : input.brake > 0 ? `BRAKE ${brakeBand(input.brake)}` : 'SLIDE UP\nHOLD: REVERSE'} />
           <Pad
             side="right"
             value={input.throttle}
