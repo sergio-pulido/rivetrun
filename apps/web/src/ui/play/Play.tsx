@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
-import { BRIEFING_PRESETS, DEFAULT_PLAY_PICK, type PlayStrategy, type PlayerPick, type PresetId } from '@rivetrun/contracts';
+import { BRIEFING_PRESETS, DEFAULT_PLAY_PICK, PresetIdSchema, type PlayStrategy, type PlayerPick, type PresetId } from '@rivetrun/contracts';
 import { PRESETS } from '@rivetrun/sim';
 // The Room Race's own robot drawing, for a preset whose render cannot be loaded.
 import { RobotGlyph } from '../../../app/race/_lib/RobotGlyph';
@@ -145,6 +145,23 @@ export function Play({ agents, plans }: { readonly agents: readonly PlayAgent[];
   }, []);
 
   const room = match.kind === 'room' ? match.room : null;
+
+  // "/play?preset=<id>" (Home's "Race with it") arrives with that robot chosen. The server's default is another one,
+  // so the choice is sent as soon as there is a seat: what the phone shows is what the room holds.
+  const [arrivedWith, setArrivedWith] = useState<PresetId | null>(null);
+  useEffect(() => {
+    const preset = PresetIdSchema.safeParse(new URLSearchParams(window.location.search).get('preset'));
+    if (!preset.success) return;
+    setArrivedWith(preset.data);
+    setPick((current) => ({ ...current, presetId: preset.data }));
+  }, []);
+  useEffect(() => {
+    if (!room?.seat || !arrivedWith) return;
+    void fetch(`/api/race/${room.code}/pick`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ...room.seat, pick: { ...DEFAULT_PLAY_PICK, agent: agents[0]?.id ?? HUMAN, presetId: arrivedWith } }), cache: 'no-store' }).catch(() => undefined);
+    // Sent once per room: later taps send the whole pick themselves.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [room?.code, arrivedWith]);
+
   const serverNow = now + (room?.clockOffsetMs ?? 0);
 
   const enterRace = useCallback(

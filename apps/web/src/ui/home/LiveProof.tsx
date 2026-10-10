@@ -44,7 +44,7 @@ export function LiveProof() {
   }, []);
 
   return (
-    <section className="rr-card flex min-w-0 flex-col justify-center gap-3 p-4" aria-label="Live" data-testid="home-proof">
+    <section className="rr-card hidden min-w-0 flex-col justify-center gap-2.5 p-4 lg:flex" aria-label="Live" data-testid="home-proof">
       <h2 className="rr-label">Live · this server</h2>
       <p className="flex items-baseline gap-2.5">
         <span className="font-mono text-[clamp(34px,5.4vh,56px)] font-semibold leading-none tabular-nums" data-testid="home-episodes">
