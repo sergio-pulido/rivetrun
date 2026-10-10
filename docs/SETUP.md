@@ -99,24 +99,26 @@ The other 94 commits cannot be attributed from the subject: 19 are `docs:` commi
 ### Tokens
 
 <!-- tokens:start -->
-Measured at 2026-10-10T12:44+02:00, counting from 2026-10-09T18:00+02:00 (docs/tokens.json, written by `python3 scripts/tokens.py`). The sessions were still running, so the figures keep growing until they stop.
+Measured at 2026-10-10T15:06+02:00, counting from 2026-10-09T18:00+02:00 (docs/tokens.json, written by `python3 scripts/tokens.py`). The sessions were still running, so the figures keep growing until they stop.
 
 | Claude Code session | Model in its transcript | Total tokens | Input | Output | Cache write | Cache read | API responses |
 |---|---|---|---|---|---|---|---|
 | RivetRun monorepo scaffold | `claude-opus-5-5`; subagents `claude-sonnet-5-5` | 6,647,589 | 97 | 64,784 | 244,415 | 6,338,293 | 46 |
-| [BRAIN] | `claude-opus-5-5`; subagents `claude-sonnet-5-5` | 347,912,854 | 1,587 | 819,830 | 2,114,154 | 344,977,283 | 718 |
-| [SIM] | `claude-opus-5-5`; subagents `claude-sonnet-5-5` | 371,071,945 | 1,689 | 898,095 | 1,775,889 | 368,396,272 | 757 |
-| [GAME] | `claude-opus-5-5` | 525,787,435 | 1,895 | 1,259,690 | 3,587,812 | 520,938,038 | 872 |
-| [UI] | `claude-opus-5-5` | 433,493,918 | 1,701 | 1,070,397 | 3,064,753 | 429,357,067 | 788 |
-| [MASTER] | `claude-opus-5-5`; subagents `claude-opus-5-5` | 282,696,600 | 1,230 | 632,061 | 1,779,419 | 280,283,890 | 523 |
-| [LAB] | `claude-opus-5-5`; subagents `claude-sonnet-5-5` | 194,726,615 | 985 | 963,539 | 1,949,133 | 191,812,958 | 452 |
-| **All sessions** | | **2,162,336,956** | **9,184** | **5,708,396** | **14,515,575** | **2,142,103,801** | **4,156** |
+| [BRAIN] | `claude-opus-5-5`; subagents `claude-sonnet-5-5` | 432,095,900 | 1,829 | 942,311 | 2,296,900 | 428,854,860 | 830 |
+| [SIM] | `claude-opus-5-5`; subagents `claude-sonnet-5-5` | 456,773,860 | 1,907 | 1,006,393 | 1,947,903 | 453,817,657 | 856 |
+| [GAME] | `claude-opus-5-5` | 585,006,158 | 2,157 | 1,414,148 | 3,855,561 | 579,734,292 | 993 |
+| [UI] | `claude-opus-5-5` | 510,250,660 | 2,037 | 1,250,605 | 3,402,406 | 505,595,612 | 936 |
+| [MASTER] | `claude-opus-5-5`; subagents `claude-opus-5-5` | 374,458,402 | 1,718 | 863,888 | 2,197,050 | 371,395,746 | 737 |
+| [LAB] | `claude-opus-5-5`; subagents `claude-sonnet-5-5` | 231,787,506 | 1,175 | 1,049,376 | 2,075,842 | 228,661,113 | 532 |
+| [THRUST] | `claude-opus-5-5` | 16,721,070 | 134 | 94,765 | 295,291 | 16,330,880 | 61 |
+| **All sessions** | | **2,613,741,145** | **11,054** | **6,686,270** | **16,315,368** | **2,590,728,453** | **4,991** |
 
-- Measured total: 2,168,755,993 tokens = 2,162,336,956 in Claude Code + 6,419,037 in the arena tables.
+- Measured total: 2,620,160,182 tokens = 2,613,741,145 in Claude Code + 6,419,037 in the arena tables.
 - 99.1% of the Claude Code figure is cache reads: the conversation so far, re-read from the cache on every turn. Total = input + output + cache write + cache read, the sum `ccusage` reports.
 - Arena API: 6,331,971 input and 87,066 output tokens over the 12 paid rows of the published tables, US$3.65; the facts-only columns cost another US$0.53 and their tokens were not recorded.
 - Jev is counted in calls, not tokens: 10,101 in the last benchmark run and 1,687 in the published arena tables. Its tokens: not measured (the API returns usage with every answer, docs/JEV.md, but nothing recorded it).
-- Not measured, and not estimated: The asset agent (ChatGPT / Codex driving Blender and the Bambu Studio command line) (runs outside Claude Code; no token log reaches this repository); The orchestration chat that wrote the specs and the prompts the human pasted into the sessions (a separate chat; no token log reaches this repository); Claude Design (the mockups in docs/design/v1) (no token log reaches this repository); Any Claude Code session for this project that did not run from this checkout on this Mac (only this checkout's transcripts are read). Also: Tokens of the facts-only columns (their cost is recorded, their tokens are not), and every arena call that is not in the published tables: superseded arena runs and the live Arena races on the big screen. Jev calls made by the game itself (play, ghosts, Room Race bots, the QA gate, tuning tables): counted in server memory only and lost on restart.
+- Commits since the start: 505 (`git rev-list --count --since=2026-10-09T16:00:00+00:00 HEAD`).
+- Not measured, and not estimated: The asset agent (ChatGPT / Codex driving Blender and the Bambu Studio command line) (runs outside Claude Code; no token log reaches this repository); The orchestration chat that wrote the specs and the prompts the human pasted into the sessions (a separate chat; no token log reaches this repository); Claude Design (the mockups in docs/design/v1) (no token log reaches this repository); Any Claude Code session for this project that did not run from this checkout on this Mac (only this checkout's transcripts are read). Also: Tokens of the facts-only columns (their cost is recorded, their tokens are not), and every paid call that is not in the published tables: superseded arena runs, the live Arena races and rehearsals on the big screen, the planner (Claude Sonnet 5.5, with GPT-6.1 Sol as its fallback) and the prewarmed runs of picked agents. Those are counted in US$ in the server's memory only; the brain session read US$2.44 there at 14:10 on 10 October, which is its report, not a log in this repository. Jev calls made by the game itself (play, ghosts, Room Race bots, the QA gate, tuning tables): counted in server memory only and lost on restart.
 <!-- tokens:end -->
 
 How it was counted: Claude Code keeps a transcript of every session on the machine that ran it, and each API response in it carries its token usage. `scripts/tokens.py` sums those for this checkout's sessions and their subagents, once per response. The same files are what `npx ccusage` reads; the script was used instead so that no third-party package ran over the logs of every project on the machine. To cross-check, run `npx ccusage@latest session --json` and compare the rows for this project.

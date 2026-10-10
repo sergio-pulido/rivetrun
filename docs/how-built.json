@@ -85,6 +85,17 @@
         "Vitest"
       ],
       "did": "Lab Missions: the top-down grid scenarios in packages/lab and /scenarios, their arena track, the board drawn with the asset agent's sprites."
+    },
+    {
+      "name": "[THRUST]",
+      "kind": "Claude Code session",
+      "model": "claude-opus-5-5",
+      "tools": [
+        "Claude Code (desktop app)",
+        "TypeScript",
+        "Vitest"
+      ],
+      "did": "Saturday from 13:27: the ducted fan in the simulator (hold to thrust, a 2 s burn, a 4 s cool-down), fitted to the Speedster behind one switch, with its tests and the bill-of-materials entry."
     }
   ],
   "otherAgents": [

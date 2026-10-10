@@ -16,6 +16,7 @@ counts from that file and docs/BENCHMARK.md. Nothing is estimated: what has no l
 import argparse
 import json
 import re
+import subprocess
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -24,7 +25,7 @@ REPO = Path(__file__).resolve().parent.parent
 PROJECT = Path.home() / '.claude' / 'projects' / str(REPO).replace('/', '-')
 # The hackathon opened on Friday 9 October 2026 at 18:00 local time (CEST, UTC+2).
 SINCE = datetime(2026, 10, 9, 16, 0, tzinfo=timezone.utc)
-ROLE = re.compile(r'\[(SIM|GAME|UI|BRAIN|LAB|MASTER)\]')
+ROLE = re.compile(r'\[(SIM|GAME|UI|BRAIN|LAB|MASTER|THRUST)\]')
 FIELDS = ('input_tokens', 'output_tokens', 'cache_creation_input_tokens', 'cache_read_input_tokens')
 ARENA = REPO / 'docs' / 'arena-results.json'
 BENCHMARK = REPO / 'docs' / 'BENCHMARK.md'
@@ -154,8 +155,11 @@ def arena_section(results: dict) -> dict:
             'costUsd': round(sum(row['costUsd'] or 0 for row in rows), 2),
             'factsColumnCostUsd': round(sum(row.get('factsColumnCostUsd') or 0 for row in rows), 2),
         },
-        'notMeasured': 'Tokens of the facts-only columns (their cost is recorded, their tokens are not), and every arena call '
-                       'that is not in the published tables: superseded arena runs and the live Arena races on the big screen.',
+        'notMeasured': 'Tokens of the facts-only columns (their cost is recorded, their tokens are not), and every paid call '
+                       'that is not in the published tables: superseded arena runs, the live Arena races and rehearsals on the '
+                       'big screen, the planner (Claude Sonnet 5.5, with GPT-6.1 Sol as its fallback) and the prewarmed runs of '
+                       'picked agents. Those are counted in US$ in the server\'s memory only; the brain session read US$2.44 '
+                       'there at 14:10 on 10 October, which is its report, not a log in this repository.',
     }
 
 
@@ -199,6 +203,16 @@ def grand_total(claude_code: dict, arena: dict) -> dict:
     }
 
 
+def commit_count(since: datetime) -> dict:
+    """Commits on the current branch since the hackathon opened, counted by git (fixed arguments, no shell)."""
+    try:
+        count = int(subprocess.run(['git', 'rev-list', '--count', f'--since={since.isoformat()}', 'HEAD'],
+                                   cwd=REPO, capture_output=True, text=True, check=True, timeout=30).stdout.strip())
+    except (OSError, ValueError, subprocess.SubprocessError):
+        return {'count': None, 'source': 'git was not available when this was written'}
+    return {'count': count, 'source': f'git rev-list --count --since={since.isoformat()} HEAD'}
+
+
 SETUP_START = '<!-- tokens:start -->'
 SETUP_END = '<!-- tokens:end -->'
 
@@ -233,6 +247,8 @@ def setup_block(document: dict) -> str:
         f"US${arena['total']['factsColumnCostUsd']} and their tokens were not recorded.",
         f"- Jev is counted in calls, not tokens: {jev['benchmarkCalls']:,} in the last benchmark run and "
         f"{jev['arenaCallsTotal']:,} in the published arena tables. Its tokens: not measured (the API returns usage with every answer, docs/JEV.md, but nothing recorded it).",
+        *([f"- Commits since the start: {document['commits']['count']:,} (`{document['commits']['source']}`)."]
+          if document.get('commits', {}).get('count') is not None else []),
         '- Not measured, and not estimated: ' + '; '.join(f"{entry['what']} ({entry['why']})" for entry in document['notMeasured'])
         + f". Also: {arena['notMeasured']} {jev['notMeasured']}",
         SETUP_END,
@@ -284,6 +300,7 @@ def main() -> None:
             'arena': arena,
             'jev': jev_section(results, BENCHMARK.read_text() if BENCHMARK.exists() else ''),
             'notMeasured': [{'what': what, 'why': why} for what, why in NOT_MEASURED],
+            'commits': commit_count(SINCE),
             # The /lab page reads `sessions` at the top level.
             'sessions': [{'name': row['name'], 'inputTokens': row['inputTokens'], 'outputTokens': row['outputTokens'],
                           'cacheWriteTokens': row['cacheWriteTokens'], 'cacheReadTokens': row['cacheReadTokens'],
