@@ -9,10 +9,16 @@ export function parseRivalStatus(body: unknown): RivalStatus {
   return status === 'ready' || status === 'computing' || status === 'unavailable' ? status : 'unknown';
 }
 
-/** When to ask again: every second while it computes; rarely when Jev could not drive (the server retries on its own); never once ready. */
-export function nextPollMs(status: RivalStatus): number | null {
+/** A cold ghost takes up to about 17 s; well past that, a server still "computing" is asked less often. */
+const FAST_POLLS = 45;
+
+/**
+ * When to ask again: every second while it computes (every five once that has gone on far longer than a ghost takes),
+ * rarely when Jev could not drive (the server retries on its own), never once ready. `asked` = answers received so far.
+ */
+export function nextPollMs(status: RivalStatus, asked = 0): number | null {
   if (status === 'ready' || status === 'idle') return null;
-  if (status === 'computing') return 1000;
+  if (status === 'computing') return asked < FAST_POLLS ? 1000 : 5000;
   return status === 'unavailable' ? 20_000 : 6000;
 }
 

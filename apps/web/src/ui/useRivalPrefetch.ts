@@ -41,6 +41,7 @@ export function useRivalPrefetch(mission: Mission): RivalStatus {
     const url = `${ghostUrl({ mission, seed: driveSeed(mission), build, priority, briefing })}&status=1`;
     const controller = new AbortController();
     let timer: ReturnType<typeof setTimeout> | undefined;
+    let asked = 0;
     const ask = async (): Promise<void> => {
       let next: RivalStatus = 'unknown';
       try {
@@ -50,7 +51,8 @@ export function useRivalPrefetch(mission: Mission): RivalStatus {
         if (controller.signal.aborted) return;
       }
       setStatus(next);
-      const wait = nextPollMs(next);
+      asked += 1;
+      const wait = nextPollMs(next, asked);
       if (wait !== null) timer = setTimeout(() => void ask(), wait);
     };
     setStatus('unknown');

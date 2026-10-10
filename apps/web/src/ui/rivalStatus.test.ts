@@ -21,6 +21,9 @@ describe('nextPollMs', () => {
     expect(nextPollMs('unavailable')).toBeGreaterThanOrEqual(15000);
     expect(nextPollMs('unknown')).toBeGreaterThanOrEqual(5000);
     expect(nextPollMs('ready')).toBeNull();
+    // A server that stays "computing" far longer than a ghost takes is not hammered once a second for ever.
+    expect(nextPollMs('computing', 44)).toBe(1000);
+    expect(nextPollMs('computing', 45)).toBe(5000);
   });
 });
 
