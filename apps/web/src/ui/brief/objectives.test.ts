@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Build } from '@rivetrun/contracts';
 import { MISSIONS } from '@rivetrun/sim';
-import { objectives } from './objectives';
+import { lockedLine, objectives, scanFixes } from './objectives';
 
 const BARE: Build = { locomotion: 'wheels', motor: 'motor_light', battery: 'battery_small', sensors: [], extras: [] };
 
@@ -49,5 +49,46 @@ describe('objectives', () => {
 
   it('is empty for a mission with no objectives', () => {
     expect(objectives(MISSIONS.M2, BARE)).toEqual([]);
+  });
+});
+
+describe('scanFixes', () => {
+  const allRounder: Build = { ...BARE, sensors: ['camera', 'ultrasonic'] };
+  const fixes = scanFixes(MISSIONS.M9, allRounder, 'M9-beacon', { maxSensors: 2 });
+
+  it('finds the sensors that make the dark beacon scannable, with what has to come off for each', () => {
+    const byId = Object.fromEntries(fixes.map((fix) => [fix.partId, fix]));
+    expect(Object.keys(byId)).toEqual(expect.arrayContaining(['camera_module_3_noir', 'ambient_light_veml7700']));
+    // The light sensor only helps beside a camera, so it is the ultrasonic that makes room for it.
+    expect(byId.ambient_light_veml7700).toMatchObject({ replaces: 'Ultrasonic' });
+    expect(byId.camera_module_3_noir!.unlockPoints).toBeGreaterThan(0);
+    expect(byId.ultrasonic).toBeUndefined();
+  });
+
+  it('has nothing to suggest for a zone the build can scan, or one that does not exist', () => {
+    expect(scanFixes(MISSIONS.M1, allRounder, 'M1-survivor', { maxSensors: 2 })).toEqual([]);
+    expect(scanFixes(MISSIONS.M9, allRounder, 'nope', { maxSensors: 2 })).toEqual([]);
+  });
+
+  it('uses a free slot when there is one', () => {
+    const one = scanFixes(MISSIONS.M9, { ...BARE, sensors: ['camera'] }, 'M9-beacon', { maxSensors: 2 });
+    expect(one.find((fix) => fix.partId === 'ambient_light_veml7700')).toMatchObject({ replaces: null });
+  });
+});
+
+describe('lockedLine', () => {
+  const fixes = [
+    { partId: 'noir', name: 'NoIR camera', unlockPoints: 200, replaces: 'Camera' },
+    { partId: 'light', name: 'Light sensor', unlockPoints: 50, replaces: 'Ultrasonic' },
+    { partId: 'free', name: 'Camera', unlockPoints: 0, replaces: null },
+  ];
+
+  it('says what the locked parts cost, cheapest first, and what they come to', () => {
+    expect(lockedLine(fixes, () => false)).toEqual({ text: 'Locked: the light sensor costs 50 points and the NoIR camera 200.', total: 250, count: 2 });
+  });
+
+  it('leaves out parts already unlocked, and is null when nothing is locked', () => {
+    expect(lockedLine(fixes, (id) => id === 'light')).toEqual({ text: 'Locked: the NoIR camera costs 200 points.', total: 200, count: 1 });
+    expect(lockedLine(fixes, () => true)).toBeNull();
   });
 });

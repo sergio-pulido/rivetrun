@@ -63,6 +63,53 @@ export function objectives(mission: Mission, build: Build): readonly Objective[]
     });
 }
 
+export interface ScanFix {
+  readonly partId: string;
+  readonly name: string;
+  /** Points to unlock it; 0 = free. */
+  readonly unlockPoints: number;
+  /** The fitted sensor that has to come off to make room for it; null when there is a free slot. */
+  readonly replaces: string | null;
+}
+
+/** Sensor slots on a robot: the sim's limit, read off its build rules by the UI's own constant would drift, so it is passed in. */
+export interface FixOptions {
+  readonly maxSensors: number;
+}
+
+/**
+ * The sensors that would let this build scan a zone it cannot scan now, by the sim's own verdict: each playable sensor is
+ * tried in a free slot, or in place of each fitted sensor in turn. Empty when the build can already scan it.
+ */
+export function scanFixes(mission: Mission, build: Build, zoneId: string, options: FixOptions): readonly ScanFix[] {
+  const zone = (mission.scanZones ?? []).find((entry) => entry.id === zoneId);
+  if (!zone || scans(build, mission, zone)) return [];
+  const candidates = PARTS.filter((part) => part.slot === 'sensor' && !part.comingSoon && !build.sensors.includes(part.id));
+  return candidates.flatMap((part): ScanFix[] => {
+    const room = build.sensors.length < options.maxSensors;
+    const variants: readonly { readonly sensors: readonly string[]; readonly out: string | null }[] = room
+      ? [{ sensors: [...build.sensors, part.id], out: null }]
+      : build.sensors.map((out) => ({ sensors: [...build.sensors.filter((id) => id !== out), part.id], out }));
+    const works = variants.find((variant) => scans({ ...build, sensors: [...variant.sensors] } as Build, mission, zone));
+    return works ? [{ partId: part.id, name: part.name, unlockPoints: part.unlockPoints, replaces: works.out ? (PARTS_BY_ID.get(works.out)?.name ?? null) : null }] : [];
+  });
+}
+
+/** A part name inside a sentence: "Light sensor" → "light sensor", while names that start with an acronym ("NoIR camera", "ToF ranger") keep their capitals. */
+export function midSentence(name: string): string {
+  const first = name.split(' ')[0] ?? '';
+  return /^[A-Z][a-z]+$/.test(first) ? `${name.charAt(0).toLowerCase()}${name.slice(1)}` : name;
+}
+
+/** "the light sensor costs 50 points and the NoIR camera 200": the parts still locked, cheapest first. Null when none is. */
+export function lockedLine(fixes: readonly ScanFix[], isUnlocked: (partId: string) => boolean): { readonly text: string; readonly total: number; readonly count: number } | null {
+  const locked = fixes.filter((fix) => fix.unlockPoints > 0 && !isUnlocked(fix.partId)).sort((a, b) => a.unlockPoints - b.unlockPoints);
+  if (locked.length === 0) return null;
+  const parts = locked.map((fix, index) => `the ${midSentence(fix.name)} ${index === 0 ? `costs ${fix.unlockPoints} points` : `${fix.unlockPoints}`}`);
+  const list = parts.length > 1 ? `${parts.slice(0, -1).join(', ')} and ${parts[parts.length - 1]}` : parts[0]!;
+  return { text: `Locked: ${list}.`, total: locked.reduce((sum, fix) => sum + fix.unlockPoints, 0), count: locked.length };
+}
+
 export interface ScanRules {
   /** Seconds to hold still on the zone. */
   readonly holdS: number;
