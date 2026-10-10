@@ -1,6 +1,6 @@
 import { createJevBrain } from '@rivetrun/brain';
 import type { Build, GhostTrace, MissionId } from '@rivetrun/contracts';
-import { MISSIONS, runHeadless } from '@rivetrun/sim';
+import { driveSeed, MISSION_IDS, MISSIONS, runHeadless } from '@rivetrun/sim';
 import { faultedJev, type JevFault } from './jevFault';
 import { CACHE_VERSION } from './version';
 
@@ -37,13 +37,38 @@ const MAX_ENTRIES = 300;
 const MAX_CONCURRENT = 4;
 const RETRY_AFTER_FAILURE_MS = 30_000;
 
+interface Waiting {
+  readonly key: string;
+  readonly start: () => void;
+  /** Warm-up work nobody has asked for yet: runs only in spare capacity and gives way to requested ghosts. */
+  low: boolean;
+}
+
 interface GhostState {
   readonly entries: Map<string, Entry>;
-  readonly queue: (() => void)[];
+  readonly waiting: Waiting[];
   active: number;
 }
-const holder = globalThis as typeof globalThis & { __rivetrunGhosts?: GhostState };
-const state: GhostState = (holder.__rivetrunGhosts ??= { entries: new Map(), queue: [], active: 0 });
+// V2: the queue holds named entries with a priority (a dev server keeps the old object across hot reloads).
+const holder = globalThis as typeof globalThis & { __rivetrunGhostsV2?: GhostState };
+const state: GhostState = (holder.__rivetrunGhostsV2 ??= { entries: new Map(), waiting: [], active: 0 });
+/** Warm-up runs in flight at once; the rest of MAX_CONCURRENT stays free for ghosts a player is waiting for. */
+const MAX_WARMING = 2;
+/** Warm-up runs waiting at once: beyond this, new warm-ups are skipped rather than queued. */
+const MAX_WARM_QUEUE = 18;
+
+/** Starts whatever may run now: requested ghosts first, warm-ups only while few runs are active. */
+function pump(): void {
+  for (;;) {
+    const index = state.active < MAX_CONCURRENT ? state.waiting.findIndex((item) => !item.low) : -1;
+    const pick = index >= 0 ? index : state.active < MAX_WARMING ? state.waiting.findIndex((item) => item.low) : -1;
+    if (pick < 0) return;
+    const [next] = state.waiting.splice(pick, 1);
+    state.active += 1;
+    next!.start();
+  }
+}
+
 const jev = createJevBrain();
 
 /** Same parts in a different order are the same robot. */
@@ -68,9 +93,11 @@ function remember(key: string, entry: Entry): void {
   state.entries.set(key, entry);
 }
 
-async function compute(key: string, request: GhostRequest): Promise<void> {
-  if (state.active >= MAX_CONCURRENT) await new Promise<void>((resolve) => state.queue.push(resolve));
-  state.active += 1;
+async function compute(key: string, request: GhostRequest, low = false): Promise<void> {
+  await new Promise<void>((start) => {
+    state.waiting.push({ key, start, low });
+    pump();
+  });
   try {
     const { episode, ghost } = await runHeadless(MISSIONS[request.missionId], request.seed, request.build, request.fault ? faultedJev(request.fault) : jev, {
       priority: request.priority,
@@ -97,7 +124,24 @@ async function compute(key: string, request: GhostRequest): Promise<void> {
     remember(key, { state: 'failed', at: Date.now(), reason: 'the ghost run failed' });
   } finally {
     state.active -= 1;
-    state.queue.shift()?.();
+    pump();
+  }
+}
+
+/**
+ * The same loadout on every other mission, at the seed Drive mode uses there: a visitor who has opened one Brief
+ * will open another, and a ghost takes 4 to 17 s to drive (docs/QA.md Q17). Low priority, skipped when busy.
+ */
+function warmSiblings(request: GhostRequest): void {
+  if (request.fault || request.seed !== driveSeed(MISSIONS[request.missionId])) return;
+  for (const missionId of MISSION_IDS) {
+    if (missionId === request.missionId) continue;
+    if (state.waiting.filter((item) => item.low).length >= MAX_WARM_QUEUE) return;
+    const sibling: GhostRequest = { ...request, missionId, seed: driveSeed(MISSIONS[missionId]) };
+    const key = keyOf(sibling);
+    if (state.entries.has(key)) continue;
+    remember(key, { state: 'pending', since: Date.now() });
+    void compute(key, sibling, true);
   }
 }
 
@@ -106,11 +150,20 @@ export function requestGhost(request: GhostRequest): GhostAnswer {
   const key = keyOf(request);
   const entry = state.entries.get(key);
   if (entry?.state === 'ready') return { status: 'ready', body: entry.body };
-  if (entry?.state === 'pending') return { status: 'pending' };
+  if (entry?.state === 'pending') {
+    // Somebody wants it now: a warm-up still waiting its turn moves up.
+    const waiting = state.waiting.find((item) => item.key === key);
+    if (waiting?.low) {
+      waiting.low = false;
+      pump();
+    }
+    return { status: 'pending' };
+  }
   if (entry?.state === 'failed' && Date.now() - entry.at < RETRY_AFTER_FAILURE_MS) return { status: 'unavailable', reason: entry.reason };
   if (!request.fault && !process.env.JEV_API_KEY) return { status: 'unavailable', reason: 'JEV_API_KEY is not set' };
   remember(key, { state: 'pending', since: Date.now() });
   void compute(key, request);
+  warmSiblings(request);
   return { status: 'pending' };
 }
 
