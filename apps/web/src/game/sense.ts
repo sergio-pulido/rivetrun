@@ -23,6 +23,7 @@ const LABEL: Readonly<Record<string, string>> = {
   tof_vl53l1x_pololu: 'TOF',
   lidar_rplidar_c1: 'LIDAR',
   camera: 'CAMERA',
+  camera_module_3_noir: 'NOIR CAM',
   scout_drone: 'DRONE',
 };
 

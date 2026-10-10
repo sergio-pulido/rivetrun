@@ -4,7 +4,7 @@ import { useFrame, useThree } from '@react-three/fiber';
 import { useCallback, useMemo, useRef, type RefObject } from 'react';
 import { Vector3, type DirectionalLight, type Group, type PerspectiveCamera } from 'three';
 import type { Build, GhostTrace, Mission, Policy, SimEffect } from '@rivetrun/contracts';
-import { TUNING } from '@rivetrun/sim';
+import { TUNING, deriveSpec } from '@rivetrun/sim';
 import { atmosphereOf, weatherOverride } from '../atmosphere';
 import { LANES, POLICY_LABEL, POLICY_TINT, TERRAIN_LOOK, UI, laneZ } from '../palette';
 import { clamp, damp, lerp } from '../rng';
@@ -37,7 +37,7 @@ interface PlayerProps {
   particles: RefObject<ParticleEmitter | null>;
   /** Drive mode: the player's controls. The face follows the pedals and the tag reads YOU. */
   hands?: DriveInput;
-  /** Night mission: the robot drives with its lights on. */
+  /** Night mission and a build whose lights switch themselves on. */
   lights?: boolean;
 }
 
@@ -381,6 +381,8 @@ export function RunScene({ mission, build, feed, ghosts = [], particleBudget = 1
   const hasDrone = build.sensors.includes('scout_drone');
   const senses = useMemo(() => sensesOf(build, mission.weather), [build, mission.weather]);
   const atmosphere = useMemo(() => atmosphereOf(mission, weatherOverride()), [mission]);
+  // Lights come on by themselves only on a build with an ambient-light sensor (the sim's rule); others drive dark.
+  const autoLights = useMemo(() => deriveSpec(build).autoLights === true, [build]);
   // The wind of the moment, gusts included, straight from the sim; the mission's steady wind before the first frame.
   const windNow = useCallback(() => feed.get().state?.windMps ?? atmosphere.windMps, [feed, atmosphere]);
   const timeScale = useRef(1);
@@ -393,7 +395,7 @@ export function RunScene({ mission, build, feed, ghosts = [], particleBudget = 1
       {ghosts.map((trace) => (
         <Ghost key={trace.policy} trace={trace} build={build} layout={layout} pose={pose} timeScale={timeScale} driving={hands !== undefined} />
       ))}
-      <Player feed={feed} build={build} layout={layout} pose={pose} timeScale={timeScale} particles={particles} hands={hands} lights={atmosphere.night} />
+      <Player feed={feed} build={build} layout={layout} pose={pose} timeScale={timeScale} particles={particles} hands={hands} lights={atmosphere.night && autoLights} />
       <SenseBand layout={layout} pose={pose} feed={feed} senses={senses} />
       {mission.scanZones && mission.scanZones.length > 0 ? <ScanPads layout={layout} zones={mission.scanZones} build={build} feed={feed} /> : null}
       {hasDrone && <ScoutDroneRig feed={feed} layout={layout} pose={pose} />}

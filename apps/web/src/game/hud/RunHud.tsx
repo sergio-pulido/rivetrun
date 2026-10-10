@@ -214,7 +214,9 @@ function WeatherChip({ atmosphere, gust }: { atmosphere: Atmosphere; gust: boole
 }
 
 /** What the build senses ahead, or that it senses nothing: the same fact the band on the track shows. */
-function SenseChip({ senses }: { senses: Senses }) {
+function SenseChip({ senses, observedM }: { senses: Senses; observedM?: number }) {
+  // Weather can cut the range the parts have on paper (fog, night, heavy rain): the sim's Observation has the real one.
+  const cut = observedM !== undefined && observedM < senses.forwardM - 0.25;
   const color = senses.blind ? UI.bad : UI.cyanText;
   return (
     <span className="rounded-[7px] px-2 py-1 font-mono text-[10px] leading-[13px]" style={{ border: `1px solid ${senses.blind ? UI.bad : '#1f5a63'}`, background: senses.blind ? 'rgb(42 14 12 / 0.88)' : 'rgb(8 24 27 / 0.85)', color }}>
@@ -226,6 +228,7 @@ function SenseChip({ senses }: { senses: Senses }) {
         <>
           <span style={{ color: UI.dim }}>SENSES AHEAD · </span>
           {senses.ranges.map((range) => `${range.label} ${Number.isInteger(range.rangeM) ? range.rangeM : range.rangeM.toFixed(1)} m`).join(' · ')}
+          {cut && <span style={{ color: UI.warn }}> · {observedM.toFixed(observedM < 10 ? 1 : 0)} m in this weather</span>}
         </>
       )}
     </span>
@@ -292,7 +295,7 @@ export function RunHud({ mission, feed, ghosts = NO_GHOSTS, drive, build }: RunH
         {!view.done && (
           <div className="mt-2 flex flex-col items-start gap-1">
             <WeatherChip atmosphere={atmosphere} gust={view.state?.gust === true} />
-            {senses && <SenseChip senses={senses} />}
+            {senses && <SenseChip senses={senses} observedM={view.observation?.value.forwardRangeM} />}
             {/* With the drawer open the thread has the detail: one chip keeps the track in view. */}
             {/* A driver gets one hint at a time: the alerts below are what to act on. */}
             <DecisionChips chips={telemetryOpen || driving ? chips.slice(-1) : chips} />

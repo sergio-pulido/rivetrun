@@ -64,7 +64,7 @@ export function readingsOf({ build, state, observation: o, pedals }: ReadingsInp
   });
   rows.push({ key: 'draw', label: 'CURRENT DRAW', value: o ? `${o.drawW.toFixed(1)} W` : '–', tone: 'plain' });
 
-  const hasImu = build.sensors.includes('imu');
+  const hasImu = build.sensors.some((id) => PARTS_BY_ID.get(id)?.effects.sensor === 'imu');
   const slip = o?.slipPct;
   const tilt = o?.tiltDeg;
   rows.push(
@@ -93,7 +93,9 @@ export function readingsOf({ build, state, observation: o, pedals }: ReadingsInp
     });
   }
 
-  const sees = build.sensors.includes('scout_drone') ? 'drone' : build.sensors.includes('camera') ? 'camera' : null;
+  // Any camera part counts (the NoIR module is one), and the drone sees further than either.
+  const kinds = new Set(build.sensors.map((id) => PARTS_BY_ID.get(id)?.effects.sensor));
+  const sees = kinds.has('scout_drone') ? 'drone' : kinds.has('camera') ? 'camera' : null;
   const ahead = o && typeof o.terrainAhead === 'object' ? o.terrainAhead : null;
   rows.push(
     sees
@@ -107,7 +109,7 @@ export function readingsOf({ build, state, observation: o, pedals }: ReadingsInp
   );
   const depth = o?.waterDepthCm;
   rows.push(
-    build.sensors.includes('moisture_probe')
+    build.sensors.some((id) => PARTS_BY_ID.get(id)?.effects.sensor === 'moisture')
       ? { key: 'depth', label: 'WATER DEPTH', value: typeof depth === 'number' ? `${Math.round(depth)} cm` : '–', tone: typeof depth === 'number' && depth > 20 ? 'warn' : 'plain' }
       : { key: 'depth', label: 'WATER DEPTH', value: NONE, tone: 'none' },
   );
