@@ -9,6 +9,7 @@ const MENU: readonly { href: string; label: string }[] = [
   { href: '/workshop', label: 'Workshop' },
   { href: '/leaderboard', label: 'Leaderboard' },
   { href: '/race', label: 'Room Race' },
+  { href: '/lab', label: 'Lab' },
 ];
 
 /** The run screen belongs to the HUD while a robot is on track: no header there. */
