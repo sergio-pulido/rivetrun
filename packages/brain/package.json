@@ -7,7 +7,8 @@
   "exports": {
     ".": "./src/index.ts",
     "./lab": "./src/lab/question.ts",
-    "./arena": "./src/arena/providers.ts"
+    "./arena": "./src/arena/providers.ts",
+    "./plan": "./src/plan.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",

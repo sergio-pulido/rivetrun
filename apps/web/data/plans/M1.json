@@ -1,0 +1,174 @@
+{
+  "missionId": "M1",
+  "generatedAt": "2026-10-10T10:59:47.890Z",
+  "generatedWith": "scripts/pregen-plans.mjs",
+  "plans": {
+    "speedster": {
+      "build": {
+        "locomotion": "wheels",
+        "motor": "motor_light",
+        "battery": "battery_small",
+        "sensors": [
+          "camera",
+          "ultrasonic"
+        ],
+        "extras": []
+      },
+      "presetId": "speedster",
+      "priority": 0.4,
+      "briefing": "Full speed on asphalt and grass. Scan survivor at 17 m with camera. Slow near 20 m, cross the 3.5 cm step at 22-26 m gently, then full",
+      "rationale": "Speedster fits this short, mostly flat course. The small battery covers about 20 s of driving, and the camera handles the survivor scan at 17 m. The only risk is the step, so the driver slows briefly there and runs fast elsewhere.",
+      "partsWhy": [
+        {
+          "partId": "camera",
+          "why": "Needed to scan the survivor at 17 m; avoids a 10 s penalty."
+        },
+        {
+          "partId": "ultrasonic",
+          "why": "Spots the step 3 m ahead so the driver can slow down."
+        },
+        {
+          "partId": "motor_light",
+          "why": "Highest top speed; torque is enough for a flat track."
+        },
+        {
+          "partId": "battery_small",
+          "why": "Enough energy for 40 m, and cheaper and lighter."
+        }
+      ],
+      "generatedBy": {
+        "provider": "anthropic",
+        "model": "claude-sonnet-5-5",
+        "ms": 8597,
+        "at": "2026-10-10T10:59:21.656Z"
+      }
+    },
+    "mud_crawler": {
+      "build": {
+        "locomotion": "tracks",
+        "motor": "motor_torque",
+        "battery": "battery_large",
+        "sensors": [
+          "imu",
+          "camera"
+        ],
+        "extras": [
+          "waterproof_case"
+        ]
+      },
+      "presetId": "mud_crawler",
+      "priority": 0.3,
+      "briefing": "Go fast. Camera-scan the survivor at 17m as you pass. Slow a little before the step at 22m, cross it straight on, then full speed to 40m.",
+      "rationale": "The preset fails on the brief: the survivor zone at 17 m needs a camera or scout drone, and the crawler has only an IMU. A missed zone costs 10 s (40 pts), so a 35 EUR camera is worth it. The IMU stays to feel the step. Tracks, torque motor and large battery are kept.",
+      "partsWhy": [
+        {
+          "partId": "camera",
+          "why": "Needed to scan the survivor at 17 m; skipping it costs 10 s."
+        },
+        {
+          "partId": "tracks",
+          "why": "Clears the 3.5 cm step and holds grip on grass and asphalt."
+        },
+        {
+          "partId": "imu",
+          "why": "Feels the step impact and any slip on the grass."
+        },
+        {
+          "partId": "battery_large",
+          "why": "Plenty of energy for 40 m, so no risk of failing to finish."
+        }
+      ],
+      "generatedBy": {
+        "provider": "anthropic",
+        "model": "claude-sonnet-5-5",
+        "ms": 11205,
+        "at": "2026-10-10T10:59:33.007Z"
+      }
+    },
+    "all_rounder": {
+      "build": {
+        "locomotion": "offroad_wheels",
+        "motor": "motor_torque",
+        "battery": "battery_large",
+        "sensors": [
+          "camera",
+          "ultrasonic"
+        ],
+        "extras": [
+          "bumper"
+        ]
+      },
+      "presetId": "all_rounder",
+      "priority": 0.4,
+      "briefing": "Fast on asphalt. Camera-scan the survivor at 17m on grass. Slow for the 3.5cm step at 22m, then full speed to the 40m finish.",
+      "rationale": "The all-rounder already fits. The camera can scan the survivor at 17 m, so no zone is missed and no 10 s penalty. Off-road wheels handle grass and the step. The bumper halves impact damage at the step. No part fails, so nothing changes.",
+      "partsWhy": [
+        {
+          "partId": "camera",
+          "why": "Scans the survivor at 17 m and reads terrain ahead."
+        },
+        {
+          "partId": "bumper",
+          "why": "Halves impact damage at the 3.5 cm step."
+        },
+        {
+          "partId": "offroad_wheels",
+          "why": "Grip on grass, extra clearance for the step."
+        },
+        {
+          "partId": "ultrasonic",
+          "why": "Cheap warning for the step ahead."
+        }
+      ],
+      "generatedBy": {
+        "provider": "anthropic",
+        "model": "claude-sonnet-5-5",
+        "ms": 5589,
+        "at": "2026-10-10T10:59:38.718Z"
+      }
+    },
+    "deep_diver": {
+      "build": {
+        "locomotion": "wheels",
+        "motor": "motor_torque",
+        "battery": "battery_large",
+        "sensors": [
+          "ultrasonic",
+          "camera"
+        ],
+        "extras": [
+          "waterproof_case",
+          "thruster_kit"
+        ]
+      },
+      "presetId": "deep_diver",
+      "priority": 0.4,
+      "briefing": "Full speed on asphalt. Scan survivor with camera near 17m on grass. Slow for the 3.5cm step at 22-26m, then full speed to 40m.",
+      "rationale": "The track has no water, so the case and thrusters are dead weight. But nothing in the brief makes a part fail, so I kept the preset as asked. The camera covers the survivor scan at 17 m and the ultrasonic can see the step. The driver is told to slow for the step.",
+      "partsWhy": [
+        {
+          "partId": "camera",
+          "why": "Needed to scan the survivor at 17 m; a missed zone costs 10 s."
+        },
+        {
+          "partId": "ultrasonic",
+          "why": "Detects the 3.5 cm step ahead so the driver can slow down."
+        },
+        {
+          "partId": "battery_large",
+          "why": "Ample energy for 40 m; no range risk."
+        },
+        {
+          "partId": "motor_torque",
+          "why": "Torque for grass and the step; kept from the preset."
+        }
+      ],
+      "generatedBy": {
+        "provider": "anthropic",
+        "model": "claude-sonnet-5-5",
+        "ms": 8956,
+        "at": "2026-10-10T10:59:47.849Z"
+      }
+    }
+  }
+}
