@@ -177,7 +177,9 @@ export async function runHeadless(
   }
   const policy = episodePolicy(decisions, options.policy);
   const episode = toEpisode(state, decisions, policy, `${mission.id}-${state.config.seed}-${policy}-headless`);
-  return { episode, ghost: { policy, frames, outcome: episode.outcome } };
+  // The ghost carries its driver's decision log on its own clock, so a replay can show the thread in sync with the frames.
+  const log = decisions.flatMap((decision) => (decision.log ? [decision.log] : []));
+  return { episode, ghost: { policy, frames, outcome: episode.outcome, log } };
 }
 
 /** The same loop without a Brain object, for the synchronous callers (test run): heuristic, zero latency. */
