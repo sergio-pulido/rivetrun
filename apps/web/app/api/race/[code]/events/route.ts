@@ -12,6 +12,9 @@ const HEARTBEAT_MS = 2000;
 
 // GET /api/race/[code]/events — Server-Sent Events: one `data:` line with the full snapshot per change.
 export async function GET(request: Request, { params }: { params: Promise<{ code: string }> }): Promise<Response> {
+  // RACE_TRANSPORT=poll (RR-PLAN §6): no event streams at all, e.g. behind a quick tunnel. EventSource does not
+  // retry after a non-200 answer, and the page polls instead.
+  if (process.env.RACE_TRANSPORT === 'poll') return new Response('polling only', { status: 409 });
   const code = parseWith(RaceCodeSchema, (await params).code);
   if (!code.ok) return code.response;
   if (!readRoom(code.data)) return apiError(404, 'bad_request', 'No such room.');
