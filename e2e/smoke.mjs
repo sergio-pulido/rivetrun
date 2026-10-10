@@ -350,6 +350,23 @@ try {
   }
 
   if (wants('drive')) {
+    // The run just driven (throttle, brake, a stop, throttle again) goes to the server, which replays its input log
+    // (OVN-BRAIN-7) and refuses a run that does not reproduce. An honest run must be accepted.
+    await step('submit M1 run', async () => {
+      if (new URL(page.url()).pathname !== '/result') throw new Skip('no Result page to submit from');
+      const field = page.locator('#nickname');
+      await field.scrollIntoViewIfNeeded();
+      await field.fill('qa_master');
+      const answered = page.waitForResponse((response) => response.url().endsWith('/api/runs') && response.request().method() === 'POST', { timeout: 20_000 });
+      await page.getByRole('button', { name: /^submit$/i }).click();
+      const response = await answered;
+      const body = await response.text().catch(() => '');
+      await sleep(800);
+      await shot(page, 'phone-07a-submitted');
+      if (response.status() >= 300) throw new Error(`POST /api/runs → ${response.status()}: ${body.replace(/\s+/g, ' ').slice(0, 200)}`);
+      return `accepted (${response.status()})`;
+    }, page);
+
     // OVN-UI-4: after a finished run the Brief shows the personal best for this mission and robot.
     await step('personal best', async () => {
       await go(page, '/brief/M1');

@@ -29,7 +29,30 @@ Written by [MASTER] for the human. Newest status first. Program: docs/OVERNIGHT.
 
 ## Status log
 
+### 05:45 · two-hour status
+**Latest tag: `demo-good-0535`** (1a241f5). Eight tags since 04:26, each green on typecheck, unit tests, sim determinism, balance, a production build, and 18 e2e steps on that build. 146 commits since 03:45.
+
+**Landed and in a tag**
+- The whole original program: gameplay v3 controls and physics, weather with M8 and M9, air control and the charged jump, replay pull (personal bests, race your best), the arena with twelve rows, /lab "How it was built", Lab Missions (five grid scenarios on `/scenarios`, live Jev with FALLBACK), `pnpm demo:stable -- --ref`.
+- Found by QA and fixed the same night: Jev skipped the scan on M1 (Q13); a first-timer got stuck on M5 with no hint, now "STUCK IN 6 s · TAP CLIMB" (Q12); a false "cannot pass" prompt (Q16); a visitor reading the screen was counted as stuck (Q15); race phones had no alerts (Q14); coach marks taught the old controls (Q7); the Result had no breakdown (Q8); Warehouse let coin flips win (Q19); one field leaked a gap beyond sensor range (Q21); three sounds were nearly silent.
+- Demo drills now in the gate every cycle: Jev down → FALLBACK → the run finishes; M5 at full throttle by the prompt; the Maze start to finish; a Room Race with two bots.
+- By the sessions' own headless checks, not by the gate: a phone offline for 5 s and a phone reloaded mid-race both finish with one order everywhere; 10 lanes fit the big screen; an 8-bot race drops nobody; a submitted human run is replayed on the server and refused if it does not reproduce.
+
+**Broken or open**
+- Q20, open: the questions tell every brain which option the fixed rules rate as correct. /lab now says so above both tables; the "facts only" column is being built. Until it is in, the arena shows who follows the verdict in time, not who judges well.
+- The three Claude rows of the arena are from the previous game version (no API credit).
+- Nothing has run on a real phone: touch, frame rate, sound, the camera fly-in and the MK-II kit are unseen by anyone.
+- [UI] acts only on messages and mine are capped, so its block in docs/OVERNIGHT.md (Share and Episode never tested, shopping-list CSV, live Jev stats, Home rail for nine missions) is untouched. The other four sessions follow the file.
+
+**Decisions since 03:45**: listed under "Decisions taken" above; the three that depart from what was written are the QA server on 127.0.0.1:3100, orders through the file instead of messages, and the ghost warm-up cap.
+
+**For you, in order**: type one word in the [MASTER] session (releases 10 messages; [UI] has been idle between other sessions' requests since 04:13); then the list under "What the human must do".
+
+
 README.md and docs/SETUP.md were rewritten from the repo at 05:22 (commit 05915a1) by a sub-agent under [MASTER]; they are refreshed before 10:00. Disagreements it found between documents: docs/JEV.md gives Jev's latency as p50 376 ms where docs/BENCHMARK.md has 243 ms; docs/QA.md R6 says Careful fails M6 with the Deep Diver where the benchmark shows it finishing.
+
+### 05:35 · eighth tag
+`demo-good-0535` → 1a241f5. Adds since 0522: a phone that drops off or reloads mid-race, live Jev on Lab Missions, humans in the arena with server-side replay, the leak test, the audited why-lines, the Brief's "Jev is ready" line, failure panels for a lost or missing WebGL context, the sound levels test.
 
 ### 05:22 · seventh tag
 `demo-good-0522` → c377462: 18 e2e steps, no failure, skip or warning. Adds since 0509: the arena re-run on gameplay 4 and the Lab track on the fixed Warehouse, Lab Missions at 1280×720 with a map legend and a two-tap "End the mission", the Brief line for locked parts on M9, race phones seen with the air chip.

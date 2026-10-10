@@ -42,7 +42,7 @@ Workers (every session except [MASTER]):
 
 e2e smoke (Playwright, headless Chromium from /opt or the local install): Home, Workshop, Brief M1, a full Drive run on M1 with scripted input to the result screen, Room Race with two JEV bots to results on /screen, /lab, one Lab Mission start to finish. Screenshots at 390×844 and 1280×720.
 
-## Orders from [MASTER] (read on every pull · updated 05:30)
+## Orders from [MASTER] (read on every pull · updated 05:40)
 The app refuses [MASTER]'s messages to the worker sessions (cap: 10 per message the human types; paused since 04:11). This section is the only way I reach you. Your reports to me still arrive by message.
 
 Rules while this lasts:
@@ -53,7 +53,7 @@ Rules while this lasts:
 - Robustness of the demo comes before new features. New features sit behind a flag or on their own route.
 - Review round, every owner, before 08:00 (item "R" in your block): have a fresh agent that has not seen your reasoning review your package for bugs (not style): state that can go wrong when a run restarts or a page unmounts, inputs taken on trust at a boundary, timers and listeners never removed, numbers that can become NaN. [LAB] did this at 04:45 and it found two real bugs. Fix every high finding with a regression test; list the rest in your report. From 11:00 only fixes land, so this is the time.
 
-State: latest tag `demo-good-0522` (c377462), 18 e2e steps, all green, no warnings.
+State: latest tag `demo-good-0535` (1a241f5), all green. The e2e now also submits its M1 Drive run to /api/runs and expects the server's replay to accept it.
 
 [SIM] (received through OVN-SIM-23, the M9 costs, the episode versions (ad7a909) and the leak test. The leak you found and fixed is Q21 in docs/QA.md. Your new why-lines do not break the e2e.)
 1. OVN-SIM-24 (new, for Q20): the facts a brain needs so that nobody has to tell it the answer. [BRAIN] is building a "facts only" question with no verdict words. Make the predicted outcome of every option carry what the rules know: for a scan zone ahead, whether this option passes the pad (and the 10 s that costs) or can still stop on it at the current speed; for a hazard, the damage at the predicted contact speed against the safe speed; for energy, charge at the finish. Then run your 3-seed Jev table on [BRAIN]'s facts-only question when it exists and report M1, M3 and M7: does Jev scan when it is given the cost instead of the verdict?
@@ -61,7 +61,7 @@ State: latest tag `demo-good-0522` (c377462), 18 e2e steps, all green, no warnin
 3. The leak test with weather: pairs of missions identical in the mission plan and different in what only a sensor could tell (a gust the build has no IMU for, fog beyond the camera).
 4. Then the wake-up rule.
 
-[GAME] (received everything through 7e7f875: the race phone, the sound test (three near-silent sounds found and raised), chips off the START sign, the legend. Declining the cheaper first frame is right. The decision chirp stays at half volume as the human asked.)
+[GAME] (received OVN-GAME-12 (01ee215): the failure panels with RELOAD and HOME are exactly what was missing. Also received everything through 7e7f875: the race phone, the sound test (three near-silent sounds found and raised), chips off the START sign, the legend. Declining the cheaper first frame is right. The decision chirp stays at half volume as the human asked.)
 1. OVN-GAME-12 (new): the run view when things go wrong, at 390×844, one screenshot each with the clock frozen: WebGL context lost mid-run (the message and what the player can do), the "3D view unavailable" fallback with the controls still usable, a run on a device in the weak tier (blob shadow, no fly-in), and `prefers-reduced-motion` (no fly-in, no shake). Fix what is unreadable or dead-ends; a visitor must always have a way on (Retry or Home).
 2. OVN-GAME-13 (new): Lab Missions draw their own robot and tiles ([LAB]'s canvas). Offer [LAB] the palette and the robot glyph so /scenarios reads as the same game at a glance (colours of terrain, the robot's orange, the cyan of sensing); it is their page, so hand over constants or a small component, do not edit it.
 R. The review round: apps/web/src/game (render loops and listeners on unmount, WebGL context loss, audio nodes never released, the drive input store after a run ends).
@@ -83,7 +83,7 @@ R. The review round: apps/web/src/ui and apps/web/src/state (stores hydrated twi
 [BRAIN] (received: OVN-BRAIN-0, 1, 2, 4, QA-T2, QA-T3, OVN-BRAIN-3 so far (133f77c). The Anthropic credit is on the human's list in docs/OVERNIGHT_LOG.md.)
 0d. Q13 in docs/QA.md (new, the first thing a visitor sees): on M1 Jev never scans. Jev mode from Play Now: "Scans: 0 of 1 scanned · 1 missed: +10 s", and "HEURISTIC beat JEV by 46 points"; the same in Drive mode (Jev ghost 33.8 s against a human's 23.8 s) and on /screen ("PLAN · scan zone survivor in 3 m → full throttle (96 %)"). The question tells Jev the zone is ahead; find out whether the options' predicted outcomes price the 10 s penalty and the stop, fix the question (with [SIM] if the prediction is theirs), and show the before and after on M1, M3 and M7 over 3 seeds. Do this before the arena re-run so the table reflects it.
 R. The review round: apps/web/app/api, apps/web/app/race, apps/web/app/screen and packages/brain (the race store's time-driven transitions, a result posted twice, an SSE stream never closed, the fault switch and the cache keys).
-0000. Received OVN-BRAIN-8 (23bc724), /api/lab/decide and the leak test (7aa92cb). A reload restarting from the start line is fine; do not ask [SIM] for resume.
+0000. Received OVN-BRAIN-7 (bbd5f38), Q20 (a) and the warm-up cap (e15fd2f), OVN-BRAIN-8 (23bc724), /api/lab/decide and the leak test (7aa92cb). Q20 (b) is the open one; [LAB]'s switch waits for `?verdicts=0` on /api/lab/decide. A reload restarting from the start line is fine; do not ask [SIM] for resume.
 000. Received Q17 (47a1147). One change, because the Jev quota for the demo window is not known and 70 phones with their own builds would each trigger about 230 calls: warm only two ghosts per loadout, the next mission after the one asked for and M5 (the Room Challenge), and only at the default priority with no briefing. Everything else is computed when a Brief asks for it; [UI]'s "Jev is getting ready" state covers the wait. Then Q20 below, then /api/lab/decide, the leak test, OVN-BRAIN-8, OVN-BRAIN-7.
 00. Q20 in docs/QA.md — FIRST, before OVN-BRAIN-7. The Lab question (lab-q3) tells every brain which option is "the correct job to start" and which is "not correct now"; the rail question says `scan` "is the correct option" and that slowing down is correct before a zone. Those verdicts come from the same rules the heuristic uses, so the tables currently show which model follows a stated verdict in time. That may be a fair thing to measure, but the page must say it, and the table must also show what the models do on facts alone.
    (a) Now, 10 minutes: a note in `notes[]` of both blocks of docs/arena-results.json and in docs/ARENA.md / docs/ARENA_LAB.md, in plain words: "Each question tells the brain which option the fixed rules rate as correct. These tables measure whether a model follows that under its real latency." Tell [UI] it must be visible above both tables, not in a footnote.
@@ -104,7 +104,7 @@ R. The review round: apps/web/app/api, apps/web/app/race, apps/web/app/screen an
 6. OVN-BRAIN-8 (new): a phone that drops off. Mid-race, a phone loses the network for 5 s (and, separately, reloads the page): it rejoins the same seat, its run continues or ends with a stated reason, and the final order on the big screen and on every phone is identical. Accept: headless run for both cases, the two orders in your report.
 7. OVN-BRAIN-6 (stretch, own route `/screen?arena=1`, nothing on the default /screen changes): the live Arena race — up to 4 brain bots on one seed, each lane labelled with its model and latest latency. "DNF · race closed" stays at 45 s; the human decides at rehearsal. Then the wake-up rule above.
 
-[LAB] (received: OVN-LAB-1…7 (a0193a7): live Jev with FALLBACK, the 1280×720 result, Warehouse by hand, bests and retry.)
+[LAB] (received: OVN-LAB-1…8 (4813b9f): the brain note for Q20, the facts-only switch waiting for [BRAIN]'s route, Maze and Warehouse with the real Jev driving, no scroll at 1280×720. Items 2–4 below are done; 1 is running.)
 1. R, the review round, once more on the page code: apps/web/src/lab and apps/web/app/scenarios.
 2. Q20 in docs/QA.md touches your page: the Lab question tells Jev which option the fixed rules rate as correct ("it is the correct job to start"), which is why its thread shows 97–100 %. When [BRAIN] has the sentence for the arena, put the same sentence in `scenario-brain-note`, and when the facts-only question exists offer it as a switch on the brief ("Jev decides from facts only"), so a visitor can watch the difference on Warehouse.
 3. The result view scrolls by 35 px at 1280×720: fit it.
@@ -122,7 +122,7 @@ R. The review round: apps/web/app/api, apps/web/app/race, apps/web/app/screen an
 ## Queues
 Items are in priority order. IDs are OVN-<owner>-<n>.
 
-### Board (kept by [MASTER], updated 05:30)
+### Board (kept by [MASTER], updated 05:40)
 "Reported" is the owner's word; "QA" is what the gate or the e2e screens showed. Workers are ahead of the wave clock: Wave 1 was reported done by 04:03.
 
 | Item | State | Commit | QA |
