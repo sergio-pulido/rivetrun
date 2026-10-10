@@ -1,0 +1,90 @@
+[
+  {
+    "id": "M7",
+    "master": "assets/blender/missions/M7.png",
+    "source": "assets/blender/missions/M7.blend",
+    "robot": "all_rounder",
+    "cameraDirection": [
+      1.6,
+      -5.5,
+      2.6
+    ],
+    "orthoScale": 7.6,
+    "colourGrade": "AgX, exposure +0.15",
+    "chipQuietAreaPx": [
+      0,
+      0,
+      180,
+      72
+    ],
+    "headlights": false,
+    "reusedKit": "M7",
+    "renderOnly": true
+  },
+  {
+    "id": "M6",
+    "master": "assets/blender/missions/M6.png",
+    "source": "assets/blender/missions/M6.blend",
+    "robot": "all_rounder",
+    "cameraDirection": [
+      1.6,
+      -5.5,
+      2.6
+    ],
+    "orthoScale": 7.6,
+    "colourGrade": "AgX, exposure +0.15",
+    "chipQuietAreaPx": [
+      0,
+      0,
+      180,
+      72
+    ],
+    "headlights": false,
+    "reusedKit": "M7/M9 prop meshes as simple scenery",
+    "renderOnly": true
+  },
+  {
+    "id": "M3",
+    "master": "assets/blender/missions/M3.png",
+    "source": "assets/blender/missions/M3.blend",
+    "robot": "all_rounder",
+    "cameraDirection": [
+      1.6,
+      -5.5,
+      2.6
+    ],
+    "orthoScale": 7.6,
+    "colourGrade": "AgX, exposure +0.15",
+    "chipQuietAreaPx": [
+      0,
+      0,
+      180,
+      72
+    ],
+    "headlights": false,
+    "reusedKit": "M7/M9 prop meshes as simple scenery",
+    "renderOnly": true
+  },
+  {
+    "id": "M9",
+    "master": "assets/blender/missions/M9.png",
+    "source": "assets/blender/missions/M9.blend",
+    "robot": "all_rounder",
+    "cameraDirection": [
+      1.6,
+      -5.5,
+      2.6
+    ],
+    "orthoScale": 7.6,
+    "colourGrade": "AgX, exposure +0.15",
+    "chipQuietAreaPx": [
+      0,
+      0,
+      180,
+      72
+    ],
+    "headlights": true,
+    "reusedKit": "M9",
+    "renderOnly": true
+  }
+]
