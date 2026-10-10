@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { MISSION_IDS, MISSIONS, compileTrack, whyLine } from '@rivetrun/sim';
 import { DNF_LABEL } from '@/game/palette';
 import { useBuildStore } from '@/state/build';
@@ -15,6 +15,8 @@ import { Shell } from '@/ui/Shell';
 import { Stars } from '@/ui/Stars';
 import { decisionSummary } from './decisions';
 import { DuelTable } from './DuelTable';
+import { ReactionDuel } from './ReactionDuel';
+import { parseReactions, reactionDuel } from './reactions';
 import { ScoreBreakdown } from './ScoreBreakdown';
 import { downloadEpisode, share, type ShareResult } from './share';
 import { SubmitRun } from './SubmitRun';
@@ -81,6 +83,8 @@ function Summary({ result }: { readonly result: RunResult }) {
   const next = MISSION_IDS[MISSION_IDS.indexOf(mission.id) + 1];
   // What the brain was asked along the way, over the distance the robot covered.
   const decisions = decisionSummary(episode.decisions, outcome.progressFraction * compileTrack(mission.track).lengthM);
+  // The sim's reaction metric, when the run carries one (Drive mode): the player against Jev, event by event.
+  const duel = useMemo(() => reactionDuel(parseReactions((result as RunResult & { readonly reactions?: unknown }).reactions) ?? []), [result]);
   const headline = outcome.finished ? 'Finished' : outcome.dnfReason ? DNF_LABEL[outcome.dnfReason] : 'Did not finish';
 
   // Pays the points once per episode; the store ignores an episode it has already paid.
@@ -122,6 +126,12 @@ function Summary({ result }: { readonly result: RunResult }) {
           <span className="font-mono text-[10px] font-medium tracking-[1.5px] text-cyan">BRAIN · </span>
           {decisions}
         </p>
+      ) : null}
+
+      {duel ? (
+        <div className="rr-rise" style={{ ['--i' as string]: 1 }}>
+          <ReactionDuel duel={duel} />
+        </div>
       ) : null}
 
       <div className="rr-rise" style={{ ['--i' as string]: 2 }}>
