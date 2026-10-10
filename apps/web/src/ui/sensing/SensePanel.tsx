@@ -2,6 +2,8 @@
 
 import { useMemo } from 'react';
 import type { Build } from '@rivetrun/contracts';
+import { SimplifiedNote } from '@/ui/honesty/SimplifiedNote';
+import { simplifiedForSenses } from '@/ui/honesty/simplified';
 import { Icon } from '@/ui/Icon';
 import { sensing } from './sensing';
 
@@ -90,6 +92,7 @@ function SenseLists({ core, can, cannot, sensorless }: Lists) {
         <br />
         {core.length > 0 ? `${core.join(' · ')}. ` : 'Speed, distance, battery charge and current draw. '}Power sensing is part of the core kit.
       </p>
+      <SimplifiedNote entries={simplifiedForSenses()} />
     </>
   );
 }

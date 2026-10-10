@@ -2,6 +2,8 @@
 
 import { useMemo } from 'react';
 import type { Build, Mission } from '@rivetrun/contracts';
+import { SimplifiedNote } from '@/ui/honesty/SimplifiedNote';
+import { simplifiedForWeather } from '@/ui/honesty/simplified';
 import { Icon } from '@/ui/Icon';
 import { planFacts, simWeatherEffects, simWeatherFacts, weatherLines } from './weather';
 
@@ -48,6 +50,7 @@ export function WeatherCard({ mission, build }: WeatherCardProps) {
         <p className="text-xs leading-snug text-muted">Nothing on this build is affected.</p>
       )}
       <p className="border-t border-line pt-2 text-[11px] leading-snug text-faint">From the mission plan. Every driver knows it before the start; gusts are felt only as they come.</p>
+      <SimplifiedNote entries={simplifiedForWeather(mission)} />
     </section>
   );
 }

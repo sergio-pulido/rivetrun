@@ -11,6 +11,8 @@ import { PersonalBestCard } from '@/ui/bests/PersonalBestCard';
 import { BUDGET_EUR, buildName, buildStats, missionBlockers, missionWarnings, presetThatFinishes } from '@/ui/buildStats';
 import { SavedBuilds } from '@/ui/builds/SavedBuilds';
 import { PlayLink } from '@/ui/coach/PlayLink';
+import { SimplifiedNote } from '@/ui/honesty/SimplifiedNote';
+import { simplifiedForCoach } from '@/ui/honesty/simplified';
 import { Icon } from '@/ui/Icon';
 import { MODE_NOTE, ModeSwitch } from '@/ui/ModeSwitch';
 import { SensePanel } from '@/ui/sensing/SensePanel';
@@ -76,6 +78,8 @@ export function Brief({ missionId }: { readonly missionId: MissionId }) {
   const rescue = blocked ? presetThatFinishes(mission) : null;
   const setSlot = useWorkshopUi((store) => store.setSlot);
   const overBudget = stats.overBudgetEur > 0;
+  // What the game simplifies about flight and the jump, shown where there is something to fly over or a piston to charge.
+  const controlNotes = simplifiedForCoach({ airborne, piston: build.extras.includes('piston_jump') });
   // Drive mode only: two headless runs at most, once per build and mission. Jev mode has no thumb on the throttle.
   const throttleTip = useMemo(() => (mode === 'drive' ? fullThrottleTip(build, mission) : null), [mode, build, mission]);
   // The sim's dry run of this build on this mission: a few ms, so it is simply redone when either changes.
@@ -180,11 +184,16 @@ export function Brief({ missionId }: { readonly missionId: MissionId }) {
       <WeatherCard mission={mission} build={build} />
 
       {/* Missions with a ramp, gap or drop: the one rule of flight, in the sim's words, the same for the player and every brain. */}
-      {airborne ? (
-        <p className="rr-card px-3 py-2.5 text-xs leading-snug text-text-2">
-          <span className="rr-label mr-1.5 !text-orange-soft">In the air</span>
-          {AIR_RULE}
-        </p>
+      {airborne || controlNotes.length > 0 ? (
+        <section className="rr-card flex flex-col gap-2 px-3 py-2.5" aria-label="In the air">
+          {airborne ? (
+            <p className="text-xs leading-snug text-text-2">
+              <span className="rr-label mr-1.5 !text-orange-soft">In the air</span>
+              {AIR_RULE}
+            </p>
+          ) : null}
+          <SimplifiedNote entries={controlNotes} className={airborne ? '' : '!border-t-0 !pt-0'} />
+        </section>
       ) : null}
 
       {/* Who drives comes before the detail: it is the one choice this screen asks for. */}

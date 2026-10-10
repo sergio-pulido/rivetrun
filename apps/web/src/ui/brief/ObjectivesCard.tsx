@@ -4,6 +4,8 @@ import Link from 'next/link';
 import { useMemo } from 'react';
 import type { Build, Mission } from '@rivetrun/contracts';
 import { useWorkshopUi } from '@/state/workshop';
+import { SimplifiedNote } from '@/ui/honesty/SimplifiedNote';
+import { simplifiedForObjectives } from '@/ui/honesty/simplified';
 import { Icon } from '@/ui/Icon';
 import { objectives, scanRules } from './objectives';
 
@@ -62,6 +64,7 @@ export function ObjectivesCard({ mission, build }: ObjectivesCardProps) {
           Stop on a zone for {rules.holdS} s to scan it. Each zone left unscanned adds {rules.missPenaltyS} s to your time.
         </p>
       ) : null}
+      <SimplifiedNote entries={simplifiedForObjectives(mission)} />
     </section>
   );
 }
