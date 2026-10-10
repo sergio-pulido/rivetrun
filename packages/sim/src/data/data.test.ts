@@ -1,6 +1,7 @@
 import { MissionSchema, PartSchema, PresetSchema, TerrainSchema, TerrainIdSchema, type Build } from '@rivetrun/contracts';
 import { describe, expect, it } from 'vitest';
 import { SIMPLIFICATIONS } from '../simplifications';
+import { compileTrack } from '../world';
 import { MISSIONS, MISSION_IDS, PARTS, PARTS_BY_ID, PRESETS, TERRAINS, TUNING } from './index';
 
 const buildParts = (build: Build) =>
@@ -65,6 +66,24 @@ describe('simplifications', () => {
       expect(item.sentence.length, item.id).toBeLessThan(170);
       if (item.partId) expect(PARTS.some((part) => part.id === item.partId), item.id).toBe(true);
       if (item.missionId) expect(item.missionId in MISSIONS, item.id).toBe(true);
+    }
+  });
+});
+
+describe('scan zones are reachable', () => {
+  it('no obstacle, gap or drop stands on a scan pad or in the 2.5 m before it (Q33)', () => {
+    for (const mission of Object.values(MISSIONS)) {
+      const world = compileTrack(mission.track);
+      for (const zone of mission.scanZones ?? []) {
+        const from = zone.atM - zone.halfLengthM - 2.5;
+        const to = zone.atM + zone.halfLengthM + 0.3;
+        const inTheWay = [
+          ...world.obstacles.filter((o) => o.endM > from && o.startM < to).map((o) => `${o.kind} at ${o.startM} m`),
+          ...world.features.filter((f) => f.type !== 'ramp' && f.endM > from && f.startM < to).map((f) => `${f.type} at ${f.startM} m`),
+        ];
+        expect(inTheWay, `${mission.id} ${zone.label} at ${zone.atM} m`).toEqual([]);
+        expect(zone.atM + zone.halfLengthM, `${mission.id} ${zone.label}`).toBeLessThan(world.lengthM - 1);
+      }
     }
   });
 });

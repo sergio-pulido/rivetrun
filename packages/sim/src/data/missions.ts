@@ -119,7 +119,7 @@ export const MISSIONS: Readonly<Record<MissionId, Mission>> = {
     id: 'M8', name: 'Storm Ridge', description: 'Heavy rain and a headwind over an exposed ridge. Gusts hit on the crest: light robots get pushed back, and every metre costs more battery.',
     weather: 'rain', starThreshold: 650, leaderboard: false,
     conditions: { windMps: 5, gustMps: 9, precipitation: 'heavy_rain', temperatureC: 8 },
-    scanZones: [{ id: 'M8-mast', label: 'weather mast', atM: 26, halfLengthM: 0.5, needs: ['camera', 'ultrasonic'] }],
+    scanZones: [{ id: 'M8-mast', label: 'weather mast', atM: 28, halfLengthM: 0.5, needs: ['camera', 'ultrasonic'] }],
     track: {
       segments: [
         { terrain: 'asphalt', lengthM: 8, slopeDeg: 0 },
