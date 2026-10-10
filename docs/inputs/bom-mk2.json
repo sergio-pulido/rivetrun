@@ -122,7 +122,28 @@
    "status": "verified",
    "notes": "4GB variant listed in the selector. The page shows no price for it.",
    "group": "core",
-   "scenario": null
+   "scenario": null,
+   "mechanical": {
+    "drawingUrl": "https://pip-assets.raspberrypi.com/categories/892-raspberry-pi-5/documents/RP-008347-DS-1-raspberry-pi-5-mechanical-drawing.pdf",
+    "outlineMm": [
+     85,
+     56
+    ],
+    "mountingHoles": {
+     "count": 4,
+     "diameterMm": 2.7,
+     "patternMm": [
+      58,
+      49
+     ],
+     "edgeOffsetMm": 3.5,
+     "screw": "M2.5 (usual for Ø2.7 mm holes; not written on the drawing)"
+    },
+    "source": "Numbers printed on the official drawing. Its dimension lines are graphical, so confirm each value visually.",
+    "drawingNote": "The drawing says its dimensions are approximate and for reference only.",
+    "hatSpecUrl": "https://pip-assets.raspberrypi.com/categories/1215-raspberry-pi-hat/documents/RP-008281-DS-1-hat-plus-specification.pdf",
+    "standoffs": "HAT+ spec: at least 15 mm board-to-board spacers, 16 mm ideal, when stacking a HAT."
+   }
   },
   {
    "key": "motor_driver_max14870_rpi",
@@ -146,7 +167,18 @@
    "status": "verified",
    "notes": "2S–4S builds. Two motors in parallel per side: 2 × 0.75 A stall = 1.5 A, under 1.7 A. Not for 1S (4.5 V minimum).",
    "group": "core",
-   "scenario": null
+   "scenario": null,
+   "mechanical": {
+    "sizeMm": [
+     43.2,
+     16.5
+    ],
+    "sizeAsStated": "1.7″ × 0.65″ (without included hardware)",
+    "massG": 12,
+    "mount": "Plugs into the leftmost position of the Pi's 40-pin GPIO header.",
+    "dimensionImageUrl": "https://a.pololu-files.com/picture/0J8599.1200.jpg?66f0ce032123e212cfc897633e3773bc",
+    "holes": "Hole positions are only in the dimensioned image; read them there."
+   }
   },
   {
    "key": "motor_driver_drv8835_rpi_1s",
@@ -195,7 +227,23 @@
    "status": "verified",
    "notes": "Covers 1S–4S. The Pi 5 asks for 5 V/5 A; 3 A leaves less headroom for USB peripherals.",
    "group": "core",
-   "scenario": null
+   "scenario": null,
+   "mechanical": {
+    "sizeMm": [
+     22.9,
+     22.9,
+     9.7
+    ],
+    "sizeAsStated": "0.9″ × 0.9″ × 0.38″ (product page)",
+    "holes": {
+     "count": 2,
+     "diameterIn": 0.086,
+     "diameterMm": 2.18,
+     "screw": "#2 or M2"
+    },
+    "dimensionPdfUrl": "https://www.pololu.com/file/0J1807/5v-step-up-step-down-voltage-regulator-s13v30f5-dimensions.pdf",
+    "conflict": "The dimension PDF's text shows 900 × 730 mil (22.9 × 18.5 mm); the product page says 0.9″ × 0.9″. Read the drawing and record which one you used."
+   }
   },
   {
    "key": "pi_regulator_d36v50f5_2s4s",
@@ -776,7 +824,13 @@
    "status": "verified",
    "notes": "Official ruthex shop. The recommended hole size is not on the page; take it from the ruthex datasheet before modelling bosses.",
    "group": "core",
-   "scenario": null
+   "scenario": null,
+   "mechanical": {
+    "lengthMm": 5.7,
+    "stepUrl": "https://cdn.shopify.com/s/files/1/0567/7019/9760/files/ruthex_RX-M3x5_7.stp?v=1621261355",
+    "outerDiameter": "Not stated on the ruthex page. Measure it from the official STEP file.",
+    "installHole": "Not stated by ruthex. Make it a parameter (insertHoleMm) and calibrate it with a printed test coupon before printing the chassis."
+   }
   },
   {
    "key": "m3_screw_kit",

@@ -118,6 +118,12 @@ The game's 100 mm wheel maps to the real 90 mm Pololu wheel, the largest in the 
 | Siglent SPD1305X Programmable DC Power Supply | powers the electronics on the bench with a current limit | [Siglent SPD1305X](https://www.siglenteu.com/power-supplies/spd1000x-series-programmable-dc-power-supply/) | € 249 | VAT not stated. |
 | ISDT 608AC Smart Charger | balance-charges the 1S–4S LiPo packs | [ISDT 608AC](https://www.isdt.co/608ac.html) | — | Mains-powered; covers every pack in this BoM. |
 
+## Mechanical references (for the chassis model)
+- **Raspberry Pi 5**: [official mechanical drawing](https://pip-assets.raspberrypi.com/categories/892-raspberry-pi-5/documents/RP-008347-DS-1-raspberry-pi-5-mechanical-drawing.pdf). Outline 85 × 56 mm; 4 mounting holes Ø2.7 mm on a 58 × 49 mm rectangle, centres 3.5 mm from the edges. These numbers are printed on the drawing, whose dimension lines are graphical, so confirm each one visually. The drawing marks all dimensions as approximate. M2.5 screws are the usual fit for Ø2.7 mm holes; the drawing does not say so. [HAT+ spec](https://pip-assets.raspberrypi.com/categories/1215-raspberry-pi-hat/documents/RP-008281-DS-1-hat-plus-specification.pdf): at least 15 mm board-to-board spacers, 16 mm ideal, when stacking a HAT.
+- **Pololu Dual MAX14870 driver for Raspberry Pi (#3759)**: 1.7″ × 0.65″ (43.2 × 16.5 mm) without hardware, 12 g. It plugs into the leftmost position of the Pi's 40-pin header. Hole positions are only in the [dimensioned image](https://a.pololu-files.com/picture/0J8599.1200.jpg?66f0ce032123e212cfc897633e3773bc).
+- **Pololu S13V30F5 regulator (#4082)**: product page gives 0.9″ × 0.9″ × 0.38″ (22.9 × 22.9 × 9.7 mm) and two 0.086″ (2.18 mm) holes for #2 or M2 screws. Hole positions are in the [dimension PDF](https://www.pololu.com/file/0J1807/5v-step-up-step-down-voltage-regulator-s13v30f5-dimensions.pdf), whose text shows 900 × 730 mil (22.9 × 18.5 mm). That conflicts with the page; use the drawing and note it.
+- **ruthex RX-M3x5.7 insert**: length 5.7 mm. Outer diameter and install hole are not stated on the ruthex page; measure the outer diameter from the [official STEP file](https://cdn.shopify.com/s/files/1/0567/7019/9760/files/ruthex_RX-M3x5_7.stp?v=1621261355) and calibrate the hole with a printed test coupon.
+
 ## Engineering caveats
 - Pololu's Raspberry Pi motor drivers fit the 40-pin header; their pages do not name the Pi 5. Check GPIO/PWM library support on the Pi 5 before wiring.
 - 4S: the 12 V HPCB motors are overvolted by a full pack. Cap PWM at about 70 %.
