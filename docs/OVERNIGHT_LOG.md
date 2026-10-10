@@ -34,6 +34,9 @@ Written by [MASTER] for the human. Newest status first. Program: docs/OVERNIGHT.
 
 ## Status log
 
+### 10:20 · polish sprint until 13:30
+The human resumed [MASTER]: cycles until 13:30, no new features, every green commit gated and tagged, the last tag before 13:45 for the 14:00 freeze build. [GAME] is making the MK-II the default robot and restyling the Workshop stage; the e2e gets a check that the kit, not the procedural robot, is on the Workshop and in the run.
+
 ### 10:11 · end of the overnight run
 **Latest tag: `demo-good-1010`** (90546a3), the nineteenth. 21 e2e steps green on a production build of that commit.
 
