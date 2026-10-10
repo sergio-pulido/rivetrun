@@ -15,6 +15,52 @@ export interface PrinterChoice {
 
 type Step = { readonly kind: 'idle' } | { readonly kind: 'picking' } | { readonly kind: 'chosen'; readonly printer: PrinterChoice };
 
+/** "Send to printer": choose a printer, then be told, truthfully, that printing from the app is not built yet. */
+export function PrinterPicker({ printers }: { readonly printers: readonly PrinterChoice[] }) {
+  const [step, setStep] = useState<Step>({ kind: 'idle' });
+  return (
+    <>
+      {step.kind === 'idle' ? (
+        <button type="button" onClick={() => setStep({ kind: 'picking' })} disabled={printers.length === 0} className="rr-btn rr-btn-secondary mt-2.5 w-full !min-h-11 !rounded-[10px] !text-[13px]">
+          Send to printer
+        </button>
+      ) : null}
+
+      {step.kind === 'picking' ? (
+        <div className="mt-2.5 flex flex-col gap-1.5" role="group" aria-label="Choose a printer">
+          <span className="rr-label">Choose a printer</span>
+          {printers.map((printer) => (
+            <button
+              key={printer.key}
+              type="button"
+              onClick={() => setStep({ kind: 'chosen', printer })}
+              className="flex min-h-11 flex-col justify-center rounded-[10px] border border-line-2 bg-panel-2 px-3 py-1.5 text-left active:border-orange"
+            >
+              <span className="font-display text-[13px] font-semibold">{printer.name}</span>
+              {printer.usedFor ? <span className="text-[11px] leading-snug text-muted">{printer.usedFor}</span> : null}
+            </button>
+          ))}
+          <button type="button" onClick={() => setStep({ kind: 'idle' })} className="h-11 font-mono text-[11px] font-medium tracking-[1px] text-muted">
+            CANCEL
+          </button>
+        </div>
+      ) : null}
+
+      {step.kind === 'chosen' ? (
+        <div role="status" className="mt-2.5 rounded-[10px] border border-dashed border-line-3 px-3 py-2.5">
+          <p className="font-display text-[15px] font-semibold">Print integration coming soon</p>
+          <p className="mt-1 text-xs leading-snug text-muted">
+            Nothing was sent to the {step.printer.name}. Sending jobs from the app is not built yet; the printed parts list is what to slice and print by hand.
+          </p>
+          <button type="button" onClick={() => setStep({ kind: 'idle' })} className="mt-1.5 h-9 font-mono text-[11px] font-medium tracking-[1px] text-orange-soft">
+            OK
+          </button>
+        </div>
+      ) : null}
+    </>
+  );
+}
+
 interface PrintedPartsProps {
   readonly parts: readonly PrintedPart[];
   /** The printers listed under the bill of materials' tools. */
@@ -28,7 +74,6 @@ interface PrintedPartsProps {
  * that printing from the app is not built yet. Nothing is ever shown as queued or started.
  */
 export function PrintedParts({ parts, printers, renders }: PrintedPartsProps) {
-  const [step, setStep] = useState<Step>({ kind: 'idle' });
   const owned = useInventoryStore((store) => store.owned);
   const toggleOwned = useInventoryStore((store) => store.toggle);
   if (parts.length === 0) return null;
@@ -82,43 +127,7 @@ export function PrintedParts({ parts, printers, renders }: PrintedPartsProps) {
         </p>
         <p className="mt-1 text-xs leading-snug text-muted">The per-piece figures above, multiplied by quantity.</p>
 
-        {step.kind === 'idle' ? (
-          <button type="button" onClick={() => setStep({ kind: 'picking' })} disabled={printers.length === 0} className="rr-btn rr-btn-secondary mt-2.5 w-full !min-h-11 !rounded-[10px] !text-[13px]">
-            Send to printer
-          </button>
-        ) : null}
-
-        {step.kind === 'picking' ? (
-          <div className="mt-2.5 flex flex-col gap-1.5" role="group" aria-label="Choose a printer">
-            <span className="rr-label">Choose a printer</span>
-            {printers.map((printer) => (
-              <button
-                key={printer.key}
-                type="button"
-                onClick={() => setStep({ kind: 'chosen', printer })}
-                className="flex min-h-11 flex-col justify-center rounded-[10px] border border-line-2 bg-panel-2 px-3 py-1.5 text-left active:border-orange"
-              >
-                <span className="font-display text-[13px] font-semibold">{printer.name}</span>
-                {printer.usedFor ? <span className="text-[11px] leading-snug text-muted">{printer.usedFor}</span> : null}
-              </button>
-            ))}
-            <button type="button" onClick={() => setStep({ kind: 'idle' })} className="h-11 font-mono text-[11px] font-medium tracking-[1px] text-muted">
-              CANCEL
-            </button>
-          </div>
-        ) : null}
-
-        {step.kind === 'chosen' ? (
-          <div role="status" className="mt-2.5 rounded-[10px] border border-dashed border-line-3 px-3 py-2.5">
-            <p className="font-display text-[15px] font-semibold">Print integration coming soon</p>
-            <p className="mt-1 text-xs leading-snug text-muted">
-              Nothing was sent to the {step.printer.name}. Sending jobs from the app is not built yet; the list above is what to slice and print by hand.
-            </p>
-            <button type="button" onClick={() => setStep({ kind: 'idle' })} className="mt-1.5 h-9 font-mono text-[11px] font-medium tracking-[1px] text-orange-soft">
-              OK
-            </button>
-          </div>
-        ) : null}
+        <PrinterPicker printers={printers} />
       </div>
     </section>
   );

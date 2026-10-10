@@ -1,18 +1,14 @@
 import Link from 'next/link';
 import { Icon } from '@/ui/Icon';
+import { WidePicture } from '@/ui/WidePicture';
 
 const RENDER = '/renders/mk2/default_build_hero.png';
-/** A 1×1 transparent image: what a phone loads instead of the render, which it never shows. */
-const NOTHING = 'data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==';
 
 /** Desktop and projector only: the MK-II render beside the entry points. Phones keep the bench and do not download it. */
 export function Hero({ className = '' }: { readonly className?: string }) {
   return (
     <figure className={`relative hidden overflow-hidden rounded-[18px] border border-[#262B33] bg-panel lg:block ${className}`}>
-      <picture>
-        <source media="(min-width: 1024px)" srcSet={RENDER} />
-        <img src={NOTHING} alt="The RivetRun MK-II rover: an orange printed chassis on four off-road wheels, with its controller board and sensors on top" className="absolute inset-0 h-full w-full -translate-y-[6%] scale-[1.32] object-contain" />
-      </picture>
+      <WidePicture src={RENDER} alt="The RivetRun MK-II rover: an orange printed chassis on four off-road wheels, with its controller board and sensors on top" className="absolute inset-0 h-full w-full -translate-y-[6%] scale-[1.32] object-contain" />
       <figcaption className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-4 bg-gradient-to-t from-ground/90 to-transparent px-5 pb-4 pt-10">
         <span className="flex flex-col gap-1">
           <span className="font-mono text-xs font-medium uppercase tracking-[1.5px] text-orange-soft">RivetRun MK-II</span>
