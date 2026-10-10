@@ -150,6 +150,18 @@
       "dimsSource": "Human requested a generic 64\u201370 mm EDF; 68 mm chosen. Visual concept, not a verified SKU.",
       "source": "assets/blender/parts/module_ducted_fan.blend",
       "notes": "X-forward duct and rotor, rear deck bracket. Common rover-ground origin; native mm with root scale 0.01. No logos or print outputs. Rearward clearance adjustment: duct lies behind the Pi instead of intersecting its PCB; bracket feet overlap rear deck."
+    },
+    "piston_jump": {
+      "file": "piston_jump.glb",
+      "slot": "extra",
+      "triangles": 996,
+      "meshes": 4,
+      "bytes": 20104,
+      "printedParts": [],
+      "compression": "meshopt",
+      "source": "assets/blender/parts/module_piston_jump.blend",
+      "dimsSource": "Sergio-approved generic DIY spring piston visual; no purchasable SKU or manufacturing dimensions asserted.",
+      "notes": "Front underside cylinder, rod, visible return spring and foot plate. Shared rover-ground origin; mm baked into render units with root scale 1 for correct 0.3-unit game animation stroke. Retracted foot clears ground on tracks (deckOffsetY=-0.205); bracket attaches at front chassis lip. jump_piston_foot retains foot and rod."
     }
   },
   "deckOffsetY": {
@@ -164,7 +176,6 @@
     "imu",
     "lidar_rplidar_c1",
     "moisture_probe",
-    "piston_jump",
     "scout_drone",
     "thruster_kit",
     "tof_vl53l1x_pololu",
