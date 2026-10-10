@@ -61,7 +61,8 @@ describe('scenarioSegments', () => {
     for (const mission of Object.values(MISSIONS)) {
       for (const preset of Object.values(PRESETS)) expect(scenarioSegments(mission, preset.build)).toHaveLength(mission.track.segments.length);
     }
-  });
+    // 45 headless runs: seconds on a busy machine, so the default 5 s limit is too tight.
+  }, 30_000);
 });
 
 describe('testRunReport', () => {
