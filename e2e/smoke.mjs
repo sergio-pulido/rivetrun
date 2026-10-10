@@ -555,14 +555,16 @@ try {
         const prompt = text.match(/STUCK IN \d+ s[^a-z]*?(TAP CLIMB|EASE OFF THE THROTTLE|HOLD WINCH|GIVE IT THROTTLE|THIS BUILD CANNOT PASS HERE)/);
         if (prompt) {
           prompts.add(prompt[1]);
-          if (!shotTaken) {
-            shotTaken = true;
-            await shot(page, 'phone-13-m5-stuck-prompt');
-          }
+          // Answer first, picture after: the prompt gives 6 s, and a screenshot of the 3D scene in software
+          // rendering can take longer than that. Taken before the tap, it made the tap arrive on a robot already stuck.
           if (prompt[1] === 'TAP CLIMB' && Date.now() - lastTap > 2500) {
             lastTap = Date.now();
             taps += 1;
             await page.keyboard.press('Space');
+          }
+          if (!shotTaken) {
+            shotTaken = true;
+            await shot(page, 'phone-13-m5-stuck-prompt').catch(() => warnings.push('M5: the screenshot at the stuck prompt timed out (machine load); the run went on'));
           }
         }
         await sleep(120);
