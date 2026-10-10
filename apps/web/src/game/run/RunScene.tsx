@@ -15,7 +15,7 @@ import { RobotModel } from '../robot/RobotModel';
 import type { DriveInput } from '../drive/driveInput';
 import type { RunFeed } from '../runFeed';
 import { sensesOf } from '../sense';
-import { PIT_DEPTH, basinDepthAt, layoutTrack, sampleTrack, type TrackLayout } from '../track';
+import { HEIGHT_SCALE, PIT_DEPTH, basinDepthAt, layoutTrack, sampleTrack, type TrackLayout } from '../track';
 import { Headlights } from './Headlights';
 import { Particles, type ParticleEmitter } from './Particles';
 import { restPose, type Pose } from './pose';
@@ -71,6 +71,8 @@ function Player({ feed, build, layout, pose, timeScale, particles, hands, name, 
   const riding = useRef(restRide());
   const mk2 = mk2Requested('run');
   const stance = useMemo(() => stanceFor(build.locomotion, mk2), [build.locomotion, mk2]);
+  const hasFan = useMemo(() => deriveSpec(build).fan !== undefined, [build]);
+  const wash = useRef(0);
   const budget = useRef<Partial<Record<SimEffect, number>>>({});
   const lastDamageAt = useRef(0);
   const celebrated = useRef(false);
@@ -198,6 +200,14 @@ function Player({ feed, build, layout, pose, timeScale, particles, hands, name, 
     if (!emitter) return;
     const dir = state.v >= 0 ? 1 : -1;
     const simDt = Math.min(dt, 0.05) * (timeScale.current ?? 1);
+    // Ducted fan (RR-THRUST): while the driver holds the burn in the air, its wash kicks dust up off the ground below.
+    // The sim's public state does not say when a fan burns, so this follows the driver's button; a brain's burn shows none.
+    if (hasFan && airborne && !view.done && hands?.peek().jumpHeld) {
+      wash.current += 46 * simDt;
+      const puffs = Math.floor(wash.current);
+      wash.current -= puffs;
+      if (puffs > 0) emitter.emit('dust', p.x - 0.15, p.y - (state.heightM ?? 0) * HEIGHT_SCALE + 0.06, LANES.player, puffs, dir);
+    }
     const active: SimEffect[] = destroyed ? ['smoke'] : view.done ? [] : state.effects;
     for (const effect of active) {
       const spec = EFFECT_PARTICLES[effect];

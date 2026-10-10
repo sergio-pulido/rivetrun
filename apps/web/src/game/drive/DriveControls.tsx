@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react';
 import type { Build, ControlSpecial, SimState } from '@rivetrun/contracts';
-import { PARTS_BY_ID, deriveSpec, safeContactSpeedMps } from '@rivetrun/sim';
+import { deriveSpec, safeContactSpeedMps } from '@rivetrun/sim';
+import { fanWhine } from '../audio/sfx';
 import { UI } from '../palette';
 import { useRunView, type RunFeed } from '../runFeed';
 import type { DriveInput, DriveInputState } from './driveInput';
@@ -231,25 +232,37 @@ export function DriveControls({ drive, feed, build }: DriveControlsProps) {
   const cooldownMs = (spec.jumpCooldownS || 3) * 1000;
   // The sim's public state does not report the burn, so the heat is counted here from what it does report: the sim's
   // clock while the button is held. A landing after a burn starts the cool-down.
-  const burn = useRef({ s: 0, lastT: 0, airborne: false, cooledFrom: 0 });
-  if (fan) {
-    const heat = burn.current;
-    const t = view.state?.t ?? 0;
-    const dt = Math.min(0.2, Math.max(0, t - heat.lastT));
-    heat.lastT = t;
-    if (input.jumpHeld && special === 'jump' && heat.s < fan.burnS) heat.s = Math.min(fan.burnS, heat.s + dt);
-    if (heat.s > 0 && heat.airborne && !airborne) {
-      heat.s = 0;
-      heat.cooledFrom = performance.now();
-    }
-    heat.airborne = airborne;
-    if (t === 0) Object.assign(heat, { s: 0, cooledFrom: 0 });
-  }
-  const burnt = fan ? burn.current.s / fan.burnS : 0;
-  const sinceJump = fan ? (burn.current.cooledFrom > 0 ? performance.now() - burn.current.cooledFrom : Infinity) : input.jumpAt > 0 ? performance.now() - input.jumpAt : Infinity;
+  const [heat, setHeat] = useState({ s: 0, cooledFrom: 0 });
+  const seen = useRef({ t: 0, airborne: false });
+  const simT = view.state?.t ?? 0;
+  const fanHeld = fan !== undefined && special === 'jump' && input.jumpHeld;
+  const burnS = fan?.burnS ?? 0;
+  useEffect(() => {
+    if (burnS <= 0) return;
+    const dt = Math.min(0.2, Math.max(0, simT - seen.current.t));
+    const landed = seen.current.airborne && !airborne;
+    seen.current = { t: simT, airborne };
+    setHeat((was) => {
+      // A new run on the same screen starts cold.
+      if (simT === 0) return was.s === 0 && was.cooledFrom === 0 ? was : { s: 0, cooledFrom: 0 };
+      if (was.s > 0 && landed) return { s: 0, cooledFrom: performance.now() };
+      if (fanHeld && was.s < burnS && dt > 0) return { ...was, s: Math.min(burnS, was.s + dt) };
+      return was;
+    });
+  }, [burnS, simT, airborne, fanHeld]);
+  const burnt = burnS > 0 ? heat.s / burnS : 0;
+  const sinceJump = fan ? (heat.cooledFrom > 0 ? performance.now() - heat.cooledFrom : Infinity) : input.jumpAt > 0 ? performance.now() - input.jumpAt : Infinity;
   const cooling = special === 'jump' && sinceJump < cooldownMs;
   // The piston fires once from the ground. The fan may be let go and lit again in the air until its burn is used up.
   const ready = !done && !(special === 'jump' && !input.jumpHeld && (cooling || (fan ? burnt >= 1 : airborne)));
+
+  // The fan's whine: on while it burns, rising with the heat; off the moment it is let go, spent or cooling.
+  const burning = fan !== undefined && special === 'jump' && input.jumpHeld && !cooling && burnt < 1 && !done;
+  const whine = burning ? 0.25 + 0.75 * burnt : 0;
+  useEffect(() => {
+    fanWhine(whine);
+  }, [whine]);
+  useEffect(() => () => fanWhine(0), []);
 
   // The ring only needs frames while it is filling.
   useEffect(() => {
@@ -407,7 +420,7 @@ export function DriveControls({ drive, feed, build }: DriveControlsProps) {
               <span className="relative flex flex-col items-center gap-0.5">
                 <span className="text-[15px] font-bold leading-none tracking-[1.5px] tabular-nums">{charging && !fan ? `${Math.round(charge * 100)} %` : label}</span>
                 <span className="font-mono text-[9px] leading-none tracking-[1px]" style={{ color: UI.dim }}>
-                  {special === 'climb' ? (input.climb ? 'ON' : 'OFF') : special === 'winch' ? 'HOLD' : fan ? (charging ? `BURN ${(burn.current.s).toFixed(1)} s` : burnt >= 1 ? 'SPENT' : 'HOLD') : charging ? 'LET GO' : airborne ? 'AIR' : 'HOLD'}
+                  {special === 'climb' ? (input.climb ? 'ON' : 'OFF') : special === 'winch' ? 'HOLD' : fan ? (charging ? `BURN ${heat.s.toFixed(1)} s` : burnt >= 1 ? 'SPENT' : 'HOLD') : charging ? 'LET GO' : airborne ? 'AIR' : 'HOLD'}
                 </span>
               </span>
             )}

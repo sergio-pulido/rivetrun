@@ -585,6 +585,43 @@ function updateDrone(): void {
   );
 }
 
+interface FanNodes {
+  oscillator: OscillatorNode;
+  overtone: OscillatorNode;
+  gain: GainNode;
+}
+
+let fan: FanNodes | null = null;
+const FAN_VOLUME = 0.1;
+
+/**
+ * Ducted-fan whine (RR-THRUST). `level` 0 is off; from just above 0 to 1 the pitch and the loudness rise, as the fan
+ * spools up over a held burn. The two oscillators are made the first time a fan is lit, never for other builds.
+ */
+export function fanWhine(level: number): void {
+  const amount = Math.min(1, Math.max(0, Number.isFinite(level) ? level : 0));
+  if (!ctx || !master) return;
+  if (!fan) {
+    if (amount <= 0) return;
+    const oscillator = ctx.createOscillator();
+    oscillator.type = "sawtooth";
+    const overtone = ctx.createOscillator();
+    overtone.type = "triangle";
+    const gain = ctx.createGain();
+    gain.gain.value = 0;
+    oscillator.connect(gain);
+    overtone.connect(gain);
+    gain.connect(master);
+    oscillator.start();
+    overtone.start();
+    fan = { oscillator, overtone, gain };
+  }
+  const pitch = 480 + 940 * amount;
+  smooth(fan.oscillator.frequency, pitch, 0.12);
+  smooth(fan.overtone.frequency, pitch * 2.01, 0.12);
+  smooth(fan.gain.gain, amount > 0 ? FAN_VOLUME * (0.5 + 0.5 * amount) : 0, 0.06);
+}
+
 /**
  * Enable or disable scout-drone hum.
  */
@@ -1161,12 +1198,15 @@ export function disposeAudio(): void {
     engine?.fundamental.stop();
     engine?.harmonic.stop();
     drone?.oscillator.stop();
+    fan?.oscillator.stop();
+    fan?.overtone.stop();
   } catch {
     // Already stopped.
   }
 
   engine = null;
   drone = null;
+  fan = null;
   master = null;
   noiseBuffer = null;
 
