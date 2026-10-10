@@ -1,4 +1,5 @@
 import type { MissionId } from '@rivetrun/contracts';
+import { SCAN_RULES } from '@rivetrun/sim';
 import {
   BUILD_MS,
   CLOSE_AFTER_LEADER_MS,
@@ -18,6 +19,8 @@ import {
   type RaceStatus,
 } from '../../race/_lib/protocol';
 import { addRun } from './store';
+
+const SCAN_MISS_PENALTY_MS = SCAN_RULES.missPenaltyS * 1000;
 
 // In-memory rooms (docs/FAST_MODE.md): lost when the Next server restarts.
 // This module decides every result: finish times are stamped here, and a race closes here.
@@ -78,6 +81,7 @@ const onGrid = (player: RacePlayer): RacePlayer => ({
   finished: false,
   dnfReason: null,
   raceMs: null,
+  penaltyMs: 0,
   score: null,
 });
 
@@ -282,7 +286,10 @@ function report(room: Room, action: Act<'state'>, now: number): RaceResult<null>
   if (action.raceNo !== room.raceNo || room.status !== 'racing' || player.done || room.startAt === null) return done(null);
 
   room.lastSeen.set(player.id, now);
-  const raceMs = now - room.startAt;
+  // A scan zone driven past costs the sim's penalty in race time too, for humans and bots alike: without it,
+  // skipping the objective would beat a robot that stops for it.
+  const penaltyMs = action.done && action.finished ? (action.episode?.outcome.breakdown?.scansMissed ?? 0) * SCAN_MISS_PENALTY_MS : 0;
+  const raceMs = now - room.startAt + penaltyMs;
   room.players.set(player.id, {
     ...player,
     x: action.x,
@@ -297,6 +304,7 @@ function report(room: Room, action: Act<'state'>, now: number): RaceResult<null>
     finished: action.done && action.finished,
     dnfReason: action.done && !action.finished ? (action.dnfReason ?? 'stuck') : null,
     raceMs: action.done ? raceMs : null,
+    penaltyMs,
     score: action.done ? action.score : null,
   });
   if (action.done && action.finished && room.closesAt === null) room.closesAt = now + CLOSE_AFTER_LEADER_MS;

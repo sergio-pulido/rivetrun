@@ -86,6 +86,8 @@ export const RacePlayerSchema = z.object({
   dnfReason: RaceDnfSchema.nullable(),
   /** RACE TIME: wall-clock ms from the start signal to the end of the run, stamped by the server. */
   raceMs: z.number().min(0).nullable(),
+  /** Already inside raceMs: the sim's time penalty for scan zones driven past (10 s each). */
+  penaltyMs: z.number().min(0).default(0),
   score: z.number().nullable(),
 });
 export type RacePlayer = z.infer<typeof RacePlayerSchema>;
@@ -172,7 +174,7 @@ export const formatRaceTime = (ms: number): string => `${(ms / 1000).toFixed(1)}
 
 /** A player's result or progress, worded identically on the big screen and on every phone. */
 export function resultText(player: RacePlayer, trackLengthM: number): string {
-  if (player.finished && player.raceMs !== null) return formatRaceTime(player.raceMs);
+  if (player.finished && player.raceMs !== null) return `${formatRaceTime(player.raceMs)}${player.penaltyMs > 0 ? ` · incl. +${Math.round(player.penaltyMs / 1000)} s missed scan` : ''}`;
   if (player.done) return `DNF · ${RACE_DNF_LABEL[player.dnfReason ?? 'race_closed']}`;
   if (player.silent) return 'signal lost';
   return `${Math.round(Math.min(1, Math.max(0, player.x / trackLengthM)) * 100)} %`;
