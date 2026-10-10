@@ -16,13 +16,13 @@ const outcome = (patch: Partial<Outcome>): Outcome => ({
 
 describe('driveVerdict', () => {
   it('names the winner and the margin on the clock', () => {
-    expect(driveVerdict(outcome({ timeS: 27.4 }), outcome({ timeS: 29.7 }), 'jev')).toBe('You beat the AI by 2.3 s');
+    expect(driveVerdict(outcome({ timeS: 27.4 }), outcome({ timeS: 29.7 }), 'jev')).toBe('You beat Jev by 2.3 s');
     expect(driveVerdict(outcome({ timeS: 28.5 }), outcome({ timeS: 27.4 }), 'jev')).toBe('Jev wins by 1.1 s');
   });
 
   it('uses the times as displayed, so the margin never disagrees with the table', () => {
     // 43.65 shows as 43.6 and 43.7 as 43.7: the margin shown is 0.1, not 0.0.
-    expect(driveVerdict(outcome({ timeS: 43.65 }), outcome({ timeS: 43.7 }), 'jev')).toBe('You beat the AI by 0.1 s');
+    expect(driveVerdict(outcome({ timeS: 43.65 }), outcome({ timeS: 43.7 }), 'jev')).toBe('You beat Jev by 0.1 s');
     expect(driveVerdict(outcome({ timeS: 30.04 }), outcome({ timeS: 30.01 }), 'jev')).toBe('A dead heat with Jev');
   });
 

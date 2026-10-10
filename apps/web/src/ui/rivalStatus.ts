@@ -29,7 +29,7 @@ export interface RivalLine {
 
 export function rivalStatusLine(status: RivalStatus): RivalLine | null {
   if (status === 'ready') return { tone: 'ok', text: 'Jev is ready to race you.' };
-  if (status === 'computing') return { tone: 'wait', text: 'Jev is getting ready… Start now and you race the built-in driver instead.' };
-  if (status === 'unavailable') return { tone: 'warn', text: 'Jev could not drive this one: you will race the built-in driver.' };
+  if (status === 'computing') return { tone: 'wait', text: 'Jev is getting ready… Start now and you race the fixed rules instead.' };
+  if (status === 'unavailable') return { tone: 'warn', text: 'Jev could not drive this one: you will race the fixed rules.' };
   return null;
 }

@@ -30,8 +30,8 @@ describe('nextPollMs', () => {
 describe('rivalStatusLine', () => {
   it('says whether the ghost will be Jev', () => {
     expect(rivalStatusLine('ready')).toEqual({ tone: 'ok', text: 'Jev is ready to race you.' });
-    expect(rivalStatusLine('computing')).toEqual({ tone: 'wait', text: 'Jev is getting ready… Start now and you race the built-in driver instead.' });
-    expect(rivalStatusLine('unavailable')).toEqual({ tone: 'warn', text: 'Jev could not drive this one: you will race the built-in driver.' });
+    expect(rivalStatusLine('computing')).toEqual({ tone: 'wait', text: 'Jev is getting ready… Start now and you race the fixed rules instead.' });
+    expect(rivalStatusLine('unavailable')).toEqual({ tone: 'warn', text: 'Jev could not drive this one: you will race the fixed rules.' });
   });
 
   it('says nothing when it does not know', () => {

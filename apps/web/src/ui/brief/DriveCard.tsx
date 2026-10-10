@@ -65,7 +65,7 @@ export function DriveCard({ missionId, tip = null, rivalStatus = 'idle' }: Drive
           </>
         ) : (
           <>
-            The ghost is <span className="font-mono text-cyan">JEV</span> on this same robot and seed, driving with <span className="text-text">{orders}</span>. Change its orders in Jev mode.
+            The ghost is <span className="font-mono text-cyan">JEV</span> on this same robot and seed, driving with <span className="text-text">{orders}</span>. Switch to “Jev drives” to change its orders.
           </>
         )}
       </p>

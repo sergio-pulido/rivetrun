@@ -16,7 +16,7 @@ export const SLOTS: readonly SlotInfo[] = [
   { slot: 'locomotion', label: 'Drive', icon: 'wheel', rule: 'Pick one', max: 1 },
   { slot: 'motor', label: 'Motor', icon: 'motor', rule: 'Pick one', max: 1 },
   { slot: 'battery', label: 'Battery', icon: 'battery', rule: 'Pick one', max: 1 },
-  { slot: 'sensor', label: 'Sensors', icon: 'sensor', rule: `Up to ${MAX_SENSORS}: what the AI can know`, max: MAX_SENSORS },
+  { slot: 'sensor', label: 'Sensors', icon: 'sensor', rule: `Up to ${MAX_SENSORS}: what the brain can know`, max: MAX_SENSORS },
   { slot: 'extra', label: 'Extras', icon: 'extra', rule: `Up to ${MAX_EXTRAS}`, max: MAX_EXTRAS },
 ];
 

@@ -6,12 +6,12 @@ import { CoachContent } from './CoachSheet';
 const text = (markup: string): string => markup.replace(/<[^>]+>/g, '|').replace(/\|+/g, '|');
 
 describe('CoachSheet', () => {
-  it('teaches the v3 controls in Drive mode: throttle slider, brake slider, scan pads', () => {
+  it('teaches the v3 controls in Drive mode: throttle slider, brake slider, scan zones', () => {
     const shown = text(renderToStaticMarkup(createElement(CoachContent, { mode: 'drive', onStart: () => {}, onClose: () => {} })));
     expect(shown).toContain('Slide up on the right for throttle');
     expect(shown).toContain('A touch gives 30 %');
     expect(shown).toContain('Slide up on the left to brake');
-    expect(shown).toMatch(/Stop on a scan pad for 1\.5 s/);
+    expect(shown).toMatch(/Stop on a scan zone for 1\.5 s/);
     expect(shown).toMatch(/unscanned adds 10 s/);
     expect(shown).toContain('The ghost beside you is Jev');
     expect(shown).not.toContain('Hold the right side');

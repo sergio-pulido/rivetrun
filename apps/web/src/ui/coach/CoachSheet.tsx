@@ -34,8 +34,8 @@ function marks(mode: PlayMode): readonly Mark[] {
     { zone: 'brake', title: 'Slide up on the left to brake', body: 'Slow down before rocks, steps and water: hit them too fast and they do damage.' },
     {
       zone: 'scan',
-      title: rules ? `Stop on a scan pad for ${rules.holdS} s` : 'Stop on a scan pad to scan it',
-      body: `${rules ? `Each pad you leave unscanned adds ${rules.missPenaltyS} s. ` : ''}The ghost beside you is Jev, on the same robot and track.`,
+      title: rules ? `Stop on a scan zone for ${rules.holdS} s` : 'Stop on a scan zone to scan it',
+      body: `${rules ? `Each zone you leave unscanned adds ${rules.missPenaltyS} s. ` : ''}The ghost beside you is Jev, on the same robot and track.`,
     },
   ];
 }

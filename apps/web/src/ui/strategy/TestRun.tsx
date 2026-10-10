@@ -97,7 +97,7 @@ export function TestRun({ mission, result, onMission }: TestRunProps) {
         <p className="text-[13px] leading-snug text-muted">The test run has nothing to say about this build.</p>
       )}
 
-      <p className="text-[11px] leading-snug text-faint">A dry run by the built-in driver on this mission&apos;s seed. Your own run can go better or worse.</p>
+      <p className="text-[11px] leading-snug text-faint">A dry run by the fixed rules on this mission&apos;s seed. Your own run can go better or worse.</p>
     </section>
   );
 }

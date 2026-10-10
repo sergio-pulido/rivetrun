@@ -22,7 +22,7 @@ export function SensePanel({ build, folded = false }: SensePanelProps) {
   const heading = (
     <div className="flex flex-col gap-0.5">
       <h3 className="rr-label !text-cyan">What your robot can sense</h3>
-      <span className="text-[11px] leading-snug text-muted">Whoever drives it, Jev or the built-in driver, knows only this.</span>
+      <span className="text-[11px] leading-snug text-muted">Whoever drives it, Jev or the fixed rules, knows only this.</span>
     </div>
   );
   const body = <SenseLists core={core} can={can} cannot={cannot} sensorless={sensorless} />;

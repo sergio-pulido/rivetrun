@@ -157,7 +157,7 @@ export function Brief({ missionId }: { readonly missionId: MissionId }) {
             {/* Never blocks: the button stays live. The line only says who the ghost will be if you start now. */}
             {mode === 'drive' && (rivalStatus === 'computing' || rivalStatus === 'unavailable') ? (
               <p role="status" className={`text-center text-[11px] font-medium leading-tight ${rivalStatus === 'computing' ? 'text-cyan-soft' : 'text-warn'}`}>
-                {rivalStatus === 'computing' ? 'Jev is getting ready… drive now and you race the built-in driver' : 'Jev could not drive this one: you race the built-in driver'}
+                {rivalStatus === 'computing' ? 'Jev is getting ready… drive now and you race the fixed rules' : 'Jev could not drive this one: you race the fixed rules'}
               </p>
             ) : null}
             <PlayLink href={`/run/${mission.id}`} className="rr-btn rr-btn-primary w-full !min-h-[60px] !rounded-2xl !text-xl !tracking-[2px]">

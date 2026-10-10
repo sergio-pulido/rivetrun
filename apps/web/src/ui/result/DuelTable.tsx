@@ -18,8 +18,8 @@ type CountedGhost = GhostResult & { readonly fallbacks?: number; readonly decisi
 function fallbackNote(ghost: CountedGhost): string | null {
   const { fallbacks, decisions } = ghost;
   if (fallbacks === undefined || fallbacks === 0) return null;
-  if (decisions !== undefined && fallbacks >= decisions) return 'Jev never answered: heuristic drove';
-  return decisions === undefined ? `${fallbacks} by heuristic fallback` : `${fallbacks} of ${decisions} by heuristic fallback`;
+  if (decisions !== undefined && fallbacks >= decisions) return 'Jev never answered: the fixed rules drove';
+  return decisions === undefined ? `${fallbacks} answered by the fixed rules` : `${fallbacks} of ${decisions} answered by the fixed rules`;
 }
 
 const COLUMNS = 'grid grid-cols-[1.6fr_1fr_1fr_1fr] items-center gap-1.5';
@@ -50,7 +50,7 @@ export function driveVerdict(you: Outcome, rival: Outcome, rivalPolicy: Policy):
   // A 'human' rival is the ghost of the player's own best run with this robot.
   const own = rivalPolicy === 'human';
   const name = ai ? 'Jev' : own ? 'Your best run' : POLICY_LABEL[rivalPolicy];
-  const beaten = ai ? 'the AI' : own ? 'your best run' : name;
+  const beaten = ai ? 'Jev' : own ? 'your best run' : name;
   if (you.finished && rival.finished) {
     // Compared as shown, so the margin always matches the two times on screen.
     const margin = Number(formatSeconds(rival.timeS)) - Number(formatSeconds(you.timeS));
@@ -155,7 +155,7 @@ export function DuelTable({ episode, ghosts, briefing }: DuelTableProps) {
           <p className="font-mono text-[10px] leading-relaxed text-cyan-muted">
             {episode.decisions.length} decisions
             {episode.decisions.length > fallbacks ? ` · median ${Math.round(latency)} ms` : ''}
-            {fallbacks > 0 ? <span className="text-warn"> · {fallbacks} by heuristic fallback</span> : null}
+            {fallbacks > 0 ? <span className="text-warn"> · {fallbacks} answered by the fixed rules</span> : null}
           </p>
         </>
       )}
