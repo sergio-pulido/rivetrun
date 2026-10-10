@@ -35,3 +35,9 @@ export const missionDemands = (mission: Mission): readonly SegmentDemand[] | nul
 /** A headless run of the heuristic on the mission's fixed drive seed. Deterministic for a given build and mission. */
 export const assessBuild = (build: Build, mission: Mission, priority?: number): BuildAssessment | null =>
   attempt(() => sim.assessBuild(build, mission, priority === undefined ? undefined : { priority }));
+
+/**
+ * Drive mode: what a player who just holds the throttle should do differently on this mission with this build, in the
+ * sim's words. Null when full throttle finishes, when no driving saves the build, or when the sim cannot say.
+ */
+export const fullThrottleTip = (build: Build, mission: Mission): string | null => attempt(() => sim.fullThrottleCheck(build, mission).tip ?? null);

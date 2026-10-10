@@ -4,10 +4,17 @@ import { useEffect, useState } from 'react';
 import type { MissionId } from '@rivetrun/contracts';
 import { useBuildStore } from '@/state/build';
 import { personalBestTrace, usePersonalBestsStore } from '@/state/personalBests';
+import { Icon } from '@/ui/Icon';
 import { briefingName } from './BriefTheBrain';
 
 /** Drive mode on the Brief: the two sliders, and who the ghost you race is (Jev with its orders, or your own best run). */
-export function DriveCard({ missionId }: { readonly missionId: MissionId }) {
+interface DriveCardProps {
+  readonly missionId: MissionId;
+  /** The sim's warning for a player who would just hold the throttle here, with what to do instead. */
+  readonly tip?: string | null;
+}
+
+export function DriveCard({ missionId, tip = null }: DriveCardProps) {
   const build = useBuildStore((store) => store.build);
   const briefing = useBuildStore((store) => store.briefing);
   const priority = useBuildStore((store) => store.priority);
@@ -33,6 +40,12 @@ export function DriveCard({ missionId }: { readonly missionId: MissionId }) {
           <span className="font-display text-[15px] font-semibold">Throttle</span>
         </div>
       </div>
+      {tip ? (
+        <p role="status" className="flex items-start gap-2 rounded-[10px] border border-warn/50 px-2.5 py-2 text-xs leading-snug text-warn">
+          <Icon name="warn" size={14} className="mt-px shrink-0" />
+          {tip}
+        </p>
+      ) : null}
       <p className="text-xs leading-snug text-[#B8C0C9]">
         {ownGhost ? (
           <>

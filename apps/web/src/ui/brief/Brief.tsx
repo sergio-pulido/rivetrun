@@ -17,6 +17,7 @@ import { SensePanel } from '@/ui/sensing/SensePanel';
 import { Shell } from '@/ui/Shell';
 import { scenarioSegments } from '@/ui/strategy/scenario';
 import { ScenarioStrip } from '@/ui/strategy/ScenarioStrip';
+import { fullThrottleTip } from '@/ui/strategy/sim';
 import { TestRun } from '@/ui/strategy/TestRun';
 import { useTestRun } from '@/ui/strategy/useTestRun';
 import { TrackProfile } from '@/ui/TrackProfile';
@@ -75,6 +76,8 @@ export function Brief({ missionId }: { readonly missionId: MissionId }) {
   const rescue = blocked ? presetThatFinishes(mission) : null;
   const setSlot = useWorkshopUi((store) => store.setSlot);
   const overBudget = stats.overBudgetEur > 0;
+  // Drive mode only: two headless runs at most, once per build and mission. Jev mode has no thumb on the throttle.
+  const throttleTip = useMemo(() => (mode === 'drive' ? fullThrottleTip(build, mission) : null), [mode, build, mission]);
   // The sim's dry run of this build on this mission: a few ms, so it is simply redone when either changes.
   const testRun = useTestRun(build, mission, priority);
   const scenario = useMemo(() => scenarioSegments(mission, build, testRun.assessment), [mission, build, testRun.assessment]);
@@ -192,7 +195,7 @@ export function Brief({ missionId }: { readonly missionId: MissionId }) {
 
       {mode === 'drive' ? (
         <div className="rr-rise" style={{ ['--i' as string]: 3 }}>
-          <DriveCard missionId={mission.id} />
+          <DriveCard missionId={mission.id} tip={throttleTip} />
         </div>
       ) : (
         <>
