@@ -238,8 +238,20 @@ export function DriveAlerts({ mission, build, state, observation, landing = null
   const scanning = state?.scan;
   const scanLabel = scanning ? (mission.scanZones?.find((candidate) => candidate.id === scanning.zoneId)?.label ?? 'zone') : '';
   if (state?.airborne) {
-    // Nothing else matters until the wheels are down again.
-    return <AirChip pitchDeg={state.pitch} groundDeg={state.slopeDeg} />;
+    // Nothing else matters until the wheels are down again. A fan build is also told what keeps it up.
+    return (
+      <>
+        <AirChip pitchDeg={state.pitch} groundDeg={state.slopeDeg} />
+        {spec.fan ? (
+          <span className={BOX} style={{ border: `2px solid ${UI.safety}`, background: BACK, color: UI.safetyHi }}>
+            FAN
+            <span className="block text-[11px]" style={{ color: UI.text }}>
+              hold the button: up to {spec.fan.burnS} s of thrust
+            </span>
+          </span>
+        ) : null}
+      </>
+    );
   }
   return (
     <>
@@ -250,7 +262,7 @@ export function DriveAlerts({ mission, build, state, observation, landing = null
         </span>
       )}
       {scanning ? <ScanRing label={scanLabel} progress={scanning.progress} /> : zone ? <ZoneChip zone={zone} /> : null}
-      {warning && !scanning ? <HazardChip warning={warning} canJump={build.extras.includes('piston_jump')} /> : null}
+      {warning && !scanning ? <HazardChip warning={warning} canJump={spec.jumpImpulseMps > 0} /> : null}
       {water && !scanning ? <WaterChip distanceM={water.distanceM} depthCm={depthCm} wadesCm={spec.maxWadingDepthCm} /> : null}
     </>
   );

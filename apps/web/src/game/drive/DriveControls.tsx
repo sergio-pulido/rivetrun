@@ -108,12 +108,12 @@ function Gauge({ thumb, value, side, color, band, marks }: GaugeProps) {
 }
 
 /** Which special the one action button offers right now. JUMP and WINCH only exist with their parts. */
-function contextualSpecial(build: Build, slopeDeg: number, winchHeld: boolean): ControlSpecial {
-  const hasPiston = build.extras.includes('piston_jump');
+function contextualSpecial(build: Build, hasJump: boolean, slopeDeg: number, winchHeld: boolean): ControlSpecial {
   const hasWinch = build.extras.includes('winch');
   if (winchHeld) return 'winch';
   if (slopeDeg >= STEEP_DEG) return hasWinch ? 'winch' : 'climb';
-  if (hasPiston) return 'jump';
+  // The piston and the ducted fan share the button (the sim's spec says which one the build has).
+  if (hasJump) return 'jump';
   return 'climb';
 }
 
@@ -223,18 +223,40 @@ export function DriveControls({ drive, feed, build }: DriveControlsProps) {
   // Idle coach: nobody has touched the throttle a few seconds into the run. The sim does not count an untouched
   // robot as stuck; this shows where to put the thumb.
   const idle = !driven && !done && (view.state?.t ?? 0) >= IDLE_COACH_AFTER_S;
-  const special = escape === 'climb' || escape === 'winch' ? escape : contextualSpecial(build, slope, input.winch);
-  const cooldownMs = (PARTS_BY_ID.get('piston_jump')?.effects.cooldownS ?? 3) * 1000;
-  const sinceJump = input.jumpAt > 0 ? performance.now() - input.jumpAt : Infinity;
+  const spec = useMemo(() => deriveSpec(build), [build]);
+  // A ducted fan (RR-THRUST) is on the same button as the piston, held instead of charged: every step the button is
+  // down it thrusts, for up to `burnS` per flight, and it stays dark for its cool-down after landing.
+  const fan = spec.fan;
+  const special = escape === 'climb' || escape === 'winch' ? escape : contextualSpecial(build, spec.jumpImpulseMps > 0, slope, input.winch);
+  const cooldownMs = (spec.jumpCooldownS || 3) * 1000;
+  // The sim's public state does not report the burn, so the heat is counted here from what it does report: the sim's
+  // clock while the button is held. A landing after a burn starts the cool-down.
+  const burn = useRef({ s: 0, lastT: 0, airborne: false, cooledFrom: 0 });
+  if (fan) {
+    const heat = burn.current;
+    const t = view.state?.t ?? 0;
+    const dt = Math.min(0.2, Math.max(0, t - heat.lastT));
+    heat.lastT = t;
+    if (input.jumpHeld && special === 'jump' && heat.s < fan.burnS) heat.s = Math.min(fan.burnS, heat.s + dt);
+    if (heat.s > 0 && heat.airborne && !airborne) {
+      heat.s = 0;
+      heat.cooledFrom = performance.now();
+    }
+    heat.airborne = airborne;
+    if (t === 0) Object.assign(heat, { s: 0, cooledFrom: 0 });
+  }
+  const burnt = fan ? burn.current.s / fan.burnS : 0;
+  const sinceJump = fan ? (burn.current.cooledFrom > 0 ? performance.now() - burn.current.cooledFrom : Infinity) : input.jumpAt > 0 ? performance.now() - input.jumpAt : Infinity;
   const cooling = special === 'jump' && sinceJump < cooldownMs;
-  const ready = !done && !(special === 'jump' && !input.jumpHeld && (cooling || airborne));
+  // The piston fires once from the ground. The fan may be let go and lit again in the air until its burn is used up.
+  const ready = !done && !(special === 'jump' && !input.jumpHeld && (cooling || (fan ? burnt >= 1 : airborne)));
 
   // The ring only needs frames while it is filling.
   useEffect(() => {
     if (!cooling) return undefined;
     const id = window.setInterval(() => setTick((n) => n + 1), 50);
     return () => window.clearInterval(id);
-  }, [cooling, input.jumpAt]);
+  }, [cooling, input.jumpAt, fan]);
   void tick;
 
   useEffect(() => {
@@ -243,7 +265,7 @@ export function DriveControls({ drive, feed, build }: DriveControlsProps) {
 
   const throttle = useSlide(drive.setThrottle);
   const brake = useSlide(drive.setBrake);
-  const safeContactMps = useMemo(() => safeContactSpeedMps(deriveSpec(build)), [build]);
+  const safeContactMps = useMemo(() => safeContactSpeedMps(spec), [spec]);
   const speed = view.state?.v ?? 0;
   const warning = hazardWarning(view.observation?.value ?? null, speed, safeContactMps);
 
@@ -302,7 +324,9 @@ export function DriveControls({ drive, feed, build }: DriveControlsProps) {
   // Charging: the sim reports how much of the impulse is in the piston (0.4 for a tap, 1 after a full second).
   const charging = special === 'jump' && input.jumpHeld;
   const charge = view.state?.jumpCharge ?? 0;
-  const fraction = charging ? charge : cooling ? sinceJump / cooldownMs : 1;
+  // The ring. Piston: the charge while held, full when ready. Fan: its heat, empty when cool and filling while it burns.
+  const fraction = fan ? (cooling ? sinceJump / cooldownMs : burnt) : charging ? charge : cooling ? sinceJump / cooldownMs : 1;
+  const label = special === 'jump' && fan ? 'FAN' : SPECIAL_LABEL[special];
   const active = (special === 'climb' && input.climb) || (special === 'winch' && input.winch) || charging;
   const accent = active ? UI.safety : ready ? UI.text : UI.dim;
 
@@ -332,7 +356,7 @@ export function DriveControls({ drive, feed, build }: DriveControlsProps) {
           <button
             type="button"
             disabled={!ready}
-            aria-label={`${SPECIAL_LABEL[special]}${cooling ? ', re-arming' : ''}`}
+            aria-label={`${label}${cooling ? (fan ? ', cooling' : ', re-arming') : ''}`}
             aria-pressed={active}
             onPointerDown={(event) => {
               event.stopPropagation();
@@ -361,7 +385,7 @@ export function DriveControls({ drive, feed, build }: DriveControlsProps) {
                 cy="44"
                 r={RING_R}
                 fill="none"
-                stroke={active ? UI.safety : cooling ? UI.safetyHi : UI.safety}
+                stroke={fan && special === 'jump' && !cooling ? (burnt > 0.75 ? UI.bad : UI.safety) : active ? UI.safety : cooling ? UI.safetyHi : UI.safety}
                 strokeWidth="5"
                 strokeLinecap="round"
                 strokeDasharray={RING_LENGTH}
@@ -376,14 +400,14 @@ export function DriveControls({ drive, feed, build }: DriveControlsProps) {
                   {((cooldownMs - sinceJump) / 1000).toFixed(1)}
                 </span>
                 <span className="font-mono text-[9px] leading-none tracking-[1px]" style={{ color: UI.dim }}>
-                  s · JUMP
+                  s · {fan ? 'FAN' : 'JUMP'}
                 </span>
               </span>
             ) : (
               <span className="relative flex flex-col items-center gap-0.5">
-                <span className="text-[15px] font-bold leading-none tracking-[1.5px] tabular-nums">{charging ? `${Math.round(charge * 100)} %` : SPECIAL_LABEL[special]}</span>
+                <span className="text-[15px] font-bold leading-none tracking-[1.5px] tabular-nums">{charging && !fan ? `${Math.round(charge * 100)} %` : label}</span>
                 <span className="font-mono text-[9px] leading-none tracking-[1px]" style={{ color: UI.dim }}>
-                  {special === 'climb' ? (input.climb ? 'ON' : 'OFF') : special === 'winch' ? 'HOLD' : charging ? 'LET GO' : airborne ? 'AIR' : 'HOLD'}
+                  {special === 'climb' ? (input.climb ? 'ON' : 'OFF') : special === 'winch' ? 'HOLD' : fan ? (charging ? `BURN ${(burn.current.s).toFixed(1)} s` : burnt >= 1 ? 'SPENT' : 'HOLD') : charging ? 'LET GO' : airborne ? 'AIR' : 'HOLD'}
                 </span>
               </span>
             )}
