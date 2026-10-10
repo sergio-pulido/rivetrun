@@ -31,9 +31,9 @@ function floorTexture(): CanvasTexture {
   if (ctx) {
     const c = size / 2;
     const pool = ctx.createRadialGradient(c, c, 0, c, c, c);
-    pool.addColorStop(0, 'rgba(92, 98, 108, 1)');
-    pool.addColorStop(0.28, 'rgba(62, 67, 75, 1)');
-    pool.addColorStop(0.62, 'rgba(33, 36, 41, 1)');
+    pool.addColorStop(0, 'rgba(58, 62, 70, 1)');
+    pool.addColorStop(0.3, 'rgba(44, 48, 54, 1)');
+    pool.addColorStop(0.62, 'rgba(29, 32, 37, 1)');
     pool.addColorStop(1, 'rgba(21, 23, 27, 1)');
     ctx.fillStyle = pool;
     ctx.fillRect(0, 0, size, size);
@@ -45,13 +45,17 @@ function floorTexture(): CanvasTexture {
 
 // Bake keys: the turntable merges into one matte and one metal mesh (see robot/bake.tsx).
 const TABLE = {
-  base: withBakeKey(new MeshStandardMaterial({ color: '#1d2025' }), 'metal'),
-  rim: withBakeKey(new MeshStandardMaterial({ color: '#30343c' }), 'matte'),
-  // Lighter than the tyres that stand on it.
-  top: withBakeKey(new MeshStandardMaterial({ color: '#5a606a' }), 'matte'),
-  tick: withBakeKey(new MeshStandardMaterial({ color: '#a2a9b3' }), 'matte'),
+  // Dark graphite: the rover is the bright thing on the stage, the table only carries it. The rim light and the
+  // floor's pool of light keep black tyres apart from it.
+  base: withBakeKey(new MeshStandardMaterial({ color: '#0f1114' }), 'metal'),
+  rim: withBakeKey(new MeshStandardMaterial({ color: '#191b1f' }), 'matte'),
+  top: withBakeKey(new MeshStandardMaterial({ color: '#1c1e22' }), 'matte'),
+  tick: withBakeKey(new MeshStandardMaterial({ color: '#6f7783' }), 'matte'),
   mark: withBakeKey(new MeshStandardMaterial({ color: UI.safety }), 'matte'),
 };
+
+/** Height the camera looks at: the middle of the rover on its turntable (the MK-II stands about 1 unit tall). */
+const FOCUS_Y = 0.55;
 
 /** Keeps the whole robot in frame for any canvas shape. */
 function FitCamera() {
@@ -60,12 +64,14 @@ function FitCamera() {
   useEffect(() => {
     const aspect = size.width / Math.max(1, size.height);
     const halfV = (camera.fov * Math.PI) / 360;
-    const halfWidth = 1.45;
-    const halfHeight = 1.12;
+    // The rover's longest diagonal turns through the view, and the page lays labels over the corners and the
+    // bottom edge of this stage (slot hotspots, stat bars): frame it with room to spare on every side.
+    const halfWidth = 1.95;
+    const halfHeight = 1.5;
     const distance = Math.max(halfWidth / (Math.tan(halfV) * aspect), halfHeight / Math.tan(halfV)) + 1;
     const elevation = 0.4;
-    camera.position.set(0, 0.8 + Math.sin(elevation) * distance, Math.cos(elevation) * distance);
-    camera.lookAt(0, 0.8, 0);
+    camera.position.set(0, FOCUS_Y + Math.sin(elevation) * distance, Math.cos(elevation) * distance);
+    camera.lookAt(0, FOCUS_Y, 0);
     camera.updateProjectionMatrix();
   }, [camera, size]);
   return null;
@@ -164,10 +170,10 @@ export function WorkshopScene({ build, spin = 0.45, plain = false, picked = null
     <>
       <FitCamera />
       <color attach="background" args={[BACKDROP]} />
-      {/* Three-point lighting. Key: high, front right, the one that casts the shadow. */}
+      {/* Three-point lighting. Key: high, front left, the one that casts the shadow. */}
       <directionalLight
-        position={[3.6, 6.2, 4.4]}
-        intensity={3.1}
+        position={[-3.8, 5.8, 4.6]}
+        intensity={2.7}
         color="#fff6ea"
         castShadow
         shadow-mapSize={[1024, 1024]}
@@ -180,19 +186,19 @@ export function WorkshopScene({ build, spin = 0.45, plain = false, picked = null
         shadow-camera-near={1}
         shadow-camera-far={18}
       />
-      {/* Fill: low, front left, cool and soft, so the side away from the key is never black. */}
-      <directionalLight position={[-5, 2.4, 3.6]} intensity={1.5} color="#dfe8ff" />
-      {/* Rim: from behind and above, to cut the dark tyres and the deck out of the backdrop. */}
-      <directionalLight position={[-1.5, 5, -6]} intensity={2.6} color="#ffffff" />
-      <hemisphereLight args={['#e9eef5', '#3a3d44', 0.85]} />
+      {/* Fill: low, front right, cool and soft, so the side away from the key is never black. */}
+      <directionalLight position={[4.6, 2.2, 3.4]} intensity={0.9} color="#dfe8ff" />
+      {/* Rim: from behind, high and to the right, a bright edge that cuts the silhouette out of the backdrop. */}
+      <directionalLight position={[2.8, 4.6, -5.6]} intensity={3.4} color="#ffffff" />
+      <hemisphereLight args={['#dfe6f0', '#2a2d33', 0.55]} />
       <Reflections plain={plain}>
       <Environment resolution={64} frames={1}>
         <color attach="background" args={['#22252b']} />
         {/* Softboxes: black plastic and rubber only read through what they reflect. */}
-        <Lightformer form="rect" intensity={3.2} color="#ffffff" position={[0, 6, 0]} rotation={[Math.PI / 2, 0, 0]} scale={[10, 10, 1]} />
-        <Lightformer form="rect" intensity={2.2} color="#f2f5ff" position={[-6, 2, 2]} rotation={[0, Math.PI / 2, 0]} scale={[7, 4, 1]} />
-        <Lightformer form="rect" intensity={1.8} color="#fff4e6" position={[6, 2, 2]} rotation={[0, -Math.PI / 2, 0]} scale={[7, 4, 1]} />
-        <Lightformer form="rect" intensity={1.6} color="#ffffff" position={[0, 2, -7]} scale={[9, 3, 1]} />
+        <Lightformer form="rect" intensity={2.2} color="#ffffff" position={[0, 6, 0]} rotation={[Math.PI / 2, 0, 0]} scale={[10, 10, 1]} />
+        <Lightformer form="rect" intensity={1.8} color="#fff4e6" position={[-6, 2, 2]} rotation={[0, Math.PI / 2, 0]} scale={[7, 4, 1]} />
+        <Lightformer form="rect" intensity={0.9} color="#f2f5ff" position={[6, 2, 2]} rotation={[0, -Math.PI / 2, 0]} scale={[7, 4, 1]} />
+        <Lightformer form="rect" intensity={2.4} color="#ffffff" position={[2, 2.5, -7]} scale={[9, 3, 1]} />
       </Environment>
       </Reflections>
 

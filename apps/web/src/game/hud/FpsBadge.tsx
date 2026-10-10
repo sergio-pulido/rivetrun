@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { UI } from '../palette';
 import { quality } from '../quality';
 import { mk2Requested } from '../robot/mk2/flag';
-import { mk2Live } from '../robot/mk2/Mk2Parts';
+import { mk2Live } from '../robot/mk2/live';
 
 const STORAGE_KEY = 'rivetrun.fps';
 

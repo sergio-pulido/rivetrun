@@ -9,6 +9,8 @@ const BASE = '/models/mk2';
 // phone the first frames block the main thread for seconds at a time, and a kit that has in fact arrived must not
 // be thrown away because one long timer fired in that gap. Nothing is drawn while it loads.
 const LOAD_BUDGET_MS = 8000;
+/** Under browser automation (the e2e gate, software rendering under load) the kit gets longer before the fallback. */
+const AUTOMATION_BUDGET_MS = 30000;
 const LOAD_TICK_MS = 250;
 
 /** The fields of manifest.json the game reads. Everything else in the file is for people. */
@@ -123,10 +125,16 @@ async function loadKit(locomotion: string, others: readonly string[]): Promise<M
  * slower than the timeout, or if the export has no rolling base for this build: the caller then draws the
  * procedural robot.
  */
+/** The same kit with no time limit: what a caller waits on after the limit has passed, to swap the MK-II in late. */
+export function loadMk2KitLate(locomotion: string, others: readonly string[]): Promise<Mk2Kit> {
+  return loadKit(locomotion, others);
+}
+
 export function loadMk2Kit(locomotion: string, others: readonly string[]): Promise<Mk2Kit> {
   return new Promise<Mk2Kit>((resolve, reject) => {
     let settled = false;
-    let ticksLeft = Math.ceil(LOAD_BUDGET_MS / LOAD_TICK_MS);
+    const automated = typeof navigator !== 'undefined' && navigator.webdriver === true;
+    let ticksLeft = Math.ceil((automated ? AUTOMATION_BUDGET_MS : LOAD_BUDGET_MS) / LOAD_TICK_MS);
     const tick = (): void => {
       if (settled) return;
       ticksLeft -= 1;

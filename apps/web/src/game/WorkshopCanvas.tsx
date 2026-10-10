@@ -7,6 +7,7 @@ import { haptic } from './drive/haptics';
 import { pickKey, type RoverPick } from './robot/pick';
 import { SceneFrame } from './SceneFrame';
 import { WorkshopScene } from './workshop/WorkshopScene';
+import { useRobotSignal } from './robot/mk2/live';
 
 export interface WorkshopCanvasProps {
   /** Updates live: pass the build being edited. */
@@ -27,6 +28,7 @@ export interface WorkshopCanvasProps {
 export default function WorkshopCanvas({ build = PRESETS[DEFAULT_PRESET_ID].build, spin, onReady, onPick, picked }: WorkshopCanvasProps) {
   const [own, setOwn] = useState<RoverPick | null>(null);
   const shown = picked === undefined ? own : picked;
+  const robot = useRobotSignal('workshop');
   const pick = (next: RoverPick | null): void => {
     if (next) haptic(8);
     setOwn(next);
@@ -34,7 +36,8 @@ export default function WorkshopCanvas({ build = PRESETS[DEFAULT_PRESET_ID].buil
   };
   return (
     // data-picked: the current selection, readable by QA and e2e tests without touching WebGL.
-    <div className="relative h-full w-full" data-picked={shown ? pickKey(shown) : ''}>
+    // data-robot: which robot is on the turntable (mk2, procedural with data-robot-reason, or loading).
+    <div className="relative h-full w-full" data-picked={shown ? pickKey(shown) : ''} {...robot}>
       <SceneFrame
         label="Powering up the bench"
         bare

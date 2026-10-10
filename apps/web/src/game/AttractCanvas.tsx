@@ -5,6 +5,7 @@ import type { GhostTrace, Mission } from '@rivetrun/contracts';
 import { MISSIONS, PRESETS, heuristicBrain, runHeadless } from '@rivetrun/sim';
 import { DNF_LABEL, UI } from './palette';
 import { quality } from './quality';
+import { useRobotSignal } from './robot/mk2/live';
 import { SceneFrame } from './SceneFrame';
 import { SceneLoader } from './SceneLoader';
 import { AttractScene, type AttractClock, type AttractEntry } from './run/AttractScene';
@@ -138,9 +139,10 @@ export default function AttractCanvas({ mission = MISSIONS.M5, speed = 1, legend
   const entries = useAttractEntries(mission);
   const clock = useRef<AttractClock>({ t: 0, loop: 0 });
   const tier = quality();
+  const robot = useRobotSignal('run');
 
   return (
-    <div className="relative h-full w-full overflow-hidden" style={{ background: UI.ink }}>
+    <div className="relative h-full w-full overflow-hidden" style={{ background: UI.ink }} {...robot}>
       {/* Recording the replays is quick, but the cover is up from the very first paint. */}
       {entries === null && <SceneLoader label="Warming up the replay" tips />}
       {entries && entries.length === 0 && <SceneLoader failed="Replay unavailable" tips={false} />}

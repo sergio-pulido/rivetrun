@@ -11,6 +11,7 @@ import { Face } from './Face';
 import { Locomotion } from './Locomotion';
 import { MaterialsContext, ghostMaterials, robotMaterials } from './materials';
 import { mk2Requested, type Mk2Scope } from './mk2/flag';
+import { mk2Live } from './mk2/live';
 import { Mk2Parts, useMk2Kit } from './mk2/Mk2Parts';
 
 /** Procedural parts are modelled on a deck whose top is this far above the deck frame's origin. */
@@ -74,6 +75,9 @@ export function RobotModel({ build, drive, state, action, expression, dnf = fals
   const wantsMk2 = mk2Requested(scope);
   const { kit: mk2, status } = useMk2Kit(build, !lite && wantsMk2);
   const lacks = (id: string): boolean => mk2?.missing.includes(id) ?? false;
+  // Drawn procedurally although the MK-II was wanted: say so (the stage's data-robot attribute, the fps badge).
+  const fellBack = !lite && wantsMk2 && status === 'failed' && !mk2;
+  useEffect(() => (fellBack ? mk2Live.fallback(mk2Live.reason ?? 'the kit did not load') : undefined), [fellBack]);
 
   useFrame(({ clock }) => {
     const node = sway.current;

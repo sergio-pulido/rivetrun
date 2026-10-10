@@ -6,7 +6,8 @@ import type { Object3D } from 'three';
 import type { Build } from '@rivetrun/contracts';
 import { RobotContext } from '../drive';
 import { Part } from '../Part';
-import { loadMk2Kit, type Mk2Kit } from './loadModules';
+import { mk2Live } from './live';
+import { loadMk2Kit, loadMk2KitLate, type Mk2Kit } from './loadModules';
 
 const otherIds = (build: Build): string[] => [build.motor, build.battery, ...new Set(build.sensors), ...new Set(build.extras)];
 
@@ -43,8 +44,18 @@ export function useMk2Kit(build: Build, enabled: boolean): Mk2State {
         if (!cancelled) setState({ key, kit, failed: false });
       })
       .catch((cause: unknown) => {
-        mk2Live.reason = cause instanceof Error ? cause.message : 'load failed';
-        if (!cancelled) setState({ key, kit: null, failed: true });
+        mk2Live.fail(cause instanceof Error ? cause.message : 'load failed');
+        if (cancelled) return;
+        setState({ key, kit: null, failed: true });
+        // Too slow is not broken: the files keep loading, and when they arrive the MK-II takes over from the
+        // fallback (a phone on a slow link is not left with the procedural robot for the whole session).
+        // A kit that is really missing or broken rejects here as well and the fallback stays.
+        loadMk2KitLate(locomotion!, others).then(
+          (kit) => {
+            if (!cancelled) setState({ key, kit, failed: false });
+          },
+          () => undefined,
+        );
       });
     return () => {
       cancelled = true;
@@ -56,10 +67,6 @@ export function useMk2Kit(build: Build, enabled: boolean): Mk2State {
   // A newer build is loading: keep drawing the last kit that loaded (or stay on the fallback).
   return { kit: state.kit, status: state.failed ? 'failed' : 'ready' };
 }
-
-/** How many MK-II robots are on screen right now: lets the frame-rate badge say what is really being measured. */
-/** `robots`: MK-II robots on screen. `reason`: why the last one fell back to the procedural robot, for the frame-rate badge. */
-export const mk2Live: { robots: number; reason: string | null } = { robots: 0, reason: null };
 
 interface Pivots {
   readonly wheels: Object3D[];
@@ -117,12 +124,7 @@ export function Mk2Parts({ kit, droneAway }: Mk2PartsProps) {
     return { parts, pivots, kick: { value: 0, wasAirborne: false } };
   }, [shown, kit.lift]);
 
-  useEffect(() => {
-    mk2Live.robots += 1;
-    return () => {
-      mk2Live.robots -= 1;
-    };
-  }, []);
+  useEffect(() => mk2Live.mount(), []);
 
   useFrame((_, rawDt) => {
     const drive = context?.drive.current;

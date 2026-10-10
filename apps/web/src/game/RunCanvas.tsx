@@ -11,6 +11,7 @@ import { UI } from './palette';
 import { quality } from './quality';
 import { SceneFrame } from './SceneFrame';
 import { mk2Requested } from './robot/mk2/flag';
+import { useRobotSignal } from './robot/mk2/live';
 import { preloadMk2 } from './robot/mk2/Mk2Parts';
 import { RunScene } from './run/RunScene';
 import { createRunFeed, type RunFeed } from './runFeed';
@@ -115,6 +116,7 @@ export default function RunCanvas({ mission = MISSIONS.M5, build = PRESETS[DEFAU
   const dev = useMemo(() => (process.env.NODE_ENV === 'production' ? null : pinnable(activeFeed)), [activeFeed]);
   const tier = quality();
   const telemetryOpen = useTelemetryOpen();
+  const robot = useRobotSignal('run');
   // The run starts (onReady) when the scene has drawn AND the robot's kit is in, so the robot is on the start line
   // from the first moment. A kit that fails counts as in (the fallback robot is drawn); so does one that takes too long.
   const [kitIn, setKitIn] = useState(false);
@@ -144,7 +146,8 @@ export default function RunCanvas({ mission = MISSIONS.M5, build = PRESETS[DEFAU
   }, [kitIn, sceneIn, onReady]);
 
   return (
-    <div className="relative h-full w-full overflow-hidden" style={{ background: UI.ink }}>
+    // data-robot: which robot the run draws (mk2, procedural with data-robot-reason, or loading), for QA.
+    <div className="relative h-full w-full overflow-hidden" style={{ background: UI.ink }} {...robot}>
       <SceneFrame
         label="Building the track"
         failureHelp="The run itself still works: the gauges and controls are live."
