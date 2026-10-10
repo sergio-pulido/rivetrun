@@ -22,7 +22,7 @@ If a module file is missing, slow (3 s) or broken, that robot is drawn procedura
 - One GLB per module: every catalog part id in `packages/sim/src/data/parts.ts`, plus the fixed modules `chassis` and `controller`. File name as listed in the manifest (`<id>.glb`).
 - `manifest.json` (see below) is required: the game reads it first and loads only the files it lists.
 - The export may be **partial**. Modules that are not in the manifest yet are drawn procedurally (see "What the game does").
-- Plain glTF 2.0 binary. **No Draco, no meshopt, no KTX2/Basis** (the app ships no decoders), no external URIs, no cameras, lights or animations.
+- glTF 2.0 binary, plain or **meshopt-compressed** (`EXT_meshopt_compression`; the app bundles the meshopt decoder). **No Draco, no KTX2/Basis** (no decoders for those), no external URIs, no cameras, lights or animations.
 - There is no `face.glb` in v2.
 
 ## Coordinates
@@ -139,5 +139,5 @@ Everything else is for people and tools: `deferred` (not exported yet), `printed
 4. Every `print_<id>` id exists in `docs/inputs/printed-parts.json`; `manifest.printedParts` matches the nodes in the file.
 5. No mesh is shared between a `print_` node and anything outside it.
 6. Budgets above, per file and for each of the four presets assembled.
-7. No Draco / meshopt / KTX2 extensions, no external URIs, no cameras, lights or animations.
+7. No Draco or KTX2 extensions (meshopt is allowed), no external URIs, no cameras, lights or animations.
 8. Wheel pivots at the axle centres; origin on the ground.

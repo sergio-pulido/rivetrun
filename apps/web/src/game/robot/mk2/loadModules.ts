@@ -1,4 +1,5 @@
 import { Box3, Vector3, type Mesh, type Object3D } from 'three';
+import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 
 /** The canonical MK-II v2 export (docs/MK2_ASSET_CONTRACT.md). Served by the app itself; the v1 folder is never read. */
@@ -41,6 +42,8 @@ export interface Mk2Kit {
 }
 
 const loader = new GLTFLoader();
+// Modules may be meshopt-compressed (EXT_meshopt_compression). The decoder ships inside the bundle: nothing is fetched. No Draco.
+loader.setMeshoptDecoder(MeshoptDecoder);
 let manifestPromise: Promise<Mk2Manifest> | null = null;
 const cache = new Map<string, Promise<Mk2Module>>();
 

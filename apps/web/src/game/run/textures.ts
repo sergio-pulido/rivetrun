@@ -108,6 +108,11 @@ const TERRAIN_DRAW: Readonly<Record<TerrainId, Draw>> = {
     blotches(ctx, size, rand, 22, ['rgba(40,22,10,0.55)', 'rgba(140,95,60,0.35)'], 14, 48);
     speckle(ctx, size, rand, 500, ['rgba(20,10,5,0.4)', 'rgba(190,150,110,0.25)'], 2.2);
   },
+  // Fresh snow: soft blue shadows in the drifts and a little sparkle, no cracks.
+  snow: (ctx, size, rand) => {
+    blotches(ctx, size, rand, 18, ['rgba(150,180,215,0.22)', 'rgba(255,255,255,0.6)'], 24, 80);
+    speckle(ctx, size, rand, 700, ['rgba(255,255,255,0.9)', 'rgba(170,195,225,0.25)'], 1.4);
+  },
   ice: (ctx, size, rand) => {
     blotches(ctx, size, rand, 14, ['rgba(255,255,255,0.55)', 'rgba(110,190,235,0.35)'], 20, 70);
     cracks(ctx, size, rand, 5, 'rgba(255,255,255,0.8)', 1.2);

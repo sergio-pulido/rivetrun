@@ -25,7 +25,8 @@ export function useMk2Kit(build: Build, enabled: boolean): Mk2Kit | null {
       .then((kit) => {
         if (!cancelled) setLoaded({ key, kit });
       })
-      .catch(() => {
+      .catch((cause: unknown) => {
+        mk2Live.reason = cause instanceof Error ? cause.message : 'load failed';
         if (!cancelled) setLoaded(null);
       });
     return () => {
@@ -36,7 +37,8 @@ export function useMk2Kit(build: Build, enabled: boolean): Mk2Kit | null {
 }
 
 /** How many MK-II robots are on screen right now: lets the frame-rate badge say what is really being measured. */
-export const mk2Live = { robots: 0 };
+/** `robots`: MK-II robots on screen. `reason`: why the last one fell back to the procedural robot, for the frame-rate badge. */
+export const mk2Live: { robots: number; reason: string | null } = { robots: 0, reason: null };
 
 interface Pivots {
   readonly wheels: Object3D[];

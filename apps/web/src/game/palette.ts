@@ -44,6 +44,7 @@ export const TERRAIN_LOOK: Readonly<Record<TerrainId, TerrainLook>> = {
   grass: { label: 'Grass', top: '#5fae3f', lip: '#3f8a2c', dust: '#8fbf5a', hud: '#5fae3f', roughness: 1, metalness: 0, land: '#4d8a38' },
   sand: { label: 'Sand', top: '#e8c77d', lip: '#cfa95c', dust: '#f0d9a0', hud: '#e8c77d', roughness: 1, metalness: 0, land: '#d9b970' },
   mud: { label: 'Mud', top: '#5d3d26', lip: '#402817', dust: '#6b4428', hud: '#8a5a36', roughness: 0.22, metalness: 0.05, land: '#5a5a34' },
+  snow: { label: 'Snow', top: '#eef3f8', lip: '#c3d2e0', dust: '#ffffff', hud: '#e3ecf5', roughness: 0.9, metalness: 0, land: '#e6edf3' },
   ice: { label: 'Ice', top: '#cdefff', lip: '#8fd0ee', dust: '#f2fbff', hud: '#a5e4ff', roughness: 0.06, metalness: 0.25, land: '#dfeef5' },
   water: { label: 'Water', top: '#2f8fd6', lip: '#b89a5e', dust: '#cfeaff', hud: '#3b9eea', roughness: 0.08, metalness: 0.2, land: '#c9b47a' },
   rock: { label: 'Rock', top: '#858a93', lip: '#5f646c', dust: '#a9adb4', hud: '#9aa0aa', roughness: 0.85, metalness: 0.05, land: '#7b7f78' },

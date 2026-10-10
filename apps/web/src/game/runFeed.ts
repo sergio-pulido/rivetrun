@@ -142,6 +142,8 @@ function reduce(view: RunView, event: RunEvent): RunView {
     case 'observation':
       return { ...view, observation: { value: event.observation, t: event.t, live: true, control: event.control } };
     // Height while airborne comes with every frame (SimState.heightM): nothing to keep from these.
+    // A gust also shows on every frame (SimState.gust, windMps).
+    case 'gust':
     case 'terrainEnter':
     case 'airborne':
       return view;

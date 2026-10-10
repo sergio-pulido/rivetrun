@@ -67,7 +67,7 @@ export function FpsBadge() {
         {stats.now} fps
       </span>
       <span className="block tabular-nums" style={{ color: UI.dim }}>
-        worst {stats.worst} · {!mk2Requested() ? 'procedural' : mk2Live.robots > 0 ? 'MK-II' : 'MK-II not loaded: procedural'} · dpr ≤ {quality().maxDpr}
+        worst {stats.worst} · {!mk2Requested() ? 'procedural' : mk2Live.robots > 0 ? 'MK-II' : `MK-II not loaded${mk2Live.reason ? ` (${mk2Live.reason})` : ''}: procedural`} · dpr ≤ {quality().maxDpr}
       </span>
     </button>
   );

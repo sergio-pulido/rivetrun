@@ -178,7 +178,7 @@ function Player({ feed, build, layout, pose, timeScale, particles, hands }: Play
       const x = spec.where === 'rear' ? p.x - dir * 0.55 : spec.where === 'front' ? p.x + 0.7 : p.x - 0.1;
       const y = spec.where === 'top' ? p.y + 0.8 : effect === 'bubbles' ? p.y + 0.5 : p.y + 0.06;
       // Spinning wheels throw up whatever they stand on: mud, ice chips, spray, or the ground's own dust.
-      const roost = effect === 'slip' ? (state.terrain === 'mud' ? 'mud' : state.terrain === 'ice' ? 'ice' : state.terrain === 'water' ? 'splash' : 'dust') : spec.kind;
+      const roost = effect === 'slip' ? (state.terrain === 'mud' ? 'mud' : state.terrain === 'ice' || state.terrain === 'snow' ? 'ice' : state.terrain === 'water' ? 'splash' : 'dust') : spec.kind;
       const color = roost === 'dust' ? TERRAIN_LOOK[state.terrain].dust : undefined;
       emitter.emit(roost, x, y, LANES.player + (Math.random() < 0.5 ? 0.5 : -0.5), count, dir, color);
     }
