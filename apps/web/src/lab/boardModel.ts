@@ -1,6 +1,6 @@
 // What the board draws, worked out from the robot's own map: the fog is whatever its sensors have not reported.
 import type { TerrainId } from '@rivetrun/contracts';
-import { cellAt, doorOpen, seeCell, type AgentState, type Cell, type KnownTile, type LabState, type TileKind } from '@rivetrun/lab';
+import { cellAt, doorOpen, seeCell, type AgentState, type Cell, type KnownTile, type LabObjectKind, type LabScenario, type LabState, type TileKind } from '@rivetrun/lab';
 
 export type TileLook = 'fog' | 'floor' | 'wall' | 'door' | 'door-open' | 'drop' | 'ramp';
 
@@ -90,4 +90,33 @@ export function fogReport(state: LabState, agent: AgentState): FogReport {
       ...(unread > 0 ? [`the ground type on ${plural(unread, 'tile', 'tiles')}`] : []),
     ],
   };
+}
+
+export type LegendKey = LabObjectKind | 'you' | 'rival' | 'mover' | 'door' | 'drop' | 'ramp' | 'fog';
+
+export interface LegendEntry {
+  readonly key: LegendKey;
+  readonly label: string;
+}
+
+const OBJECT_NAME: Readonly<Record<LabObjectKind, string>> = {
+  exit: 'exit', parcel: 'parcel', bay: 'bay', sample: 'soil sample', lander: 'lander', checkpoint: 'checkpoint', flag: 'flag', home: 'base',
+};
+
+/** What the marks on a scenario's map mean: only the ones that scenario can show. */
+export function legendFor(scenario: LabScenario): LegendEntry[] {
+  const kinds = [...new Set(scenario.objects.map((object) => object.kind))];
+  const tiles = new Set(scenario.map.tiles.map((tile) => tile.kind));
+  // Outdoors a drop is a crater and a ramp a dune; indoors they are stairs and a ramp.
+  const outdoors = !scenario.indoor;
+  return [
+    { key: 'you', label: 'your robot' },
+    ...(scenario.agents.length > 1 ? [{ key: 'rival' as const, label: 'the other robot, when a sensor sees it' }] : []),
+    ...kinds.map((kind) => ({ key: kind, label: OBJECT_NAME[kind] })),
+    ...(scenario.movers.length > 0 ? [{ key: 'mover' as const, label: 'forklift ("?" until a camera names it)' }] : []),
+    ...(tiles.has('door') ? [{ key: 'door' as const, label: 'door' }] : []),
+    ...(tiles.has('drop') ? [{ key: 'drop' as const, label: outdoors ? 'crater' : 'stairs down' }] : []),
+    ...(tiles.has('ramp') ? [{ key: 'ramp' as const, label: outdoors ? 'dune' : 'ramp' }] : []),
+    { key: 'fog', label: 'not sensed yet' },
+  ];
 }

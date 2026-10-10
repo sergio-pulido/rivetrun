@@ -8,6 +8,7 @@ import { saveResult, useLabBests } from './bests';
 import { SCENARIO_BRIEFS, labLoadouts, sensorLine } from './copy';
 import { Simplifications } from './Simplifications';
 import { STAND_IN_NOTE } from './labBrain';
+import { LabLegend } from './LabLegend';
 import { LabPlay } from './LabPlay';
 import { LabResult } from './LabResult';
 import { useLabRun, type LabMode, type LabRunSetup } from './useLabRun';
@@ -65,6 +66,8 @@ export function ScenarioScreen({ id }: { readonly id: LabScenarioId }) {
         <div className="flex flex-wrap gap-1.5">
           {brief.matters.map((part) => <span key={part} className="rr-chip rr-chip-on">{part}</span>)}
         </div>
+        <h3 className="rr-label mt-1">On the map</h3>
+        <LabLegend scenario={scenario} />
       </section>
 
       <section className="flex flex-col gap-2" aria-label="Robot">

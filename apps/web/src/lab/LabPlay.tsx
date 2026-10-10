@@ -1,9 +1,10 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { LAB_PLAYER, interactionsAt, objectiveStatus, type Dir, type LabDecisionLog } from '@rivetrun/lab';
 import { STAND_IN_NAME } from './labBrain';
 import { LabBoard } from './LabBoard';
+import { LabLegend } from './LabLegend';
 import type { LabMode, LabRunControls, LabRunView } from './useLabRun';
 
 const KEYS: Readonly<Record<string, Dir>> = {
@@ -63,6 +64,14 @@ export function LabPlay({ view, controls, mode }: LabPlayProps) {
   const rival = state.agents.find((agent) => agent.id !== LAB_PLAYER);
   const thread = driving ? view.decisions.filter((d) => d.agentId !== LAB_PLAYER) : view.decisions.filter((d) => d.agentId === LAB_PLAYER);
   const { press, act, halt } = controls;
+  // Ending the mission cannot be undone, and on Mars the robot starts on the tile that offers it: it takes two taps,
+  // the second within 3 s, and the keyboard never does it.
+  const ending = action?.kind === 'finish';
+  const [armedAt, setArmedAt] = useState<number | null>(null);
+  const armed = ending && armedAt !== null && state.t - armedAt < 3;
+  const onAction = (): void => {
+    if (!ending || armed) { setArmedAt(null); act(); } else setArmedAt(state.t);
+  };
 
   useEffect(() => {
     if (!driving) return undefined;
@@ -75,14 +84,14 @@ export function LabPlay({ view, controls, mode }: LabPlayProps) {
         if (!event.repeat) press(dir);
       } else if (event.key === ' ' || event.key === 'Enter') {
         event.preventDefault();
-        if (!event.repeat) act();
+        if (!event.repeat && !ending) act();
       } else if (event.key === 'Escape') {
         halt();
       }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [driving, press, act, halt]);
+  }, [driving, press, act, halt, ending]);
 
   return (
     <div className="flex flex-col gap-2.5 lg:grid lg:grid-cols-[minmax(0,1fr)_380px] lg:items-start lg:gap-x-5">
@@ -112,19 +121,22 @@ export function LabPlay({ view, controls, mode }: LabPlayProps) {
 
       {driving ? (
         <div className="flex items-center justify-between gap-3 lg:col-start-2">
-          <div className="grid grid-cols-[repeat(3,52px)] grid-rows-[repeat(3,52px)] gap-1.5" role="group" aria-label="Move">
+          <div className="grid grid-cols-[repeat(3,48px)] grid-rows-[repeat(3,48px)] gap-1.5" role="group" aria-label="Move">
             {PAD.map((button) => (
-              <button key={button.id} type="button" className={`rr-iconbtn !h-[52px] !w-[52px] bg-panel-2 ${button.place}`} aria-label={button.label} data-testid={button.id} onClick={() => press(button.dir)}>
+              <button key={button.id} type="button" className={`rr-iconbtn !h-12 !w-12 bg-panel-2 ${button.place}`} aria-label={button.label} data-testid={button.id} onClick={() => press(button.dir)}>
                 <Arrow turn={button.turn} />
               </button>
             ))}
-            <button type="button" className="rr-iconbtn col-start-2 row-start-2 !h-[52px] !w-[52px] font-mono text-[10px] tracking-[1px] text-muted" aria-label="Stop" data-testid="pad-stop" onClick={halt}>
+            <button type="button" className="rr-iconbtn col-start-2 row-start-2 !h-12 !w-12 font-mono text-[10px] tracking-[1px] text-muted" aria-label="Stop" data-testid="pad-stop" onClick={halt}>
               STOP
             </button>
           </div>
           <div className="flex min-w-0 flex-1 flex-col gap-2">
-            <button type="button" className="rr-btn rr-btn-primary !min-h-[52px] !text-xs" disabled={action === undefined} data-testid="pad-action" onClick={act}>
-              {action ? action.label : 'Nothing to do here'}
+            <button
+              type="button" className={`rr-btn !min-h-[52px] !text-xs ${ending && !armed ? 'rr-btn-secondary' : 'rr-btn-primary'}`}
+              disabled={action === undefined} data-testid="pad-action" onClick={onAction}
+            >
+              {!action ? 'Nothing to do here' : armed ? 'Tap again to end the mission' : ending ? 'End the mission here' : action.label}
             </button>
             <button type="button" className="rr-btn rr-btn-secondary !min-h-11 !text-xs" data-testid="pad-pace" onClick={controls.togglePace}>
               Pace: {me.pace === 'full' ? 'Full' : 'Eco'}
@@ -133,6 +145,10 @@ export function LabPlay({ view, controls, mode }: LabPlayProps) {
           </div>
         </div>
       ) : null}
+
+      <div className="lg:col-start-2">
+        <LabLegend scenario={state.scenario} />
+      </div>
 
       {!driving || rival ? (
         <div className="lg:col-start-2">

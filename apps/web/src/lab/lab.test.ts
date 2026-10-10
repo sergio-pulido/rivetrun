@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { PRESETS } from '@rivetrun/sim';
 import { LAB_DEFAULT_BUILDS, LAB_SCENARIOS, LAB_SCENARIO_IDS, LAB_SEEDS, command, createLab, labHeuristicDecide, runLabSync, stepLab, type LabState } from '@rivetrun/lab';
 import { withResult } from './bests';
-import { fogReport, inView, knownTiles, poseOf, trueTiles } from './boardModel';
+import { fogReport, inView, knownTiles, legendFor, poseOf, trueTiles } from './boardModel';
 import { LAB_HONESTY, LAB_SIMPLIFICATIONS, SCENARIO_BRIEFS, labLoadouts, resultHeading, sensorLine } from './copy';
 
 const mine = PRESETS.speedster.build;
@@ -88,6 +88,21 @@ describe('the board draws only what the robot knows', () => {
     const seen = fogReport(sighted.final, sighted.final.agents[0]!);
     expect(seen.sensedPct).toBeGreaterThan(report.sensedPct);
     expect(seen.missed.join(' ')).not.toMatch(/object/);
+  });
+});
+
+describe('the map legend', () => {
+  it('lists only the marks a scenario can show, in its own words', () => {
+    const keys = (id: (typeof LAB_SCENARIO_IDS)[number]) => legendFor(LAB_SCENARIOS[id]).map((entry) => entry.key);
+    expect(keys('maze')).toEqual(['you', 'exit', 'fog']);
+    expect(keys('warehouse')).toEqual(['you', 'bay', 'parcel', 'mover', 'fog']);
+    expect(keys('ctf')).toEqual(['you', 'rival', 'flag', 'home', 'fog']);
+    // The same tile reads as a crater on Mars and as stairs in the house.
+    const label = (id: (typeof LAB_SCENARIO_IDS)[number], key: string) => legendFor(LAB_SCENARIOS[id]).find((entry) => entry.key === key)?.label;
+    expect(label('mars', 'drop')).toBe('crater');
+    expect(label('mars', 'ramp')).toBe('dune');
+    expect(label('house', 'drop')).toBe('stairs down');
+    expect(keys('house')).toContain('door');
   });
 });
 

@@ -70,7 +70,7 @@ interface GlyphProps {
   readonly rival: boolean;
 }
 
-function Glyph({ kind, id, cell, done, rival }: GlyphProps) {
+export function Glyph({ kind, id, cell, done, rival }: GlyphProps) {
   const cx = cell.x * T + T / 2;
   const cy = cell.y * T + T / 2;
   const text = (fill: string, label = short(id)) => (
