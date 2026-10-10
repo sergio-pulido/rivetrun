@@ -107,3 +107,12 @@ Pitch line: "Think slow before. Decide fast during."
   - No non-Jev phone agents: offer Jev and "You drive" only.
   - No live Analyze: the pregenerated plan, with its label.
 - 15:00, human: run the prewarm and the load test against the tunnel URL on the served tag.
+
+## Amendment 14:00 (Sergio)
+This replaces what sections 4 and 5 say about the taps and about one mission for every auto room.
+- /play is mission → vehicle → driver. There is no strategy step on phones.
+- AI drivers always use Claude's plan.
+- Rooms are per mission.
+- PLAY_MISSIONS = M7, M3, M6, M9, subject to [MASTER]'s numbers: for each candidate, the best preset with the plan (heuristic) and holding the throttle against the heuristic. The list keeps four missions where the best preset differs and a first-timer finishes in 45 s or less; [MASTER] swaps any that fails and tells [SIM], [BRAIN] and [UI].
+- Go/no-go: the removal of the strategy step at 14:15 with the rest; the mission step at 14:30.
+- Fallback: /play on M7 only.
