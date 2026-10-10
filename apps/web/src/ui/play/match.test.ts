@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { after, planTitle, readMatch, ringLeft, secondsLeft, stepsOf } from './match';
+import { DEFAULT_AGENT, PLAY_AI_AGENTS, after, planTitle, readMatch, ringLeft, secondsLeft, stepsOf } from './match';
 
 describe('readMatch', () => {
   it('reads a room, its seat and the server clock', () => {
@@ -49,6 +49,11 @@ describe('the taps', () => {
   it('starts with the mission only when that step is on', () => {
     expect(stepsOf(false)).toEqual(['vehicle', 'agent']);
     expect(stepsOf(true)).toEqual(['mission', 'vehicle', 'agent']);
+  });
+
+  it('opens the driver step on "You drive", which is not one of the AI drivers', () => {
+    expect(DEFAULT_AGENT).toBe('human');
+    expect(PLAY_AI_AGENTS).not.toContain(DEFAULT_AGENT);
   });
 
   it('names the model that really planned', () => {

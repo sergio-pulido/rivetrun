@@ -11,7 +11,7 @@ import { RobotGlyph } from '../../../app/race/_lib/RobotGlyph';
 import { AppHeader } from '@/ui/AppHeader';
 import { Icon } from '@/ui/Icon';
 import { MissionArt } from '@/ui/MissionArt';
-import { MISSION_AUTO_MS, after, planTitle, readMatch, ringLeft, secondsLeft, stepsOf, type Seat, type Stage, type Step } from './match';
+import { DEFAULT_AGENT, HUMAN_AGENT, MISSION_AUTO_MS, after, planTitle, readMatch, ringLeft, secondsLeft, stepsOf, type Seat, type Stage, type Step } from './match';
 
 export interface PlayAgent {
   readonly id: string;
@@ -33,7 +33,7 @@ interface Room {
 /** 'choosing' = on the mission step: no room is asked for until a mission is taken. */
 type Match = { readonly kind: 'choosing' } | { readonly kind: 'matching' } | { readonly kind: 'room'; readonly room: Room } | { readonly kind: 'wait'; readonly until: number } | { readonly kind: 'unavailable' };
 
-const HUMAN = 'human';
+const HUMAN = HUMAN_AGENT;
 const PRESET_IDS = Object.keys(PRESETS) as readonly PresetId[];
 const STEP_TITLE: Readonly<Record<Step, string>> = { mission: 'Pick a mission', vehicle: 'Pick your robot', agent: 'Who drives it?' };
 const CARD = 'flex min-h-[76px] w-full items-center gap-3 rounded-2xl border-2 px-3.5 py-3 text-left transition-transform active:scale-[0.98]';
@@ -123,7 +123,7 @@ export function Play({ agents, plans, missions, defaultMission, missionStep }: P
   const router = useRouter();
   const [match, setMatch] = useState<Match>(missionStep ? { kind: 'choosing' } : { kind: 'matching' });
   const [stage, setStage] = useState<Stage>(missionStep ? 'mission' : 'vehicle');
-  const [pick, setPick] = useState<PlayerPick>({ ...DEFAULT_PLAY_PICK, agent: agents[0]?.id ?? HUMAN });
+  const [pick, setPick] = useState<PlayerPick>({ ...DEFAULT_PLAY_PICK, agent: DEFAULT_AGENT });
   const [missionId, setMissionId] = useState<string | null>(null);
   // The mission highlighted on the mission step: "?mission=<id>" (Home's PLAY NOW) or the Play mission.
   const [highlighted, setHighlighted] = useState<MissionId>(defaultMission);
@@ -196,7 +196,7 @@ export function Play({ agents, plans, missions, defaultMission, missionStep }: P
   }, []);
   useEffect(() => {
     if (!room?.seat || !arrivedWith) return;
-    void fetch(`/api/race/${room.code}/pick`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ...room.seat, pick: { ...DEFAULT_PLAY_PICK, agent: agents[0]?.id ?? HUMAN, presetId: arrivedWith } }), cache: 'no-store' }).catch(() => undefined);
+    void fetch(`/api/race/${room.code}/pick`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ...room.seat, pick: { ...DEFAULT_PLAY_PICK, agent: DEFAULT_AGENT, presetId: arrivedWith } }), cache: 'no-store' }).catch(() => undefined);
     // Sent once per room: later taps send the whole pick themselves.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [room?.code, arrivedWith]);

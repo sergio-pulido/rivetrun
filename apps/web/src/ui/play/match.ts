@@ -55,6 +55,15 @@ export const ringLeft = (endsAt: number, now: number): number => Math.min(1, Mat
  */
 export const PLAY_AI_AGENTS: readonly string[] = ['jev-1.13.0', 'gpt-6-luna', 'deepseek-flash'];
 
+/** "You drive": the driver that is not an AI. */
+export const HUMAN_AGENT = 'human';
+
+/**
+ * The driver highlighted when the driver step opens: "You drive" (the human's order of 10 Oct, 15:40; it was Jev).
+ * It goes to the room with the first tap, like every pick. A phone that never taps keeps the server's own default.
+ */
+export const DEFAULT_AGENT: string = HUMAN_AGENT;
+
 /** The taps, in order. The mission tap comes first when the mission step is switched on. */
 export type Step = 'mission' | 'vehicle' | 'agent';
 export type Stage = Step | 'waiting';
