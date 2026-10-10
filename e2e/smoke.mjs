@@ -110,6 +110,40 @@ async function assertHealthy(page, seen, { sideways = true } = {}) {
   }
 }
 
+/**
+ * Which robot the page draws: the MK-II kit or the procedural fallback. [GAME] marks the stage with
+ * `data-robot="mk2" | "procedural"` (and `data-robot-reason` on a fallback). Waits for the kit, which loads late
+ * under software rendering.
+ */
+async function robotOnScreen(page, waitMs = 40_000) {
+  const read = () =>
+    page.evaluate(() => {
+      const nodes = [...document.querySelectorAll('[data-robot]')];
+      const kit = nodes.find((node) => node.getAttribute('data-robot') === 'mk2');
+      const node = kit ?? nodes[0];
+      return node ? { robot: node.getAttribute('data-robot'), reason: node.getAttribute('data-robot-reason') } : null;
+    });
+  const deadline = Date.now() + waitMs;
+  let seen = await read().catch(() => null);
+  while (Date.now() < deadline && seen?.robot !== 'mk2') {
+    await sleep(500);
+    seen = await read().catch(() => seen);
+    // No marker at all after 5 s: this build does not have the hook, waiting longer tells nothing.
+    if (seen === null && Date.now() > deadline - waitMs + 5000) break;
+  }
+  return seen;
+}
+
+/** QA_MK2=enforce makes the procedural robot a failure; until [GAME]'s hooks are on main it is a warning. */
+const MK2_ENFORCED = process.env.QA_MK2 === 'enforce';
+function judgeRobot(where, seen) {
+  if (seen?.robot === 'mk2') return `${where}: MK-II kit on screen`;
+  const what = seen === null ? 'no data-robot marker on this build' : `data-robot="${seen.robot}"${seen.reason ? ` (${seen.reason})` : ''}`;
+  if (MK2_ENFORCED) throw new Error(`${where}: the MK-II kit is not on screen: ${what}`);
+  warnings.push(`${where}: MK-II kit not confirmed: ${what}`);
+  return `${where}: ${what} (warning only)`;
+}
+
 const visibleText = (page, text, timeout = 20_000) => page.getByText(text, { exact: false }).first().waitFor({ state: 'visible', timeout });
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -135,6 +169,8 @@ const readHud = (page) =>
       cannotScan: /cannot scan: needs/.test(text),
       xPct: dot instanceof HTMLElement ? Number.parseFloat(dot.style.left) : null,
       unavailable: /3D VIEW UNAVAILABLE/i.test(text),
+      robot: (document.querySelector('[data-robot="mk2"]') ?? document.querySelector('[data-robot]'))?.getAttribute('data-robot') ?? null,
+      robotReason: document.querySelector('[data-robot-reason]')?.getAttribute('data-robot-reason') ?? null,
     };
   });
 
@@ -150,7 +186,7 @@ async function driveM1(page) {
     held.delete(key);
     await page.keyboard.up(key);
   };
-  const log = { scanned: false, missed: false, sawZone: false, sawPad: false, sawScanning: false, maxScanPct: 0, brakedAtM: null, creeps: 0, reloads: 0, repressed: 0, shots: [] };
+  const log = { scanned: false, missed: false, sawZone: false, sawPad: false, sawScanning: false, maxScanPct: 0, robot: null, brakedAtM: null, creeps: 0, reloads: 0, repressed: 0, shots: [] };
   let phase = 'approach';
   let lastX = null;
   let stillSince = null;
@@ -185,6 +221,8 @@ async function driveM1(page) {
     if (hud.missed) log.missed = true;
     if (hud.zoneDistM !== null) log.sawZone = true;
     if (hud.onPad) log.sawPad = true;
+    // Which robot is drawn: the kit may arrive a few seconds into the run.
+    if (hud.robot && log.robot?.robot !== 'mk2') log.robot = { robot: hud.robot, reason: hud.robotReason };
     if (hud.scanning) {
       log.sawScanning = true;
       log.maxScanPct = Math.max(log.maxScanPct, hud.scanPct);
@@ -260,6 +298,7 @@ try {
   const phone = await browser.newContext({ viewport: PHONE, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
   const page = await phone.newPage();
   const seen = watch(page, 'phone');
+  const phoneSeen = seen;
 
   if (wants('pages') || wants('drive')) {
     await step('home', async () => {
@@ -284,6 +323,20 @@ try {
       const words = (await page.locator('body').innerText()).length;
       if (words < 200) throw new Error(`Workshop rendered only ${words} characters of text`);
       return 'opened from Home';
+    }, page);
+
+    // The MK-II is the default robot ([GAME], polish sprint): the Workshop stage must show the kit, not the fallback.
+    await step('workshop · MK-II kit', async () => {
+      await go(page, '/workshop?kitTimeout=30000');
+      await page.locator('main').first().waitFor({ state: 'visible', timeout: 20_000 });
+      const seen = await robotOnScreen(page);
+      await sleep(1500);
+      await shot(page, 'phone-02b-workshop-kit');
+      await page.evaluate(() => window.scrollTo(0, 0));
+      const stage = page.locator('[data-robot]').first();
+      if (await stage.isVisible().catch(() => false)) await stage.screenshot({ path: path.join(OUT, 'phone-02c-workshop-stage.png') }).catch(() => undefined);
+      await assertHealthy(page, phoneSeen);
+      return judgeRobot('Workshop', seen);
     }, page);
 
     await step('brief M1', async () => {
@@ -340,6 +393,8 @@ try {
       if (drive.reloads > 0) warnings.push(`run: the dev server reloaded the page ${drive.reloads} time(s) mid-run; the script restarted the run`);
       return `Finished${time ? ` in ${time} s` : ''}`;
     }, page);
+
+    await step('run view · MK-II kit', async () => judgeRobot('Run view', drive?.robot ?? null), page);
 
     await step('drive M1 · scan', async () => {
       if (!drive) throw new Error('no run to judge');
@@ -756,12 +811,13 @@ try {
       const failed = [];
       for (const [name, route] of [
         ['desktop-01-home', '/'],
-        ['desktop-02-workshop', '/workshop'],
+        ['desktop-02-workshop', '/workshop?kitTimeout=30000'],
         ['desktop-03-brief-m1', '/brief/M1'],
         ['desktop-04-lab', '/lab'],
       ]) {
         const status = await go(screen, route);
         if (status !== 200) failed.push(`${route} → ${status}`);
+        if (route.startsWith('/workshop')) await robotOnScreen(screen, 30_000);
         await sleep(1800);
         await shot(screen, name);
         const overlay = await devOverlayError(screen);
