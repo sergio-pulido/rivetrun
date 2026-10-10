@@ -313,8 +313,8 @@ export function replayDrive(config: RunConfig, inputLog: readonly DriveLogEntry[
       ? { throttle: entry.throttle, brake: entry.brake, ...(entry.special ? { special: entry.special } : {}), ...(entry.jumpHeld ? { jumpHeld: true } : {}) }
       : { throttle: 0, brake: 0 };
     const driven = driveStep(state, input, chargeS, config.build);
-    // The live loop runs the trigger detector after every step; its memory is part of the state, so the replay does too.
-    state = advanceBrain(driven.state).state;
+    // The live loop also runs the trigger detector for its HUD hints; that only writes the brain's memory, never the physics.
+    state = driven.state;
     chargeS = driven.chargeS;
     if (state.stepCount % frameEvery === 0 || state.done) frames.push(state.sim);
   }
