@@ -3,6 +3,7 @@
 Written by [MASTER] for the human. Newest status first. Program: docs/OVERNIGHT.md. Findings: docs/QA.md ("Overnight findings").
 
 ## What the human must do
+- Read `docs/DEMO_RUNBOOK.md` (brain, 06:40): the commands in order for the venue, four ten-second health checks, and what to do when Jev is slow, the tunnel drops, a room is stuck or the laptop's address changed. Nobody has walked through it on the served build.
 - (Final figures for the next item, brain's last paid run at 06:05: on facts alone Jev scores 436 against 546 with the verdict and makes 12 of the rules' 15 scans; GPT-6 Luna 474, DeepSeek Flash 472, GPT-5 nano 449. Across three wordings Jev's scans on facts went 1 → 9 → 12 while its score stayed at 434 / 429 / 436: it scans by itself once told the cost, and drives a steadier, slower pace than the rules. Arena spend: about US$7.6 of US$10, no more paid runs.)
 - Before you present the Brain Arena, read this: with the fixed rules' verdict written into the question, Jev scores 546 on the rail against the rules' own 554, at 250 ms. On facts alone (same state, options and predicted numbers, no verdict) Jev scores 434, is the lowest of the four fast models and scans once in 30 runs; on Lab Missions it goes from 704 to 581. The other models lose less because they followed the verdict less. Both columns are in docs/ARENA.md and docs/ARENA_LAB.md and are going onto /lab. What the game can honestly claim: Jev follows a stated policy in a quarter of a second, four times faster than the next model; it does not yet judge the track by itself. The game keeps the verdict question because it plays better.
 - Tell [BRAIN] the Jev quota and rate limit for the demo window. A cold Jev ghost is 14–34 calls; I capped the warm-up at two extra ghosts per loadout because nobody knows the limit. With 70 phones and Room Race bots the room could reach a few thousand calls in ten minutes; over the limit the game falls back to the fixed rules and says FALLBACK.
@@ -55,6 +56,9 @@ Written by [MASTER] for the human. Newest status first. Program: docs/OVERNIGHT.
 
 
 README.md and docs/SETUP.md were rewritten from the repo at 05:22 (commit 05915a1) by a sub-agent under [MASTER]; they are refreshed before 10:00. Disagreements it found between documents: docs/JEV.md gives Jev's latency as p50 376 ms where docs/BENCHMARK.md has 243 ms; docs/QA.md R6 says Careful fails M6 with the Deep Diver where the benchmark shows it finishing.
+
+### 06:41 · twelfth tag
+`demo-good-0641` → dc781e2, 20 e2e steps, no warning. On main after it, to be in the next tag: the HUD now warns before rough ground and before water, says "CANNOT SCAN" instead of inviting a stop on a pad the build cannot scan, and "NOT ON THE PAD · 1.8 m MORE" when stopped short (Q32); the race phone's result card (Q29); warm-up yields to live Jev decisions (Q31); `docs/DEMO_RUNBOOK.md` (read it before the venue); handover files from brain, game, sim and lab in `docs/reports/`.
 
 ### 06:24 · eleventh tag
 `demo-good-0624` → d4bc2be, 20 e2e steps. New step: a live Brain Arena race on `/screen?room=CODE&arena=1`, Jev against the fixed rules on M1 (26.7 s and 25.7 s). A recurring warning became a finding: since the ghost warm-up, one decision of the ordinary Jev run times out in most cycles and the HUD shows FALLBACK (Q31, with [BRAIN]). Game's screenshot sweep (44 images) found four things, filed as Q27–Q30: part names cut on Build it for real, the race phone's result card breaking with a missed scan, and a Result that advises the waterproof case after getting stuck in mud.
