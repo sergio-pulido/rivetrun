@@ -60,8 +60,11 @@ export type Step = 'mission' | 'vehicle' | 'agent';
 export type Stage = Step | 'waiting';
 export const stepsOf = (withMission: boolean): readonly Step[] => (withMission ? ['mission', 'vehicle', 'agent'] : ['vehicle', 'agent']);
 
-/** Whether /play starts with the mission tap. Off until that step has its go; "/play?missions=1" shows it meanwhile. */
-export const MISSION_STEP: boolean = false;
+/**
+ * Whether /play starts with the mission tap. On since [MASTER]'s go on 10 Oct at 14:40. The way back to "the Play
+ * mission only" is this constant set to false; "/play?missions=0" shows that version without changing it for anyone.
+ */
+export const MISSION_STEP: boolean = true;
 
 /** How long an untouched phone waits on the mission step before it takes the highlighted mission by itself. */
 export const MISSION_AUTO_MS = 10_000;
