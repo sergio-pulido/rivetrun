@@ -395,6 +395,8 @@ export function step(state: RunState, action: Action): RunState {
   if (wasAirborne) {
     vy -= G * DT_S;
     heightM += vy * DT_S;
+    // The piston fires on one step only: the pedal held when it fired is the take-off command, as on a ramp.
+    if (airAction === 'jump' && action !== 'jump') airAction = action;
     if (airPitchDeg !== undefined) {
       // The robot levels itself to the ground below, at the same rate for a brain and for a player.
       // A player overrides it by changing the wheels' speed in the air: braking turns the nose down, more throttle lifts it.

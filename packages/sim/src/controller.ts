@@ -136,7 +136,9 @@ function toEpisode(state: RunState, decisions: readonly DecisionRecord[], policy
 async function decideSafe(brain: Brain, question: BrainQuestion, noFallback = false): Promise<BrainDecision | null> {
   try {
     const decision = await brain.decide(question);
-    if (question.options.includes(decision.selected)) return decision;
+    // A latency that is not a number would never come due and silently end all decisions: treat it as none.
+    const latencyMs = Number.isFinite(decision.latencyMs) ? Math.max(0, decision.latencyMs) : 0;
+    if (question.options.includes(decision.selected)) return { ...decision, latencyMs };
   } catch {
     // Reported through fallback: true on the decision, which the HUD shows; or as a missed decision with noFallback.
   }
@@ -260,7 +262,7 @@ function emitStepEvents(
   }
 }
 
-const level = (value: boolean | number): number => (typeof value === 'number' ? Math.min(1, Math.max(0, value)) : value ? 1 : 0);
+const level = (value: boolean | number): number => (typeof value === 'number' ? (Number.isFinite(value) ? Math.min(1, Math.max(0, value)) : 0) : value ? 1 : 0);
 
 /**
  * Drive mode: the player's thumbs as one of the Actions the Brains use, so the physics is shared.
@@ -311,7 +313,14 @@ export function replayEpisode(episode: Episode): ReplayResult {
   const inputLog = episode.outcome.breakdown?.inputLog;
   if (!inputLog || inputLog.length === 0) return { ok: false, reason: 'the episode has no input log' };
   const mission = MISSIONS[episode.missionId];
-  const replayed = replayDrive({ mission, seed: episode.seed, build: episode.build, priority: episode.priority }, inputLog);
+  if (!mission) return { ok: false, reason: `unknown mission ${String(episode.missionId)}` };
+  let replayed: { episode: Episode; ghost: GhostTrace };
+  try {
+    replayed = replayDrive({ mission, seed: episode.seed, build: episode.build, priority: episode.priority }, inputLog);
+  } catch (error: unknown) {
+    // A stored row with an unknown part or a broken log entry must not take the caller's loop down with it.
+    return { ok: false, reason: `could not be replayed: ${error instanceof Error ? error.message : String(error)}` };
+  }
   const a = replayed.episode.outcome;
   const b = episode.outcome;
   const matches = a.finished === b.finished && a.timeS === b.timeS && a.damagePct === b.damagePct && a.energyUsedPct === b.energyUsedPct && a.score === b.score;
@@ -387,12 +396,14 @@ export function driveController(config: RunConfig, readInput: () => ControlInput
         resolve(breakdown ? { ...episode, outcome: { ...episode.outcome, breakdown: { ...breakdown, reactions: reactions.map((r) => ({ ...r })), inputLog: inputLog.map((entry) => ({ ...entry })) } } } : episode);
       };
       finish = complete;
+      // Stopped before it began: there is no run, and the caller must not wait for one.
+      if (stopped) return complete();
       const tick = (): void => {
         if (stopped) return;
         const current = now();
         accumulatedMs += Math.min(current - last, MAX_FRAME_MS) * timeScale;
         last = current;
-        while (accumulatedMs >= TUNING.dtMs && !state.done) {
+        while (accumulatedMs >= TUNING.dtMs && !state.done && !stopped) {
           accumulatedMs -= TUNING.dtMs;
           const prev = state;
           const input = readInput();
@@ -511,6 +522,8 @@ export function runController(config: RunConfig, brain: Brain, options: RunContr
         resolve(toEpisode(state, decisions, episodePolicy(decisions, options.policy), newEpisodeId(state)));
       };
       finish = complete;
+      // Stopped before it began: no run, no question to the brain, and the caller must not wait.
+      if (stopped) return complete();
 
       let queued: Trigger | null = null;
       const ask = (trigger: Trigger): void => {
@@ -521,7 +534,10 @@ export function runController(config: RunConfig, brain: Brain, options: RunContr
         emit({ type: 'decisionPending', t: question.t, question });
         void decideSafe(brain, question).then((decision) => {
           // A decision that lands after the run ended is dropped: nothing follows finish / dnf.
-          if (stopped || state.done || !decision) return;
+          if (stopped || state.done || !decision) {
+            pending = false;
+            return;
+          }
           // Latency is real: the old command held while the brain thought, and the choice applies now.
           state = withAction(state, decision.selected);
           const log = decisionLog(question, decision, asked, state);
@@ -544,7 +560,7 @@ export function runController(config: RunConfig, brain: Brain, options: RunContr
         const elapsed = Math.min(current - last, MAX_FRAME_MS);
         last = current;
         accumulatedMs += elapsed * timeScale * (pending ? slowMoFactor : 1);
-        while (accumulatedMs >= TUNING.dtMs && !state.done) {
+        while (accumulatedMs >= TUNING.dtMs && !state.done && !stopped) {
           accumulatedMs -= TUNING.dtMs;
           const prev = state;
           state = step(state, state.action);

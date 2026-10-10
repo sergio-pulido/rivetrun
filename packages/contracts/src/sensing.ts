@@ -9,9 +9,10 @@ export const GAMEPLAY_VERSION = 4;
 /**
  * Bumped when a player's run changes for the same inputs: the input log's format or the rules that only apply to a
  * driven robot (first-touch stuck clock, air input, charged jump). A logged Drive run replays exactly only on the
- * version that recorded it. 2 = logs stamped at the start of the step, with `jumpHeld` (a8b0d52 and later rules).
+ * version that recorded it. 2 = logs stamped at the start of the step, with `jumpHeld`.
+ * 3 = a pedal held through a piston jump is not an air input (the jump take-off fix).
  */
-export const DRIVE_VERSION = 2;
+export const DRIVE_VERSION = 3;
 
 /** Where a piece of knowledge comes from. `core` is the kit every build has: encoders, charge, current, mission plan. */
 export const SensorSourceSchema = z.enum(['core', 'imu', 'ultrasonic', 'tof', 'lidar', 'camera', 'moisture_probe', 'scout_drone', 'bumper']);

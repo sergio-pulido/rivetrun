@@ -3,7 +3,7 @@ import type {
   Action, BrainQuestion, Build, DecisionTrigger, LookaheadEntry, Observation, Obstacle, Perception, ScanZone, SensorSource, TerrainId, Trigger, TriggerCause,
 } from '@rivetrun/contracts';
 import { TUNING } from './data';
-import { canScan, cameraFactor, capacityFactor, gustAt, headwindMps, rangerFactor } from './weather';
+import { canScan, cameraFactor, capacityFactor, hasWind, gustAt, headwindMps, rangerFactor } from './weather';
 import { mixSeed, mulberry32 } from './rng';
 import { ACTION_PROFILES, PHYSICS, SCAN_RULES, safeContactSpeedMps, step } from './physics';
 import { deriveSpec } from './spec';
@@ -327,7 +327,8 @@ export function lookahead(state: RunState, actions: readonly Action[], seen: Obs
     // The plan gives the steady wind. A gust is believed only while the IMU feels it, and then as if it stays.
     environment: {
       ...state.environment, frictionJitter: 1,
-      ...(state.environment.conditions
+      // Only a mission that has wind gets any in the believed world: fog or cold alone must not switch air drag on.
+      ...(state.environment.conditions && hasWind(state.environment)
         ? { conditions: { ...state.environment.conditions, gustMps: 0, windMps: (state.environment.conditions.windMps ?? 0) + (seen.gusting === true ? gustAt(state.environment, state.sim.t) : 0) } }
         : {}),
     },
