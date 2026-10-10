@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCallback, useState } from 'react';
-import type { Part } from '@rivetrun/contracts';
+import type { Part, Slot } from '@rivetrun/contracts';
 import { PARTS_BY_ID, PRESETS, buildIssues } from '@rivetrun/sim';
 import type { RoverPick } from '@/game/robot/pick';
 import { useBuildStore } from '@/state/build';
@@ -12,6 +12,7 @@ import { useWorkshopUi } from '@/state/workshop';
 import { SavedBuilds } from '@/ui/builds/SavedBuilds';
 import { BUDGET_EUR, buildStats, sameBuild } from '@/ui/buildStats';
 import { Icon } from '@/ui/Icon';
+import { LockedCard, type LockedPart } from '@/ui/real/LockedCard';
 import { Shell } from '@/ui/Shell';
 import { Bench3D } from '@/ui/three/Bench3D';
 import { PartCard } from './PartCard';
@@ -27,9 +28,14 @@ const DOT = 'grid h-[22px] w-[22px] place-items-center rounded-full text-[11px] 
 interface WorkshopProps {
   /** Game part id → who makes its real component, from the MK-II bill of materials. */
   readonly makers: Readonly<Record<string, string>>;
+  /** Real parts from the bill of materials that the game does not have yet. Shown locked on the shelf they belong to. */
+  readonly locked: readonly LockedPart[];
 }
 
-export function Workshop({ makers }: WorkshopProps) {
+/** Which shelf a locked part sits on, by its BOM category. Anything unlisted is a sensor. */
+const LOCKED_SLOT: Readonly<Record<string, Slot>> = { motor: 'motor', battery: 'battery', actuator: 'extra', compute: 'extra' };
+
+export function Workshop({ makers, locked }: WorkshopProps) {
   const build = useBuildStore((store) => store.build);
   const setBuild = useBuildStore((store) => store.setBuild);
   const missionId = useBuildStore((store) => store.missionId);
@@ -140,6 +146,14 @@ export function Workshop({ makers }: WorkshopProps) {
 
       <SavedBuilds manage />
 
+      <Link href="/workshop/real" className="flex h-11 items-center justify-between rounded-[10px] border border-[#3A2A1C] bg-[#17120D] px-3">
+        <span className="font-mono text-[10px] font-medium tracking-[1.5px] text-orange-soft">FROM GAME TO REALITY</span>
+        <span className="flex items-center gap-1.5 font-display text-[13px] font-semibold uppercase tracking-[1px]">
+          Build it for real
+          <Icon name="next" size={16} />
+        </span>
+      </Link>
+
       <Predicted build={build} />
 
       <div className="sticky top-0 z-10 -mx-4 flex gap-1.5 border-b border-[#222831] bg-ground px-4" role="tablist" aria-label="Part slots">
@@ -195,6 +209,11 @@ export function Workshop({ makers }: WorkshopProps) {
             onAct={act}
           />
         ))}
+        {locked
+          .filter((part) => (LOCKED_SLOT[part.category] ?? 'sensor') === slot)
+          .map((part) => (
+            <LockedCard key={part.key} part={part} />
+          ))}
       </section>
     </Shell>
   );

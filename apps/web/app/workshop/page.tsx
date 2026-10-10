@@ -1,6 +1,18 @@
-import { partMakers } from '@/ui/real/bomData';
+import { lockedItems, partMakers, partRender } from '@/ui/real/bomData';
+import type { LockedPart } from '@/ui/real/LockedCard';
 import { Workshop } from '@/ui/workshop/Workshop';
 
+// Renders land in /public while the app runs: look for them on each request.
+export const dynamic = 'force-dynamic';
+
 export default function WorkshopPage() {
-  return <Workshop makers={partMakers()} />;
+  const locked: LockedPart[] = lockedItems().map((item) => ({
+    key: item.key,
+    name: item.name,
+    manufacturer: item.manufacturer,
+    scenario: item.scenario,
+    category: item.category,
+    render: partRender(item.key),
+  }));
+  return <Workshop makers={partMakers()} locked={locked} />;
 }
