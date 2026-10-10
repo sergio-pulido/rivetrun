@@ -1,4 +1,5 @@
 import type { BrainDecision, BrainQuestion, Episode, LeaderboardEntry, MissionId } from '@rivetrun/contracts';
+import { CACHE_VERSION } from './version';
 
 // In-memory only (docs/FAST_MODE.md): everything is lost when the Next server restarts.
 interface StoredRun {
@@ -67,6 +68,7 @@ export function decisionKey(q: BrainQuestion): string {
   const p = q.perceived;
   const byAction = new Map(q.lookahead.map((l) => [l.action, l]));
   return JSON.stringify([
+    CACHE_VERSION,
     q.briefing ?? '',
     q.lookaheadS ?? null,
     p.terrainAheadSource ?? null,

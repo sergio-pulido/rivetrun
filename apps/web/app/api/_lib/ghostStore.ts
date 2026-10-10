@@ -1,6 +1,7 @@
 import { createJevBrain } from '@rivetrun/brain';
 import type { Build, GhostTrace, MissionId } from '@rivetrun/contracts';
 import { MISSIONS, runHeadless } from '@rivetrun/sim';
+import { CACHE_VERSION } from './version';
 
 // Jev ghosts for Drive mode: the server drives the same mission, seed, build and briefing once with Jev and
 // every phone that asks for that combination gets the same recorded run. In memory, like everything else.
@@ -43,6 +44,7 @@ const jev = createJevBrain();
 /** Same parts in a different order are the same robot. */
 const keyOf = (request: GhostRequest): string =>
   JSON.stringify([
+    CACHE_VERSION,
     request.missionId,
     request.seed,
     { ...request.build, sensors: [...request.build.sensors].sort(), extras: [...request.build.extras].sort() },

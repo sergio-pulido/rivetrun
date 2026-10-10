@@ -15,6 +15,11 @@ import type {
 export const JEV_MODEL_ID = 'jev-1.13.0';
 export const JEV_ENDPOINT = 'https://api.typesafe.ai/v1/systemone';
 export const JEV_TIMEOUT_MS = 1200;
+/**
+ * Version of the question wording below. Bump it whenever buildJevRequest changes what Jev is told:
+ * every cache of Jev answers (decisions, ghosts) keys on it, so an old answer is never served for a new question.
+ */
+export const JEV_QUESTION_VERSION = 'q6-far-hazards';
 const QUESTION_ID = 'action';
 
 export interface JevBrainOptions {
