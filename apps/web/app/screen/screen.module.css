@@ -932,11 +932,20 @@
 /* Live Arena (/screen?arena=1): one small button per brain in the host bar. */
 .arenaBrains {
   display: flex;
+  flex: 1 1 0;
+  min-width: 0;
   flex-wrap: wrap;
   justify-content: flex-end;
   gap: calc(var(--u) * 6);
 }
 .buttonSmall {
-  padding: calc(var(--u) * 6) calc(var(--u) * 10);
-  font-size: calc(var(--u) * 13);
+  padding: calc(var(--u) * 5) calc(var(--u) * 9);
+  font-size: calc(var(--u) * 12);
+}
+.arenaMissing {
+  flex-basis: 100%;
+  text-align: right;
+  font-family: var(--data);
+  font-size: calc(var(--u) * 11);
+  color: #8b95a3;
 }

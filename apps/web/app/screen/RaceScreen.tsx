@@ -145,6 +145,27 @@ function HostBar({ snapshot, bots, onError, arena }: { readonly snapshot: RaceSn
     onError(null);
     bots.add(PRESETS.all_rounder.build).catch((cause: unknown) => onError(cause instanceof Error ? cause.message : 'Could not add a JEV bot.'));
   };
+  // Live Arena: which brains this server can call. A brain it cannot call is not offered: its bot would fall
+  // back on every decision in front of the room. One line says which are missing and why.
+  const [brains, setBrains] = useState<readonly { id: string; available: boolean; reason?: string }[] | null>(null);
+  useEffect(() => {
+    if (!arena) return undefined;
+    let cancelled = false;
+    fetch('/api/arena/decide', { cache: 'no-store' })
+      .then(async (response) => (response.ok ? ((await response.json()) as { brains?: { id: string; available: boolean; reason?: string }[] }) : null))
+      .then((body) => {
+        if (!cancelled && body?.brains) setBrains(body.brains);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [arena]);
+  const usable = (id: string): boolean => brains?.find((brain) => brain.id === id)?.available === true;
+  const missing = ARENA_BRAINS.flatMap((brain) => {
+    const state = brains?.find((candidate) => candidate.id === brain.id);
+    return state && !state.available ? [`${brain.label}: ${state.reason ?? 'not available'}`] : [];
+  });
   const addBrain = (model: ArenaBrainId): void => {
     onError(null);
     bots.add(PRESETS.all_rounder.build, model).catch((cause: unknown) => onError(cause instanceof Error ? cause.message : 'Could not add that brain.'));
@@ -199,11 +220,13 @@ function HostBar({ snapshot, bots, onError, arena }: { readonly snapshot: RaceSn
         {arena ? (
           // Live Arena: one lane per brain, same robot and seed for all of them.
           <span className={`${styles.arenaBrains} ${styles.spacer}`}>
-            {ARENA_BRAINS.filter((brain) => !botsInRoom.some((bot) => bot.model === brain.id)).map((brain) => (
+            {brains === null ? <span className={styles.arenaMissing}>Checking which brains this server can call…</span> : null}
+            {ARENA_BRAINS.filter((brain) => usable(brain.id) && !botsInRoom.some((bot) => bot.model === brain.id)).map((brain) => (
               <button key={brain.id} type="button" onClick={() => addBrain(brain.id)} disabled={botsInRoom.length >= ARENA_MAX_BOTS} className={`${styles.button} ${styles.buttonJev} ${styles.buttonSmall}`}>
                 + {brain.label}
               </button>
             ))}
+            {missing.length > 0 ? <span className={styles.arenaMissing}>Not on offer · {missing.join(' · ')}</span> : null}
           </span>
         ) : (
           <button type="button" onClick={addBot} disabled={botsInRoom.length >= MAX_BOTS} className={`${styles.button} ${styles.buttonJev} ${styles.spacer}`}>

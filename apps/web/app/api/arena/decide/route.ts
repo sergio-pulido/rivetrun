@@ -1,4 +1,4 @@
-import { resolveContestants, type Contestant } from '@rivetrun/brain/arena';
+import { publicReason, resolveContestants, type Contestant } from '@rivetrun/brain/arena';
 import { DecideRequestSchema, type BrainDecision } from '@rivetrun/contracts';
 import { apiError, parseJsonBody } from '@/api/respond';
 import { ARENA_DECIDE_TIMEOUT_MS, ArenaBrainIdSchema, type ArenaBrainId } from '../../../race/_lib/protocol';
@@ -20,6 +20,8 @@ interface LiveArenaState {
 const holder = globalThis as typeof globalThis & { __rivetrunLiveArena?: LiveArenaState };
 const state: LiveArenaState = (holder.__rivetrunLiveArena ??= { contestants: new Map(), spentUsd: 0, calls: 0 });
 
+const reasons = new Map<ArenaBrainId, string>();
+
 /** Paid models stop answering once this much has been spent since the server started (their bots drive on the fixed rules). */
 const capUsd = (): number => Number(process.env.ARENA_LIVE_CAP_USD ?? 1);
 
@@ -27,7 +29,12 @@ function contestantFor(id: ArenaBrainId): Promise<Contestant | null> {
   const known = state.contestants.get(id);
   if (known) return known;
   const resolved = resolveContestants((spec) => spec.id === id)
-    .then((found) => found.find((contestant) => contestant.id === id && contestant.status === 'ok') ?? null)
+    .then((found) => {
+      const mine = found.find((contestant) => contestant.id === id);
+      // Why a brain is missing, in words fit for the big screen (never the provider's own error text).
+      if (mine && mine.status !== 'ok') reasons.set(id, mine.status === 'not_configured' ? 'no API key on this server' : publicReason(mine.reason));
+      return mine?.status === 'ok' ? mine : null;
+    })
     .catch(() => null);
   state.contestants.set(id, resolved);
   return resolved;
@@ -38,7 +45,7 @@ const deadline = (ms: number): Promise<never> => new Promise((_resolve, reject) 
 // GET /api/arena/decide — which brains this server can call right now, and what the live races have cost so far.
 export async function GET(): Promise<Response> {
   const ids = ArenaBrainIdSchema.options;
-  const ready = await Promise.all(ids.map(async (id) => ({ id, available: (await contestantFor(id)) !== null })));
+  const ready = await Promise.all(ids.map(async (id) => ({ id, available: (await contestantFor(id)) !== null, ...(reasons.has(id) ? { reason: reasons.get(id) } : {}) })));
   return Response.json({ brains: ready, calls: state.calls, spentUsd: Number(state.spentUsd.toFixed(4)), capUsd: capUsd() }, { headers: { 'Cache-Control': 'no-store' } });
 }
 
