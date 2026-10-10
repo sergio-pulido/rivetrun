@@ -1,0 +1,211 @@
+[
+  {
+    "id": "cracked_slab_01",
+    "file": "props/cracked_slab_01.glb",
+    "url": "/env/m7/props/cracked_slab_01.glb",
+    "sizeBytes": 145224,
+    "triangles": 668,
+    "suggestedScale": 1,
+    "envelopeM": [
+      1.499,
+      0.175,
+      0.969
+    ],
+    "root": "m7_cracked_slab_01",
+    "origin": "base-centre",
+    "upAxis": "+Y",
+    "units": "metres",
+    "compression": "none_intermediate",
+    "notes": "Broken concrete with chipped outline and branching surface fractures. Low prop for track edges; keep clear of drive lanes."
+  },
+  {
+    "id": "cracked_slab_02",
+    "file": "props/cracked_slab_02.glb",
+    "url": "/env/m7/props/cracked_slab_02.glb",
+    "sizeBytes": 145236,
+    "triangles": 668,
+    "suggestedScale": 1,
+    "envelopeM": [
+      1.167,
+      0.305,
+      0.836
+    ],
+    "root": "m7_cracked_slab_02",
+    "origin": "base-centre",
+    "upAxis": "+Y",
+    "units": "metres",
+    "compression": "none_intermediate",
+    "notes": "Broken concrete with chipped outline and branching surface fractures. Low prop for track edges; keep clear of drive lanes."
+  },
+  {
+    "id": "cracked_slab_03",
+    "file": "props/cracked_slab_03.glb",
+    "url": "/env/m7/props/cracked_slab_03.glb",
+    "sizeBytes": 144892,
+    "triangles": 664,
+    "suggestedScale": 1,
+    "envelopeM": [
+      1.826,
+      0.402,
+      0.772
+    ],
+    "root": "m7_cracked_slab_03",
+    "origin": "base-centre",
+    "upAxis": "+Y",
+    "units": "metres",
+    "compression": "none_intermediate",
+    "notes": "Broken concrete with chipped outline and branching surface fractures. Low prop for track edges; keep clear of drive lanes."
+  },
+  {
+    "id": "slab_rebar",
+    "file": "props/slab_rebar.glb",
+    "url": "/env/m7/props/slab_rebar.glb",
+    "sizeBytes": 128220,
+    "triangles": 468,
+    "suggestedScale": 1,
+    "envelopeM": [
+      2.188,
+      0.729,
+      1.122
+    ],
+    "root": "m7_slab_rebar",
+    "origin": "base-centre",
+    "upAxis": "+Y",
+    "units": "metres",
+    "compression": "none_intermediate",
+    "notes": "Rusty reinforcement emerges through the broken slab edge. Place at the back of the street, away from scan pads."
+  },
+  {
+    "id": "rubble_pile_01",
+    "file": "props/rubble_pile_01.glb",
+    "url": "/env/m7/props/rubble_pile_01.glb",
+    "sizeBytes": 342432,
+    "triangles": 3400,
+    "suggestedScale": 1,
+    "envelopeM": [
+      2.447,
+      0.8,
+      1.446
+    ],
+    "root": "m7_rubble_pile_01",
+    "origin": "base-centre",
+    "upAxis": "+Y",
+    "units": "metres",
+    "compression": "none_intermediate",
+    "notes": "Concrete rubble, brick and bent reinforcement. Use variant rotation about +Y for less repeated silhouettes."
+  },
+  {
+    "id": "rubble_pile_02",
+    "file": "props/rubble_pile_02.glb",
+    "url": "/env/m7/props/rubble_pile_02.glb",
+    "sizeBytes": 299976,
+    "triangles": 2808,
+    "suggestedScale": 1,
+    "envelopeM": [
+      2.105,
+      0.747,
+      1.539
+    ],
+    "root": "m7_rubble_pile_02",
+    "origin": "base-centre",
+    "upAxis": "+Y",
+    "units": "metres",
+    "compression": "none_intermediate",
+    "notes": "Concrete rubble, brick and bent reinforcement. Use variant rotation about +Y for less repeated silhouettes."
+  },
+  {
+    "id": "collapsed_wall",
+    "file": "props/collapsed_wall.glb",
+    "url": "/env/m7/props/collapsed_wall.glb",
+    "sizeBytes": 279344,
+    "triangles": 2420,
+    "suggestedScale": 1,
+    "envelopeM": [
+      2.758,
+      2.65,
+      0.577
+    ],
+    "root": "m7_collapsed_wall",
+    "origin": "base-centre",
+    "upAxis": "+Y",
+    "units": "metres",
+    "compression": "none_intermediate",
+    "notes": "Partly collapsed reinforced masonry around an empty window opening. Tall scenery behind the far lane only."
+  },
+  {
+    "id": "crash_barrier",
+    "file": "props/crash_barrier.glb",
+    "url": "/env/m7/props/crash_barrier.glb",
+    "sizeBytes": 34748,
+    "triangles": 480,
+    "suggestedScale": 1,
+    "envelopeM": [
+      2.9,
+      0.903,
+      0.335
+    ],
+    "root": "m7_crash_barrier",
+    "origin": "base-centre",
+    "upAxis": "+Y",
+    "units": "metres",
+    "compression": "none_intermediate",
+    "notes": "Bent galvanised W-beam rail with posts and base bolts. Align long axis +X along the street."
+  },
+  {
+    "id": "warning_tape_posts",
+    "file": "props/warning_tape_posts.glb",
+    "url": "/env/m7/props/warning_tape_posts.glb",
+    "sizeBytes": 26080,
+    "triangles": 374,
+    "suggestedScale": 1,
+    "envelopeM": [
+      2.92,
+      1.163,
+      0.32
+    ],
+    "root": "m7_warning_tape_posts",
+    "origin": "base-centre",
+    "upAxis": "+Y",
+    "units": "metres",
+    "compression": "none_intermediate",
+    "notes": "Portable cordon with sagging yellow/black tape. Place behind hazards; it is decorative and must not change collision geometry."
+  },
+  {
+    "id": "emergency_tripod_light",
+    "file": "props/emergency_tripod_light.glb",
+    "url": "/env/m7/props/emergency_tripod_light.glb",
+    "sizeBytes": 66180,
+    "triangles": 940,
+    "suggestedScale": 1,
+    "envelopeM": [
+      0.88,
+      2.252,
+      1.001
+    ],
+    "root": "m7_emergency_tripod_light",
+    "origin": "base-centre",
+    "upAxis": "+Y",
+    "units": "metres",
+    "compression": "none_intermediate",
+    "notes": "Portable warm LED work light. Emissive surface only: no exported light or extra shadow pass."
+  },
+  {
+    "id": "rescue_beacon",
+    "file": "props/rescue_beacon.glb",
+    "url": "/env/m7/props/rescue_beacon.glb",
+    "sizeBytes": 29380,
+    "triangles": 412,
+    "suggestedScale": 1,
+    "envelopeM": [
+      0.34,
+      0.57,
+      0.309
+    ],
+    "root": "m7_rescue_beacon",
+    "origin": "base-centre",
+    "upAxis": "+Y",
+    "units": "metres",
+    "compression": "none_intermediate",
+    "notes": "Cyan scan-zone marker, distinct from amber hazard lighting. Optional pulse by varying m7_rescue_cyan emissiveIntensity in the game; no animation or people."
+  }
+]
