@@ -1,0 +1,181 @@
+{
+  "version": 1,
+  "mission": "M9",
+  "name": "Polar Night",
+  "author": "sergio.pulido@alodai.com",
+  "layers": [
+    {
+      "id": "far_ice",
+      "file": "far_ice.webp",
+      "url": "/env/m9/far_ice.webp",
+      "sizeBytes": 120154,
+      "resolutionPx": [
+        4096,
+        1024
+      ],
+      "suggestedScale": 1,
+      "suggestedWorldSizeM": [
+        160,
+        40
+      ],
+      "parallaxFactor": 0.12,
+      "suggestedZ": -140,
+      "alpha": true,
+      "cameraDepressionDegrees": 15,
+      "horizonFromTop": 0.4,
+      "repeatX": false,
+      "source": "assets/blender/env/m9/m9_environment.blend",
+      "materialHint": "Unlit transparent plane; depthWrite false; toneMapped false. Retain the game sky.",
+      "parallaxMeaning": "Relative screen displacement fraction for camera travel: far moves least."
+    },
+    {
+      "id": "mid_station",
+      "file": "mid_station.webp",
+      "url": "/env/m9/mid_station.webp",
+      "sizeBytes": 92138,
+      "resolutionPx": [
+        4096,
+        1024
+      ],
+      "suggestedScale": 1,
+      "suggestedWorldSizeM": [
+        160,
+        40
+      ],
+      "parallaxFactor": 0.35,
+      "suggestedZ": -95,
+      "alpha": true,
+      "cameraDepressionDegrees": 15,
+      "horizonFromTop": 0.4,
+      "repeatX": false,
+      "source": "assets/blender/env/m9/m9_environment.blend",
+      "materialHint": "Unlit transparent plane; depthWrite false; toneMapped false. Retain the game sky.",
+      "parallaxMeaning": "Relative screen displacement fraction for camera travel: far moves least."
+    },
+    {
+      "id": "near_snow",
+      "file": "near_snow.webp",
+      "url": "/env/m9/near_snow.webp",
+      "sizeBytes": 31152,
+      "resolutionPx": [
+        4096,
+        1024
+      ],
+      "suggestedScale": 1,
+      "suggestedWorldSizeM": [
+        160,
+        40
+      ],
+      "parallaxFactor": 0.65,
+      "suggestedZ": -60,
+      "alpha": true,
+      "cameraDepressionDegrees": 15,
+      "horizonFromTop": 0.4,
+      "repeatX": false,
+      "source": "assets/blender/env/m9/m9_environment.blend",
+      "materialHint": "Unlit transparent plane; depthWrite false; toneMapped false. Retain the game sky.",
+      "parallaxMeaning": "Relative screen displacement fraction for camera travel: far moves least."
+    }
+  ],
+  "props": [
+    {
+      "id": "snowdrift_01",
+      "file": "props/snowdrift_01.glb",
+      "url": "/env/m9/props/snowdrift_01.glb",
+      "sizeBytes": 10400,
+      "triangles": 958,
+      "suggestedScale": 1,
+      "envelopeM": [
+        2.451,
+        0.345,
+        1.267
+      ],
+      "root": "m9_snowdrift_01",
+      "origin": "base-centre",
+      "upAxis": "+Y",
+      "units": "metres",
+      "compression": "meshopt",
+      "notes": "Smooth wind-carved drift. Low versions may sit near the street; keep driving lanes and the M9 scan pad clear.",
+      "source": "assets/blender/env/m9/m9_environment.blend",
+      "suggestedGroundBiasM": 0.003
+    },
+    {
+      "id": "snowdrift_02",
+      "file": "props/snowdrift_02.glb",
+      "url": "/env/m9/props/snowdrift_02.glb",
+      "sizeBytes": 10760,
+      "triangles": 958,
+      "suggestedScale": 1,
+      "envelopeM": [
+        3.81,
+        0.68,
+        1.565
+      ],
+      "root": "m9_snowdrift_02",
+      "origin": "base-centre",
+      "upAxis": "+Y",
+      "units": "metres",
+      "compression": "meshopt",
+      "notes": "Smooth wind-carved drift. Low versions may sit near the street; keep driving lanes and the M9 scan pad clear.",
+      "source": "assets/blender/env/m9/m9_environment.blend",
+      "suggestedGroundBiasM": 0.003
+    },
+    {
+      "id": "snowdrift_03",
+      "file": "props/snowdrift_03.glb",
+      "url": "/env/m9/props/snowdrift_03.glb",
+      "sizeBytes": 11644,
+      "triangles": 958,
+      "suggestedScale": 1,
+      "envelopeM": [
+        2.538,
+        1.021,
+        2.056
+      ],
+      "root": "m9_snowdrift_03",
+      "origin": "base-centre",
+      "upAxis": "+Y",
+      "units": "metres",
+      "compression": "meshopt",
+      "notes": "Smooth wind-carved drift. Low versions may sit near the street; keep driving lanes and the M9 scan pad clear.",
+      "source": "assets/blender/env/m9/m9_environment.blend",
+      "suggestedGroundBiasM": 0.003
+    },
+    {
+      "id": "antenna_mast",
+      "file": "props/antenna_mast.glb",
+      "url": "/env/m9/props/antenna_mast.glb",
+      "sizeBytes": 16236,
+      "triangles": 456,
+      "suggestedScale": 1,
+      "envelopeM": [
+        1.65,
+        4.3,
+        1.882
+      ],
+      "root": "m9_antenna_mast",
+      "origin": "base-centre",
+      "upAxis": "+Y",
+      "units": "metres",
+      "compression": "meshopt",
+      "notes": "Generic guyed radio mast, weatherproof radio and red warning lens. Tall scenery behind the far lane; no exported lights.",
+      "source": "assets/blender/env/m9/m9_environment.blend"
+    }
+  ],
+  "backdropNotes": "Layer order far \u2192 mid \u2192 near; transparent artwork over the game sky. Far-ground horizon is around 40% from the top. Images share one 15-degree side camera. The foreground snowdrifts are deliberately low. Suggested parallax factors are integration guidance, not simulation changes.",
+  "propTotals": {
+    "files": 4,
+    "triangles": 3330,
+    "sizeBytes": 49040,
+    "triangleBudget": 30000,
+    "byteBudget": 2000000
+  },
+  "placementNotes": "Scenery only. Keep the driving lanes, ramps, ice obstacle geometry and scan-zone span clear. The tall antenna belong behind the far lane; only low snowdrifts belong near the foreground. Native size is in metres; suggestedScale=1.",
+  "status": "assets_ready",
+  "integrationStatus": "Assets delivered; this session does not modify game loaders, placement or simulation.",
+  "layerTotals": {
+    "files": 3,
+    "sizeBytes": 243444,
+    "perFileByteBudget": 600000
+  }
+}
