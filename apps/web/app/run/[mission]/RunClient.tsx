@@ -1,10 +1,11 @@
 'use client';
 
 import type { MissionId } from '@rivetrun/contracts';
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { MISSIONS, PRESETS, assessBuild } from '@rivetrun/sim';
 import { RunCanvas } from '@/game';
 import { useBuildStore } from '@/state/build';
+import { personalBestTrace } from '@/state/personalBests';
 import { useRunStore } from '@/state/run';
 import { useRun } from './useRun';
 
@@ -14,7 +15,10 @@ export function RunClient({ missionId }: { readonly missionId: MissionId }) {
   const priority = useRunStore((store) => store.priority);
   const briefing = useBuildStore((store) => store.briefing);
   const mode = useBuildStore((store) => store.mode);
-  const { feed, ghosts, drive, error, onSceneReady } = useRun({ mission, build, priority, briefing, mode });
+  const rival = useBuildStore((store) => store.rival);
+  // "Beat your ghost": the player's stored best with this robot on this mission. None stored = the Jev rival as usual.
+  const rivalTrace = useMemo(() => (mode === 'drive' && rival === 'self' ? personalBestTrace(mission.id, build) : null), [mode, rival, mission.id, build]);
+  const { feed, ghosts, drive, error, onSceneReady } = useRun({ mission, build, priority, briefing, mode, rivalTrace });
 
   // Dev only: lets QA time the strategy layer in a real browser (window.__rivetrunSim.assessBuild).
   useEffect(() => {
