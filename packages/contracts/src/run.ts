@@ -10,6 +10,7 @@ import {
   ProbabilitiesSchema,
 } from './brain';
 import { BuildSchema } from './build';
+import { TriggerKindSchema, TriggerSchema } from './sensing';
 import { EnvironmentSchema, MissionIdSchema, ObstacleSchema, SeedSchema, TerrainIdSchema } from './world';
 
 export const SimEffectSchema = z.enum(['dust', 'splash', 'mud_spray', 'sparks', 'slip', 'smoke', 'winch', 'bubbles']);
@@ -70,6 +71,18 @@ export const OutcomeSchema = z.object({
   progressFraction: z.number().min(0).max(1),
   stars: z.number().int().min(0).max(3),
   dnfReason: DnfReasonSchema.optional(),
+  /** Gameplay v3 result breakdown. */
+  breakdown: z.object({
+    /** Seconds lost to wheelspin against the same distance with grip. */
+    slipLostS: z.number().min(0),
+    damageByCause: z.object({ impact: z.number().min(0), landing: z.number().min(0), water: z.number().min(0), tipOver: z.number().min(0), fall: z.number().min(0) }),
+    scansDone: z.number().int().min(0),
+    scansMissed: z.number().int().min(0),
+    /** Decisions by trigger kind, e.g. { perception: 3, energy: 2, body: 2 }. */
+    decisions: z.partialRecord(TriggerKindSchema, z.number().int().min(0)),
+    /** One line on what to try next, from the biggest loss. */
+    tryNext: z.string(),
+  }).optional(),
   /** One-line explanation derived by the sim from ground truth, e.g. "Slipped 6 s on ice — no IMU". */
   why: z.string().max(200).optional(),
 });
@@ -82,6 +95,36 @@ export const GhostTraceSchema = z.object({
   outcome: OutcomeSchema,
 });
 export type GhostTrace = z.infer<typeof GhostTraceSchema>;
+
+/** One decision as the showcase shows it: what fired, what the brain knew, what it chose and what the wait cost. */
+export const DecisionLogSchema = z.object({
+  /** Sim time and track position when the decision was requested. */
+  t: z.number().min(0),
+  xM: z.number(),
+  trigger: TriggerSchema,
+  /** Sensor lines: what the brain knew. */
+  knew: z.array(z.string()),
+  /** What it could not know. */
+  unknown: z.array(z.string()),
+  options: z.array(z.object({
+    action: ActionSchema,
+    probability: z.number().min(0).max(1),
+    progressM: z.number(),
+    damagePct: z.number().min(0),
+    energyPct: z.number().min(0),
+    projectedFinishPct: z.number().optional(),
+  })),
+  choice: ActionSchema,
+  policy: PolicySchema,
+  fallback: z.boolean(),
+  latencyMs: z.number().min(0),
+  /** Sim time at which the choice took effect, and the distance covered while waiting for it. */
+  appliedT: z.number().min(0),
+  lostM: z.number(),
+  /** Ready-made chip text, e.g. "LIDAR · obstacle 11 m → ease (71 %) · 340 ms". */
+  chip: z.string(),
+});
+export type DecisionLog = z.infer<typeof DecisionLogSchema>;
 
 export const DecisionRecordSchema = z.object({
   t: z.number().min(0),
@@ -96,6 +139,8 @@ export const DecisionRecordSchema = z.object({
   trigger: DecisionTriggerSchema.optional(),
   /** Versioned model id that answered (jev only). The benchmark reports it. */
   model: z.string().optional(),
+  /** Brain v3 decision log entry. */
+  log: DecisionLogSchema.optional(),
 });
 export type DecisionRecord = z.infer<typeof DecisionRecordSchema>;
 
@@ -124,6 +169,10 @@ export const RunEventSchema = z.discriminatedUnion('type', [
     t: z.number(),
     question: BrainQuestionSchema,
     decision: BrainDecisionSchema,
+    /** Brain v3: the decision as the HUD and the big screen show it. */
+    log: DecisionLogSchema.optional(),
+    /** True for a hint in Drive mode: shown, not applied. */
+    advisory: z.boolean().optional(),
   }),
   z.object({
     type: z.literal('terrainEnter'),
@@ -144,6 +193,10 @@ export const RunEventSchema = z.discriminatedUnion('type', [
     /** Drove onto this rough terrain too fast. */
     roughEntry: TerrainIdSchema.optional(),
     air: z.enum(['landing', 'fall']).optional(),
+    /** The build had no forward sensor that could have seen this coming. */
+    blind: z.boolean().optional(),
+    /** Ready-made text, e.g. "BLIND · hit rock at 22 m: no distance sensor". */
+    label: z.string().optional(),
   }),
   z.object({ type: z.literal('airborne'), t: z.number(), x: z.number(), v: z.number(), vy: z.number(), cause: z.enum(['ramp', 'jump', 'drop']) }),
   z.object({ type: z.literal('landed'), t: z.number(), x: z.number(), impactMps: z.number().min(0), airtimeS: z.number().min(0), damagePct: z.number().min(0) }),

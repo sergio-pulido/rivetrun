@@ -35,6 +35,8 @@ export const PartEffectsSchema = z.object({
   capacityWh: z.number().positive().optional(),
   // sensor
   sensor: SensorKindSchema.optional(),
+  /** Brain v3 name of this sensor as a source of knowledge, when it differs from its kind (lidar and ToF are ultrasonic-kind rangers). */
+  source: z.enum(['ultrasonic', 'tof', 'lidar']).optional(),
   rangeM: z.number().positive().optional(),
   // extra
   extra: ExtraKindSchema.optional(),

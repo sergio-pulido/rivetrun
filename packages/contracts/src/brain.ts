@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { ObservationSchema, TriggerSchema } from './sensing';
 import { MissionIdSchema, TerrainIdSchema } from './world';
 
 /** A sensor reading, or `unknown` when the build has no sensor for it. */
@@ -44,6 +45,11 @@ export const ActionSchema = z.enum([
   'climb_mode',
   'deploy_winch',
   'jump',
+  // Gameplay v3. Throttle levels are accelerate (full) / cruise (steady) / slow_down (ease) / coast; brakes are brake (hard) / brake_soft.
+  'coast',
+  'brake_soft',
+  /** Stop on the scan zone under the robot and scan it. */
+  'scan',
 ]);
 export type Action = z.infer<typeof ActionSchema>;
 
@@ -53,6 +59,10 @@ export const LookaheadEntrySchema = z.object({
   progressM: z.number(),
   damagePct: z.number().min(0),
   energyPct: z.number().min(0),
+  /** Charge left at the finish if this option's pace held (Brain v3 energy line). */
+  projectedFinishPct: z.number().optional(),
+  /** True when the simulated window ran past what the sensors know, onto track assumed to continue unchanged. */
+  assumed: z.boolean().optional(),
 });
 export type LookaheadEntry = z.infer<typeof LookaheadEntrySchema>;
 
@@ -63,7 +73,11 @@ export const DecisionTriggerSchema = z.enum([
   'obstacle',
   'slip',
   'damage',
+  /** v2 clock tick. Never emitted since Brain v3: there is no clock. */
   'interval',
+  // Brain v3 kinds without a v2 name. `BrainQuestion.cause` has the detail.
+  'energy',
+  'actuator',
 ]);
 export type DecisionTrigger = z.infer<typeof DecisionTriggerSchema>;
 
@@ -96,6 +110,12 @@ export const BrainQuestionSchema = z
     lookahead: z.array(LookaheadEntrySchema),
     /** Player's instructions to the driver (optional). */
     briefing: BriefingSchema.optional(),
+    /** Brain v3: everything the brain may use. When present, build the question from this only. */
+    observation: ObservationSchema.optional(),
+    /** Brain v3: why this decision is requested. */
+    cause: TriggerSchema.optional(),
+    /** GAMEPLAY_VERSION of the sim that asked; cache keys should include it. */
+    gameplayVersion: z.number().optional(),
     /** Seconds each lookahead entry simulates. Absent = 1.5; longer when a scout drone is fitted. */
     lookaheadS: z.number().positive().optional(),
   })
@@ -135,10 +155,10 @@ export const ControlSpecialSchema = z.enum(['jump', 'winch', 'climb']);
 export type ControlSpecial = z.infer<typeof ControlSpecialSchema>;
 
 export const ControlInputSchema = z.object({
-  /** Right half held. */
-  throttle: z.boolean(),
-  /** Left half held. */
-  brake: z.boolean(),
+  /** Right half: 0..1 (gameplay v3 slider). A boolean is still accepted: true = 1. */
+  throttle: z.union([z.boolean(), z.number().min(0).max(1)]),
+  /** Left half: 0..1. A boolean is still accepted: true = 1. */
+  brake: z.union([z.boolean(), z.number().min(0).max(1)]),
   /** Action button, only for parts the build has. */
   special: ControlSpecialSchema.optional(),
 });

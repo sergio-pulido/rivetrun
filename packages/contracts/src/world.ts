@@ -60,6 +60,20 @@ export type MissionId = z.infer<typeof MissionIdSchema>;
 
 export const SeedSchema = z.number().int().min(0).max(0xffffffff);
 
+/** Gameplay v3: stop with the zone under the robot (under 0.1 m/s) for 1.5 s to scan it. */
+export const ScanZoneSchema = z.object({
+  id: z.string().min(1),
+  /** Display name, e.g. "survivor", "soil sample", "structure". */
+  label: z.string().min(1),
+  /** Track distance of the zone's centre, metres. */
+  atM: z.number().min(0),
+  /** The zone accepts a stop within this distance of its centre. */
+  halfLengthM: z.number().positive(),
+  /** Part sensor kinds that can scan it (any one). */
+  needs: z.array(z.enum(['camera', 'moisture', 'ultrasonic', 'scout_drone', 'imu'])).min(1),
+});
+export type ScanZone = z.infer<typeof ScanZoneSchema>;
+
 export const MissionSchema = z.object({
   id: MissionIdSchema,
   name: z.string().min(1),
@@ -71,6 +85,8 @@ export const MissionSchema = z.object({
   /** Set for the Room Challenge: every player gets the same seed. */
   fixedSeed: SeedSchema.optional(),
   leaderboard: z.boolean(),
+  /** Gameplay v3 objectives. Absent = none. */
+  scanZones: z.array(ScanZoneSchema).optional(),
 });
 export type Mission = z.infer<typeof MissionSchema>;
 

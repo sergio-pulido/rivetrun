@@ -85,6 +85,11 @@ export const ACTION_PROFILES: Readonly<Record<Action, ActionProfile>> = {
   deploy_winch: { speed: 0, force: 1, grip: 1, power: 0.3, impact: 0.1, drag: 1 },
   // Drives like cruise; the piston fires from step() (timed to the next gap unless a player drives).
   jump: { ...DEFAULT_PROFILE, speed: 0.7 },
+  // Gameplay v3. Coast: no drive force, the ground slows the robot. Soft brake: 40 % of the braking force.
+  coast: { ...DEFAULT_PROFILE, speed: 0, force: 0 },
+  brake_soft: { ...DEFAULT_PROFILE, speed: 0, force: 0.4 },
+  // Scan: hold still on the zone (the scan itself is timed in step()).
+  scan: { ...DEFAULT_PROFILE, speed: 0 },
 };
 
 const clamp = (value: number, min: number, max: number): number => Math.min(max, Math.max(min, value));
