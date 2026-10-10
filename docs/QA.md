@@ -14,13 +14,16 @@ Status: **OPEN** = reproduces now · **FIXED** = fix retested · **REPORTED FIXE
 | determinism | same | Two runs of `scripts/balance.ts --seeds 2` give byte-identical tables. |
 | balance | same | Every mission is finished by at least one core build within budget, and the default build finishes M1. |
 | build | same | `next build` of the commit succeeds. Type errors do not fail it (`ignoreBuildErrors`), which is why typecheck is its own step. |
-| e2e smoke | the dev server on :3000, i.e. the working tree | Headless Chromium (Playwright, software WebGL): Home → Workshop → Brief M1 → first-run coach marks → a Drive run on M1 by keyboard (full throttle, brake a metre before the scan zone, hold for the scan, drive to the finish) → Result; `/lab`; `/screen` → Room Race on M1 with two JEV bots to FINISH; 1280×720 stills of Home, Workshop, Brief and `/lab`. One retry after 20 s if a step fails. |
+| e2e smoke | that production build, served by `next start` on 127.0.0.1:3100 for the length of the smoke, then stopped | Headless Chromium (Playwright, software WebGL). Phone 390×844: Home → Workshop → Brief M1 → first-run coach marks → a Drive run on M1 by keyboard (full throttle, brake a metre before the scan zone, hold for the scan, drive to the finish) → Result; `/lab`; every mission's Brief; every mission's run scene for 7 s with Jev driving. 1280×720: `/screen` → Room Race on M1 with two JEV bots to FINISH; stills of Home, Workshop, Brief and `/lab`. One retry after 20 s if a step fails. |
 | demo build (hourly) | `../rivetrun-demo` | `pnpm demo:stable -- --build-only`. Skipped while anything serves on :3001. |
 
+Why the e2e does not use the dev server on :3000 (it did until 04:10): five sessions save files every few seconds, Fast Refresh re-runs the run page's effects on each save and the run restarts from 00:00.0 (measured: sim clock reset three times in 30 s, plus one "ControlSpecialSchema is not defined" from a half-saved contract). A smoke there fails on timing and says nothing about a commit. `QA_SERVER=dev scripts/qa.sh` still runs it that way.
+
 What a `demo-good-*` tag does not prove:
-- The e2e ran on the dev build of the working tree, not on a production build of the tagged commit. The tag message records how many source files were uncommitted at that moment.
-- Software rendering at a few frames per second: no frame-rate, touch or real-phone result. Input is keyboard.
-- The Room Race had bots only: no phone joined.
+- Software rendering at a few frames per second: no frame-rate, touch, sound or real-phone result. Input is keyboard.
+- The MK-II kit does not load in headless Chromium (asset timeout): every screenshot shows the procedural robot.
+- The Room Race had bots only: no phone joined, and only M1 is raced.
+- Dev-only paths (`window.__rivetrun`, `?weather=`) are not in the build under test.
 - "One Lab Mission start to finish" is skipped until `/scenarios` exists.
 
 ## Overnight findings

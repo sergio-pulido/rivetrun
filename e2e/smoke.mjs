@@ -1,5 +1,6 @@
 // RivetRun e2e smoke (owner: [MASTER], docs/OVERNIGHT.md).
-// Headless Chromium against the running dev server. Starts no server and writes nothing outside e2e/screens.
+// Headless Chromium against QA_BASE_URL. scripts/qa.sh points it at a production build of the commit under test;
+// on its own it defaults to the dev server. It starts no server and writes nothing outside e2e/screens.
 //   node e2e/smoke.mjs                 all steps
 //   QA_ONLY=drive node e2e/smoke.mjs   one step group: pages | drive | lab | missions | race | desktop
 // Env: QA_BASE_URL (default http://localhost:3000), QA_SCREENS (output directory), QA_HEADED=1 to watch.
@@ -385,7 +386,11 @@ try {
 
     await step(`run scenes M2–M${missions.length}`, async () => {
       const bad = [];
-      // M1's scene is covered by the Drive run above.
+      // Jev mode: the robot drives itself, so each scene is seen moving (weather, lights, terrain) with a few live
+      // decisions instead of a whole precomputed ghost per mission. M1's scene is covered by the Drive run above.
+      await go(page, '/');
+      await page.getByRole('button', { name: 'Jev drives' }).click();
+      await sleep(400);
       for (const id of missions.slice(1)) {
         const before = seen.pageErrors.length;
         await go(page, `/run/${id}`);
@@ -394,8 +399,8 @@ try {
           () => false,
         );
         if (!strip) bad.push(`${id}: the HUD never appeared`);
-        // Long enough for the first frames and for the clock to start; the robot stays on the start line.
-        await sleep(6000);
+        // Long enough for the first frames and a few seconds of driving.
+        await sleep(7000);
         await shot(page, `run-${id}`);
         const text = await page.locator('body').innerText().catch(() => '');
         if (/3D VIEW UNAVAILABLE|could not start/i.test(text)) bad.push(`${id}: ${text.match(/3D VIEW UNAVAILABLE[^\n]*|The run could not start[^\n]*/i)?.[0]}`);
@@ -434,7 +439,7 @@ try {
     await step('room race · lobby', async () => {
       await screen.getByRole('button', { name: 'Start a Room Race' }).click();
       await screen.waitForURL(/\/screen\?room=/, { timeout: NAV_MS });
-      await screen.getByRole('radio', { name: /^M1 / }).click();
+      await screen.getByRole('radio', { name: /^M1\b/ }).first().click();
       const addBot = screen.getByRole('button', { name: '+ JEV bot' });
       await addBot.waitFor({ state: 'visible', timeout: 20_000 });
       await addBot.click();

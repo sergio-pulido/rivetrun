@@ -7,16 +7,20 @@
 #   scripts/qa.sh --ref <ref>     gate another commit            --no-e2e / --no-build  skip those steps
 #
 # What a green run certifies:
-#   - Static steps (install, typecheck, unit tests, sim determinism, balance, production build) run in a clean
-#     worktree of the commit under test (../rivetrun-qa), so nothing uncommitted in this checkout can help it pass.
-#   - The e2e smoke (e2e/smoke.mjs) runs against the human's dev server on :3000, i.e. this checkout's working tree:
-#     the commit plus whatever the sessions are editing. The summary says how many source files were uncommitted.
-# It starts no server, never touches :3001 and never writes to this checkout outside e2e/out and e2e/screens.
+#   - Every step runs on a clean worktree of the commit under test (../rivetrun-qa), so nothing uncommitted in this
+#     checkout can help it pass: install, typecheck, unit tests, sim determinism, balance, production build.
+#   - The e2e smoke (e2e/smoke.mjs) runs against that production build, served by `next start` on 127.0.0.1:3100
+#     (loopback only) for the length of the smoke and then stopped. Reason: the dev server on :3000 hot-reloads on
+#     every save by five sessions and resets a run every few seconds, so a smoke on it says nothing about a commit.
+#     QA_SERVER=dev runs the smoke on the dev server instead.
+# It never touches :3000 or :3001 and never writes to this checkout outside e2e/out and e2e/screens.
 set -uo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 QA_TREE="${QA_TREE:-$ROOT/../rivetrun-qa}"
-BASE_URL="${QA_BASE_URL:-http://localhost:3000}"
+QA_SERVER="${QA_SERVER:-build}"
+QA_PORT="${QA_PORT:-3100}"
+if [ "$QA_SERVER" = dev ]; then BASE_URL="${QA_BASE_URL:-http://localhost:3000}"; else BASE_URL="http://127.0.0.1:$QA_PORT"; fi
 REF="HEAD"
 TAG=0
 DEMO_BUILD=0
@@ -87,14 +91,43 @@ balance() {
   echo "$solved" | grep -E '^ +M1:' | grep -q 'all_rounder' || { echo "the default build (all_rounder) does not finish M1"; return 1; }
 }
 
-smoke() {
-  curl -s -o /dev/null --max-time 20 "$BASE_URL/" || { echo "dev server at $BASE_URL does not answer"; return 1; }
+run_smoke() {
   [ -d "$ROOT/e2e/node_modules/playwright-core" ] || (cd "$ROOT/e2e" && npm ci --no-audit --no-fund) || return 1
   if QA_BASE_URL="$BASE_URL" QA_SCREENS="$SCREENS" node "$ROOT/e2e/smoke.mjs"; then return 0; fi
-  # The dev server serves files the sessions are editing: one retry tells a mid-edit moment from a real failure.
   echo "--- first attempt failed; retrying in 20 s ---"
   sleep 20
   QA_BASE_URL="$BASE_URL" QA_SCREENS="$SCREENS-retry" node "$ROOT/e2e/smoke.mjs"
+}
+
+# The smoke on the production build of the commit: serve it on loopback, run, stop.
+smoke_build() {
+  if lsof -nP -iTCP:"$QA_PORT" -sTCP:LISTEN >/dev/null 2>&1; then echo "port $QA_PORT is already in use"; return 1; fi
+  [ -f "$QA_TREE/apps/web/.next/BUILD_ID" ] || { echo "no production build in $QA_TREE/apps/web/.next (the build step did not pass)"; return 1; }
+  # Jev's key goes to the server process only: read from .env.local, never written, printed or logged.
+  local key=""
+  if [ -f "$ROOT/apps/web/.env.local" ]; then
+    key="$(grep -E '^JEV_API_KEY=' "$ROOT/apps/web/.env.local" | head -n 1 | cut -d= -f2- | sed -e 's/^"//' -e 's/"$//' -e "s/^'//" -e "s/'$//")"
+  fi
+  [ -n "$key" ] || echo "note: no JEV_API_KEY, the heuristic will drive (FALLBACK)"
+  (cd "$QA_TREE/apps/web" && JEV_API_KEY="$key" exec node node_modules/next/dist/bin/next start -H 127.0.0.1 -p "$QA_PORT") >"$OUT/server.log" 2>&1 &
+  local server=$!
+  trap 'kill "$server" 2>/dev/null' EXIT
+  local waited=0
+  until curl -s -o /dev/null --max-time 2 "$BASE_URL/"; do
+    waited=$((waited + 1))
+    if [ "$waited" -gt 40 ] || ! kill -0 "$server" 2>/dev/null; then echo "the QA server did not come up"; tail -n 20 "$OUT/server.log"; return 1; fi
+    sleep 1
+  done
+  run_smoke
+  local status=$?
+  kill "$server" 2>/dev/null
+  wait "$server" 2>/dev/null
+  return "$status"
+}
+
+smoke_dev() {
+  curl -s -o /dev/null --max-time 20 "$BASE_URL/" || { echo "dev server at $BASE_URL does not answer"; return 1; }
+  run_smoke
 }
 
 echo "QA $STAMP · commit $SHORT ($(git -C "$ROOT" log -1 --format=%s "$SHA" | cut -c1-70))"
@@ -118,10 +151,16 @@ if run worktree "$ROOT" sync_tree && run install "$QA_TREE" pnpm install --froze
 fi
 
 if [ "$RUN_E2E" = 1 ]; then
-  DIRTY="$(git -C "$ROOT" status --porcelain --untracked-files=all -- apps/web/app apps/web/src packages scripts | grep -c . || true)"
-  run e2e "$ROOT" smoke
+  if [ "$QA_SERVER" = dev ]; then
+    DIRTY="$(git -C "$ROOT" status --porcelain --untracked-files=all -- apps/web/app apps/web/src packages scripts | grep -c . || true)"
+    E2E_ON="the dev server on :3000 ($DIRTY uncommitted source file(s) in the checkout)"
+    run e2e "$ROOT" smoke_dev
+  else
+    E2E_ON="a production build of $SHORT served on 127.0.0.1:$QA_PORT"
+    run e2e "$ROOT" smoke_build
+  fi
   grep -E '^(PASS|FAIL|SKIP|WARN) ' "$OUT/e2e.log" | sed 's/^/     /'
-  NOTES+=("e2e ran on $BASE_URL with $DIRTY uncommitted source file(s) in the checkout; screens: $SCREENS")
+  NOTES+=("e2e ran on $E2E_ON; screens: $SCREENS")
 else
   SKIPPED+=("e2e")
 fi
@@ -160,7 +199,7 @@ if [ "$TAG" = 1 ]; then
     exit 0
   fi
   NAME="demo-good-$(date +%H%M)"
-  git -C "$ROOT" tag -a "$NAME" "$SHA" -m "QA green $(date '+%Y-%m-%d %H:%M'): typecheck, unit tests, sim determinism, balance and production build on a clean worktree of $SHORT; e2e smoke on the dev server (${DIRTY:-?} uncommitted source file(s) in the checkout)." &&
+  git -C "$ROOT" tag -a "$NAME" "$SHA" -m "QA green $(date '+%Y-%m-%d %H:%M'): typecheck, unit tests, sim determinism, balance and production build on a clean worktree of $SHORT; e2e smoke on $E2E_ON." &&
     git -C "$ROOT" push --quiet origin "$NAME" &&
     echo "TAGGED $NAME → $SHORT"
 fi
