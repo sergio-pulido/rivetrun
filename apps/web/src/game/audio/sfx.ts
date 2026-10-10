@@ -58,6 +58,12 @@ export type SoundName =
   | "warn"
   | "gust";
 
+/** Every one-shot effect, for tests and tools that walk the whole set. */
+export const SOUND_NAMES: readonly SoundName[] = [
+  "decision", "accelerate", "brake", "slip", "splash", "crash", "finish", "dnf", "unlock", "countdown", "go",
+  "land", "land_hard", "jump", "scan_tick", "scan_done", "scan_missed", "blocked", "warn", "gust",
+];
+
 const STORAGE_KEY = "rivetrun.audio.muted";
 
 const MASTER_VOLUME = 0.32;
@@ -1059,7 +1065,7 @@ export function play(name: SoundName): void {
 
     // Scan: a tick per quarter of the hold, a rising triad when it completes, two falling notes when it is missed.
     case "scan_tick": {
-      tone({ frequency: 1250, duration: 0.035, volume: 0.1, type: "sine" });
+      tone({ frequency: 1250, duration: 0.035, volume: 0.2, type: "sine" });
       break;
     }
     case "scan_done": {
@@ -1083,14 +1089,15 @@ export function play(name: SoundName): void {
 
     // Too fast for what is ahead: two short high pips.
     case "warn": {
-      tone({ frequency: 1480, duration: 0.05, volume: 0.13, type: "square" });
-      tone({ frequency: 1480, duration: 0.05, volume: 0.13, type: "square", delay: 0.1 });
+      tone({ frequency: 1480, duration: 0.05, volume: 0.2, type: "square" });
+      tone({ frequency: 1480, duration: 0.05, volume: 0.2, type: "square", delay: 0.1 });
       break;
     }
 
-    // A gust: filtered noise that swells and passes.
+    // A gust: filtered noise that swells and passes. The narrow band passes little of the noise, hence the high gain
+    // (rendered offline it peaks at about 0.07 of full scale, like the other effects: see sfx.test.ts).
     case "gust": {
-      noise({ duration: 0.9, volume: 0.16, frequency: 320, endFrequency: 1100, filterType: "bandpass" });
+      noise({ duration: 0.9, volume: 0.8, frequency: 320, endFrequency: 1100, filterType: "bandpass" });
       break;
     }
   }
