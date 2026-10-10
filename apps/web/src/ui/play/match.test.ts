@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { after, planTitle, readMatch, ringLeft, secondsLeft } from './match';
+import { after, planTitle, readMatch, ringLeft, secondsLeft, stepsOf } from './match';
 
 describe('readMatch', () => {
   it('reads a room, its seat and the server clock', () => {
@@ -38,12 +38,17 @@ describe('the countdown', () => {
   });
 });
 
-describe('the three taps', () => {
-  it('each tap moves to the next step, then waits for the start', () => {
+describe('the taps', () => {
+  it('each tap moves to the next step, then waits for the start: there is no strategy tap', () => {
+    expect(after('mission')).toBe('vehicle');
     expect(after('vehicle')).toBe('agent');
-    expect(after('agent')).toBe('strategy');
-    expect(after('strategy')).toBe('waiting');
+    expect(after('agent')).toBe('waiting');
     expect(after('waiting')).toBe('waiting');
+  });
+
+  it('starts with the mission only when that step is on', () => {
+    expect(stepsOf(false)).toEqual(['vehicle', 'agent']);
+    expect(stepsOf(true)).toEqual(['mission', 'vehicle', 'agent']);
   });
 
   it('names the model that really planned', () => {

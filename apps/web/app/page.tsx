@@ -45,7 +45,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
         <nav className="rr-rise flex flex-col gap-2.5 lg:col-start-1 lg:row-start-3" style={{ ['--i' as string]: 2 }}>
           {/* On /play the agent is picked inside it, so the YOU DRIVE / JEV DRIVES switch has nothing left to say here. */}
           {cta === 'play' ? (
-            <PlayNowPicker />
+            <PlayNowPicker missionId={PLAY_MISSION} />
           ) : (
             <>
               <ModeSwitch />

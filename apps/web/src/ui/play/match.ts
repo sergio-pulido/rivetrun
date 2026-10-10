@@ -1,4 +1,5 @@
-// /play (docs/PLAY_AND_PLAN.md §4): what the matchmaker answered, and the 30 s the room gives for three taps.
+// /play (docs/PLAY_AND_PLAN.md §4, amended 14:00): what the matchmaker answered, the taps (mission, vehicle, driver)
+// and the 30 s the room gives for them.
 import { z } from 'zod';
 
 /** How long a room's lobby lasts from the first join. Only used to draw the ring: the end itself is the server's `endsAt`. */
@@ -48,12 +49,19 @@ export const secondsLeft = (endsAt: number, now: number): number => Math.max(0, 
 /** How much of the ring is left, 1 → 0. */
 export const ringLeft = (endsAt: number, now: number): number => Math.min(1, Math.max(0, (endsAt - now) / LOBBY_MS));
 
-export const STEPS = ['vehicle', 'agent', 'strategy'] as const;
-export type Step = (typeof STEPS)[number];
+/** The taps, in order. The mission tap comes first when the mission step is switched on. */
+export type Step = 'mission' | 'vehicle' | 'agent';
 export type Stage = Step | 'waiting';
+export const stepsOf = (withMission: boolean): readonly Step[] => (withMission ? ['mission', 'vehicle', 'agent'] : ['vehicle', 'agent']);
 
-/** A tap moves on: vehicle → agent → strategy → waiting for the start. */
-export const after = (stage: Stage): Stage => (stage === 'vehicle' ? 'agent' : stage === 'agent' ? 'strategy' : 'waiting');
+/** Whether /play starts with the mission tap. Off until that step has its go; "/play?missions=1" shows it meanwhile. */
+export const MISSION_STEP: boolean = false;
+
+/** How long an untouched phone waits on the mission step before it takes the highlighted mission by itself. */
+export const MISSION_AUTO_MS = 10_000;
+
+/** A tap moves on: mission → vehicle → driver → waiting for the start. There is no strategy tap: AI drivers use the plan. */
+export const after = (stage: Stage): Stage => (stage === 'mission' ? 'vehicle' : stage === 'vehicle' ? 'agent' : 'waiting');
 
 /** "claude-sonnet-5-5" planned it → "Claude's plan"; another provider's model is named as it is. */
 export const planTitle = (model: string | null): string => (model === null || /^claude/i.test(model) ? "Claude's plan" : `${model}'s plan`);

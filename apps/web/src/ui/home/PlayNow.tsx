@@ -12,9 +12,10 @@ import { useRivalPrefetch } from '@/ui/useRivalPrefetch';
 const BUTTON = 'flex h-[68px] items-center justify-between rounded-2xl bg-orange px-[22px] text-on-orange transition-transform active:scale-[0.98]';
 
 /** PLAY NOW as the way into /play: the robot, the brain and the plan are picked there, in the room's 30 seconds. */
-export function PlayNowPicker() {
+export function PlayNowPicker({ missionId }: { readonly missionId?: MissionId }) {
   return (
-    <Link href="/play" className={BUTTON} data-testid="home-play">
+    // The Play mission goes with the link, so /play opens with it highlighted and one tap continues.
+    <Link href={missionId ? `/play?mission=${missionId}` : '/play'} className={BUTTON} data-testid="home-play">
       <span className="flex flex-col gap-0.5">
         <span className="font-display text-2xl font-bold leading-none tracking-[2px]">PLAY NOW</span>
         <span className="text-[13px] font-medium leading-tight">Pick a robot, a brain and a plan · 30 s</span>

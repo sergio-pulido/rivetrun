@@ -3,13 +3,14 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
-import { BRIEFING_PRESETS, DEFAULT_PLAY_PICK, PresetIdSchema, type PlayStrategy, type PlayerPick, type PresetId } from '@rivetrun/contracts';
-import { PRESETS } from '@rivetrun/sim';
+import { DEFAULT_PLAY_PICK, PresetIdSchema, type MissionId, type PlayerPick, type PresetId } from '@rivetrun/contracts';
+import { MISSIONS, PRESETS } from '@rivetrun/sim';
+import { TERRAIN_LOOK } from '@/game/palette';
 // The Room Race's own robot drawing, for a preset whose render cannot be loaded.
 import { RobotGlyph } from '../../../app/race/_lib/RobotGlyph';
 import { AppHeader } from '@/ui/AppHeader';
 import { Icon } from '@/ui/Icon';
-import { STEPS, after, planTitle, readMatch, ringLeft, secondsLeft, type Seat, type Stage, type Step } from './match';
+import { MISSION_AUTO_MS, after, planTitle, readMatch, ringLeft, secondsLeft, stepsOf, type Seat, type Stage, type Step } from './match';
 
 export interface PlayAgent {
   readonly id: string;
@@ -28,11 +29,12 @@ interface Room {
   readonly clockOffsetMs: number;
 }
 
-type Match = { readonly kind: 'matching' } | { readonly kind: 'room'; readonly room: Room } | { readonly kind: 'wait'; readonly until: number } | { readonly kind: 'unavailable' };
+/** 'choosing' = on the mission step: no room is asked for until a mission is taken. */
+type Match = { readonly kind: 'choosing' } | { readonly kind: 'matching' } | { readonly kind: 'room'; readonly room: Room } | { readonly kind: 'wait'; readonly until: number } | { readonly kind: 'unavailable' };
 
 const HUMAN = 'human';
 const PRESET_IDS = Object.keys(PRESETS) as readonly PresetId[];
-const STEP_TITLE: Readonly<Record<Step, string>> = { vehicle: 'Pick your robot', agent: 'Who drives it?', strategy: 'How should it drive?' };
+const STEP_TITLE: Readonly<Record<Step, string>> = { mission: 'Pick a mission', vehicle: 'Pick your robot', agent: 'Who drives it?' };
 const CARD = 'flex min-h-[76px] w-full items-center gap-3 rounded-2xl border-2 px-3.5 py-3 text-left transition-transform active:scale-[0.98]';
 const cardLook = (on: boolean, tone: 'player' | 'brain' = 'player'): string => `${CARD} ${on ? (tone === 'brain' ? 'border-cyan bg-cyan-deep' : 'border-orange bg-[#1F150C]') : 'border-line-2 bg-panel'}`;
 const POLL_MS = 1000;
@@ -100,27 +102,45 @@ function Choice({ testId, on, tone, onPick, lead, title, line, side }: ChoicePro
   );
 }
 
+interface PlayProps {
+  readonly agents: readonly PlayAgent[];
+  readonly plans: PlayPlans;
+  /** The missions a phone may ask a room for, the Play mission first. */
+  readonly missions: readonly MissionId[];
+  /** The mission of a phone that does not choose. */
+  readonly defaultMission: MissionId;
+  /** Start with the mission tap; without it the phone is matched on load into the default mission. */
+  readonly missionStep: boolean;
+}
+
 /**
- * /play: one QR, no room code. The phone is matched into a room on load, then three taps in the room's 30 seconds:
- * vehicle, agent, strategy. The highlighted choice is the default and applies at 0 without a tap.
+ * /play: one QR, no room code. Taps: mission (when that step is on), vehicle, driver. The phone is matched into a room
+ * for its mission and the room's 30 seconds start then. The highlighted choice is the default and applies without a
+ * tap. There is no strategy tap: an AI driver uses the plan made for the mission and the vehicle.
  */
-export function Play({ agents, plans }: { readonly agents: readonly PlayAgent[]; readonly plans: PlayPlans }) {
+export function Play({ agents, plans, missions, defaultMission, missionStep }: PlayProps) {
   const router = useRouter();
-  const [match, setMatch] = useState<Match>({ kind: 'matching' });
-  const [stage, setStage] = useState<Stage>('vehicle');
+  const [match, setMatch] = useState<Match>(missionStep ? { kind: 'choosing' } : { kind: 'matching' });
+  const [stage, setStage] = useState<Stage>(missionStep ? 'mission' : 'vehicle');
   const [pick, setPick] = useState<PlayerPick>({ ...DEFAULT_PLAY_PICK, agent: agents[0]?.id ?? HUMAN });
   const [missionId, setMissionId] = useState<string | null>(null);
+  // The mission highlighted on the mission step: "?mission=<id>" (Home's PLAY NOW) or the Play mission.
+  const [highlighted, setHighlighted] = useState<MissionId>(defaultMission);
   const [now, setNow] = useState(() => Date.now());
+  const [openedAt] = useState(() => Date.now());
   const asked = useRef(false);
   const left = useRef(false);
+  /** The mission asked for, kept for the retry after "Next race in N s". */
+  const wanted = useRef<MissionId | null>(null);
 
-  const findRoom = useCallback(async (): Promise<void> => {
+  const findRoom = useCallback(async (mission: MissionId | null = wanted.current): Promise<void> => {
+    wanted.current = mission;
     setMatch({ kind: 'matching' });
     let answer: ReturnType<typeof readMatch>;
     try {
       // "?test=1" asks for a test room: those stay off every board (the load test and the e2e use them).
       const test = new URLSearchParams(window.location.search).get('test') === '1';
-      const response = await fetch('/api/race/match', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(test ? { test: true } : {}), cache: 'no-store' });
+      const response = await fetch('/api/race/match', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ...(test ? { test: true } : {}), ...(mission ? { missionId: mission } : {}) }), cache: 'no-store' });
       answer = readMatch(response.status, await response.json().catch(() => null), Date.now());
     } catch {
       answer = { kind: 'unavailable' };
@@ -132,12 +152,30 @@ export function Play({ agents, plans }: { readonly agents: readonly PlayAgent[];
     else setMatch({ kind: 'unavailable' });
   }, []);
 
-  // Matched once per visit: a second request would take a second seat.
+  // Matched once per visit: a second request would take a second seat. With the mission step, only once a mission is taken.
   useEffect(() => {
-    if (asked.current) return;
+    if (missionStep || asked.current) return;
     asked.current = true;
-    void findRoom();
-  }, [findRoom]);
+    void findRoom(null);
+  }, [findRoom, missionStep]);
+
+  const takeMission = useCallback(
+    (mission: MissionId): void => {
+      if (asked.current) return;
+      asked.current = true;
+      setHighlighted(mission);
+      setMissionId(mission);
+      setStage('vehicle');
+      void findRoom(mission);
+    },
+    [findRoom],
+  );
+
+  useEffect(() => {
+    const asked4 = new URLSearchParams(window.location.search).get('mission');
+    const known = missions.find((mission) => mission === asked4);
+    if (known) setHighlighted(known);
+  }, [missions]);
 
   useEffect(() => {
     const timer = setInterval(() => setNow(Date.now()), 250);
@@ -200,6 +238,12 @@ export function Play({ agents, plans }: { readonly agents: readonly PlayAgent[];
     if (room && serverNow >= room.endsAt + START_GRACE_MS) enterRace(room.code);
   }, [room, serverNow, enterRace]);
 
+  // An untouched phone takes the highlighted mission by itself: defaults never need a tap.
+  const autoInS = match.kind === 'choosing' ? Math.max(0, Math.ceil((openedAt + MISSION_AUTO_MS - now) / 1000)) : null;
+  useEffect(() => {
+    if (match.kind === 'choosing' && now >= openedAt + MISSION_AUTO_MS) takeMission(highlighted);
+  }, [match.kind, now, openedAt, highlighted, takeMission]);
+
   // "Next race in N s": asked again when the wait is over.
   useEffect(() => {
     if (match.kind === 'wait' && now >= match.until) void findRoom();
@@ -216,8 +260,9 @@ export function Play({ agents, plans }: { readonly agents: readonly PlayAgent[];
 
   const plan = missionId ? (plans[missionId]?.[pick.presetId] ?? null) : null;
   const agentLabel = pick.agent === HUMAN ? 'You drive' : (agents.find((agent) => agent.id === pick.agent)?.label ?? pick.agent);
-  const strategyLabel = pick.strategy === 'plan' ? `${planTitle(plan?.model ?? null)} ★` : (BRIEFING_PRESETS.find((preset) => preset.id === pick.strategy)?.name ?? pick.strategy);
-  const dataStep = match.kind === 'room' ? stage : match.kind;
+  const steps = stepsOf(missionStep);
+  const dataStep = match.kind === 'room' ? stage : match.kind === 'choosing' ? 'mission' : match.kind;
+  const mission = MISSIONS[missions.find((id) => id === missionId) ?? defaultMission];
 
   return (
     <main className="mx-auto flex min-h-dvh max-w-[430px] flex-col gap-3 px-4 pb-[max(18px,env(safe-area-inset-bottom))] pt-[max(14px,env(safe-area-inset-top))]" data-testid="play" data-step={dataStep}>
@@ -251,15 +296,57 @@ export function Play({ agents, plans }: { readonly agents: readonly PlayAgent[];
         </div>
       ) : null}
 
+      {match.kind === 'choosing' ? (
+        <>
+          <div>
+            <p className="font-mono text-[11px] font-medium uppercase tracking-[1.5px] text-muted">step 1 of {steps.length}</p>
+            <h1 className="font-display text-[30px] font-bold leading-none">{STEP_TITLE.mission}</h1>
+          </div>
+          <div className="flex flex-col gap-2.5" role="group" aria-label="Mission">
+            {missions.map((id) => {
+              const option = MISSIONS[id];
+              const length = option.track.segments.reduce((sum, segment) => sum + segment.lengthM, 0);
+              const on = id === highlighted;
+              return (
+                <button key={id} type="button" data-testid={`play-mission-${id}`} aria-pressed={on} onClick={() => takeMission(id)} className={`${cardLook(on)} !flex-col !items-stretch !gap-1.5`}>
+                  <span className="flex items-center justify-between gap-2 font-mono text-[11px] font-medium uppercase tracking-[1px]">
+                    <span className="text-orange-soft">
+                      Mission 0{id.slice(1)} · {length} m
+                    </span>
+                    <span className="flex items-center gap-1.5">
+                      {id === defaultMission ? <span className="rounded bg-orange px-1.5 py-0.5 text-[10px] font-semibold text-on-orange">Play mission</span> : null}
+                      <span className="rounded border border-line-3 px-1.5 py-0.5 text-[10px] text-muted">{option.weather}</span>
+                    </span>
+                  </span>
+                  <span className="font-display text-xl font-bold leading-tight">{option.name}</span>
+                  <span className="line-clamp-2 text-[13px] leading-snug text-text-2">{option.description}</span>
+                  <span className="flex h-1.5 overflow-hidden rounded-sm">
+                    {option.track.segments.map((segment, index) => (
+                      <span key={index} style={{ width: `${(segment.lengthM / length) * 100}%`, background: TERRAIN_LOOK[segment.terrain].hud }} />
+                    ))}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+          <p className="mt-auto pt-1 text-center text-[13px] leading-snug text-muted" role="status">
+            No tap needed: the highlighted mission starts in <span data-testid="play-mission-auto">{autoInS}</span> s.
+          </p>
+        </>
+      ) : null}
+
       {room ? (
         <>
           <div className="flex items-center gap-3">
             <Ring left={ringLeft(room.endsAt, serverNow)} seconds={secondsLeft(room.endsAt, serverNow)} />
             <div className="min-w-0 flex-1">
               <p className="font-mono text-[11px] font-medium uppercase tracking-[1.5px] text-muted">
-                Room <span data-testid="play-room">{room.code}</span> · {stage === 'waiting' ? 'you are in' : `step ${STEPS.indexOf(stage) + 1} of ${STEPS.length}`}
+                Room <span data-testid="play-room">{room.code}</span> · {stage === 'waiting' ? 'you are in' : `step ${steps.indexOf(stage as Step) + 1} of ${steps.length}`}
               </p>
               <h1 className="font-display text-[30px] font-bold leading-none">{stage === 'waiting' ? 'Get ready' : STEP_TITLE[stage]}</h1>
+              <p className="mt-1 truncate font-mono text-[11px] uppercase tracking-[1px] text-text-2" data-testid="play-mission">
+                Mission 0{mission.id.slice(1)} · {mission.name}
+              </p>
             </div>
           </div>
 
@@ -289,27 +376,11 @@ export function Play({ agents, plans }: { readonly agents: readonly PlayAgent[];
                   on={pick.agent === agent.id}
                   onPick={() => choose({ agent: agent.id })}
                   title={agent.label}
-                  line="An AI drives. You watch your robot race."
+                  line={plan ? `Drives with ${planTitle(plan.model)}. You watch your robot race.` : 'An AI drives. You watch your robot race.'}
                   side={agent.p50Ms === null ? undefined : `answers in ${Math.round(agent.p50Ms)} ms`}
                 />
               ))}
               <Choice testId="play-agent-human" on={pick.agent === HUMAN} onPick={() => choose({ agent: HUMAN })} title="You drive" line="Your thumbs on the throttle and the brake." />
-            </div>
-          ) : null}
-
-          {stage === 'strategy' ? (
-            <div className="flex flex-col gap-2.5" role="group" aria-label="Strategy">
-              <Choice
-                testId="play-strategy-plan"
-                tone="brain"
-                on={pick.strategy === 'plan'}
-                onPick={() => choose({ strategy: 'plan' })}
-                title={`${planTitle(plan?.model ?? null)} ★`}
-                line={plan ? plan.rationale : 'A plan made before the race for this track and this robot.'}
-              />
-              {BRIEFING_PRESETS.map((preset) => (
-                <Choice key={preset.id} testId={`play-strategy-${preset.id}`} on={pick.strategy === preset.id} onPick={() => choose({ strategy: preset.id satisfies PlayStrategy })} title={preset.name} line={preset.text} />
-              ))}
             </div>
           ) : null}
 
@@ -318,8 +389,7 @@ export function Play({ agents, plans }: { readonly agents: readonly PlayAgent[];
               {(
                 [
                   ['vehicle', 'Robot', PRESETS[pick.presetId].name],
-                  ['agent', 'Driver', agentLabel],
-                  ['strategy', 'Strategy', strategyLabel],
+                  ['agent', 'Driver', pick.agent !== HUMAN && plan ? `${agentLabel} · ${planTitle(plan.model)}` : agentLabel],
                 ] as const
               ).map(([step, label, value]) => (
                 <button key={step} type="button" onClick={() => setStage(step)} className="flex min-h-14 items-center justify-between gap-3 rounded-2xl border border-line-2 bg-panel px-4 text-left">
