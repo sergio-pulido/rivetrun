@@ -157,7 +157,9 @@ async function raceToResult(page, { drive }) {
       await page.keyboard.up('ArrowUp');
       await page.keyboard.down('ArrowUp');
     }
-    if (drive && /TAP CLIMB/.test(body) && Date.now() - lastTap > 2500) {
+    // The one action button: CLIMB when the robot bogs down, JUMP when the sensors report a gap about a metre ahead.
+    const gapM = Number(body.match(/in (\d+(?:\.\d+)?) m[^.]{0,40}JUMP IT/)?.[1] ?? 'NaN');
+    if (drive && (/TAP CLIMB/.test(body) || gapM <= 1.2) && Date.now() - lastTap > 2500) {
       lastTap = Date.now();
       await page.keyboard.press('Space');
     }
@@ -167,9 +169,11 @@ async function raceToResult(page, { drive }) {
   if (!/Final order/i.test(body)) throw new Error(`no final order on /race/${code} after ${Math.round((COUNTDOWN_MS + RACE_MS) / 1000)} s; the page said: "${body.slice(0, 140)}"`);
   const place = body.match(/\bP(\d)\s*of\s*(\d+)/);
   const finished = /RACE TIME/.test(body);
+  // The reason beside this phone's own place, e.g. "DNF · stuck" or "DNF · lost connection".
+  const dnf = finished ? null : (body.match(/P\d\s*of\s*\d+\s*(DNF[^a-z]{0,3}[a-z ]{0,24}?)\s*did not finish/)?.[1]?.trim() ?? 'DNF');
   const time = body.match(/(\d+(?:\.\d+)?) ?s\b[^.]{0,12}RACE TIME|(\d{1,2}:\d\d\.\d)/)?.[0] ?? null;
   const playAgain = await page.locator('a[href^="/play"]').first().isVisible().catch(() => false);
-  return { code, place: place ? `P${place[1]} of ${place[2]}` : null, lanes: place ? Number(place[2]) : 0, finished, time, playAgain, body };
+  return { code, place: place ? `P${place[1]} of ${place[2]}` : null, lanes: place ? Number(place[2]) : 0, finished, dnf, time, playAgain, body };
 }
 
 async function playSteps(browser) {
@@ -230,9 +234,12 @@ async function playSteps(browser) {
     await watching;
     await assertHealthy(a, seenA);
     if (!driven.place) throw new Error(`the final order does not show this phone's place; the page said: "${driven.body.slice(0, 140)}"`);
-    if (!driven.finished) throw new Error(`the driving phone did not finish (${driven.place}); the page said: "${driven.body.slice(0, 160)}"`);
+    // This step is about the flow: the phone that drove gets the room's official result. A scripted thumb may well
+    // not finish the Play mission; a phone the room lost is a failure of the flow.
+    if (!driven.finished && /lost connection/i.test(driven.dnf ?? '')) throw new Error(`the room lost the driving phone (${driven.place}, ${driven.dnf}); the page said: "${driven.body.slice(0, 160)}"`);
     if (!driven.playAgain) warnings.push('/play: the race result has no link back to /play ("Play again", docs/PLAY_AND_PLAN.md §4)');
-    return `room ${driven.code}: ${driven.place}, ${driven.time ?? 'a race time'}; ${driven.lanes} lanes${driven.lanes < 4 ? ' (the plan says bots fill to at least 4)' : ''}; Play again link: ${driven.playAgain ? 'yes' : 'NO'}`;
+    const outcome = driven.finished ? (driven.time ?? 'a race time') : `${driven.dnf} (a scripted thumb: throttle held, the action button on its prompts)`;
+    return `room ${driven.code}: ${driven.place}, ${outcome}; ${driven.lanes} lanes${driven.lanes < 4 ? ' (the plan says bots fill to at least 4)' : ''}; Play again link: ${driven.playAgain ? 'yes' : 'NO'}`;
   }, a);
 
   // The untouched phone gets the defaults (All-rounder, Jev, the plan): its agent has to bring it to a result.
@@ -241,7 +248,7 @@ async function playSteps(browser) {
     await shot(b, 'play-07-result-idle').catch(() => undefined);
     if (idle.error) throw new Error(idle.error);
     await assertHealthy(b, seenB);
-    if (!idle.finished) throw new Error(`an untouched phone (defaults: All-rounder, Jev, the plan) did not finish: ${idle.place ?? 'no place'}; the page said: "${idle.body.slice(0, 160)}"`);
+    if (!idle.finished) throw new Error(`an untouched phone (defaults: All-rounder, Jev, the plan) did not finish: ${idle.place ?? 'no place'}, ${idle.dnf}; the page said: "${idle.body.slice(0, 160)}"`);
     return `an untouched phone finished without a tap: ${idle.place}, ${idle.time ?? 'a race time'}`;
   }, b);
 
