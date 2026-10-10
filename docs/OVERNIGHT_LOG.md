@@ -7,6 +7,7 @@ Written by [MASTER] for the human. Newest status first. Program: docs/OVERNIGHT.
 - Top up the Anthropic API account: since about 04:20 every call answers "Your credit balance is too low" (HTTP 400). Haiku, Sonnet and Opus cannot be re-run in the arena until then; their rows stay from gameplay version 3 and are marked so. OpenAI, DeepSeek and Jev are fine.
 - Type anything in the [MASTER] session when you see this (and again whenever you pass by): each message you type gives me 10 more messages to the workers. Without it I can only reach them through docs/OVERNIGHT.md, which an idle session never reads.
 - 07:30: build the demo from the latest tag, not from main: `pnpm demo:stable -- --ref "$(git tag -l 'demo-good-*' | sort | tail -1)"`. Serving a tag has not been tested by any session (brain tested `--ref <sha> --build-only` only): check the `/screen` footer shows "build <sha> · <ref>".
+- A room seats 8 phones (the host picks 4, 6 or 8) plus up to 2 JEV bots; docs/DEMO_PLAN.md says "10+ phones". A ninth phone is not turned away: it sees "Room full — watch the big screen" and gets the join form back when a seat frees. For a room of 70 that means several races, or several rooms. Nobody has tested more than one real phone in a room.
 - Pick the Room Race track for the room knowingly: a first-timer who only holds the throttle finishes M1, M2, M4 and M9, and gets stuck in mud on M5 (the Room Challenge), M3 and M8. Until the stuck prompt (OVN-SIM-13, OVN-GAME-9) is in a tag, run the room on M1 or M2.
 - Decide at rehearsal: a Room Race closes 45 s after the leader finishes and anyone still driving gets "DNF · race closed". With fast JEV bots in the room that can cut off slow players on the long tracks (M6 is 100 m). Kept at 45 s.
 - (Context for the next line, from game at 04:55: at low quality every mission now draws 130–141 calls and 16–22 k triangles per frame, down from 163–173 calls, by skipping the shadow pass on weak devices and `?quality=low`; high quality is 163–173 calls. Weather and the headlight are one instanced call each. This is a proxy, not a frame rate.)
@@ -27,6 +28,8 @@ Written by [MASTER] for the human. Newest status first. Program: docs/OVERNIGHT.
 - 03:58 · [LAB]: `/scenarios` stays off the Home screen until the gate has seen it green.
 
 ## Status log
+
+README.md and docs/SETUP.md were rewritten from the repo at 05:22 (commit 05915a1) by a sub-agent under [MASTER]; they are refreshed before 10:00. Disagreements it found between documents: docs/JEV.md gives Jev's latency as p50 376 ms where docs/BENCHMARK.md has 243 ms; docs/QA.md R6 says Careful fails M6 with the Deep Diver where the benchmark shows it finishing.
 
 ### 05:22 · seventh tag
 `demo-good-0522` → c377462: 18 e2e steps, no failure, skip or warning. Adds since 0509: the arena re-run on gameplay 4 and the Lab track on the fixed Warehouse, Lab Missions at 1280×720 with a map legend and a two-tap "End the mission", the Brief line for locked parts on M9, race phones seen with the air chip.
