@@ -5,6 +5,7 @@ import type { MissionId } from '@rivetrun/contracts';
 import { useBuildStore } from '@/state/build';
 import { personalBestTrace, usePersonalBestsStore } from '@/state/personalBests';
 import { Icon } from '@/ui/Icon';
+import { rivalStatusLine, type RivalStatus } from '@/ui/rivalStatus';
 import { briefingName } from './BriefTheBrain';
 
 /** Drive mode on the Brief: the two sliders, and who the ghost you race is (Jev with its orders, or your own best run). */
@@ -12,9 +13,13 @@ interface DriveCardProps {
   readonly missionId: MissionId;
   /** The sim's warning for a player who would just hold the throttle here, with what to do instead. */
   readonly tip?: string | null;
+  /** Whether the Jev ghost for this loadout is ready on the server. */
+  readonly rivalStatus?: RivalStatus;
 }
 
-export function DriveCard({ missionId, tip = null }: DriveCardProps) {
+const STATUS_TONE = { ok: 'text-ok', wait: 'text-cyan-soft', warn: 'text-warn' } as const;
+
+export function DriveCard({ missionId, tip = null, rivalStatus = 'idle' }: DriveCardProps) {
   const build = useBuildStore((store) => store.build);
   const briefing = useBuildStore((store) => store.briefing);
   const priority = useBuildStore((store) => store.priority);
@@ -23,6 +28,7 @@ export function DriveCard({ missionId, tip = null }: DriveCardProps) {
   // The run races your own ghost only when one is stored for this robot on this mission; otherwise it is Jev.
   const [ownGhost, setOwnGhost] = useState(false);
   useEffect(() => setOwnGhost(rival === 'self' && personalBestTrace(missionId, build) !== null), [rival, missionId, build, bests]);
+  const status = rivalStatusLine(rivalStatus);
   const orders = briefingName(briefing) ?? `priority ${Math.round(priority * 100)} % safety`;
   return (
     <section className="flex flex-col gap-2.5 rounded-2xl border border-[#3A2A1C] bg-[#17120D] p-3.5">
@@ -44,6 +50,12 @@ export function DriveCard({ missionId, tip = null }: DriveCardProps) {
         <p role="status" className="flex items-start gap-2 rounded-[10px] border border-warn/50 px-2.5 py-2 text-xs leading-snug text-warn">
           <Icon name="warn" size={14} className="mt-px shrink-0" />
           {tip}
+        </p>
+      ) : null}
+      {status && !ownGhost ? (
+        <p role="status" data-testid="jev-status" data-status={rivalStatus} className={`flex items-center gap-2 text-xs font-medium leading-snug ${STATUS_TONE[status.tone]}`}>
+          <span className={`h-2 w-2 shrink-0 rounded-full bg-current ${status.tone === 'wait' ? 'rr-blink' : ''}`} />
+          {status.text}
         </p>
       ) : null}
       <p className="text-xs leading-snug text-[#B8C0C9]">

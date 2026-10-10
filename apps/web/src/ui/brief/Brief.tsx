@@ -87,7 +87,7 @@ export function Brief({ missionId }: { readonly missionId: MissionId }) {
   const scenario = useMemo(() => scenarioSegments(mission, build, testRun.assessment), [mission, build, testRun.assessment]);
 
   useEffect(() => setMission(missionId), [missionId, setMission]);
-  useRivalPrefetch(mission);
+  const rivalStatus = useRivalPrefetch(mission);
 
   const robotCard = (
     <section className="rr-rise flex flex-col gap-2 rounded-xl border border-dashed border-line-3 px-3 py-2.5">
@@ -153,10 +153,18 @@ export function Brief({ missionId }: { readonly missionId: MissionId }) {
             Over budget by €{stats.overBudgetEur} · fix in Workshop
           </Link>
         ) : (
-          <PlayLink href={`/run/${mission.id}`} className="rr-btn rr-btn-primary w-full !min-h-[60px] !rounded-2xl !text-xl !tracking-[2px]">
-            {mode === 'drive' ? 'Drive' : 'Deploy'}
-            <Icon name="next" size={22} />
-          </PlayLink>
+          <div className="flex flex-col gap-1.5">
+            {/* Never blocks: the button stays live. The line only says who the ghost will be if you start now. */}
+            {mode === 'drive' && (rivalStatus === 'computing' || rivalStatus === 'unavailable') ? (
+              <p role="status" className={`text-center text-[11px] font-medium leading-tight ${rivalStatus === 'computing' ? 'text-cyan-soft' : 'text-warn'}`}>
+                {rivalStatus === 'computing' ? 'Jev is getting ready… drive now and you race the built-in driver' : 'Jev could not drive this one: you race the built-in driver'}
+              </p>
+            ) : null}
+            <PlayLink href={`/run/${mission.id}`} className="rr-btn rr-btn-primary w-full !min-h-[60px] !rounded-2xl !text-xl !tracking-[2px]">
+              {mode === 'drive' ? 'Drive' : 'Deploy'}
+              <Icon name="next" size={22} />
+            </PlayLink>
+          </div>
         )
       }
     >
@@ -204,7 +212,7 @@ export function Brief({ missionId }: { readonly missionId: MissionId }) {
 
       {mode === 'drive' ? (
         <div className="rr-rise" style={{ ['--i' as string]: 3 }}>
-          <DriveCard missionId={mission.id} tip={throttleTip} />
+          <DriveCard missionId={mission.id} tip={throttleTip} rivalStatus={rivalStatus} />
         </div>
       ) : (
         <>
