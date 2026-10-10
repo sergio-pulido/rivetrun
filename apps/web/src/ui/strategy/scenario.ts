@@ -125,11 +125,18 @@ export interface Fix {
   readonly partIds: readonly string[];
 }
 
-/** For each capability the build lacks: the parts that would provide it. Parts already fitted or not in the game yet are left out. */
+/**
+ * For each capability the build lacks: the parts that would provide it. Parts already fitted or not in the game yet are left out,
+ * and a part that helps with several is listed once, under the capability it is the best answer to.
+ */
 export function fixesFor(missing: readonly CapabilityId[], build: Build, providers: (capability: CapabilityId) => readonly string[]): readonly Fix[] {
   const fitted = new Set<string>([build.locomotion, build.motor, build.battery, ...build.sensors, ...build.extras]);
-  return missing.flatMap((capability): Fix[] => {
-    const partIds = providers(capability).filter((id) => !fitted.has(id) && !PARTS_BY_ID.get(id)?.comingSoon);
-    return partIds.length > 0 ? [{ capability, name: capabilityName(capability), partIds }] : [];
+  const ranked = missing.map((capability) => ({ capability, partIds: providers(capability) }));
+  const bestRank = (id: string): number => Math.min(...ranked.map((entry) => entry.partIds.indexOf(id)).filter((rank) => rank >= 0));
+  const taken = new Set<string>();
+  return ranked.flatMap(({ capability, partIds }): Fix[] => {
+    const mine = partIds.filter((id, rank) => !fitted.has(id) && !PARTS_BY_ID.get(id)?.comingSoon && !taken.has(id) && rank === bestRank(id));
+    mine.forEach((id) => taken.add(id));
+    return mine.length > 0 ? [{ capability, name: capabilityName(capability), partIds: mine }] : [];
   });
 }

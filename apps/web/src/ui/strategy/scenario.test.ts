@@ -98,6 +98,11 @@ describe('fixesFor', () => {
     ]);
   });
 
+  it('lists a part that helps with two capabilities once, where it is the best answer', () => {
+    const overlapping = (capability: string): readonly string[] => (capability === 'waterproof' ? ['waterproof_case', 'thruster_kit'] : providers(capability));
+    expect(fixesFor(['waterproof', 'thrust'], PLAIN, overlapping).map((fix) => fix.partIds)).toEqual([['waterproof_case'], ['thruster_kit']]);
+  });
+
   it('skips what is already fitted and capabilities no part provides', () => {
     const sealed: Build = { ...PLAIN, locomotion: 'tracks', extras: ['waterproof_case'] };
     expect(fixesFor(['waterproof', 'traction:mud', 'protection'], sealed, providers)).toEqual([{ capability: 'traction:mud', name: 'grip on mud', partIds: ['offroad_wheels'] }]);

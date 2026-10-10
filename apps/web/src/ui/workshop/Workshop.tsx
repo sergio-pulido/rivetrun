@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCallback, useState } from 'react';
 import type { Part, Slot } from '@rivetrun/contracts';
-import { PARTS_BY_ID, PRESETS, buildIssues } from '@rivetrun/sim';
+import { MISSIONS, PARTS_BY_ID, PRESETS, buildIssues } from '@rivetrun/sim';
 import type { RoverPick } from '@/game/robot/pick';
 import { useBuildStore } from '@/state/build';
 import { isUnlocked, useProgressStore } from '@/state/progress';
@@ -14,6 +14,8 @@ import { BUDGET_EUR, buildStats, sameBuild } from '@/ui/buildStats';
 import { Icon } from '@/ui/Icon';
 import { LockedCard, type LockedPart } from '@/ui/real/LockedCard';
 import { Shell } from '@/ui/Shell';
+import { TestRun } from '@/ui/strategy/TestRun';
+import { useTestRun } from '@/ui/strategy/useTestRun';
 import { Bench3D } from '@/ui/three/Bench3D';
 import { PartCard } from './PartCard';
 import { Predicted } from './Predicted';
@@ -47,6 +49,14 @@ export function Workshop({ makers, locked, printedIds }: WorkshopProps) {
   const slot = useWorkshopUi((store) => store.slot);
   const setSlot = useWorkshopUi((store) => store.setSlot);
   const [notice, setNotice] = useState<string | null>(null);
+  const setMission = useBuildStore((store) => store.setMission);
+  const priority = useBuildStore((store) => store.priority);
+  const testing = useWorkshopUi((store) => store.testRun);
+  const mission = MISSIONS[missionId];
+  const testRun = useTestRun(build, mission, priority, testing);
+  // Parts the test run points at, each with the capability it would provide: marked on the shelf and on their slot's tab.
+  const fixNames = new Map(testRun.fixes.flatMap((fix) => fix.partIds.map((id): [string, string] => [id, fix.name])));
+  const slotHasFix = (candidate: Slot): boolean => partsIn(candidate).some((part) => fixNames.has(part.id));
 
   const router = useRouter();
   // Tapping a part on the 3D rover opens its sheet; a printed part opens its line in the real-build list. Unknown picks do nothing.
@@ -160,6 +170,8 @@ export function Workshop({ makers, locked, printedIds }: WorkshopProps) {
 
       <Predicted build={build} />
 
+      <TestRun mission={mission} result={testRun} onMission={setMission} />
+
       <div className="sticky top-0 z-10 -mx-4 flex gap-1.5 border-b border-[#222831] bg-ground px-4" role="tablist" aria-label="Part slots">
         {SLOTS.map((info) => {
           const on = info.slot === slot;
@@ -177,7 +189,10 @@ export function Workshop({ makers, locked, printedIds }: WorkshopProps) {
                 on ? 'border-cyan text-cyan' : 'border-transparent text-muted'
               }`}
             >
-              <span>{info.label}</span>
+              <span className="flex items-center gap-1">
+                {info.label}
+                {slotHasFix(info.slot) ? <span className="h-1.5 w-1.5 rounded-full bg-orange" aria-label="the test run points at a part here" /> : null}
+              </span>
               <span className="text-[9px] text-faint">
                 {fitted(build, info.slot).length}/{info.max}
               </span>
@@ -210,6 +225,7 @@ export function Workshop({ makers, locked, printedIds }: WorkshopProps) {
             equipped={fittedIds.includes(part.id)}
             locked={!isUnlocked(unlocked, part.id)}
             affordable={points >= part.unlockPoints}
+            fixes={fixNames.get(part.id)}
             onAct={act}
           />
         ))}

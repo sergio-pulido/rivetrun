@@ -13,13 +13,15 @@ interface PartCardProps {
   readonly equipped: boolean;
   readonly locked: boolean;
   readonly affordable: boolean;
+  /** Set when the test run points at this part: the capability it would provide, e.g. "sealed hull". */
+  readonly fixes?: string;
   /** Swap the part in (or unlock it when locked). */
   readonly onAct: (part: Part) => void;
 }
 
 /** One part on the shelf. The card opens the part sheet; the strip at the bottom acts on the build. */
-export function PartCard({ part, model, equipped, locked, affordable, onAct }: PartCardProps) {
-  const frame = equipped ? 'border-cyan bg-[#10181C]' : locked ? 'border-dashed border-line-3 bg-[#111418]' : 'border-line-2 bg-panel-3';
+export function PartCard({ part, model, equipped, locked, affordable, fixes, onAct }: PartCardProps) {
+  const frame = equipped ? 'border-cyan bg-[#10181C]' : fixes ? 'border-orange bg-orange-deep' : locked ? 'border-dashed border-line-3 bg-[#111418]' : 'border-line-2 bg-panel-3';
   return (
     <div className={`flex h-[166px] flex-col rounded-[14px] border p-2.5 ${frame}`}>
       <Link href={`/workshop/part/${part.id}`} className="flex min-h-0 flex-1 flex-col gap-1" aria-label={`${part.name}: details`}>
@@ -31,7 +33,7 @@ export function PartCard({ part, model, equipped, locked, affordable, onAct }: P
           <span className="shrink-0 font-mono text-[10px] text-muted">€{part.costEur}</span>
         </span>
         <span className="truncate font-mono text-[10px] text-muted">{model ?? part.slot}</span>
-        <span className="truncate text-xs text-text-2">{effectLine(part)}</span>
+        {fixes ? <span className="truncate text-xs font-medium text-orange-soft">Gives {fixes}</span> : <span className="truncate text-xs text-text-2">{effectLine(part)}</span>}
       </Link>
       {equipped ? (
         <span className="mt-auto flex h-[30px] items-center font-mono text-[10px] font-medium tracking-[1px] text-cyan">● EQUIPPED</span>

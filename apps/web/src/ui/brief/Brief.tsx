@@ -15,7 +15,8 @@ import { MODE_NOTE, ModeSwitch } from '@/ui/ModeSwitch';
 import { Shell } from '@/ui/Shell';
 import { scenarioSegments } from '@/ui/strategy/scenario';
 import { ScenarioStrip } from '@/ui/strategy/ScenarioStrip';
-import { assessBuild } from '@/ui/strategy/sim';
+import { TestRun } from '@/ui/strategy/TestRun';
+import { useTestRun } from '@/ui/strategy/useTestRun';
 import { TrackProfile } from '@/ui/TrackProfile';
 import { useRivalPrefetch } from '@/ui/useRivalPrefetch';
 import { BriefTheBrain } from './BriefTheBrain';
@@ -67,7 +68,8 @@ export function Brief({ missionId }: { readonly missionId: MissionId }) {
   const setSlot = useWorkshopUi((store) => store.setSlot);
   const overBudget = stats.overBudgetEur > 0;
   // The sim's dry run of this build on this mission: a few ms, so it is simply redone when either changes.
-  const scenario = useMemo(() => scenarioSegments(mission, build, assessBuild(build, mission, priority)), [mission, build, priority]);
+  const testRun = useTestRun(build, mission, priority);
+  const scenario = useMemo(() => scenarioSegments(mission, build, testRun.assessment), [mission, build, testRun.assessment]);
 
   useEffect(() => setMission(missionId), [missionId, setMission]);
   useRivalPrefetch(mission);
@@ -165,6 +167,8 @@ export function Brief({ missionId }: { readonly missionId: MissionId }) {
       <div className="rr-rise" style={{ ['--i' as string]: 2 }}>
         <ScenarioStrip segments={scenario} buildName={buildName(build)} />
       </div>
+
+      <TestRun mission={mission} result={testRun} />
 
       <section className="rr-rise flex flex-col gap-1.5" style={{ ['--i' as string]: 2 }}>
         <ModeSwitch />
