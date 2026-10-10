@@ -16,9 +16,11 @@ import { useRunStore, type RunResult } from '@/state/run';
 import { Icon, type IconName } from '@/ui/Icon';
 import { Shell } from '@/ui/Shell';
 import { Stars } from '@/ui/Stars';
+import { breakdownView } from './breakdown';
 import { decisionSummary } from './decisions';
 import { DuelTable } from './DuelTable';
 import { ReactionDuel } from './ReactionDuel';
+import { RunBreakdown } from './RunBreakdown';
 import { pairWithGhost, parseReactions, reactionDuel } from './reactions';
 import { ScoreBreakdown } from './ScoreBreakdown';
 import { downloadEpisode, downloadShareCard, share, type ShareResult } from './share';
@@ -95,6 +97,7 @@ function Summary({ result }: { readonly result: RunResult }) {
     const events = pairWithGhost(parseReactions(outcome.breakdown?.reactions) ?? [], jevGhost?.log ?? []);
     return reactionDuel(events, jevGhost?.medianLatencyMs ?? null);
   }, [result.ghosts, outcome.breakdown]);
+  const breakdown = breakdownView(outcome.breakdown);
   const headline = outcome.finished ? 'Finished' : outcome.dnfReason ? DNF_LABEL[outcome.dnfReason] : 'Did not finish';
 
   // Pays the points once per episode; the store ignores an episode it has already paid.
@@ -165,6 +168,12 @@ function Summary({ result }: { readonly result: RunResult }) {
       <div className="rr-rise" style={{ ['--i' as string]: 2 }}>
         <DuelTable episode={episode} ghosts={result.ghosts} briefing={briefing} />
       </div>
+
+      {breakdown ? (
+        <div className="rr-rise" style={{ ['--i' as string]: 3 }}>
+          <RunBreakdown view={breakdown} />
+        </div>
+      ) : null}
 
       <div className="rr-rise" style={{ ['--i' as string]: 3 }}>
         <ScoreBreakdown outcome={outcome} />
