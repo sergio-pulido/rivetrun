@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Build } from '@rivetrun/contracts';
-import { MISSIONS, PRESETS } from '@rivetrun/sim';
+import { MISSIONS, PRESETS, availableActions } from '@rivetrun/sim';
 import type { Mission } from '@rivetrun/contracts';
 import { buildSenses, deepWaterIssue, gapIssue, missionBlockers, missionWarnings, presetThatFinishes } from './buildStats';
 
@@ -42,17 +42,24 @@ describe('presetThatFinishes', () => {
     expect(missionBlockers(MISSIONS.M6, preset!.build)).toEqual([]);
   });
 
-  it('finds none for Scrapyard Jumps: no preset carries the piston', () => {
-    expect(presetThatFinishes(MISSIONS.M7)).toBeNull();
+  it('finds for the gap mission the first preset the sim lets jump, and none when no preset can', () => {
+    // Which presets can jump is the sim's business (a piston, or a ducted fan while that part is switched on).
+    const jumpers = Object.values(PRESETS).filter((preset) => availableActions(preset.build).includes('jump'));
+    expect(presetThatFinishes(MISSIONS.M7)?.id ?? null).toBe(jumpers[0]?.id ?? null);
   });
 });
 
 describe('gapIssue', () => {
-  const GAP = "This build can't clear the gap with no ramp — needs Piston jump";
+  const GAP = /^This build can't clear the gap with no ramp — needs (.+ or )?Piston jump/;
   const jumper: Build = { ...PRESETS.all_rounder.build, extras: ['piston_jump', 'bumper'] };
 
-  it('flags every preset on Scrapyard Jumps and clears with a piston', () => {
-    for (const preset of Object.values(PRESETS)) expect(gapIssue(MISSIONS.M7, preset.build), preset.name).toBe(GAP);
+  it('flags every build that cannot jump on the gap mission, and clears with a piston', () => {
+    for (const preset of Object.values(PRESETS)) {
+      const issue = gapIssue(MISSIONS.M7, preset.build);
+      if (availableActions(preset.build).includes('jump')) expect(issue, preset.name).toBeNull();
+      else expect(issue, preset.name).toMatch(GAP);
+    }
+    expect(gapIssue(MISSIONS.M7, { ...PRESETS.all_rounder.build, extras: ['bumper'] })).toMatch(GAP);
     expect(gapIssue(MISSIONS.M7, jumper)).toBeNull();
   });
 

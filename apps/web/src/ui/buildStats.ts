@@ -1,5 +1,5 @@
 import { ActionSchema, type Action, type Build, type Mission, type Part, type Preset, type SensorKind } from '@rivetrun/contracts';
-import { PARTS, PARTS_BY_ID, PRESETS, TERRAIN_IDS, TUNING, availableActions, deriveSpec } from '@rivetrun/sim';
+import { PARTS, PARTS_BY_ID, PRESETS, TERRAIN_IDS, TUNING, availableActions, deriveSpec, partsProviding } from '@rivetrun/sim';
 
 export const BUDGET_EUR = TUNING.defaultBudgetEur;
 /** Heaviest build the parts list allows, rounded up: the full scale of the mass bar. */
@@ -113,7 +113,9 @@ export function gapIssue(mission: Mission, build: Build): string | null {
   const segments = mission.track.segments;
   const bareGap = segments.some((segment, index) => segment.feature?.type === 'gap' && segments[index - 1]?.feature?.type !== 'ramp');
   if (!bareGap || availableActions(build).includes('jump')) return null;
-  return `This build can't clear the gap with no ramp — needs ${partName('piston_jump')}`;
+  // The parts the sim says give a jump (a part that is switched off is not offered); the piston when it names none.
+  const jumpParts = partsProviding('jump').map(partName);
+  return `This build can't clear the gap with no ramp — needs ${jumpParts.length > 0 ? jumpParts.join(' or ') : partName('piston_jump')}`;
 }
 
 /** Everything that stops this build finishing this mission, worst first. Empty when nothing does. */
