@@ -1,7 +1,7 @@
 {
   "date": "2026-10-10",
   "runs": 120,
-  "promptHash": "c3a9e5b59c",
+  "promptHash": "9a0e9a761a",
   "gameplayVersion": 3,
   "missions": [
     "M1",
@@ -31,15 +31,17 @@
       "status": "ok",
       "runs": 24,
       "finishPct": 75,
-      "meanScore": 476,
+      "meanScore": 493,
       "meanTimeS": 50.5,
-      "meanDamagePct": 29.1,
-      "scansDone": 0,
-      "decisionsPerRun": 19.6,
+      "meanDamagePct": 27.4,
+      "scansDone": 3,
+      "decisionsPerRun": 19.3,
       "noDecisions": 0,
-      "latencyP50Ms": 240,
-      "latencyP95Ms": 347,
-      "lateCrashes": 59
+      "latencyP50Ms": 243,
+      "latencyP95Ms": 300,
+      "lateCrashes": 9,
+      "lateCrashRule": "impact|blocked|fell",
+      "simCommit": "9166887"
     },
     {
       "id": "heuristic",
@@ -49,15 +51,17 @@
       "status": "ok",
       "runs": 24,
       "finishPct": 75,
-      "meanScore": 495,
-      "meanTimeS": 47.1,
-      "meanDamagePct": 22.2,
+      "meanScore": 497,
+      "meanTimeS": 46.2,
+      "meanDamagePct": 24,
       "scansDone": 12,
-      "decisionsPerRun": 20.7,
+      "decisionsPerRun": 19.1,
       "noDecisions": 0,
       "latencyP50Ms": 0,
       "latencyP95Ms": 0,
-      "lateCrashes": 0
+      "lateCrashes": 0,
+      "lateCrashRule": "impact|blocked|fell",
+      "simCommit": "9166887"
     },
     {
       "id": "random",
@@ -67,15 +71,17 @@
       "status": "ok",
       "runs": 24,
       "finishPct": 8,
-      "meanScore": 76,
-      "meanTimeS": 74,
-      "meanDamagePct": 6.9,
+      "meanScore": 78,
+      "meanTimeS": 97.6,
+      "meanDamagePct": 9.2,
       "scansDone": 4,
-      "decisionsPerRun": 10.7,
+      "decisionsPerRun": 9.3,
       "noDecisions": 0,
       "latencyP50Ms": 0,
       "latencyP95Ms": 0,
-      "lateCrashes": 0
+      "lateCrashes": 0,
+      "lateCrashRule": "impact|blocked|fell",
+      "simCommit": "9166887"
     },
     {
       "id": "claude-haiku-5-5",
@@ -93,9 +99,9 @@
       "noDecisions": 0,
       "latencyP50Ms": 887,
       "latencyP95Ms": 992,
-      "lateCrashes": 55,
       "inputTokens": 35732,
-      "outputTokens": 401
+      "outputTokens": 401,
+      "simCommit": "unknown"
     },
     {
       "id": "claude-sonnet-5-5",
@@ -113,9 +119,9 @@
       "noDecisions": 2,
       "latencyP50Ms": 1136,
       "latencyP95Ms": 1335,
-      "lateCrashes": 42,
       "inputTokens": 31381,
-      "outputTokens": 354
+      "outputTokens": 354,
+      "simCommit": "unknown"
     }
   ],
   "notRun": [

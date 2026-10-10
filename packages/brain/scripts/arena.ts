@@ -6,7 +6,8 @@
 //   pnpm --filter @rivetrun/brain arena -- --contestants heuristic,random --seeds 1
 // Optional prices, to turn reported tokens into dollars (never guessed):
 //   ARENA_PRICES_USD_PER_MTOK='{"claude-haiku-5-5":{"in":1,"out":5}}'
-import { writeFileSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { GAMEPLAY_VERSION, type Action, type Brain, type Build, type DecisionLog, type Episode, type MissionId } from '@rivetrun/contracts';
 import { DEFAULT_PRESET_ID, MISSION_IDS, MISSIONS, PRESETS, runHeadless } from '@rivetrun/sim';
@@ -17,8 +18,12 @@ const SEED_BASE = 1001;
 const OUT_MD = fileURLToPath(new URL('../../../docs/ARENA.md', import.meta.url));
 const OUT_JSON = fileURLToPath(new URL('../../../docs/arena-results.json', import.meta.url));
 const OPUS_ID = 'claude-opus-5-5';
-/** Triggers that mean the robot hit or fell into something. */
-const CRASH_CAUSES = new Set(['impact', 'blocked', 'fell', 'damage']);
+/**
+ * Triggers that mean the robot hit or fell into something. Not 'damage' (it fires at every 5 % of total damage,
+ * including water and mud ingress while wading) and not 'landing' (a clean landing fires it too).
+ */
+const CRASH_CAUSES = new Set(['impact', 'blocked', 'fell']);
+const LATE_CRASH_RULE = 'impact|blocked|fell';
 
 interface Entry {
   readonly missionId: MissionId;
@@ -102,6 +107,8 @@ async function pool<T>(tasks: readonly (() => Promise<T>)[], limit: number): Pro
   return results;
 }
 
+const SIM_COMMIT = execFileSync('git', ['rev-parse', '--short', 'HEAD'], { encoding: 'utf8' }).trim();
+
 const mean = (values: readonly number[]): number | null => (values.length === 0 ? null : values.reduce((sum, v) => sum + v, 0) / values.length);
 const percentile = (values: readonly number[], p: number): number | null => {
   if (values.length === 0) return null;
@@ -144,7 +151,10 @@ function summarise(contestant: Contestant, runs: readonly RunStats[]) {
     noDecisions: runs.reduce((sum, run) => sum + run.noDecisions, 0),
     latencyP50Ms: contestant.kind === 'heuristic' || contestant.kind === 'random' ? 0 : round(percentile(latencies, 50), 0),
     latencyP95Ms: contestant.kind === 'heuristic' || contestant.kind === 'random' ? 0 : round(percentile(latencies, 95), 0),
-    lateCrashes: runs.reduce((sum, run) => sum + lateCrashes(run.episode), 0),
+    lateCrashes: runs.reduce((sum, run) => sum + lateCrashes(run.episode), 0) as number | undefined,
+    lateCrashRule: LATE_CRASH_RULE,
+    /** The commit of the sim these runs were driven on: rows from different commits are not strictly comparable. */
+    simCommit: SIM_COMMIT,
     ...(usage ? { inputTokens: round(inTok, 0), outputTokens: round(outTok, 0) } : {}),
     ...(usage && price && inTok !== null && outTok !== null ? { costPerRunUsd: Number(((inTok * price.in + outTok * price.out) / 1e6).toFixed(5)) } : {}),
   };
@@ -165,7 +175,8 @@ async function main(): Promise<void> {
     if (wanted) return wanted.includes(contestant.id) || wanted.includes(contestant.kind);
     return contestant.id !== OPUS_ID || has('include-opus');
   });
-  const skippedOpus = !wanted && !has('include-opus') && everyone.some((c) => c.id === OPUS_ID && c.status === 'ok');
+  // Opus only ever runs when asked for by name or with --include-opus.
+  const skippedOpus = !selected.some((c) => c.id === OPUS_ID) && everyone.some((c) => c.id === OPUS_ID && c.status === 'ok');
   const runsPerContestant = entries.length * seeds;
 
   const summaries: ReturnType<typeof summarise>[] = [];
@@ -197,6 +208,19 @@ async function main(): Promise<void> {
     }
   }
   const wallS = (performance.now() - started) / 1000;
+
+  // --keep: rows of contestants not run this time are carried over from the last results file, so a free
+  // re-run of Jev and the local policies does not have to re-spend LLM tokens. A carried row keeps its own
+  // simCommit, and loses its late-crash count when that was counted under an older rule.
+  if (has('keep') && existsSync(OUT_JSON)) {
+    const previous = JSON.parse(readFileSync(OUT_JSON, 'utf8')) as { contestants?: ReturnType<typeof summarise>[] };
+    const ran = new Set(summaries.map((s) => s.id));
+    for (const row of previous.contestants ?? []) {
+      if (row.status !== 'ok' || ran.has(row.id)) continue;
+      summaries.push({ ...row, lateCrashes: row.lateCrashRule === LATE_CRASH_RULE ? row.lateCrashes : undefined, simCommit: row.simCommit ?? 'unknown' });
+    }
+  }
+  const commits = [...new Set(summaries.map((s) => s.simCommit))];
 
   const date = new Date().toISOString().slice(0, 10);
   const totalRuns = summaries.reduce((sum, s) => sum + s.runs, 0);
@@ -236,12 +260,15 @@ async function main(): Promise<void> {
     '| Contestant | Runs | Finish | Score | Time s (finished) | Damage % | Decisions / run | Unanswered | Latency p50 / p95 ms | Late crashes | Tokens / run (in / out) | Cost / run |',
     '| - | - | - | - | - | - | - | - | - | - | - | - |',
     ...summaries.map((s) =>
-      `| ${s.label} (\`${s.id}\`) | ${s.runs} | ${s.finishPct} % | ${s.meanScore} | ${fmt(s.meanTimeS, 1)} | ${fmt(s.meanDamagePct, 1)} | ${fmt(s.decisionsPerRun, 1)} | ${s.noDecisions} | ${fmt(s.latencyP50Ms)} / ${fmt(s.latencyP95Ms)} | ${s.lateCrashes} | ${s.inputTokens !== undefined ? `${s.inputTokens} / ${s.outputTokens}` : '—'} | ${s.costPerRunUsd !== undefined ? `$${s.costPerRunUsd}` : '—'} |`,
+      `| ${s.label} (\`${s.id}\`) | ${s.runs} | ${s.finishPct} % | ${s.meanScore} | ${fmt(s.meanTimeS, 1)} | ${fmt(s.meanDamagePct, 1)} | ${fmt(s.decisionsPerRun, 1)} | ${s.noDecisions} | ${fmt(s.latencyP50Ms)} / ${fmt(s.latencyP95Ms)} | ${s.lateCrashes ?? '—'} | ${s.inputTokens !== undefined ? `${s.inputTokens} / ${s.outputTokens}` : '—'} | ${s.costPerRunUsd !== undefined ? `$${s.costPerRunUsd}` : '—'} |`,
     ),
     ...notConfigured.map((c) => `| ${c.label} (\`${c.id}\`) | not configured: no API key in apps/web/.env.local | | | | | | | | | | |`),
     ...(skippedOpus ? [`| Claude Opus 5.5 (reasoning) (\`${OPUS_ID}\`) | not run: pass --include-opus after reading the cost estimate | | | | | | | | | | |`] : []),
     '',
-    '- Late crashes: the robot hit or fell into something while its previous answer had not arrived yet.',
+    '- Late crashes: the robot hit something, got blocked or fell while its previous answer had not arrived yet. "—" = that row was run before this rule and has not been re-counted.',
+    commits.length > 1
+      ? `- Rows were driven on different commits of the sim (${summaries.map((s) => `${s.label}: ${s.simCommit}`).join(', ')}), so they are not strictly comparable until all are re-run together.`
+      : `- Every row was driven on sim commit ${commits[0] ?? SIM_COMMIT}.`,
     '- Cost is shown only when the provider reports token usage and a price is configured in `ARENA_PRICES_USD_PER_MTOK`; prices are never assumed.',
     '',
     '## Size of one LLM row',

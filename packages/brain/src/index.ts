@@ -19,7 +19,7 @@ export const JEV_TIMEOUT_MS = 1200;
  * Version of the question wording below. Bump it whenever buildJevRequest changes what Jev is told:
  * every cache of Jev answers (decisions, ghosts) keys on it, so an old answer is never served for a new question.
  */
-export const JEV_QUESTION_VERSION = 'q7-observation';
+export const JEV_QUESTION_VERSION = 'q8-observation';
 const QUESTION_ID = 'action';
 
 export interface JevBrainOptions {
