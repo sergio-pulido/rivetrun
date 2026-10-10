@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Action, Brain, Build, Mission, RunEvent } from '@rivetrun/contracts';
-import { MISSIONS, PRESETS, controlToAction, createRun, replayDrive, runController, driveController, driveSeed, heuristicBrain, heuristicDecide, jumpChargePower, runHeadless, safeSpeedMps, step } from './index';
+import { DRIVE_VERSION, GAMEPLAY_VERSION, MISSIONS, PRESETS, controlToAction, createRun, replayDrive, replayEpisode, runController, driveController, driveSeed, heuristicBrain, heuristicDecide, jumpChargePower, runHeadless, safeSpeedMps, step } from './index';
 
 const allRounder = PRESETS.all_rounder.build;
 /** The heuristic, with every throttle level replaced by one pace. */
@@ -318,5 +318,30 @@ describe('why line for a player', () => {
     const episode = await driveController({ mission: MISSIONS.M3, seed: driveSeed(MISSIONS.M3), build: allRounder, priority: 0.5 }, () => ({ throttle: 1, brake: 0 }), { onEvent: () => undefined, timeScale: 300, hints: false }).start();
     expect(episode.outcome.finished).toBe(false);
     expect(episode.outcome.why).toMatch(/^Spun the wheels to a standstill on mud — ease off the throttle or use climb mode$|slope/);
+  }, 20000);
+});
+
+describe('replaying a stored human episode (humans in the arena)', () => {
+  it('replays its own version exactly and refuses another version, a brain\'s run or a run without a log, with the reason', async () => {
+    const mission = MISSIONS.M1;
+    const live = await driveController({ mission, seed: driveSeed(mission), build: allRounder, priority: 0.5 }, () => ({ throttle: 0.9, brake: 0 }), { onEvent: () => undefined, timeScale: 300, hints: false }).start();
+    expect(live.gameplayVersion).toBe(GAMEPLAY_VERSION);
+    expect(live.driveVersion).toBe(DRIVE_VERSION);
+    const replay = replayEpisode(live);
+    expect(replay.ok && replay.matches).toBe(true);
+
+    const old = replayEpisode({ ...live, gameplayVersion: GAMEPLAY_VERSION - 1 });
+    expect(old).toEqual({ ok: false, reason: `recorded on gameplay version ${GAMEPLAY_VERSION - 1}, this sim is version ${GAMEPLAY_VERSION}: the physics differ, the run would not replay` });
+    const unstamped = replayEpisode({ ...live, driveVersion: undefined });
+    expect(unstamped.ok === false && unstamped.reason).toContain('drive rules version unknown');
+    const { episode: brained } = await runHeadless(mission, 1, allRounder, heuristicBrain);
+    expect(brained.gameplayVersion).toBe(GAMEPLAY_VERSION);
+    expect(brained.driveVersion).toBeUndefined();
+    expect(replayEpisode(brained)).toEqual({ ok: false, reason: 'not a human run (policy heuristic)' });
+    const noLog = replayEpisode({ ...live, outcome: { ...live.outcome, breakdown: { ...live.outcome.breakdown!, inputLog: [] } } });
+    expect(noLog).toEqual({ ok: false, reason: 'the episode has no input log' });
+    // A tampered score does not match its own replay.
+    const tampered = replayEpisode({ ...live, outcome: { ...live.outcome, score: live.outcome.score + 100 } });
+    expect(tampered.ok && tampered.matches).toBe(false);
   }, 20000);
 });

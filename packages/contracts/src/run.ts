@@ -200,6 +200,10 @@ export const EpisodeSchema = z.object({
   priority: PrioritySchema,
   decisions: z.array(DecisionRecordSchema).max(2000),
   outcome: OutcomeSchema,
+  /** GAMEPLAY_VERSION of the sim that produced the run. Absent on episodes stored before it was recorded. */
+  gameplayVersion: z.number().int().optional(),
+  /** DRIVE_VERSION, on human-driven runs: the version a logged run can be replayed on. */
+  driveVersion: z.number().int().optional(),
 });
 export type Episode = z.infer<typeof EpisodeSchema>;
 

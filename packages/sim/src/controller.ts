@@ -18,7 +18,8 @@ import type {
   RunEvent,
   SimState,
 } from '@rivetrun/contracts';
-import { BRIEFING_MAX_CHARS } from '@rivetrun/contracts';
+import { BRIEFING_MAX_CHARS, DRIVE_VERSION, GAMEPLAY_VERSION } from '@rivetrun/contracts';
+import { MISSIONS } from './data';
 import { heuristicDecide } from './brains';
 import { TUNING } from './data';
 import { START_TRIGGER, advanceBrain, availableActions, buildQuestion, observe } from './perception';
@@ -123,6 +124,8 @@ function toEpisode(state: RunState, decisions: readonly DecisionRecord[], policy
     priority: state.config.priority,
     decisions: decisions.slice(0, MAX_DECISIONS),
     outcome: withDecisionCounts(score(state), decisions),
+    gameplayVersion: GAMEPLAY_VERSION,
+    ...(policy === 'human' ? { driveVersion: DRIVE_VERSION } : {}),
   };
 }
 
@@ -286,6 +289,33 @@ export interface DriveLogEntry {
   readonly special?: ControlInput['special'];
   readonly jumpHeld?: boolean;
   readonly action: Action;
+}
+
+export type ReplayResult =
+  | { readonly ok: true; readonly episode: Episode; readonly ghost: GhostTrace; /** The replay's outcome equals the logged one. */ readonly matches: boolean }
+  | { readonly ok: false; readonly reason: string };
+
+/**
+ * Replays a stored human episode from its own input log, or says why it cannot: recorded on another version of the
+ * game, not a human run, or no log. `matches` tells whether the replay reproduced the stored outcome (time, damage,
+ * energy, score, finish), which is the check to make before a human row goes into the arena.
+ */
+export function replayEpisode(episode: Episode): ReplayResult {
+  if (episode.policy !== 'human') return { ok: false, reason: `not a human run (policy ${episode.policy})` };
+  if (episode.gameplayVersion !== GAMEPLAY_VERSION) {
+    return { ok: false, reason: `recorded on gameplay version ${episode.gameplayVersion ?? 'unknown'}, this sim is version ${GAMEPLAY_VERSION}: the physics differ, the run would not replay` };
+  }
+  if (episode.driveVersion !== DRIVE_VERSION) {
+    return { ok: false, reason: `recorded with drive rules version ${episode.driveVersion ?? 'unknown'}, this sim is version ${DRIVE_VERSION}: the input log or the player rules differ, the run would not replay` };
+  }
+  const inputLog = episode.outcome.breakdown?.inputLog;
+  if (!inputLog || inputLog.length === 0) return { ok: false, reason: 'the episode has no input log' };
+  const mission = MISSIONS[episode.missionId];
+  const replayed = replayDrive({ mission, seed: episode.seed, build: episode.build, priority: episode.priority }, inputLog);
+  const a = replayed.episode.outcome;
+  const b = episode.outcome;
+  const matches = a.finished === b.finished && a.timeS === b.timeS && a.damagePct === b.damagePct && a.energyUsedPct === b.energyUsedPct && a.score === b.score;
+  return { ok: true, ...replayed, matches };
 }
 
 /** One step of a player's run: the input as an action, the piston charging while the button is held and firing on release. */
