@@ -2,11 +2,11 @@
 
 import { Environment, Lightformer } from '@react-three/drei';
 import { useFrame, useThree } from '@react-three/fiber';
-import { useEffect, useMemo, useRef } from 'react';
-import { CanvasTexture, MeshBasicMaterial, MeshStandardMaterial, SRGBColorSpace, type Group, type PerspectiveCamera } from 'three';
+import { useEffect, useMemo, useRef, type RefObject } from 'react';
+import { BackSide, CanvasTexture, Color, MeshBasicMaterial, MeshStandardMaterial, SRGBColorSpace, type Group, type PerspectiveCamera } from 'three';
 import type { Build } from '@rivetrun/contracts';
 import { UI } from '../palette';
-import { damp } from '../rng';
+import { clamp, damp } from '../rng';
 import { Bake } from '../robot/bake';
 import { restDrive, type RobotDrive } from '../robot/drive';
 import { addOutline } from '../robot/outline';
@@ -15,6 +15,7 @@ import { Reflections } from '../run/Reflections';
 import { withBakeKey } from '../robot/materials';
 import { Box, Cyl } from '../robot/primitives';
 import { RobotModel } from '../robot/RobotModel';
+import { usePanorama, type Panorama } from './panorama';
 
 const TICKS = Array.from({ length: 36 }, (_, i) => (i / 36) * Math.PI * 2);
 const FLOOR_SIZE = 16;
@@ -118,24 +119,68 @@ const TABLES = { light: tableOf(STAGES.light), dark: tableOf(STAGES.dark) } as c
 /** Height the camera looks at: the middle of the rover on its turntable (the MK-II stands about 1 unit tall). */
 const FOCUS_Y = 0.55;
 
-/** Keeps the whole robot in frame for any canvas shape. */
-function FitCamera() {
+/** Zoom: 1 is the fitted view. The wheel and a pinch move `target`; the camera eases `now` towards it. */
+interface Zoom {
+  target: number;
+  now: number;
+}
+/** Furthest out: the turntable still fills a good part of the stage. */
+const ZOOM_OUT = 1.35;
+
+/**
+ * Keeps the whole robot in frame for any canvas shape, and zooms on the same axis. However far in, the rover as it
+ * turns still fits the frame, so it can neither leave it nor reach the camera. There is no pan.
+ */
+function FitCamera({ zoom }: { zoom: RefObject<Zoom> }) {
   const camera = useThree((state) => state.camera) as PerspectiveCamera;
   const size = useThree((state) => state.size);
-  useEffect(() => {
+  useFrame((_, rawDt) => {
     const aspect = size.width / Math.max(1, size.height);
     const halfV = (camera.fov * Math.PI) / 360;
+    const fitting = (halfWidth: number, halfHeight: number): number => Math.max(halfWidth / (Math.tan(halfV) * aspect), halfHeight / Math.tan(halfV));
     // The rover's longest diagonal turns through the view, and the page lays labels over the corners and the
     // bottom edge of this stage (slot hotspots, stat bars): frame it with room to spare on every side.
-    const halfWidth = 1.95;
-    const halfHeight = 1.5;
-    const distance = Math.max(halfWidth / (Math.tan(halfV) * aspect), halfHeight / Math.tan(halfV)) + 1;
+    const fitted = fitting(1.95, 1.5) + 1;
+    // Closest: the rover alone, edge to edge.
+    const closest = fitting(1.3, 0.9) + 0.9;
+    const state = zoom.current;
+    state.target = clamp(state.target, closest / fitted, ZOOM_OUT);
+    state.now = damp(state.now, state.target, 12, Math.min(rawDt, 0.05));
+    const distance = fitted * state.now;
     const elevation = 0.4;
     camera.position.set(0, FOCUS_Y + Math.sin(elevation) * distance, Math.cos(elevation) * distance);
     camera.lookAt(0, FOCUS_Y, 0);
-    camera.updateProjectionMatrix();
-  }, [camera, size]);
+  });
   return null;
+}
+
+/** How much of its own brightness the room keeps behind the rover. */
+const ROOM_DIM = 0.52;
+/**
+ * The camera looks down on the turntable, which on its own would show only the room's floor. The room is tipped
+ * towards the camera by this much, so its walls and benches stand behind the rover. Radians.
+ */
+const ROOM_TILT = -0.42;
+const ROOM_RADIUS = 40;
+
+/**
+ * The workshop panorama around the stage: a soft copy of it on the inside of a large sphere, dimmed, turned and
+ * tipped. Drawn first and behind everything; zooming moves the camera inside it, so the room shifts a little too.
+ */
+function Room({ panorama }: { panorama: Panorama }) {
+  const material = useMemo(
+    () => new MeshBasicMaterial({ map: panorama.soft, side: BackSide, color: new Color(ROOM_DIM, ROOM_DIM, ROOM_DIM), depthWrite: false, fog: false }),
+    [panorama],
+  );
+  useEffect(() => () => material.dispose(), [material]);
+  return (
+    <>
+      <color attach="background" args={['#15120f']} />
+      <mesh material={material} scale={ROOM_RADIUS} rotation={[ROOM_TILT, panorama.turn, 0]} renderOrder={-10} frustumCulled={false}>
+        <sphereGeometry args={[1, 48, 24]} />
+      </mesh>
+    </>
+  );
 }
 
 export interface WorkshopSceneProps {
@@ -178,6 +223,9 @@ export function WorkshopScene({ build, spin = 0.45, plain = false, picked = null
   }, [pickedKey, build]);
   const drive = useRef<RobotDrive>(restDrive());
   const motion = useRef({ velocity: spin, dragging: false, lastX: 0, happyUntil: 0 });
+  const zoom = useRef<Zoom>({ target: 1, now: 1 });
+  // The Workshop's room (light stage only). Until it has loaded, and if it cannot be, the light studio is drawn.
+  const panorama = usePanorama(stage === 'light');
   // Not tone-mapped: the floor's edge has to be exactly the backdrop colour, or the seamless shows a square.
   const sheet = useMemo(() => new MeshBasicMaterial({ map: floorTexture(look), fog: false, toneMapped: false }), [look]);
   const contact = useMemo(() => new MeshBasicMaterial({ map: contactTexture(), transparent: true, opacity: look.contact, depthWrite: false, fog: false, toneMapped: false }), [look]);
@@ -199,26 +247,78 @@ export function WorkshopScene({ build, spin = 0.45, plain = false, picked = null
   useEffect(() => {
     const element = gl.domElement;
     const state = motion.current;
+    const view = zoom.current;
+    // Fingers (or the mouse button) on the stage. One drags the turntable; two pinch the zoom.
+    const fingers = new Map<number, { x: number; y: number }>();
+    const pinch = { span: 0, zoom: 1 };
+    const tap = { downAt: 0, x: 0, y: 0, lastAt: 0, lastX: 0, lastY: 0 };
+    const span = (): number => {
+      const [a, b] = [...fingers.values()];
+      return a && b ? Math.hypot(a.x - b.x, a.y - b.y) : 0;
+    };
     const down = (event: PointerEvent) => {
+      fingers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+      if (fingers.size === 2) {
+        state.dragging = false;
+        pinch.span = span();
+        pinch.zoom = view.target;
+        return;
+      }
       state.dragging = true;
       state.lastX = event.clientX;
+      tap.downAt = performance.now();
+      tap.x = event.clientX;
+      tap.y = event.clientY;
     };
     const move = (event: PointerEvent) => {
+      const finger = fingers.get(event.pointerId);
+      if (finger) {
+        finger.x = event.clientX;
+        finger.y = event.clientY;
+      }
+      if (fingers.size >= 2) {
+        // Fingers apart: closer. FitCamera clamps the result.
+        const now = span();
+        if (pinch.span > 0 && now > 0) view.target = (pinch.zoom * pinch.span) / now;
+        return;
+      }
       if (!state.dragging || !table.current) return;
       const dx = event.clientX - state.lastX;
       state.lastX = event.clientX;
       table.current.rotation.y += dx * 0.012;
       state.velocity = dx * 0.5;
     };
-    const up = () => {
+    const up = (event: PointerEvent) => {
+      const pinching = fingers.size >= 2;
+      fingers.delete(event.pointerId);
       state.dragging = false;
+      if (pinching || event.type === 'pointercancel') return;
+      // A second still tap or click soon after the first, in the same place: back to the fitted view.
+      const now = performance.now();
+      const still = Math.hypot(event.clientX - tap.x, event.clientY - tap.y) < 8 && now - tap.downAt < 300;
+      if (!still) return;
+      if (now - tap.lastAt < 340 && Math.hypot(event.clientX - tap.lastX, event.clientY - tap.lastY) < 30) {
+        view.target = 1;
+        tap.lastAt = 0;
+        return;
+      }
+      tap.lastAt = now;
+      tap.lastX = event.clientX;
+      tap.lastY = event.clientY;
+    };
+    const wheel = (event: WheelEvent) => {
+      // The wheel over the stage zooms the rover and nothing else: the page does not scroll under it.
+      event.preventDefault();
+      view.target *= Math.exp(event.deltaY * 0.0012);
     };
     element.addEventListener('pointerdown', down);
+    element.addEventListener('wheel', wheel, { passive: false });
     window.addEventListener('pointermove', move);
     window.addEventListener('pointerup', up);
     window.addEventListener('pointercancel', up);
     return () => {
       element.removeEventListener('pointerdown', down);
+      element.removeEventListener('wheel', wheel);
       window.removeEventListener('pointermove', move);
       window.removeEventListener('pointerup', up);
       window.removeEventListener('pointercancel', up);
@@ -239,8 +339,8 @@ export function WorkshopScene({ build, spin = 0.45, plain = false, picked = null
 
   return (
     <>
-      <FitCamera />
-      <color attach="background" args={[look.backdrop]} />
+      <FitCamera zoom={zoom} />
+      {panorama ? <Room panorama={panorama} /> : <color attach="background" args={[look.backdrop]} />}
       {/* Three-point lighting. Key: high, front left, the one that casts the shadow. */}
       <directionalLight
         position={[-3.8, 5.8, 4.6]}
@@ -263,8 +363,16 @@ export function WorkshopScene({ build, spin = 0.45, plain = false, picked = null
       <directionalLight position={[2.8, 4.6, -5.6]} intensity={look.rim} color="#ffffff" />
       <hemisphereLight args={[look.hemi[0], look.hemi[1], look.hemi[2]]} />
       <Reflections plain={plain}>
-      <Environment key={stage} resolution={64} frames={1}>
-        <color attach="background" args={[look.env]} />
+      <Environment key={panorama ? 'room' : stage} resolution={panorama ? 128 : 64} frames={1}>
+        {/* What the rover reflects: the room itself when it is there, behind the softboxes. */}
+        {panorama ? (
+          <mesh scale={40} rotation={[0, panorama.turn, 0]}>
+            <sphereGeometry args={[1, 32, 16]} />
+            <meshBasicMaterial map={panorama.texture} side={BackSide} toneMapped={false} />
+          </mesh>
+        ) : (
+          <color attach="background" args={[look.env]} />
+        )}
         {/* Softboxes: black plastic and rubber only read through what they reflect. */}
         <Lightformer form="rect" intensity={2.2 * look.softbox} color="#ffffff" position={[0, 6, 0]} rotation={[Math.PI / 2, 0, 0]} scale={[10, 10, 1]} />
         <Lightformer form="rect" intensity={1.8 * look.softbox} color="#fff4e6" position={[-6, 2, 2]} rotation={[0, Math.PI / 2, 0]} scale={[7, 4, 1]} />
@@ -273,9 +381,12 @@ export function WorkshopScene({ build, spin = 0.45, plain = false, picked = null
       </Environment>
       </Reflections>
 
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.001, 0]} material={sheet}>
-        <planeGeometry args={[FLOOR_SIZE, FLOOR_SIZE]} />
-      </mesh>
+      {/* The seamless floor belongs to the studio. In the room the turntable stands on the room's own floor. */}
+      {!panorama && (
+        <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.001, 0]} material={sheet}>
+          <planeGeometry args={[FLOOR_SIZE, FLOOR_SIZE]} />
+        </mesh>
+      )}
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]} receiveShadow>
         <planeGeometry args={[FLOOR_SIZE, FLOOR_SIZE]} />
         <shadowMaterial transparent opacity={look.shadow} />

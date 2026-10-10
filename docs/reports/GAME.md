@@ -53,6 +53,17 @@ rendering unless it says otherwise. Nothing was seen on a real phone or heard th
 - Measured in headless Chromium at 390×844, MK-II, drive mode: 119–148 draw calls and 54–86 k triangles at full
   quality depending on the stretch, 82 calls and 34 k triangles at low. Frame rate on a real phone: not measured.
 
+## Workshop room and zoom (`game/workshop/`)
+- The room behind the turntable is `apps/web/public/env/workshop.jpg`: Poly Haven "Carpentry Shop 01" (polyhaven.com, CC0),
+  the tonemapped JPG resized to 2048×1024 at JPEG quality 62 (470 KB). No .hdr is shipped. To change the room, replace
+  that file with another equirectangular JPG of the same shape; `PANORAMA.turn` in `workshop/panorama.ts` turns it.
+- It is drawn from a small soft copy on a sphere (out of focus, dimmed to about half, tipped so the walls stand behind
+  the rover) and the full picture is what the rover reflects. If the file does not load, the light studio is drawn.
+- Zoom: mouse wheel and two-finger pinch, clamped between "the rover alone" and 1.35× the fitted distance; no pan;
+  drag spins the turntable; a double click or double tap returns to the fitted view. The canvas keeps
+  `touch-action: pan-y`, so a vertical swipe on it still scrolls the page.
+- Dev builds: `/workshop?pano=<name>[:degrees]` loads `/env/<name>.jpg` to compare rooms.
+
 ## If this breaks at the demo
 1. A phone shows a drafting-sheet background and "3D VIEW UNAVAILABLE" or "3D VIEW PAUSED".
    The run still works by the gauges. Tap RELOAD; if it repeats, use the low tier (next point: no shadows,
