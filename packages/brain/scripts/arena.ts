@@ -11,7 +11,7 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { GAMEPLAY_VERSION, type Action, type Brain, type Build, type DecisionLog, type Episode, type MissionId } from '@rivetrun/contracts';
 import { DEFAULT_PRESET_ID, MISSION_IDS, MISSIONS, PRESETS, runHeadless } from '@rivetrun/sim';
-import { arenaPromptHash, buildArenaPrompt } from '../src/arena/prompt';
+import { arenaPromptHash, buildArenaPrompt, setArenaQuestionMode } from '../src/arena/prompt';
 import { publicReason, VERDICT_NOTE, ARENA_TIMEOUT_MS, PRICE_SOURCES, resolveContestants, type Contestant, type Tier } from '../src/arena/providers';
 
 const SEED_BASE = 1001;
@@ -184,7 +184,15 @@ function summarise(contestant: Contestant, runs: readonly RunStats[], budget: Bu
 }
 type Row = ReturnType<typeof summarise>;
 
+/** What a row keeps of its facts-only runs (docs/QA.md Q20): the same contestant, missions and seeds, the other wording. */
+const FACTS_FIELDS = ['runs', 'seeds', 'finishPct', 'meanScore', 'meanTimeS', 'meanDamagePct', 'scansDone', 'decisionsPerRun', 'noDecisions', 'latencyP50Ms', 'latencyP95Ms', 'lateCrashes', 'promptHash', 'simCommit', 'gameplayVersion', 'costPerRunUsd', 'totalCostUsd'] as const;
+type FactsRow = Partial<Pick<Row, (typeof FACTS_FIELDS)[number]>>;
+type RowWithFacts = Row & { facts?: FactsRow };
+
 async function main(): Promise<void> {
+  // --facts: ask the facts-only wording and file the numbers under each row's `facts`, next to the row's own.
+  const factsRun = has('facts');
+  if (factsRun) setArenaQuestionMode('facts');
   const seedCount = Number(flag('seeds') ?? 3);
   const seeds = Array.from({ length: seedCount }, (_, i) => SEED_BASE + i);
   const missions = (flag('missions')?.split(',') as MissionId[] | undefined) ?? [...MISSION_IDS];
@@ -251,7 +259,18 @@ async function main(): Promise<void> {
 
   // --keep: rows of contestants not run this time are carried over from the last results file. A carried row
   // keeps its own simCommit, and loses its late-crash count when that was counted under an older rule.
-  const previous = has('keep') && existsSync(OUT_JSON) ? (JSON.parse(readFileSync(OUT_JSON, 'utf8')) as { contestants?: Row[] }) : {};
+  if (factsRun) {
+    const factsRows = rows.splice(0);
+    const before = existsSync(OUT_JSON) ? (JSON.parse(readFileSync(OUT_JSON, 'utf8')) as { contestants?: RowWithFacts[] }) : {};
+    for (const row of before.contestants ?? []) {
+      if (row.status !== 'ok') continue;
+      const mine = factsRows.find((candidate) => candidate.id === row.id);
+      const facts = mine ? (Object.fromEntries(FACTS_FIELDS.flatMap((field) => (mine[field] === undefined ? [] : [[field, mine[field]]]))) as FactsRow) : row.facts;
+      rows.push({ ...row, ...(facts ? { facts } : {}) } as Row);
+    }
+    setArenaQuestionMode('verdict');
+  }
+  const previous = !factsRun && has('keep') && existsSync(OUT_JSON) ? (JSON.parse(readFileSync(OUT_JSON, 'utf8')) as { contestants?: Row[] }) : {};
   const ran = new Set(rows.map((row) => row.id));
   for (const row of previous.contestants ?? []) {
     if (row.status !== 'ok' || ran.has(row.id)) continue;
@@ -270,6 +289,7 @@ async function main(): Promise<void> {
   const older = rows.filter((row) => row.gameplayVersion !== undefined && row.gameplayVersion !== GAMEPLAY_VERSION);
   const notes = [
     VERDICT_NOTE,
+    ...(rows.some((row) => (row as RowWithFacts).facts) ? ['The "facts" numbers of a row are the same missions and seeds with a question that states no verdict: the same state, options and predicted numbers, and what a missed scan or an empty battery costs.'] : []),
     'No fallback for anyone: an answer that is late or missing leaves the robot on its last command.',
     ...(older.length > 0 ? [`${older.map((row) => `${row.label} (gameplay ${row.gameplayVersion}, ${row.runs} runs)`).join(', ')}: carried over from an earlier version of the game because the provider could not be called again; not comparable with the rows run on gameplay ${GAMEPLAY_VERSION}.`] : []),
   ];
@@ -295,11 +315,14 @@ async function main(): Promise<void> {
   };
   writeFileSync(OUT_JSON, `${JSON.stringify(results, null, 2)}\n`);
 
+  const factsCell = (row: RowWithFacts): string => (row.facts ? `${row.facts.meanScore} (${row.facts.finishPct} % finish, ${row.facts.scansDone ?? '—'} scans)` : row.kind === 'heuristic' || row.kind === 'random' ? 'same' : '—');
   const cost = (row: Row): string => (row.costPerRunUsd !== undefined ? `$${row.costPerRunUsd.toFixed(4)} ($${row.totalCostUsd} row)` : '—');
   const lines = [
     '# RivetRun — Brain Arena',
     '',
     `Our sim, our prompts, ${totalRuns} runs, ${date}. Not a general model ranking.`,
+    '',
+    `**${VERDICT_NOTE}** Where a row has "facts only" numbers, those are the same missions and seeds asked with the second wording: the same state, options and predicted numbers, what a missed scan or an empty battery costs, and no rule or sentence that rates an option (prompt hash \`${arenaPromptHash('facts')}\`). The difference between the two is what the stated verdict is worth to that model.`,
     '',
     `Generated by \`packages/brain/scripts/arena.ts\` · gameplay version ${GAMEPLAY_VERSION} · prompt hash \`${promptHash}\` · this invocation ${fmt(wallS)} s. Every number is measured from headless runs.`,
     '',
@@ -311,16 +334,16 @@ async function main(): Promise<void> {
     '- Each model id is checked against its provider\'s models endpoint before its row starts.',
     '',
     '## Results',
-    '| Tier | Contestant | Runs | Finish | Score | Time s (finished) | Damage % | Decisions / run | Unanswered | Latency p50 / p95 ms | Late crashes | Tokens / run (in / out) | Cost / run |',
-    '| - | - | - | - | - | - | - | - | - | - | - | - | - |',
+    '| Tier | Contestant | Runs | Finish | Score | Score, facts only | Time s (finished) | Damage % | Decisions / run | Unanswered | Latency p50 / p95 ms | Late crashes | Tokens / run (in / out) | Cost / run |',
+    '| - | - | - | - | - | - | - | - | - | - | - | - | - | - |',
     ...rows.map(
       (row) =>
-        `| ${row.tier ?? ''} | ${row.label} (\`${row.id}\`) | ${row.runs}${row.stoppedAtCap ? ' (stopped at cap)' : ''} | ${row.finishPct} % | ${row.meanScore} | ${fmt(row.meanTimeS, 1)} | ${fmt(row.meanDamagePct, 1)} | ${fmt(row.decisionsPerRun, 1)} | ${row.noDecisions} | ${fmt(row.latencyP50Ms)} / ${fmt(row.latencyP95Ms)} | ${row.lateCrashes ?? '—'} | ${row.inputTokens !== undefined ? `${row.inputTokens} / ${row.outputTokens}` : '—'} | ${cost(row)} |`,
+        `| ${row.tier ?? ''} | ${row.label} (\`${row.id}\`) | ${row.runs}${row.stoppedAtCap ? ' (stopped at cap)' : ''} | ${row.finishPct} % | ${row.meanScore} | ${factsCell(row)} | ${fmt(row.meanTimeS, 1)} | ${fmt(row.meanDamagePct, 1)} | ${fmt(row.decisionsPerRun, 1)} | ${row.noDecisions} | ${fmt(row.latencyP50Ms)} / ${fmt(row.latencyP95Ms)} | ${row.lateCrashes ?? '—'} | ${row.inputTokens !== undefined ? `${row.inputTokens} / ${row.outputTokens}` : '—'} | ${cost(row)} |`,
     ),
     ...notOk.map((c) => `| ${c.tier} | ${c.label} (\`${c.id}\`) | ${c.status === 'not_configured' ? 'not configured' : 'not run'}: ${publicReason(c.reason)} | | | | | | | | | | |`),
     '',
     '- Late crashes: the robot hit something, got blocked or fell while its previous answer had not arrived yet. "—" = that row was run before this rule and has not been re-counted.',
-    ...notes.slice(1).map((note) => `- ${note}`),
+    ...notes.filter((note) => /carried over/.test(note)).map((note) => `- ${note}`),
     commits.length > 1
       ? `- Rows were driven on different commits of the sim (${rows.map((row) => `${row.label}: ${row.simCommit}${row.gameplayVersion !== undefined ? `, gameplay ${row.gameplayVersion}` : ''}`).join(' · ')}), so they are not strictly comparable until all are re-run together.`
       : `- Every row was driven on sim commit ${commits[0] ?? SIM_COMMIT}.`,

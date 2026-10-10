@@ -20,9 +20,20 @@ export const JEV_TIMEOUT_MS = 1200;
  * every cache of Jev answers (decisions, ghosts) keys on it, so an old answer is never served for a new question.
  */
 export const JEV_QUESTION_VERSION = 'q9-scan-approach';
+/**
+ * Two wordings of the same question (docs/QA.md Q20):
+ * - 'verdict' (the game's): rules that say which option is correct ("`scan` is the correct option here").
+ * - 'facts': the same state, options and predicted numbers, with what each thing costs, and no rule or judgement.
+ */
+export type QuestionMode = 'verdict' | 'facts';
+export const jevQuestionVersion = (mode: QuestionMode = 'verdict'): string => (mode === 'facts' ? `${JEV_QUESTION_VERSION}-facts` : JEV_QUESTION_VERSION);
+/** Words that would tell the reader which option to take; a facts-only question holds none of them (unit-tested). */
+export const VERDICT_WORDS = /\b(correct|must|should|ought|best|prefer|wrong|pick)\b/i;
 const QUESTION_ID = 'action';
 
 export interface JevBrainOptions {
+  /** Which wording of the question to ask (default: the game's, with the rules' verdict). */
+  readonly mode?: QuestionMode;
   /** Defaults to process.env.JEV_API_KEY. */
   readonly apiKey?: string;
   readonly model?: string;
@@ -229,22 +240,27 @@ function observationState(observation: Observation, cause: string | undefined): 
 
 /** A zone this close ahead is being approached: the same distance the sim's heuristic eases in from. */
 const ZONE_APPROACH_M = 3.2;
+/** Mirrors SCAN_RULES in @rivetrun/sim (type-only imports here: see the header). */
+const SCAN_HOLD_S = 1.5;
+const SCAN_MISS_S = 10;
 
 /**
  * Scanning is a mission objective, not progress, so the rule is stated as a fact computed here rather than
  * left for Jev to infer from distances (docs/JEV.md: literal reading).
  */
-function scanLine(question: BrainQuestion, observation: Observation): string {
+function scanLine(question: BrainQuestion, observation: Observation, facts: boolean): string {
   const open = observation.scanZones.filter((zone) => zone.canScan && !zone.done && !zone.missed);
   const name = (label: string): string => label.replace(/["`]/g, "'");
   // The sim offers `scan` exactly when a zone this robot can scan is within reach: that is "under the robot".
   if (question.options.includes('scan')) {
     const under = [...open].sort((a, b) => Math.abs(a.distanceM) - Math.abs(b.distanceM))[0];
+    if (facts) return `The scan zone${under ? ` "${name(under.label)}"` : ''} is under the robot right now and this robot can scan it: \`scan\` holds the robot on the zone for ${SCAN_HOLD_S} s and completes that objective. A zone driven past cannot be scanned later and costs a ${SCAN_MISS_S} s time penalty. `;
     return `The scan zone${under ? ` "${name(under.label)}"` : ''} is under the robot right now and this robot can scan it. Scanning zones is a mission objective and a zone driven past is lost for good (a 10 s penalty), so \`scan\` is the correct option here unless the briefing forbids stopping; this overrides the rule about options with no progress. `;
   }
   // On the way in: a robot that arrives fast cannot stop on the zone, and the next decision comes only when it is on it.
   const ahead = open.find((zone) => zone.distanceM > 0 && zone.distanceM <= ZONE_APPROACH_M);
   if (!ahead || !question.options.includes('slow_down')) return '';
+  if (facts) return `The scan zone "${name(ahead.label)}" is ${round(ahead.distanceM, 1)} m ahead and this robot can scan it. Scanning needs the robot standing on the zone for ${SCAN_HOLD_S} s; the \`scan\` option appears once the robot is on the zone, and the next decision comes only then. A zone driven past costs a ${SCAN_MISS_S} s time penalty; the robot is moving at ${round(observation.speedMps, 1)} m/s and a robot arriving at speed rolls past before it can stop. `;
   return `The scan zone "${name(ahead.label)}" is ${round(ahead.distanceM, 1)} m ahead and this robot can scan it. Scanning it is a mission objective: the robot must stop on the zone, and driving past it costs a 10 s penalty, far more than the time lost by easing in. A robot arriving at speed cannot stop in time, so \`slow_down\` is the correct option now unless the briefing forbids stopping; this overrides the rule about progress. The \`scan\` option appears once the robot is on the zone. `;
 }
 
@@ -277,26 +293,29 @@ function weatherLine(observation: Observation): string {
 }
 
 /** The sentences only a v3 question has: why it is asked, what is unknown, the energy line, scanning. */
-function observationLines(question: BrainQuestion, observation: Observation): string {
+function observationLines(question: BrainQuestion, observation: Observation, facts: boolean): string {
   const cause = question.cause?.label;
   const unknown = observation.unknown.length > 0 ? observation.unknown.join('; ') : null;
   const charge = round(observation.projectedFinishPct, 0);
   return (
     (cause ? `This decision is requested because something changed: ${cause}. ` : '') +
-    'There is no clock: the chosen command stays in force until the next change, which may be a long way off, so choose what should hold until then. ' +
+    `There is no clock: the chosen command stays in force until the next change, which may be a long way off${facts ? '' : ', so choose what should hold until then'}. ` +
     'The robot knows only what its own sensors report (`sensors`, `readings`). ' +
     (observation.blind ? 'It has NO forward sensor: it cannot see obstacles or gaps and only learns of them by hitting them. ' : `Its forward sensors reach ${round(observation.forwardRangeM, 1)} m. `) +
     (unknown ? `Unknown to this robot, so no prediction accounts for it: ${unknown}. ` : '') +
     weatherLine(observation) +
     'Where a prediction says it runs past what the sensors know, treat it as a guess that the track continues unchanged. ' +
     `Energy: the battery is at ${round(observation.batteryPct, 0)} %, drawing ${round(observation.drawW, 0)} W; at the current pace the charge at the finish would be ${charge} % (${finishChargeLevel(observation.projectedFinishPct)}), with ${round(observation.remainingM, 0)} m to go. ` +
-    'Each option states the charge at the finish if its pace holds. An option that runs out before the finish loses the race: when the fast options run out or are critical, pick the fastest option that still finishes with charge left. ' +
-    scanLine(question, observation)
+    (facts
+      ? 'Each option states the charge at the finish if its pace holds. A robot that runs out of charge before the finish does not finish. '
+      : 'Each option states the charge at the finish if its pace holds. An option that runs out before the finish loses the race: when the fast options run out or are critical, pick the fastest option that still finishes with charge left. ') +
+    scanLine(question, observation, facts)
   );
 }
 
 /** BrainQuestion → the documented System One request with one Choice question. */
-export function buildJevRequest(question: BrainQuestion, model: string = JEV_MODEL_ID): JevRequest {
+export function buildJevRequest(question: BrainQuestion, model: string = JEV_MODEL_ID, mode: QuestionMode = 'verdict'): JevRequest {
+  const facts = mode === 'facts';
   const observation = question.observation;
   // The sim simulates further ahead with a Scout Drone fitted; absent = the default window.
   const lookaheadS = question.lookaheadS ?? DEFAULT_LOOKAHEAD_S;
@@ -312,13 +331,17 @@ export function buildJevRequest(question: BrainQuestion, model: string = JEV_MOD
   );
   const stopped = Math.abs((observation?.speedMps ?? question.status.speedMps)) < STOPPED_SPEED_MPS;
   // Only builds with the piston are offered `jump`; say when it is worth its energy.
-  const jumpLine = question.options.includes('jump')
-    ? '`jump` is only correct when its predicted progress is higher or its predicted damage is lower than every other forward option (a gap or a low obstacle directly ahead); on open ground it wastes energy. '
-    : '';
+  const jumpLine = !question.options.includes('jump')
+    ? ''
+    : facts
+    ? '`jump` costs energy each time it fires, and the robot has no traction and no braking until it lands. '
+    : '`jump` is only correct when its predicted progress is higher or its predicted damage is lower than every other forward option (a gap or a low obstacle directly ahead); on open ground it wastes energy. ';
   const briefing = cleanBriefing(question.briefing);
-  const briefingLine = briefing
-    ? `The player gave the driver these instructions: "${briefing}" These instructions outrank the priority rule below: among the options that move forward, choose the one that best fits the instructions, even when the rule would pick a faster or a slower one. `
-    : '';
+  const briefingLine = !briefing
+    ? ''
+    : facts
+    ? `The player gave the driver these instructions: "${briefing}" `
+    : `The player gave the driver these instructions: "${briefing}" These instructions outrank the priority rule below: among the options that move forward, choose the one that best fits the instructions, even when the rule would pick a faster or a slower one. `;
   return {
     model,
     state: observation
@@ -328,17 +351,21 @@ export function buildJevRequest(question: BrainQuestion, model: string = JEV_MOD
       [QUESTION_ID]: {
         type: 'choice',
         instructions:
-          'A robot is racing along a track and must reach the finish line; a robot that stops or goes backwards never finishes and loses the race. ' +
-          'Which driving action should it take now? ' +
+          (facts
+            ? 'A robot is racing along a track to the finish line. A robot that stops for good or goes backwards never reaches the finish, and a run that does not finish scores close to nothing; among runs that finish, the score rewards less time, less damage and more charge left. ' +
+              'Choose one driving action for it to take now. '
+            : 'A robot is racing along a track and must reach the finish line; a robot that stops or goes backwards never finishes and loses the race. ' +
+              'Which driving action should it take now? ') +
           `Each option states its predicted progress, damage and energy from a ${lookaheadS} second forward simulation of that action, each with a named level in brackets. ` +
-          'Damage is cumulative and the robot is only destroyed at 100 %, so negligible damage is acceptable. ' +
+          (facts ? 'Damage is cumulative and the robot is destroyed at 100 %. ' : 'Damage is cumulative and the robot is only destroyed at 100 %, so negligible damage is acceptable. ') +
           briefingLine +
-          `${priorityRule(question.priority)} ` +
-          'Options with no progress or backwards progress are only correct when every forward option has heavy damage. ' +
+          (facts
+            ? `The player priority is ${round(question.priority, 2)} on a scale from 0 (pure speed) to 1 (pure safety). `
+            : `${priorityRule(question.priority)} ` + 'Options with no progress or backwards progress are only correct when every forward option has heavy damage. ') +
           jumpLine +
           hazardLine +
           (observation
-            ? observationLines(question, observation) +
+            ? observationLines(question, observation, facts) +
               'In `readings`, "unknown" means the robot has no sensor for it and null means a sensor is fitted and reports nothing in range.'
             : '`perceived` holds the sensor readings ("unknown" means no sensor for that reading); `robot` is the current speed, battery, damage and motion.'),
         criteria,
@@ -440,7 +467,7 @@ export function createJevBrain(options: JevBrainOptions = {}): Brain {
   const model = options.model ?? JEV_MODEL_ID;
   return {
     decide: async (question: BrainQuestion): Promise<BrainDecision> => {
-      const answer = await askJevChoice(buildJevRequest(question, model), question.options, options);
+      const answer = await askJevChoice(buildJevRequest(question, model, options.mode), question.options, options);
       return { probabilities: answer.probabilities, selected: answer.choice, policy: 'jev', fallback: false, latencyMs: answer.latencyMs, model: answer.model };
     },
   };

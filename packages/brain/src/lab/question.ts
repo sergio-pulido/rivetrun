@@ -52,8 +52,7 @@ export const LAB_QUESTION_VERSION = 'lab-q3';
  */
 export type LabQuestionMode = 'verdict' | 'facts';
 export const labQuestionVersion = (mode: LabQuestionMode = 'verdict'): string => (mode === 'facts' ? `${LAB_QUESTION_VERSION}-facts` : LAB_QUESTION_VERSION);
-/** Words that would tell the reader which option to take; the facts-only question holds none of them (unit-tested). */
-export const VERDICT_WORDS = /\b(correct|must|should|ought|best|prefer|wrong)\b/i;
+export { VERDICT_WORDS } from '../index';
 
 const round = (value: number, digits = 0): number => {
   const factor = 10 ** digits;

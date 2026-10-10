@@ -60,7 +60,28 @@
       "lateCrashRule": "impact|blocked|fell",
       "simCommit": "5019c16",
       "gameplayVersion": 4,
-      "promptHash": "6b4400e603"
+      "promptHash": "6b4400e603",
+      "facts": {
+        "runs": 30,
+        "seeds": [
+          1001,
+          1002,
+          1003
+        ],
+        "finishPct": 80,
+        "meanScore": 434,
+        "meanTimeS": 84.7,
+        "meanDamagePct": 20.2,
+        "scansDone": 1,
+        "decisionsPerRun": 21.6,
+        "noDecisions": 0,
+        "latencyP50Ms": 238,
+        "latencyP95Ms": 299,
+        "lateCrashes": 7,
+        "promptHash": "264f8f4265",
+        "simCommit": "9a9fc24",
+        "gameplayVersion": 4
+      }
     },
     {
       "id": "gpt-5-nano",
@@ -101,7 +122,30 @@
         "in": 0.05,
         "out": 0.4
       },
-      "priceSource": "https://developers.openai.com/api/docs/models"
+      "priceSource": "https://developers.openai.com/api/docs/models",
+      "facts": {
+        "runs": 30,
+        "seeds": [
+          1001,
+          1002,
+          1003
+        ],
+        "finishPct": 80,
+        "meanScore": 450,
+        "meanTimeS": 58.6,
+        "meanDamagePct": 31.5,
+        "scansDone": 0,
+        "decisionsPerRun": 21.8,
+        "noDecisions": 0,
+        "latencyP50Ms": 711,
+        "latencyP95Ms": 985,
+        "lateCrashes": 44,
+        "promptHash": "264f8f4265",
+        "simCommit": "9a9fc24",
+        "gameplayVersion": 4,
+        "costPerRunUsd": 0.00171,
+        "totalCostUsd": 0.0514
+      }
     },
     {
       "id": "gpt-6-luna",
@@ -143,7 +187,30 @@
         "in": 0.1,
         "out": 0.5
       },
-      "priceSource": "https://developers.openai.com/api/docs/models"
+      "priceSource": "https://developers.openai.com/api/docs/models",
+      "facts": {
+        "runs": 30,
+        "seeds": [
+          1001,
+          1002,
+          1003
+        ],
+        "finishPct": 80,
+        "meanScore": 463,
+        "meanTimeS": 76,
+        "meanDamagePct": 19.7,
+        "scansDone": 4,
+        "decisionsPerRun": 20,
+        "noDecisions": 0,
+        "latencyP50Ms": 814,
+        "latencyP95Ms": 1286,
+        "lateCrashes": 10,
+        "promptHash": "264f8f4265",
+        "simCommit": "9a9fc24",
+        "gameplayVersion": 4,
+        "costPerRunUsd": 0.00292,
+        "totalCostUsd": 0.0875
+      }
     },
     {
       "id": "deepseek-flash",
@@ -187,7 +254,30 @@
         "in": 0.3,
         "out": 1.2
       },
-      "priceSource": "https://api-docs.deepseek.com/quick_start/pricing"
+      "priceSource": "https://api-docs.deepseek.com/quick_start/pricing",
+      "facts": {
+        "runs": 30,
+        "seeds": [
+          1001,
+          1002,
+          1003
+        ],
+        "finishPct": 80,
+        "meanScore": 470,
+        "meanTimeS": 74,
+        "meanDamagePct": 19.9,
+        "scansDone": 3,
+        "decisionsPerRun": 20.7,
+        "noDecisions": 0,
+        "latencyP50Ms": 778,
+        "latencyP95Ms": 1043,
+        "lateCrashes": 13,
+        "promptHash": "264f8f4265",
+        "simCommit": "9a9fc24",
+        "gameplayVersion": 4,
+        "costPerRunUsd": 0.00923,
+        "totalCostUsd": 0.2769
+      }
     },
     {
       "id": "claude-haiku-5-5",
@@ -503,6 +593,7 @@
   "notRun": [],
   "notes": [
     "Each question tells the brain which option the fixed rules rate as correct. These tables measure whether a model follows that under its real latency.",
+    "The \"facts\" numbers of a row are the same missions and seeds with a question that states no verdict: the same state, options and predicted numbers, and what a missed scan or an empty battery costs.",
     "No fallback for anyone: an answer that is late or missing leaves the robot on its last command.",
     "Claude Haiku 5.5 (gameplay 3, 24 runs), Claude Sonnet 5.5 (gameplay 3, 24 runs), Claude Opus 5.5 (reasoning) (gameplay 3, 7 runs): carried over from an earlier version of the game because the provider could not be called again; not comparable with the rows run on gameplay 4."
   ],
@@ -510,6 +601,7 @@
     "date": "2026-10-10",
     "runs": 90,
     "promptHash": "fd730b561e",
+    "factsPromptHash": "909dc29c61",
     "labVersion": 2,
     "scenarios": [
       "maze",
@@ -543,14 +635,14 @@
         },
         "runs": 15,
         "finishPct": 100,
-        "meanScore": 694,
-        "meanTimeS": 53.4,
+        "meanScore": 704,
+        "meanTimeS": 51.4,
         "meanDamagePct": 0,
         "meanCompletionPct": 100,
         "decisionsPerRun": 10.1,
         "noDecisions": 0,
-        "latencyP50Ms": 246,
-        "latencyP95Ms": 332,
+        "latencyP50Ms": 237,
+        "latencyP95Ms": 291,
         "byScenario": {
           "maze": {
             "runs": 3,
@@ -561,29 +653,73 @@
           "warehouse": {
             "runs": 3,
             "completed": 3,
-            "meanScore": 608,
+            "meanScore": 609,
             "meanCompletionPct": 100
           },
           "mars": {
             "runs": 3,
             "completed": 3,
-            "meanScore": 568,
+            "meanScore": 600,
             "meanCompletionPct": 100
           },
           "house": {
             "runs": 3,
             "completed": 3,
-            "meanScore": 728,
+            "meanScore": 744,
             "meanCompletionPct": 100
           },
           "ctf": {
             "runs": 3,
             "completed": 3,
-            "meanScore": 836,
+            "meanScore": 838,
             "meanCompletionPct": 100
           }
         },
-        "simCommit": "fca3e98",
+        "simCommit": "ee4752a",
+        "facts": {
+          "runs": 15,
+          "finishPct": 87,
+          "meanScore": 581,
+          "meanTimeS": 59,
+          "meanDamagePct": 9,
+          "meanCompletionPct": 93,
+          "decisionsPerRun": 11.3,
+          "noDecisions": 0,
+          "latencyP50Ms": 240,
+          "latencyP95Ms": 278,
+          "byScenario": {
+            "maze": {
+              "runs": 3,
+              "completed": 3,
+              "meanScore": 732,
+              "meanCompletionPct": 100
+            },
+            "warehouse": {
+              "runs": 3,
+              "completed": 3,
+              "meanScore": 178,
+              "meanCompletionPct": 100
+            },
+            "mars": {
+              "runs": 3,
+              "completed": 1,
+              "meanScore": 446,
+              "meanCompletionPct": 67
+            },
+            "house": {
+              "runs": 3,
+              "completed": 3,
+              "meanScore": 710,
+              "meanCompletionPct": 100
+            },
+            "ctf": {
+              "runs": 3,
+              "completed": 3,
+              "meanScore": 837,
+              "meanCompletionPct": 100
+            }
+          }
+        },
         "promptHash": "fd730b561e"
       },
       {
@@ -635,7 +771,7 @@
             "meanCompletionPct": 100
           }
         },
-        "simCommit": "fca3e98",
+        "simCommit": "ee4752a",
         "promptHash": "fd730b561e"
       },
       {
@@ -687,7 +823,7 @@
             "meanCompletionPct": 33
           }
         },
-        "simCommit": "fca3e98",
+        "simCommit": "ee4752a",
         "promptHash": "fd730b561e"
       },
       {
@@ -702,38 +838,38 @@
           "max_completion_tokens": 512
         },
         "runs": 15,
-        "finishPct": 73,
-        "meanScore": 437,
-        "meanTimeS": 74,
-        "meanDamagePct": 3,
-        "meanCompletionPct": 77,
-        "decisionsPerRun": 14.5,
+        "finishPct": 80,
+        "meanScore": 483,
+        "meanTimeS": 71.3,
+        "meanDamagePct": 2,
+        "meanCompletionPct": 80,
+        "decisionsPerRun": 12.2,
         "noDecisions": 0,
-        "latencyP50Ms": 828,
-        "latencyP95Ms": 1004,
+        "latencyP50Ms": 829,
+        "latencyP95Ms": 1103,
         "byScenario": {
           "maze": {
             "runs": 3,
             "completed": 3,
-            "meanScore": 640,
+            "meanScore": 643,
             "meanCompletionPct": 100
           },
           "warehouse": {
             "runs": 3,
             "completed": 3,
-            "meanScore": 483,
+            "meanScore": 514,
             "meanCompletionPct": 100
           },
           "mars": {
             "runs": 3,
-            "completed": 2,
-            "meanScore": 362,
-            "meanCompletionPct": 83
+            "completed": 3,
+            "meanScore": 540,
+            "meanCompletionPct": 100
           },
           "house": {
             "runs": 3,
             "completed": 3,
-            "meanScore": 700,
+            "meanScore": 717,
             "meanCompletionPct": 100
           },
           "ctf": {
@@ -743,12 +879,58 @@
             "meanCompletionPct": 0
           }
         },
-        "simCommit": "fca3e98",
-        "inputTokens": 16579,
-        "outputTokens": 339,
-        "costPerRunUsd": 0.00096,
-        "totalCostUsd": 0.0145,
+        "simCommit": "ee4752a",
+        "inputTokens": 13696,
+        "outputTokens": 286,
+        "costPerRunUsd": 0.0008,
+        "totalCostUsd": 0.012,
         "priceSource": "https://developers.openai.com/api/docs/models",
+        "facts": {
+          "runs": 15,
+          "finishPct": 67,
+          "meanScore": 333,
+          "meanTimeS": 85,
+          "meanDamagePct": 7,
+          "meanCompletionPct": 68,
+          "decisionsPerRun": 13.9,
+          "noDecisions": 0,
+          "latencyP50Ms": 716,
+          "latencyP95Ms": 1001,
+          "byScenario": {
+            "maze": {
+              "runs": 3,
+              "completed": 3,
+              "meanScore": 590,
+              "meanCompletionPct": 100
+            },
+            "warehouse": {
+              "runs": 3,
+              "completed": 3,
+              "meanScore": 273,
+              "meanCompletionPct": 100
+            },
+            "mars": {
+              "runs": 3,
+              "completed": 1,
+              "meanScore": 189,
+              "meanCompletionPct": 42
+            },
+            "house": {
+              "runs": 3,
+              "completed": 3,
+              "meanScore": 613,
+              "meanCompletionPct": 100
+            },
+            "ctf": {
+              "runs": 3,
+              "completed": 0,
+              "meanScore": 0,
+              "meanCompletionPct": 0
+            }
+          },
+          "costPerRunUsd": 0.0008,
+          "totalCostUsd": 0.012
+        },
         "promptHash": "fd730b561e"
       },
       {
@@ -765,14 +947,14 @@
         },
         "runs": 15,
         "finishPct": 80,
-        "meanScore": 482,
-        "meanTimeS": 72.2,
-        "meanDamagePct": 3,
+        "meanScore": 502,
+        "meanTimeS": 67.6,
+        "meanDamagePct": 2,
         "meanCompletionPct": 80,
-        "decisionsPerRun": 13.5,
+        "decisionsPerRun": 12.5,
         "noDecisions": 0,
-        "latencyP50Ms": 799,
-        "latencyP95Ms": 1241,
+        "latencyP50Ms": 795,
+        "latencyP95Ms": 1212,
         "byScenario": {
           "maze": {
             "runs": 3,
@@ -783,19 +965,19 @@
           "warehouse": {
             "runs": 3,
             "completed": 3,
-            "meanScore": 484,
+            "meanScore": 532,
             "meanCompletionPct": 100
           },
           "mars": {
             "runs": 3,
             "completed": 3,
-            "meanScore": 505,
+            "meanScore": 551,
             "meanCompletionPct": 100
           },
           "house": {
             "runs": 3,
             "completed": 3,
-            "meanScore": 719,
+            "meanScore": 724,
             "meanCompletionPct": 100
           },
           "ctf": {
@@ -805,12 +987,58 @@
             "meanCompletionPct": 0
           }
         },
-        "simCommit": "fca3e98",
-        "inputTokens": 15389,
-        "outputTokens": 224,
-        "costPerRunUsd": 0.00165,
-        "totalCostUsd": 0.0248,
+        "simCommit": "ee4752a",
+        "inputTokens": 14419,
+        "outputTokens": 208,
+        "costPerRunUsd": 0.00155,
+        "totalCostUsd": 0.0232,
         "priceSource": "https://developers.openai.com/api/docs/models",
+        "facts": {
+          "runs": 15,
+          "finishPct": 80,
+          "meanScore": 457,
+          "meanTimeS": 78.5,
+          "meanDamagePct": 3,
+          "meanCompletionPct": 80,
+          "decisionsPerRun": 13.5,
+          "noDecisions": 0,
+          "latencyP50Ms": 864,
+          "latencyP95Ms": 1535,
+          "byScenario": {
+            "maze": {
+              "runs": 3,
+              "completed": 3,
+              "meanScore": 674,
+              "meanCompletionPct": 100
+            },
+            "warehouse": {
+              "runs": 3,
+              "completed": 3,
+              "meanScore": 413,
+              "meanCompletionPct": 100
+            },
+            "mars": {
+              "runs": 3,
+              "completed": 3,
+              "meanScore": 517,
+              "meanCompletionPct": 100
+            },
+            "house": {
+              "runs": 3,
+              "completed": 3,
+              "meanScore": 681,
+              "meanCompletionPct": 100
+            },
+            "ctf": {
+              "runs": 3,
+              "completed": 0,
+              "meanScore": 0,
+              "meanCompletionPct": 0
+            }
+          },
+          "costPerRunUsd": 0.00145,
+          "totalCostUsd": 0.0217
+        },
         "promptHash": "fd730b561e"
       },
       {
@@ -829,37 +1057,37 @@
         },
         "runs": 15,
         "finishPct": 80,
-        "meanScore": 510,
-        "meanTimeS": 65.4,
-        "meanDamagePct": 2,
+        "meanScore": 517,
+        "meanTimeS": 66.6,
+        "meanDamagePct": 0,
         "meanCompletionPct": 80,
-        "decisionsPerRun": 12.9,
+        "decisionsPerRun": 12.6,
         "noDecisions": 0,
-        "latencyP50Ms": 838,
-        "latencyP95Ms": 1063,
+        "latencyP50Ms": 808,
+        "latencyP95Ms": 1089,
         "byScenario": {
           "maze": {
             "runs": 3,
             "completed": 3,
-            "meanScore": 706,
+            "meanScore": 704,
             "meanCompletionPct": 100
           },
           "warehouse": {
             "runs": 3,
             "completed": 3,
-            "meanScore": 533,
+            "meanScore": 604,
             "meanCompletionPct": 100
           },
           "mars": {
             "runs": 3,
             "completed": 3,
-            "meanScore": 581,
+            "meanScore": 553,
             "meanCompletionPct": 100
           },
           "house": {
             "runs": 3,
             "completed": 3,
-            "meanScore": 728,
+            "meanScore": 724,
             "meanCompletionPct": 100
           },
           "ctf": {
@@ -869,12 +1097,58 @@
             "meanCompletionPct": 0
           }
         },
-        "simCommit": "fca3e98",
-        "inputTokens": 15295,
-        "outputTokens": 221,
-        "costPerRunUsd": 0.00485,
-        "totalCostUsd": 0.0728,
+        "simCommit": "ee4752a",
+        "inputTokens": 14848,
+        "outputTokens": 215,
+        "costPerRunUsd": 0.00471,
+        "totalCostUsd": 0.0707,
         "priceSource": "https://api-docs.deepseek.com/quick_start/pricing",
+        "facts": {
+          "runs": 15,
+          "finishPct": 80,
+          "meanScore": 491,
+          "meanTimeS": 69.9,
+          "meanDamagePct": 2,
+          "meanCompletionPct": 80,
+          "decisionsPerRun": 11.3,
+          "noDecisions": 0,
+          "latencyP50Ms": 779,
+          "latencyP95Ms": 1029,
+          "byScenario": {
+            "maze": {
+              "runs": 3,
+              "completed": 3,
+              "meanScore": 705,
+              "meanCompletionPct": 100
+            },
+            "warehouse": {
+              "runs": 3,
+              "completed": 3,
+              "meanScore": 529,
+              "meanCompletionPct": 100
+            },
+            "mars": {
+              "runs": 3,
+              "completed": 3,
+              "meanScore": 540,
+              "meanCompletionPct": 100
+            },
+            "house": {
+              "runs": 3,
+              "completed": 3,
+              "meanScore": 679,
+              "meanCompletionPct": 100
+            },
+            "ctf": {
+              "runs": 3,
+              "completed": 0,
+              "meanScore": 0,
+              "meanCompletionPct": 0
+            }
+          },
+          "costPerRunUsd": 0.00362,
+          "totalCostUsd": 0.0543
+        },
         "promptHash": "fd730b561e"
       }
     ],
@@ -887,6 +1161,7 @@
     ],
     "notes": [
       "Each question tells the brain which option the fixed rules rate as correct. These tables measure whether a model follows that under its real latency.",
+      "The \"facts\" numbers of a row are the same runs with a question that states no verdict: the same observation, options and predicted numbers only.",
       "CTF is a race against a heuristic rival answering in 400 ms, so a slower contestant loses the flag and scores 0.",
       "Seeds move the forklifts and the storm, never the map: maze, house and ctf have the same layout on every seed."
     ]

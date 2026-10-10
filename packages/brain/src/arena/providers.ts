@@ -3,7 +3,7 @@
 import type { Action, BrainQuestion, Probabilities } from '@rivetrun/contracts';
 import { heuristicDecide, randomBrain } from '@rivetrun/sim';
 import { createJevBrain, JEV_MODEL_ID } from '../index';
-import { ARENA_SYSTEM, buildArenaPrompt, parseArenaAnswer } from './prompt';
+import { ARENA_SYSTEM, arenaQuestionMode, buildArenaPrompt, parseArenaAnswer } from './prompt';
 
 /** A contestant that does not answer in this time has made no decision (docs/BRAIN_ARENA.md). */
 export const ARENA_TIMEOUT_MS = 10_000;
@@ -222,7 +222,7 @@ async function configureLlm(spec: LlmSpec, listings: Map<Provider, Set<string> |
 /** Jev under arena rules: the 10 s deadline instead of the game's 1200 ms, and no heuristic behind it. */
 export function jevContestant(): Contestant {
   if (!process.env.JEV_API_KEY) return { ...notConfigured(JEV_MODEL_ID, 'Jev'), kind: 'jev', tier: 'fast' };
-  const brain = createJevBrain({ timeoutMs: ARENA_TIMEOUT_MS });
+  const brain = createJevBrain({ timeoutMs: ARENA_TIMEOUT_MS, mode: arenaQuestionMode() });
   return {
     id: JEV_MODEL_ID,
     label: 'Jev',

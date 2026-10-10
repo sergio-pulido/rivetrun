@@ -13,7 +13,7 @@ import { labHeuristicBrain, labRandomBrain, LAB_DEFAULT_BUILDS, LAB_PLAYER, LAB_
 import { scenarioOf, withSensors } from '../../lab/src/testkit';
 import { labDecider } from '../src/arena/lab';
 import { ARENA_TIMEOUT_MS, PRICE_SOURCES, publicReason, resolveContestants, VERDICT_NOTE, type Contestant, type Tier } from '../src/arena/providers';
-import { buildLabTextPrompt, LAB_QUESTION_VERSION, LAB_SYSTEM } from '../src/lab/question';
+import { buildLabTextPrompt, labQuestionVersion, LAB_SYSTEM, type LabQuestionMode } from '../src/lab/question';
 
 const OUT_JSON = fileURLToPath(new URL('../../../docs/arena-results.json', import.meta.url));
 const OUT_MD = fileURLToPath(new URL('../../../docs/ARENA_LAB.md', import.meta.url));
@@ -53,10 +53,10 @@ interface RowStats {
 }
 
 /** The contestant as a LabBrain. A throw (error, timeout, a choice not on offer) is the sim's "miss". */
-function labBrain(contestant: Contestant, seed: number, stats: RowStats): LabBrain {
+function labBrain(contestant: Contestant, seed: number, stats: RowStats, mode: LabQuestionMode): LabBrain {
   if (contestant.kind === 'heuristic') return labHeuristicBrain;
   if (contestant.kind === 'random') return labRandomBrain(seed);
-  const decide = labDecider(contestant);
+  const decide = labDecider(contestant, mode);
   if (!decide) throw new Error(`${contestant.id} cannot answer Lab questions`);
   return {
     decide: async (question: LabQuestion) => {
@@ -97,11 +97,14 @@ async function pool<T>(tasks: readonly (() => Promise<T>)[], limit: number): Pro
 }
 
 /** Hash of the Lab prompt template: wording version, system text and a rendered fixed question. */
-function labPromptHash(sample: LabQuestion | undefined): string {
-  const hash = createHash('sha256').update(`${LAB_QUESTION_VERSION}\n${LAB_VERSION}\n${LAB_SYSTEM}`);
-  if (sample) hash.update(buildLabTextPrompt({ ...sample, knew: [], unknown: [], options: sample.options.slice(0, 1) }).user.replace(/\d+(\.\d+)?/g, '#'));
+function labPromptHash(sample: LabQuestion | undefined, mode: LabQuestionMode): string {
+  const hash = createHash('sha256').update(`${labQuestionVersion(mode)}\n${LAB_VERSION}\n${LAB_SYSTEM}`);
+  if (sample) hash.update(buildLabTextPrompt({ ...sample, knew: [], unknown: [], options: sample.options.slice(0, 1) }, mode).user.replace(/\d+(\.\d+)?/g, '#'));
   return hash.digest('hex').slice(0, 10);
 }
+
+/** The numbers of one run of a row, kept under `facts` for the facts-only wording (docs/QA.md Q20). */
+const FACTS_FIELDS = ['runs', 'finishPct', 'meanScore', 'meanTimeS', 'meanDamagePct', 'meanCompletionPct', 'decisionsPerRun', 'noDecisions', 'latencyP50Ms', 'latencyP95Ms', 'byScenario', 'costPerRunUsd', 'totalCostUsd'] as const;
 
 async function main(): Promise<void> {
   const todo = entries();
@@ -114,11 +117,14 @@ async function main(): Promise<void> {
   const rows: Record<string, unknown>[] = [];
   let sample: LabQuestion | undefined;
   for (const contestant of contestants.filter((c) => c.status === 'ok')) {
+    const local = contestant.kind === 'heuristic' || contestant.kind === 'random';
+    // The fixed rules and the coin do not read the question: one run serves both columns.
+    for (const mode of (local || has('verdict-only') ? ['verdict'] : ['verdict', 'facts']) as LabQuestionMode[]) {
     const stats: RowStats = { runs: [], latenciesMs: [], misses: 0, inputTokens: 0, outputTokens: 0, usageReported: false, spentUsd: 0 };
     const tasks = todo.flatMap((entry) =>
       entry.seeds.map((seed) => async (): Promise<LabRunResult> => {
         const agentId = entry.scenario.agents.some((agent) => agent.id === LAB_PLAYER) ? LAB_PLAYER : entry.scenario.agents[0]!.id;
-        const brain = labBrain(contestant, seed, stats);
+        const brain = labBrain(contestant, seed, stats, mode);
         const spy: LabBrain = { decide: (question) => ((sample ??= question), brain.decide(question)) };
         // A rival robot (CTF) is the lab heuristic on the same build, answering in LAB_RIVAL_LATENCY_MS.
         const result = await runLabHeadless(entry.scenario, seed, entry.build, spy);
@@ -130,7 +136,6 @@ async function main(): Promise<void> {
         return result;
       }),
     );
-    const local = contestant.kind === 'heuristic' || contestant.kind === 'random';
     stats.runs = await pool(tasks, local ? 1 : 4);
     const me = (run: LabRunResult): string => (run.outcomes[LAB_PLAYER] ? LAB_PLAYER : run.final.agents[0]!.id);
     const outcomes = stats.runs.map((run) => run.outcomes[me(run)]!);
@@ -141,7 +146,7 @@ async function main(): Promise<void> {
         return [entry.scenario.id, { runs: mine.length, completed: mine.filter((o) => o.finished).length, meanScore: Math.round(mean(mine.map((o) => o.score)) ?? 0), meanCompletionPct: Math.round((mean(mine.map((o) => o.completion)) ?? 0) * 100) }];
       }),
     );
-    rows.push({
+    const row: Record<string, unknown> = {
       id: contestant.id,
       modelId: contestant.id,
       label: contestant.label,
@@ -163,11 +168,15 @@ async function main(): Promise<void> {
       simCommit: SIM_COMMIT,
       ...(stats.usageReported ? { inputTokens: Math.round(stats.inputTokens / stats.runs.length), outputTokens: Math.round(stats.outputTokens / stats.runs.length) } : {}),
       ...(stats.usageReported && contestant.price ? { costPerRunUsd: Number((stats.spentUsd / stats.runs.length).toFixed(5)), totalCostUsd: Number(stats.spentUsd.toFixed(4)), priceSource: contestant.priceSource } : {}),
-    });
-    console.info(`→ ${contestant.id}: ${stats.runs.length} runs${stats.usageReported && contestant.price ? ` · $${stats.spentUsd.toFixed(4)}` : ''}${stats.misses > 0 ? ` · ${stats.misses} unanswered (first: ${stats.firstMiss ?? '?'})` : ''}`);
+    };
+    if (mode === 'facts') rows[rows.length - 1]!.facts = Object.fromEntries(FACTS_FIELDS.flatMap((field) => (row[field] === undefined ? [] : [[field, row[field]]])));
+    else rows.push(row);
+    console.info(`→ ${contestant.id} (${mode}): ${stats.runs.length} runs${stats.usageReported && contestant.price ? ` · $${stats.spentUsd.toFixed(4)}` : ''}${stats.misses > 0 ? ` · ${stats.misses} unanswered (first: ${stats.firstMiss ?? '?'})` : ''}`);
+    }
   }
 
-  const promptHash = labPromptHash(sample);
+  const promptHash = labPromptHash(sample, 'verdict');
+  const factsPromptHash = labPromptHash(sample, 'facts');
   for (const row of rows) row.promptHash = promptHash;
   const date = new Date().toISOString().slice(0, 10);
   const totalRuns = rows.reduce((sum, row) => sum + (row.runs as number), 0);
@@ -175,6 +184,7 @@ async function main(): Promise<void> {
     date,
     runs: totalRuns,
     promptHash,
+    factsPromptHash,
     labVersion: LAB_VERSION,
     scenarios: todo.map((entry) => entry.scenario.id),
     seeds: [...new Set(todo.flatMap((entry) => entry.seeds))],
@@ -184,15 +194,18 @@ async function main(): Promise<void> {
     notRun: contestants.filter((c) => c.status === 'unavailable').map((c) => ({ id: c.id, label: c.label, reason: publicReason(c.reason) })),
     notes: [
       VERDICT_NOTE,
+      'The "facts" numbers of a row are the same runs with a question that states no verdict: the same observation, options and predicted numbers only.',
       `CTF is a race against a heuristic rival answering in ${LAB_RIVAL_LATENCY_MS} ms, so a slower contestant loses the flag and scores 0.`,
       'Seeds move the forklifts and the storm, never the map: maze, house and ctf have the same layout on every seed.',
     ],
   };
 
+  const facts = (r: Record<string, unknown>): { meanScore: number; finishPct: number; byScenario: Record<string, { runs: number; completed: number; meanScore: number }> } | undefined => r.facts as never;
+  const factsCell = (r: Record<string, unknown>): string => (facts(r) ? `${facts(r)!.meanScore} (${facts(r)!.finishPct} % completed)` : r.kind === 'heuristic' || r.kind === 'random' ? 'same (does not read the question)' : '—');
   const table = [
-    '| Contestant | Runs | Completed | Score | Mission done % | Time s (completed) | Decisions / run | Unanswered | Latency p50 / p95 ms | Cost / run |',
-    '| - | - | - | - | - | - | - | - | - | - |',
-    ...rows.map((r) => `| ${r.label} (\`${r.id}\`) | ${r.runs} | ${r.finishPct} % | ${r.meanScore} | ${r.meanCompletionPct} % | ${fmt(r.meanTimeS as number | undefined, 1)} | ${fmt(r.decisionsPerRun as number | undefined, 1)} | ${r.noDecisions} | ${fmt(r.latencyP50Ms as number | undefined)} / ${fmt(r.latencyP95Ms as number | undefined)} | ${r.costPerRunUsd !== undefined ? `$${(r.costPerRunUsd as number).toFixed(4)}` : '—'} |`),
+    '| Contestant | Runs | Completed | Score | Score, facts only | Mission done % | Time s (completed) | Decisions / run | Unanswered | Latency p50 / p95 ms | Cost / run |',
+    '| - | - | - | - | - | - | - | - | - | - | - |',
+    ...rows.map((r) => `| ${r.label} (\`${r.id}\`) | ${r.runs} | ${r.finishPct} % | ${r.meanScore} | ${factsCell(r)} | ${r.meanCompletionPct} % | ${fmt(r.meanTimeS as number | undefined, 1)} | ${fmt(r.decisionsPerRun as number | undefined, 1)} | ${r.noDecisions} | ${fmt(r.latencyP50Ms as number | undefined)} / ${fmt(r.latencyP95Ms as number | undefined)} | ${r.costPerRunUsd !== undefined ? `$${(r.costPerRunUsd as number).toFixed(4)}` : '—'} |`),
   ];
   console.info(`\n${table.join('\n')}\n`);
   if (has('smoke')) {
@@ -210,6 +223,8 @@ async function main(): Promise<void> {
       '',
       `Our grid sim, our prompts, ${totalRuns} runs, ${date}. Not a general model ranking. Lab Missions use a grid simulation (packages/lab), not the rail physics.`,
       '',
+      `**${VERDICT_NOTE}** The column "facts only" is the same set of runs with the second wording of the question: the same observation, options and predicted numbers, and no sentence that rates an option (prompt hash \`${factsPromptHash}\`). The difference between the two columns is what the stated verdict is worth to that model. A gap under about 50 points on three seeds is within the noise of a mission's opening move.`,
+      '',
       `Generated by \`packages/brain/scripts/arena-lab.ts\` · lab version ${LAB_VERSION} · prompt hash \`${promptHash}\` · commit ${SIM_COMMIT}.`,
       '',
       `- Scenarios: ${block.scenarios.join(', ')} × seeds ${block.seeds.join(', ')}, each on the scenario's default build (Mars carries the moisture probe it needs). Seeds move the forklifts and the storm, never the map: maze, house and ctf have the same layout on every seed.`,
@@ -223,6 +238,11 @@ async function main(): Promise<void> {
       `| Contestant | ${block.scenarios.join(' | ')} |`,
       `| - | ${block.scenarios.map(() => '-').join(' | ')} |`,
       ...rows.map((r) => `| ${r.label} | ${block.scenarios.map((id) => { const s = (r.byScenario as Record<string, { runs: number; completed: number; meanScore: number }>)[id]; return s ? `${s.meanScore} (${s.completed}/${s.runs})` : '—'; }).join(' | ')} |`),
+      '',
+      '## Score by scenario, facts-only question',
+      `| Contestant | ${block.scenarios.join(' | ')} |`,
+      `| - | ${block.scenarios.map(() => '-').join(' | ')} |`,
+      ...rows.filter((r) => facts(r)).map((r) => `| ${r.label} | ${block.scenarios.map((id) => { const s = facts(r)!.byScenario[id]; return s ? `${s.meanScore} (${s.completed}/${s.runs})` : '—'; }).join(' | ')} |`),
       '',
     ].join('\n'),
   );

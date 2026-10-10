@@ -3,7 +3,7 @@
 // the state, the instructions and the option descriptions Jev is given, and nothing else.
 import { createHash } from 'node:crypto';
 import type { Action, BrainQuestion } from '@rivetrun/contracts';
-import { buildJevRequest, JEV_QUESTION_VERSION } from '../index';
+import { buildJevRequest, JEV_QUESTION_VERSION, type QuestionMode } from '../index';
 
 export const ARENA_SYSTEM =
   'You are the driver of a small robot in a racing simulation. You are asked one multiple-choice question at a time. ' +
@@ -21,6 +21,14 @@ export const ARENA_ANSWER_SCHEMA = {
   },
 } as const;
 
+// Which wording a whole arena invocation asks (docs/QA.md Q20). Set once by the runner before any contestant is
+// built; a script-level switch, never changed while runs are in flight.
+let arenaMode: QuestionMode = 'verdict';
+export const setArenaQuestionMode = (mode: QuestionMode): void => {
+  arenaMode = mode;
+};
+export const arenaQuestionMode = (): QuestionMode => arenaMode;
+
 export interface ArenaPrompt {
   readonly system: string;
   readonly user: string;
@@ -28,8 +36,8 @@ export interface ArenaPrompt {
 }
 
 /** The question as plain text: state, instructions, then one line per option. */
-export function buildArenaPrompt(question: BrainQuestion): ArenaPrompt {
-  const request = buildJevRequest(question);
+export function buildArenaPrompt(question: BrainQuestion, mode: QuestionMode = arenaMode): ArenaPrompt {
+  const request = buildJevRequest(question, undefined, mode);
   const { instructions, criteria } = request.questions.action;
   const options = question.options.map((action) => `- ${action}: ${criteria[action] ?? ''}`).join('\n');
   const user = [
@@ -82,7 +90,7 @@ const HASH_FIXTURE: BrainQuestion = {
 };
 
 /** Short hash of the prompt template: changes whenever the wording any contestant reads changes. */
-export function arenaPromptHash(): string {
-  const prompt = buildArenaPrompt(HASH_FIXTURE);
-  return createHash('sha256').update(`${JEV_QUESTION_VERSION}\n${prompt.system}\n${prompt.user}`).digest('hex').slice(0, 10);
+export function arenaPromptHash(mode: QuestionMode = arenaMode): string {
+  const prompt = buildArenaPrompt(HASH_FIXTURE, mode);
+  return createHash('sha256').update(`${JEV_QUESTION_VERSION}${mode === 'facts' ? '-facts' : ''}\n${prompt.system}\n${prompt.user}`).digest('hex').slice(0, 10);
 }
