@@ -314,7 +314,7 @@ export function RunHud({ mission, feed, ghosts = NO_GHOSTS, drive, build }: RunH
         <div className="absolute inset-x-0 flex flex-col items-center gap-1.5 px-3" style={{ top: '33%' }}>
           {view.lastFall ? <FallToast fall={view.lastFall} /> : null}
           {view.state?.blockedBy ? <BlockedChip kind={view.state.blockedBy} /> : view.lastDamage ? <ContactToast hit={view.lastDamage} /> : null}
-          {driving && build ? <DriveAlerts mission={mission} build={build} state={view.state} observation={view.observation?.value ?? null} /> : null}
+          {driving && build ? <DriveAlerts mission={mission} build={build} state={view.state} observation={view.observation?.value ?? null} landing={view.lastLanding} /> : null}
         </div>
       )}
 

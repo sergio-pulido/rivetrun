@@ -192,7 +192,7 @@ export function DriveControls({ drive, feed, build }: DriveControlsProps) {
   const cooldownMs = (PARTS_BY_ID.get('piston_jump')?.effects.cooldownS ?? 3) * 1000;
   const sinceJump = input.jumpAt > 0 ? performance.now() - input.jumpAt : Infinity;
   const cooling = special === 'jump' && sinceJump < cooldownMs;
-  const ready = !done && !(special === 'jump' && (cooling || airborne));
+  const ready = !done && !(special === 'jump' && !input.jumpHeld && (cooling || airborne));
 
   // The ring only needs frames while it is filling.
   useEffect(() => {
@@ -229,11 +229,16 @@ export function DriveControls({ drive, feed, build }: DriveControlsProps) {
   const press = useMemo(() => {
     const fire = (kind: ControlSpecial): void => {
       haptic(10);
-      if (kind === 'jump') drive.jump();
+      // The piston charges while the button is held and fires when it is let go.
+      if (kind === 'jump') drive.setJumpHeld(true);
       else if (kind === 'climb') drive.toggleClimb();
       else drive.setWinch(true);
     };
-    return { fire };
+    const letGo = (): void => {
+      drive.setWinch(false);
+      drive.setJumpHeld(false);
+    };
+    return { fire, letGo };
   }, [drive]);
 
   // Keyboard, for laptops: Up / W (or → / D) full throttle, with Shift 50 %; Down / S (or ← / A) brake; Space / J the action button.
@@ -245,7 +250,7 @@ export function DriveControls({ drive, feed, build }: DriveControlsProps) {
       else if (code === 'ArrowDown' || code === 'KeyS' || code === 'ArrowLeft' || code === 'KeyA') drive.setBrake(down);
       else if (code === 'Space' || code === 'KeyJ') {
         if (down && ready) press.fire(special);
-        if (!down) drive.setWinch(false);
+        if (!down) press.letGo();
       } else return;
       event.preventDefault();
     };
@@ -259,8 +264,11 @@ export function DriveControls({ drive, feed, build }: DriveControlsProps) {
     };
   }, [drive, done, ready, special, press]);
 
-  const fraction = cooling ? sinceJump / cooldownMs : 1;
-  const active = (special === 'climb' && input.climb) || (special === 'winch' && input.winch);
+  // Charging: the sim reports how much of the impulse is in the piston (0.4 for a tap, 1 after a full second).
+  const charging = special === 'jump' && input.jumpHeld;
+  const charge = view.state?.jumpCharge ?? 0;
+  const fraction = charging ? charge : cooling ? sinceJump / cooldownMs : 1;
+  const active = (special === 'climb' && input.climb) || (special === 'winch' && input.winch) || charging;
   const accent = active ? UI.safety : ready ? UI.text : UI.dim;
 
   return (
@@ -270,14 +278,15 @@ export function DriveControls({ drive, feed, build }: DriveControlsProps) {
 
       {!done && (
         <>
-          <Pad side="left" value={input.brake} color={UI.bad} title={input.brake > 0 ? `${Math.round(input.brake * 100)} %` : 'BRAKE'} caption={input.brake > 0 ? `BRAKE ${brakeBand(input.brake)}` : 'SLIDE UP'} />
+          {/* In the air the pedals are the attitude: throttle lifts the nose, brake drops it (gameplay v3 P2). */}
+          <Pad side="left" value={input.brake} color={UI.bad} title={input.brake > 0 ? `${Math.round(input.brake * 100)} %` : airborne ? 'NOSE' : 'BRAKE'} caption={airborne ? 'NOSE DOWN' : input.brake > 0 ? `BRAKE ${brakeBand(input.brake)}` : 'SLIDE UP'} />
           <Pad
             side="right"
             value={input.throttle}
             color={UI.safety}
             title={Math.abs(speed).toFixed(1)}
             unit="m/s"
-            caption={slipping ? 'SLIP · EASE OFF' : input.throttle > 0 ? `${throttleBand(input.throttle)} ${Math.round(input.throttle * 100)} %` : 'COAST'}
+            caption={airborne ? 'NOSE UP' : slipping ? 'SLIP · EASE OFF' : input.throttle > 0 ? `${throttleBand(input.throttle)} ${Math.round(input.throttle * 100)} %` : 'COAST'}
             tone={warning?.over ? UI.bad : undefined}
             alert={slipping}
           />
@@ -291,11 +300,13 @@ export function DriveControls({ drive, feed, build }: DriveControlsProps) {
             aria-pressed={active}
             onPointerDown={(event) => {
               event.stopPropagation();
+              // Captured: the hold lasts until the finger lifts, even if it slides off the button or the label under it changes.
+              event.currentTarget.setPointerCapture(event.pointerId);
               if (ready) press.fire(special);
             }}
-            onPointerUp={() => drive.setWinch(false)}
-            onPointerCancel={() => drive.setWinch(false)}
-            onPointerLeave={() => drive.setWinch(false)}
+            onPointerUp={press.letGo}
+            onPointerCancel={press.letGo}
+            onLostPointerCapture={press.letGo}
             className="absolute left-1/2 flex h-[88px] w-[88px] -translate-x-1/2 items-center justify-center rounded-full font-display"
             style={{
               ...NO_SELECT,
@@ -334,9 +345,9 @@ export function DriveControls({ drive, feed, build }: DriveControlsProps) {
               </span>
             ) : (
               <span className="relative flex flex-col items-center gap-0.5">
-                <span className="text-[15px] font-bold leading-none tracking-[1.5px]">{SPECIAL_LABEL[special]}</span>
+                <span className="text-[15px] font-bold leading-none tracking-[1.5px] tabular-nums">{charging ? `${Math.round(charge * 100)} %` : SPECIAL_LABEL[special]}</span>
                 <span className="font-mono text-[9px] leading-none tracking-[1px]" style={{ color: UI.dim }}>
-                  {special === 'climb' ? (input.climb ? 'ON' : 'OFF') : special === 'winch' ? 'HOLD' : airborne ? 'AIR' : 'READY'}
+                  {special === 'climb' ? (input.climb ? 'ON' : 'OFF') : special === 'winch' ? 'HOLD' : charging ? 'LET GO' : airborne ? 'AIR' : 'HOLD'}
                 </span>
               </span>
             )}

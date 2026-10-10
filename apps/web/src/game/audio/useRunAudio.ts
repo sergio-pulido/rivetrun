@@ -49,7 +49,7 @@ export function useRunAudio(feed: RunFeed, build: Build, driving = false): void 
         lastAction = picked;
       }
       // A landing has its own thump; the crash is for running into things.
-      if (view.lastLanding && view.lastLanding !== prev.lastLanding) play(view.lastLanding.damagePct > 0 || view.lastLanding.impactMps > 2.6 ? 'land_hard' : 'land');
+      if (view.lastLanding && view.lastLanding !== prev.lastLanding) play(view.lastLanding.grade === 'clean' ? 'land' : view.lastLanding.grade || view.lastLanding.damagePct > 0 || view.lastLanding.impactMps > 2.6 ? 'land_hard' : 'land');
       else if (view.lastDamage && view.lastDamage !== prev.lastDamage && view.lastDamage.amountPct >= 0.5) play('crash');
       if (view.done && !prev.done) play(view.dnfReason ? 'dnf' : 'finish');
 

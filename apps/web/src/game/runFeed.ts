@@ -51,7 +51,15 @@ export interface RunView {
   /** The last obstacle the robot ran into (other damage does not replace it): the HUD's blind-hit chip reads it. */
   readonly lastHit: { readonly t: number; readonly xM: number; readonly obstacle: Obstacle; readonly blind: boolean } | null;
   /** Last touchdown after airtime (gameplay v2): drives landing dust, shake and haptics. */
-  readonly lastLanding: { readonly impactMps: number; readonly airtimeS: number; readonly damagePct: number; readonly at: number } | null;
+  readonly lastLanding: {
+    readonly impactMps: number;
+    readonly airtimeS: number;
+    readonly damagePct: number;
+    readonly at: number;
+    /** Drive mode with air control: how square the robot met the ground, and by how many degrees it was off. */
+    readonly grade?: 'clean' | 'hard' | 'crash';
+    readonly pitchErrorDeg?: number;
+  } | null;
   /** Last fall into a gap: the robot respawns at `respawnX`. */
   readonly lastFall: { readonly falls: number; readonly respawnX: number; readonly at: number } | null;
   readonly outcome: Outcome | null;
@@ -136,7 +144,10 @@ function reduce(view: RunView, event: RunEvent): RunView {
     case 'dnf':
       return { ...view, pending: null, outcome: event.outcome, dnfReason: event.reason, done: true };
     case 'landed':
-      return { ...view, lastLanding: { impactMps: event.impactMps, airtimeS: event.airtimeS, damagePct: event.damagePct, at: now() } };
+      return {
+        ...view,
+        lastLanding: { impactMps: event.impactMps, airtimeS: event.airtimeS, damagePct: event.damagePct, at: now(), grade: event.grade, pitchErrorDeg: event.pitchErrorDeg },
+      };
     case 'fell':
       return { ...view, lastFall: { falls: event.falls, respawnX: event.respawnX, at: now() } };
     case 'observation':

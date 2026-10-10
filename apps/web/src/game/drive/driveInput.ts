@@ -10,7 +10,9 @@ export interface DriveInputState {
   readonly climb: boolean;
   /** Winch is held, like the pedals. */
   readonly winch: boolean;
-  /** performance.now() of the last jump press, for the cooldown ring. 0 = never. */
+  /** The jump button is held: the piston is charging and fires when it is let go (gameplay v3 P2). */
+  readonly jumpHeld: boolean;
+  /** performance.now() of the last jump (press, or release of a charge), for the cooldown ring. 0 = never. */
   readonly jumpAt: number;
 }
 
@@ -34,12 +36,15 @@ export interface DriveInput {
   readonly setBrake: (value: number | boolean) => void;
   readonly setWinch: (held: boolean) => void;
   readonly toggleClimb: () => void;
+  /** Fires at once at full power. */
   readonly jump: () => void;
+  /** Hold to charge, let go to fire: 0.3–1.0 s of hold gives 40–100 % of the impulse (the sim does the counting). */
+  readonly setJumpHeld: (held: boolean) => void;
   /** Releases everything: call when the run ends or the page loses focus. */
   readonly release: () => void;
 }
 
-const REST: DriveInputState = { throttle: 0, brake: 0, climb: false, winch: false, jumpAt: 0 };
+const REST: DriveInputState = { throttle: 0, brake: 0, climb: false, winch: false, jumpHeld: false, jumpAt: 0 };
 
 const level = (value: number | boolean): number => (typeof value === 'number' ? Math.min(1, Math.max(0, value)) : value ? 1 : 0);
 
@@ -58,7 +63,7 @@ export function createDriveInput(): DriveInput {
     read: () => {
       const special: ControlSpecial | undefined = jumpQueued ? 'jump' : state.winch ? 'winch' : state.climb ? 'climb' : undefined;
       jumpQueued = false;
-      return { throttle: state.throttle, brake: state.brake, ...(special ? { special } : {}) };
+      return { throttle: state.throttle, brake: state.brake, ...(special ? { special } : {}), ...(state.jumpHeld ? { jumpHeld: true } : {}) };
     },
     peek: () => state,
     subscribe: (listener) => {
@@ -75,9 +80,13 @@ export function createDriveInput(): DriveInput {
       jumpQueued = true;
       set({ jumpAt: typeof performance === 'undefined' ? 0 : performance.now() });
     },
+    setJumpHeld: (held) => {
+      if (held) set({ jumpHeld: true });
+      else if (state.jumpHeld) set({ jumpHeld: false, jumpAt: typeof performance === 'undefined' ? 0 : performance.now() });
+    },
     release: () => {
       jumpQueued = false;
-      set({ throttle: 0, brake: 0, winch: false });
+      set({ throttle: 0, brake: 0, winch: false, jumpHeld: false });
     },
   };
 }

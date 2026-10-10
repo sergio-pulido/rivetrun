@@ -5,6 +5,7 @@ import type { Build, Mission, Observation, SimState } from '@rivetrun/contracts'
 import { SCAN_RULES, deriveSpec, safeContactSpeedMps } from '@rivetrun/sim';
 import { WARN_AHEAD_S, hazardWarning, type HazardWarning } from '../drive/hazard';
 import { UI } from '../palette';
+import type { RunView } from '../runFeed';
 
 const BOX = 'rounded-lg px-3 py-2 text-center font-mono text-[12px] font-semibold leading-snug tracking-[1px]';
 const BACK = 'rgb(14 16 19 / 0.88)';
@@ -110,11 +111,66 @@ function useScanNews(state: SimState | null): { readonly text: string; readonly 
   return news;
 }
 
+/** Landing grades of the sim: within 10° of the ground is clean, within 30° hard, beyond that a crash. */
+const CLEAN_DEG = 10;
+const HARD_DEG = 30;
+
+/** In the air: the nose against the horizon, and which pedal moves it. Green while a landing would be clean. */
+function AirChip({ pitchDeg, groundDeg }: { pitchDeg: number; groundDeg: number }) {
+  // The grade is the nose against the ground it will meet, not against the horizon.
+  const off = Math.abs(pitchDeg - groundDeg);
+  const color = off <= CLEAN_DEG ? UI.ok : off <= HARD_DEG ? UI.warn : UI.bad;
+  return (
+    <span className={`${BOX} flex items-center gap-2.5`} style={{ border: `2px solid ${color}`, background: BACK, color }}>
+      <svg width="40" height="30" viewBox="-20 -15 40 30" aria-hidden>
+        <line x1="-19" y1="0" x2="19" y2="0" stroke="rgb(237 239 242 / 0.35)" strokeWidth="1.5" strokeDasharray="3 3" />
+        <g transform={`rotate(${-Math.max(-60, Math.min(60, pitchDeg))})`}>
+          <rect x="-13" y="-3.5" width="26" height="7" rx="2" fill={color} />
+          <path d="M13 -3.5 18 0 13 3.5z" fill={color} />
+        </g>
+      </svg>
+      <span className="text-left">
+        NOSE {pitchDeg - groundDeg >= 0 ? 'UP' : 'DOWN'} {Math.round(off)}°
+        <span className="block text-[11px]" style={{ color: UI.text }}>
+          throttle lifts it · brake drops it
+        </span>
+      </span>
+    </span>
+  );
+}
+
+const GRADE: Readonly<Record<'clean' | 'hard' | 'crash', { readonly text: string; readonly color: string }>> = {
+  clean: { text: 'CLEAN LANDING', color: UI.ok },
+  hard: { text: 'HARD LANDING', color: UI.warn },
+  crash: { text: 'CRASH LANDING', color: UI.bad },
+};
+
+/** How the last landing went, for a moment: the sim's grade, the angle it was off by and what it cost. */
+function LandingToast({ landing }: { landing: NonNullable<RunView['lastLanding']> }) {
+  const [shown, setShown] = useState(true);
+  useEffect(() => {
+    setShown(true);
+    const id = window.setTimeout(() => setShown(false), 1700);
+    return () => window.clearTimeout(id);
+  }, [landing.at]);
+  if (!shown || !landing.grade) return null;
+  const grade = GRADE[landing.grade];
+  return (
+    <span className={BOX} style={{ border: `2px solid ${grade.color}`, background: BACK, color: grade.color }}>
+      {grade.text}
+      {landing.pitchErrorDeg === undefined ? '' : ` · ${Math.round(Math.abs(landing.pitchErrorDeg))}° off`}
+      {landing.damagePct >= 0.5 && <span className="block text-[11px] tabular-nums">−{landing.damagePct.toFixed(0)} %{landing.grade === 'crash' ? ' · stalled 1 s' : ''}</span>}
+    </span>
+  );
+}
+
 export interface DriveAlertsProps {
   mission: Mission;
   build: Build;
   state: SimState | null;
   observation: Observation | null;
+  /** The last touchdown, for its grade. */
+  landing?: RunView['lastLanding'];
 }
 
 /**
@@ -122,7 +178,7 @@ export interface DriveAlertsProps {
  * up, the next hazard with its safe speed. All of it from the robot's own Observation: a build that
  * cannot sense something is not warned about it.
  */
-export function DriveAlerts({ mission, build, state, observation }: DriveAlertsProps) {
+export function DriveAlerts({ mission, build, state, observation, landing = null }: DriveAlertsProps) {
   const safeContactMps = useMemo(() => safeContactSpeedMps(deriveSpec(build)), [build]);
   const news = useScanNews(state);
   const speed = state?.v ?? 0;
@@ -130,8 +186,13 @@ export function DriveAlerts({ mission, build, state, observation }: DriveAlertsP
   const zone = zoneAhead(mission, observation, speed);
   const scanning = state?.scan;
   const scanLabel = scanning ? (mission.scanZones?.find((candidate) => candidate.id === scanning.zoneId)?.label ?? 'zone') : '';
+  if (state?.airborne) {
+    // Nothing else matters until the wheels are down again.
+    return <AirChip pitchDeg={state.pitch} groundDeg={state.slopeDeg} />;
+  }
   return (
     <>
+      {landing ? <LandingToast landing={landing} /> : null}
       {news && (
         <span className={BOX} style={{ border: `2px solid ${news.good ? UI.ok : UI.bad}`, background: BACK, color: news.good ? UI.ok : UI.bad }}>
           {news.text}
