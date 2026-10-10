@@ -3,6 +3,7 @@
 Written by [MASTER] for the human. Newest status first. Program: docs/OVERNIGHT.md. Findings: docs/QA.md ("Overnight findings").
 
 ## What the human must do
+- Tell [BRAIN] the Jev quota and rate limit for the demo window. A cold Jev ghost is 14–34 calls; I capped the warm-up at two extra ghosts per loadout because nobody knows the limit. With 70 phones and Room Race bots the room could reach a few thousand calls in ten minutes; over the limit the game falls back to the fixed rules and says FALLBACK.
 - Top up the Anthropic API account: since about 04:20 every call answers "Your credit balance is too low" (HTTP 400). Haiku, Sonnet and Opus cannot be re-run in the arena until then; their rows stay from gameplay version 3 and are marked so. OpenAI, DeepSeek and Jev are fine.
 - Type anything in the [MASTER] session when you see this (and again whenever you pass by): each message you type gives me 10 more messages to the workers. Without it I can only reach them through docs/OVERNIGHT.md, which an idle session never reads.
 - 07:30: build the demo from the latest tag, not from main: `pnpm demo:stable -- --ref "$(git tag -l 'demo-good-*' | sort | tail -1)"`. Serving a tag has not been tested by any session (brain tested `--ref <sha> --build-only` only): check the `/screen` footer shows "build <sha> · <ref>".
@@ -26,6 +27,9 @@ Written by [MASTER] for the human. Newest status first. Program: docs/OVERNIGHT.
 - 03:58 · [LAB]: `/scenarios` stays off the Home screen until the gate has seen it green.
 
 ## Status log
+
+### 05:22 · seventh tag
+`demo-good-0522` → c377462: 18 e2e steps, no failure, skip or warning. Adds since 0509: the arena re-run on gameplay 4 and the Lab track on the fixed Warehouse, Lab Missions at 1280×720 with a map legend and a two-tap "End the mission", the Brief line for locked parts on M9, race phones seen with the air chip.
 
 ### 05:09 · sixth tag
 `demo-good-0509` → f1a6a8c, and `pnpm demo:stable -- --build-only` passed again. New in the gate: Jev made to fail for one browser (brain's switch, on only on the QA server): FALLBACK on the HUD, the Result says "18 decisions · 18 by heuristic fallback", the run finishes. Brain's own drill adds the slow case (every decision 1.2 s late: the game does not stall, the robot misses the M1 scan and scores 786 instead of 847) and an 8-bot Room Race load on the dev server (0 dropped, end to end p95 109 ms).

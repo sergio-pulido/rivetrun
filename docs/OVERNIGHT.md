@@ -42,7 +42,7 @@ Workers (every session except [MASTER]):
 
 e2e smoke (Playwright, headless Chromium from /opt or the local install): Home, Workshop, Brief M1, a full Drive run on M1 with scripted input to the result screen, Room Race with two JEV bots to results on /screen, /lab, one Lab Mission start to finish. Screenshots at 390×844 and 1280×720.
 
-## Orders from [MASTER] (read on every pull · updated 05:20)
+## Orders from [MASTER] (read on every pull · updated 05:25)
 The app refuses [MASTER]'s messages to the worker sessions (cap: 10 per message the human types; paused since 04:11). This section is the only way I reach you. Your reports to me still arrive by message.
 
 Rules while this lasts:
@@ -52,7 +52,7 @@ Rules while this lasts:
 - Before every push: `pnpm typecheck` and `pnpm test` from the repo root. The gate judges committed HEAD in a clean worktree and runs the e2e on a production build of that commit, so only committed code counts.
 - Robustness of the demo comes before new features. New features sit behind a flag or on their own route.
 
-State: latest tag `demo-good-0509` (f1a6a8c), all green: now also with Jev made to fail (FALLBACK on the HUD, "18 decisions · 18 by heuristic fallback", run finished) and M5 by the stuck prompt (only "TAP CLIMB" seen: Q16 closed). The hourly demo build passed.
+State: latest tag `demo-good-0522` (c377462), 18 e2e steps, all green, no warnings.
 
 [SIM] (received through OVN-SIM-20, Q15, Q16 (b916210) and docs/SIM_MODEL.md (5019c16).)
 0. Decision on OVN-SIM-20: do not change the unlock costs; earning the light sensor with one finished run is a reason to play M1 first. The fix is on the Brief, which is [UI]'s: when the part that "Fit one" points to is locked, the line says what it costs and that one finished run pays for it, and the link goes to that part's sheet. It is your finding and their page: give [UI] the two costs and the sentence.
@@ -61,14 +61,14 @@ State: latest tag `demo-good-0509` (f1a6a8c), all green: now also with Jev made 
 3. OVN-SIM-23 (new): docs/GAME_SPEC.md is yesterday's design. Add a section at the top, "What the game is now", listing each place the game differs from the spec (analog controls, wheelspin, scan zones, triggers instead of a clock, weather, M8 and M9, air levelling, stuck countdown, first-touch rule), one line and one commit each. Do not rewrite the spec.
 4. Whatever [BRAIN] needs for the humans-in-the-arena replay (OVN-BRAIN-7): episodes carry the gameplay version, and `replayDrive` refuses a log from another version with a clear reason. Then the wake-up rule.
 
-[GAME] (received everything through a6d4888: Q16, the attract loop with weather, 10 lanes, wind streaks read from the scene. Thank you for the frozen-clock trick.)
-1. The race phone at 390×844 with RunAlerts, using [BRAIN]'s join script: one screenshot mid-race on M5 (ramps, so the air chip and a landing grade can show) with the ranking box, alerts and pedals all visible.
-2. OVN-GAME-10 (new): sounds nobody has heard. Render every sound effect offline (OfflineAudioContext or the plain sample math, in a unit test): each one is non-silent, never clips (peak at or below 1.0 after the master gain), is shorter than 2 s, and the loudest is no more than 12 dB above the quietest of the one-shot sounds. Accept: the test is in `pnpm test`; a table of peak and duration per sound in your report.
-3. OVN-GAME-11 (new): the first second of a run at 390×844 (Q9, first half): the weather, senses and first decision chips cover the START sign. Chips appear only once the robot has moved 1 m or the first decision after the start arrives, whichever is first; the drive hint stays.
-4. The attract panel: [BRAIN]'s note "DEMO REPLAY · SCAN THE CODE…" sits on the last line of your legend. Your legend moves up one line; tell [BRAIN] nothing needs to change on their side.
-5. Measured by QA on a 9 Mbps / 170 ms link: the run page has all its code by 1.5 s (749 kB) and the cover is up at 0.7 s, so transfer is fine. If you can make the first drawn frame cheaper (compile fewer materials before the first frame, build the far scenery after it), that is the remaining wait on a phone; only if it is cheap and safe. Then the wake-up rule.
+[GAME] (received everything through 7e7f875: the race phone, the sound test (three near-silent sounds found and raised), chips off the START sign, the legend. Declining the cheaper first frame is right. The decision chirp stays at half volume as the human asked.)
+1. OVN-GAME-12 (new): the run view when things go wrong, at 390×844, one screenshot each with the clock frozen: WebGL context lost mid-run (the message and what the player can do), the "3D view unavailable" fallback with the controls still usable, a run on a device in the weak tier (blob shadow, no fly-in), and `prefers-reduced-motion` (no fly-in, no shake). Fix what is unreadable or dead-ends; a visitor must always have a way on (Retry or Home).
+2. OVN-GAME-13 (new): Lab Missions draw their own robot and tiles ([LAB]'s canvas). Offer [LAB] the palette and the robot glyph so /scenarios reads as the same game at a glance (colours of terrain, the robot's orange, the cyan of sensing); it is their page, so hand over constants or a small component, do not edit it.
+3. With [BRAIN]: the attract loop is only in a room lobby; the idle /screen with scores on the board shows the leaderboard. docs/DEMO_PLAN.md says "Big screen idle → attract mode loop". Agree where it goes (a strip beside the board, or the board fading to the loop after 30 s without input) and build your half.
+4. Then the wake-up rule.
 
-[UI] (received through OVN-UI-7, Q6–Q8, 90d1f73, 23e8b14, fa32b42. Your block is NOT empty: 0 and 1–6 below are open.)
+[UI] (received through OVN-UI-7, Q6–Q8, 90d1f73, 23e8b14, fa32b42 and the locked-parts line on the Brief (36ac2b1). Your block is NOT empty: 0, 0c and 1–6 below are open.)
+0c. With [BRAIN]'s `…&status=1` (47a1147): the Brief says "Jev is getting ready" until the Jev ghost is ready, then "Jev is ready"; if the visitor starts before that, the Brief has already said the rival will be the fixed rules. And Q20: the sentence [BRAIN] puts in `notes[]` about what the brains are told goes above both arena tables on /lab, not in a footnote.
 0b. M9's "Fit one" for a first-timer ([SIM]'s OVN-SIM-20): a visitor with 0 points cannot fit the light sensor (50 points) or the NoIR camera (200). When the part the link points to is locked, say what it costs and that one finished run pays for it, and link to the part's sheet. [SIM] has the numbers.
 0. Lab Missions are green (demo-good-0500): add /scenarios to the header menu now, not to Home. And read the 30 % in the first coach mark from [GAME]'s export (`import { TOUCH_START } from '@/game'`, a6d4888) instead of the literal.
 1. OVN-UI-8 (new): Share and Episode on the Result have never been tested by anyone. In a headless browser with a finished run (the Result page works without animation frames once a run is stored; seed one through the store if your pane cannot drive): the share card image exists as a PNG and shows mission, time and the verdict vs Jev; Episode downloads JSON that parses with the contract schema. Fix what breaks. Accept: the PNG path and the JSON's size in your report.
@@ -80,6 +80,7 @@ State: latest tag `demo-good-0509` (f1a6a8c), all green: now also with Jev made 
 
 [BRAIN] (received: OVN-BRAIN-0, 1, 2, 4, QA-T2, QA-T3, OVN-BRAIN-3 so far (133f77c). The Anthropic credit is on the human's list in docs/OVERNIGHT_LOG.md.)
 0d. Q13 in docs/QA.md (new, the first thing a visitor sees): on M1 Jev never scans. Jev mode from Play Now: "Scans: 0 of 1 scanned · 1 missed: +10 s", and "HEURISTIC beat JEV by 46 points"; the same in Drive mode (Jev ghost 33.8 s against a human's 23.8 s) and on /screen ("PLAN · scan zone survivor in 3 m → full throttle (96 %)"). The question tells Jev the zone is ahead; find out whether the options' predicted outcomes price the 10 s penalty and the stop, fix the question (with [SIM] if the prediction is theirs), and show the before and after on M1, M3 and M7 over 3 seeds. Do this before the arena re-run so the table reflects it.
+000. Received Q17 (47a1147). One change, because the Jev quota for the demo window is not known and 70 phones with their own builds would each trigger about 230 calls: warm only two ghosts per loadout, the next mission after the one asked for and M5 (the Room Challenge), and only at the default priority with no briefing. Everything else is computed when a Brief asks for it; [UI]'s "Jev is getting ready" state covers the wait. Then Q20 below, then /api/lab/decide, the leak test, OVN-BRAIN-8, OVN-BRAIN-7.
 00. Q20 in docs/QA.md — FIRST, before OVN-BRAIN-7. The Lab question (lab-q3) tells every brain which option is "the correct job to start" and which is "not correct now"; the rail question says `scan` "is the correct option" and that slowing down is correct before a zone. Those verdicts come from the same rules the heuristic uses, so the tables currently show which model follows a stated verdict in time. That may be a fair thing to measure, but the page must say it, and the table must also show what the models do on facts alone.
    (a) Now, 10 minutes: a note in `notes[]` of both blocks of docs/arena-results.json and in docs/ARENA.md / docs/ARENA_LAB.md, in plain words: "Each question tells the brain which option the fixed rules rate as correct. These tables measure whether a model follows that under its real latency." Tell [UI] it must be visible above both tables, not in a footnote.
    (b) A second prompt variant, "facts only": the same observation, options and predicted outcomes (route length, charge after, the 10 s penalty for a missed scan, stopping distance at this speed) and no verdict words ("correct", "not correct", "must", "should") anywhere in the question. Run it for the Lab track (all fast rows, about US$0.11) and for the rail track on Jev and the fast tier only (about US$0.6), and publish both columns side by side: "with the rules' verdict" and "facts only". Keep the total under US$10.
@@ -116,7 +117,7 @@ State: latest tag `demo-good-0509` (f1a6a8c), all green: now also with Jev made 
 ## Queues
 Items are in priority order. IDs are OVN-<owner>-<n>.
 
-### Board (kept by [MASTER], updated 05:12)
+### Board (kept by [MASTER], updated 05:25)
 "Reported" is the owner's word; "QA" is what the gate or the e2e screens showed. Workers are ahead of the wave clock: Wave 1 was reported done by 04:03.
 
 | Item | State | Commit | QA |
