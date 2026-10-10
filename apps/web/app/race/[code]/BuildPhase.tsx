@@ -2,6 +2,7 @@
 
 import type { Build, Mission, Part, Slot } from '@rivetrun/contracts';
 import { BUILD_TUNING, buildIssues, compileTrack, PARTS, predictStats, PRESETS, TUNING } from '@rivetrun/sim';
+import { useState } from 'react';
 import { TERRAIN_LOOK } from '@/game/palette';
 import { MAX_EXTRAS, MAX_SENSORS, missionWarnings, sameBuild } from '@/ui/buildStats';
 
@@ -73,6 +74,7 @@ export function BuildPhase({ mission, build, ready, secondsLeft, onChange }: Bui
   const over = cost > budget;
   // The player drives, so warnings about what the AI can sense do not apply here.
   const warnings = [...buildIssues(build), ...missionWarnings(mission, build).filter((line) => !line.includes('the AI'))];
+  const [showAll, setShowAll] = useState(false);
   const set = (next: Build): void => onChange(next, false);
   const toggle = (list: readonly string[], id: string, max: number): string[] =>
     list.includes(id) ? list.filter((item) => item !== id) : list.length < max ? [...list, id] : [...list];
@@ -192,12 +194,35 @@ export function BuildPhase({ mission, build, ready, secondsLeft, onChange }: Bui
       {/* Pinned to the viewport: with a 45 s timer running, the cost and READY must never be below the fold. */}
       <div className="fixed inset-x-0 bottom-0 z-10 border-t border-slate-line bg-slate-ink/95 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2 backdrop-blur">
         <div className="mx-auto flex max-w-md flex-col gap-2">
-          {/* The only copy of the build warnings: the first one, always in view above READY. */}
-          {warnings[0] ? (
+          {/* The only copy of the build warnings, always in view above READY. One warning is a plain line;
+              with more, the line is a button that opens the full list right here. */}
+          {warnings.length === 1 ? (
             <p role="status" className="truncate rounded-md border border-warn/50 bg-warn/10 px-2 py-1 text-[12px] text-amber-100">
               ⚠ {warnings[0]}
-              {warnings.length > 1 ? ` · +${warnings.length - 1} more` : ''}
             </p>
+          ) : null}
+          {warnings.length > 1 ? (
+            <div className="rounded-md border border-warn/50 bg-warn/10 text-[12px] text-amber-100">
+              <button
+                type="button"
+                aria-expanded={showAll}
+                aria-controls="build-warnings"
+                onClick={() => setShowAll((open) => !open)}
+                className="flex min-h-9 w-full items-center gap-2 px-2 py-1 text-left"
+              >
+                <span className="min-w-0 flex-1 truncate">
+                  ⚠ {showAll ? `${warnings.length} warnings for this track` : `${warnings[0]} · +${warnings.length - 1} more`}
+                </span>
+                <span className="shrink-0 font-mono text-[11px] font-bold underline">{showAll ? 'Hide' : 'Show all'}</span>
+              </button>
+              {showAll ? (
+                <ul id="build-warnings" className="max-h-[30vh] list-disc overflow-y-auto border-t border-warn/30 py-1.5 pl-7 pr-2 leading-snug">
+                  {warnings.map((line) => (
+                    <li key={line}>{line}</li>
+                  ))}
+                </ul>
+              ) : null}
+            </div>
           ) : null}
           <div className="flex items-center justify-between font-mono text-xs">
             <span className={over ? 'font-bold text-bad' : 'text-slate-200'}>
