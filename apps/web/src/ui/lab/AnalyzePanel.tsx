@@ -38,6 +38,17 @@ const SOURCE_LABEL: Readonly<Record<PlanSource, string>> = { live: 'asked now', 
 const NOTE = 'text-[11px] leading-snug text-muted lg:text-[13px]';
 
 /**
+ * The Arena room for this plan is a page: it opens a room with the four lanes and lands on its big screen. It needs a
+ * committed plan for the mission; the briefing and priority edited here go with it. Null when the mission has none.
+ */
+function arenaHref(shown: Shown, briefing: string, priority: number, pregenerated: PlansByMission): string | null {
+  if (!pregenerated[shown.missionId]) return null;
+  const query = new URLSearchParams({ arena: 'plan', mission: shown.missionId, preset: shown.plan.presetId, priority: priority.toFixed(2) });
+  if (briefing.trim()) query.set('briefing', briefing.trim());
+  return `/screen?${query.toString()}`;
+}
+
+/**
  * /lab "Analyze scenario" (docs/PLAY_AND_PLAN.md §3): a reasoning model plans before the run from the mission brief;
  * the card shows its build, its reasons, and the briefing and priority every driver then gets. The plan can be tried
  * with the fixed rules here, opened in the Workshop, or raced in the Arena.
@@ -133,6 +144,7 @@ export function AnalyzePanel({ missions, model, pregenerated }: AnalyzePanelProp
   };
 
   const thinking = thinkingSince !== null;
+  const arena = shown ? arenaHref(shown, briefing, priority, pregenerated) : null;
   return (
     <section className="rr-card flex flex-col gap-3.5 p-4 lg:p-6" aria-labelledby="analyze" data-testid="analyze-panel">
       <div className="flex flex-col gap-1">
@@ -236,11 +248,21 @@ export function AnalyzePanel({ missions, model, pregenerated }: AnalyzePanelProp
               <button type="button" onClick={() => openInWorkshop(shown.plan, shown.missionId)} data-testid="analyze-open-workshop" className="rr-btn rr-btn-secondary !min-h-11 !text-[13px]">
                 Open in Workshop
               </button>
-              <button type="button" disabled title="The arena room for a plan is not live on this server yet" data-testid="analyze-race-arena" className="rr-btn rr-btn-secondary !min-h-11 !text-[13px]">
-                Race in Arena
-              </button>
+              {arena ? (
+                <a href={arena} target="_blank" rel="noopener" data-testid="analyze-race-arena" className="rr-btn rr-btn-secondary !min-h-11 !text-[13px]">
+                  Race in Arena
+                </a>
+              ) : (
+                <button type="button" disabled data-testid="analyze-race-arena" className="rr-btn rr-btn-secondary !min-h-11 !text-[13px]">
+                  Race in Arena
+                </button>
+              )}
             </div>
-            <p className={NOTE}>Race in Arena is not live yet: it will open four lanes (Jev + plan, Jev alone, GPT-6.1 Sol alone, GPT-6 Luna + plan).</p>
+            <p className={NOTE}>
+              {arena
+                ? 'Race in Arena opens the big screen with four lanes: Jev + plan, Jev alone, GPT-6.1 Sol alone (reasoning while driving), GPT-6 Luna + plan. The host starts it there; the model lanes are paid calls.'
+                : `Race in Arena needs a committed plan for the mission: there is none for ${shown.missionId} yet.`}
+            </p>
 
             {test && test !== 'running' ? (
               <div className="rounded-[10px] border border-line-2 bg-ground px-3 py-2.5" data-testid="analyze-heuristic-result" role="status">
