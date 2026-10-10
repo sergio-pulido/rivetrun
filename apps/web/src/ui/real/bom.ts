@@ -81,13 +81,16 @@ const lines = (bom: Bom, keys: readonly (string | undefined | null)[], gameId: s
     return item ? [{ item, gameId }] : [];
   });
 
+/** A game part named after its own real component (the file's key is the part's id) needs no entry in the file's selection tables. */
+const orOwnItem = (bom: Bom, found: RealLine[], partId: string): RealLine[] => (found.length > 0 ? found : lines(bom, [partId], partId));
+
 /** The real components for one game part on this build (cell count and wheel size change the answer), plus the file's notes. */
 export function realForPart(bom: Bom, build: Build, partId: string, slot: string): { readonly lines: readonly RealLine[]; readonly notes: readonly string[] } {
   const { select } = bom;
   const cells = cellsOf(build);
   const byCells = select.byCells[String(cells)];
   if (slot === 'motor') {
-    return { lines: lines(bom, [byCells ? select.motor[partId]?.[byCells.motorVoltage] : undefined], partId), notes: byCells?.warning ? [byCells.warning] : [] };
+    return { lines: orOwnItem(bom, lines(bom, [byCells ? select.motor[partId]?.[byCells.motorVoltage] : undefined], partId), partId), notes: byCells?.warning ? [byCells.warning] : [] };
   }
   if (slot === 'battery') {
     const key = select.battery[partId]?.[String(cells)];
@@ -101,7 +104,7 @@ export function realForPart(bom: Bom, build: Build, partId: string, slot: string
     const keys = tokens.map((token) => (token === WHEEL_TOKEN ? wheelKey(bom, size) : token));
     return { lines: lines(bom, keys, partId), notes: usesWheel && isLargeWheel(size) ? [select.wheelNote] : [] };
   }
-  return { lines: lines(bom, [select.parts[partId]], partId), notes: [] };
+  return { lines: orOwnItem(bom, lines(bom, [select.parts[partId]], partId), partId), notes: [] };
 }
 
 /** Everything one rover needs for this build: the core kit and the chosen parts' components. */

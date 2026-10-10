@@ -3,6 +3,7 @@
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { z } from 'zod';
+import { PARTS_BY_ID } from '@rivetrun/sim';
 import rawBom from '../../../../../docs/inputs/bom-mk2.json';
 import type { Bom, BomGroup, BomItem } from './bom';
 
@@ -87,24 +88,35 @@ const slice = (keep: (item: BomItem) => boolean): Bom | null =>
 
 const BUILD_GROUPS: ReadonlySet<BomGroup> = new Set(['core', 'game', 'alt']);
 
+/**
+ * The game part an item stands behind. The file says so with `gameId`; a part the game added later under the item's own key
+ * (the file may still list it as locked) is matched by that key.
+ */
+const gameIdOf = (item: BomItem): string | null => item.gameId ?? (PARTS_BY_ID.has(item.key) ? item.key : null);
+
 /** Everything a rover can be built from: core kit, the components behind game parts, and their alternatives. */
-export const buildBom = (): Bom | null => slice((item) => BUILD_GROUPS.has(item.group));
+export const buildBom = (): Bom | null => slice((item) => BUILD_GROUPS.has(item.group) || gameIdOf(item) !== null);
 
 /** The components behind one game part (every cell count and wheel size), for its part sheet. */
-export const partBom = (gameId: string): Bom | null => slice((item) => item.gameId === gameId);
+export const partBom = (gameId: string): Bom | null => slice((item) => gameIdOf(item) === gameId);
 
 export const bomItem = (key: string): BomItem | null => LOADED?.all.find((item) => item.key === key) ?? null;
 
 export const bomCheckedAt = (): string | null => LOADED?.checkedAt ?? null;
 
 /** Real parts the game does not have yet. Shown locked in the Workshop: readable, not equippable. */
-export const lockedItems = (): readonly BomItem[] => LOADED?.all.filter((item) => item.group === 'locked') ?? [];
+export const lockedItems = (): readonly BomItem[] => LOADED?.all.filter((item) => item.group === 'locked' && gameIdOf(item) === null) ?? [];
 
 export const toolItems = (): readonly BomItem[] => LOADED?.all.filter((item) => item.group === 'tool') ?? [];
 
 /** Game part id → who makes its real component, for the Workshop shelf. Parts with no named maker are left out. */
 export const partMakers = (): Readonly<Record<string, string>> =>
-  Object.fromEntries((LOADED?.all ?? []).flatMap((item): [string, string][] => (item.group === 'game' && item.gameId && item.manufacturer ? [[item.gameId, item.manufacturer.replace(/\s*\(.*$/, '')]] : [])));
+  Object.fromEntries(
+    (LOADED?.all ?? []).flatMap((item): [string, string][] => {
+      const gameId = item.group === 'game' || item.group === 'locked' ? gameIdOf(item) : null;
+      return gameId && item.manufacturer ? [[gameId, item.manufacturer.replace(/\s*\(.*$/, '')]] : [];
+    }),
+  );
 
 /** Tool renders are named by what the tool is, not by product. */
 const TOOL_RENDER: Readonly<Record<string, string>> = { printer: 'fdm_printer', laser: 'laser_cutter', soldering: 'soldering_station' };

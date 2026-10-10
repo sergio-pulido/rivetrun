@@ -69,6 +69,12 @@ describe('realPlan', () => {
     expect(realForPart(bom, tracked, 'tracks', 'locomotion').notes).toEqual([]);
   });
 
+  it('finds the real component of a game part that is named after it', () => {
+    expect(keys(realForPart(bom, allRounder, 'lidar_rplidar_c1', 'sensor').lines)).toEqual(['lidar_rplidar_c1']);
+    expect(keys(realForPart(bom, allRounder, 'brushless_motor_dfrobot_fit0441', 'motor').lines)).toEqual(['brushless_motor_dfrobot_fit0441']);
+    expect(realForPart(bom, allRounder, 'no_such_part', 'sensor').lines).toEqual([]);
+  });
+
   it('only references keys that exist in the file', () => {
     for (const preset of Object.values(PRESETS)) {
       for (const cells of [1, 2, 3, 4]) {
