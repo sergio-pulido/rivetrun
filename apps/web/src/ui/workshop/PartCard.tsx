@@ -8,7 +8,7 @@ import { effectLine } from './partInfo';
 
 interface PartCardProps {
   readonly part: Part;
-  /** The real hardware the part stands for, e.g. "HC-SR04". */
+  /** Who makes the real component the part stands for, e.g. "Pololu". */
   readonly model: string | null;
   readonly equipped: boolean;
   readonly locked: boolean;

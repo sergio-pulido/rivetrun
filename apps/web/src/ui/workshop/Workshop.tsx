@@ -25,11 +25,11 @@ const CALLOUT = 'absolute flex items-center gap-1.5 font-mono text-[10px] font-m
 const DOT = 'grid h-[22px] w-[22px] place-items-center rounded-full text-[11px] font-semibold';
 
 interface WorkshopProps {
-  /** Part id → the real hardware it stands for, from docs/inputs/real-parts.json. */
-  readonly models: Readonly<Record<string, string>>;
+  /** Game part id → who makes its real component, from the MK-II bill of materials. */
+  readonly makers: Readonly<Record<string, string>>;
 }
 
-export function Workshop({ models }: WorkshopProps) {
+export function Workshop({ makers }: WorkshopProps) {
   const build = useBuildStore((store) => store.build);
   const setBuild = useBuildStore((store) => store.setBuild);
   const missionId = useBuildStore((store) => store.missionId);
@@ -188,7 +188,7 @@ export function Workshop({ models }: WorkshopProps) {
           <PartCard
             key={part.id}
             part={part}
-            model={models[part.id] ?? null}
+            model={makers[part.id] ?? null}
             equipped={fittedIds.includes(part.id)}
             locked={!isUnlocked(unlocked, part.id)}
             affordable={points >= part.unlockPoints}

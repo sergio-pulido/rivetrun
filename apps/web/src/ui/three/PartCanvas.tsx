@@ -1,8 +1,9 @@
 'use client';
 
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { useLayoutEffect, useRef } from 'react';
-import { Box3, Sphere, Vector3, type Group, type PerspectiveCamera } from 'three';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { Box3, Sphere, Vector3, type Group, type Object3D, type PerspectiveCamera } from 'three';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import type { Part } from '@rivetrun/contracts';
 // The game session's own part models, mounted alone.
 import { Attachments } from '@/game/robot/Attachments';
@@ -24,11 +25,44 @@ function Model({ part }: { readonly part: Part }) {
   return <Attachments sensors={part.slot === 'sensor' ? [part.id] : [...NO_PARTS]} extras={part.slot === 'extra' ? [part.id] : [...NO_PARTS]} floor={floor} />;
 }
 
+/** A component model from public/models/parts, loaded only when the player asks for the 3D view. */
+function GlbModel({ url, onLoaded, onError }: { readonly url: string; readonly onLoaded: () => void; readonly onError: () => void }) {
+  const [scene, setScene] = useState<Object3D | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    new GLTFLoader()
+      .loadAsync(url)
+      .then((gltf) => {
+        if (cancelled) return;
+        setScene(gltf.scene);
+        onLoaded();
+      })
+      .catch(() => {
+        if (!cancelled) onError();
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [url, onLoaded, onError]);
+  return scene ? <primitive object={scene} /> : null;
+}
+
 const VIEW_DIRECTION = new Vector3(2.4, 1.5, 3.6).normalize();
 const FIT_MARGIN = 1.25;
 
 /** Centres the part on the turntable axis and backs the camera off until the whole part fits. */
-function Turntable({ part }: { readonly part: Part }) {
+interface TurntableProps {
+  readonly part: Part;
+  /** When set, this GLB is shown instead of the procedural part. */
+  readonly modelUrl?: string;
+  readonly onModelError?: () => void;
+}
+
+function Turntable({ part, modelUrl, onModelError }: TurntableProps) {
+  // The fit below has to run again once an asynchronous model has arrived.
+  const [loaded, setLoaded] = useState(0);
+  const markLoaded = useCallback(() => setLoaded((count) => count + 1), []);
+  const reportError = useCallback(() => onModelError?.(), [onModelError]);
   const turn = useRef<Group>(null);
   const model = useRef<Group>(null);
   const camera = useThree((state) => state.camera) as PerspectiveCamera;
@@ -48,7 +82,7 @@ function Turntable({ part }: { readonly part: Part }) {
     camera.position.copy(VIEW_DIRECTION).multiplyScalar((sphere.radius * FIT_MARGIN) / Math.sin(tightest));
     camera.lookAt(0, 0, 0);
     camera.updateProjectionMatrix();
-  }, [camera, aspect, part.id]);
+  }, [camera, aspect, part.id, modelUrl, loaded]);
 
   useFrame((_, dt) => {
     if (turn.current) turn.current.rotation.y += Math.min(dt, 0.05) * 0.6;
@@ -56,9 +90,7 @@ function Turntable({ part }: { readonly part: Part }) {
 
   return (
     <group ref={turn} dispose={null}>
-      <group ref={model}>
-        <Model part={part} />
-      </group>
+      <group ref={model}>{modelUrl ? <GlbModel url={modelUrl} onLoaded={markLoaded} onError={reportError} /> : <Model part={part} />}</group>
     </group>
   );
 }
@@ -67,14 +99,18 @@ interface PartCanvasProps {
   readonly part: Part;
   /** Called once the first frame can draw, so the page can drop its placeholder. */
   readonly onReady?: () => void;
+  /** A GLB to show instead of the procedural part (the sheet's "3D" toggle). */
+  readonly modelUrl?: string;
+  /** The GLB could not be loaded: the caller goes back to the art it had. */
+  readonly onModelError?: () => void;
 }
 
-export default function PartCanvas({ part, onReady }: PartCanvasProps) {
+export default function PartCanvas({ part, onReady, modelUrl, onModelError }: PartCanvasProps) {
   return (
     <Canvas dpr={[1, MAX_DPR]} camera={{ fov: 30, near: 0.05, far: 60, position: [2.4, 1.7, 3.6] }} gl={{ antialias: true, alpha: true }} onCreated={() => onReady?.()} style={{ width: '100%', height: '100%', touchAction: 'pan-y' }}>
       <BenchLight />
       <PartsProvider>
-        <Turntable key={part.id} part={part} />
+        <Turntable key={`${part.id}:${modelUrl ?? ''}`} part={part} modelUrl={modelUrl} onModelError={onModelError} />
       </PartsProvider>
     </Canvas>
   );

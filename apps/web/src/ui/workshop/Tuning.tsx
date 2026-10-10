@@ -30,7 +30,7 @@ const DIALS: Readonly<Partial<Record<Slot, Dial>>> = {
     options: [
       { value: 60, label: 'S', note: '60 mm' },
       { value: 80, label: 'M', note: '80 mm' },
-      { value: 100, label: 'L', note: '100 mm' },
+      { value: 90, label: 'L', note: '90 mm' },
     ],
   },
   motor: {
@@ -63,7 +63,8 @@ interface TuningProps {
 export function Tuning({ slot, build, onChange }: TuningProps) {
   const dial = DIALS[slot];
   if (!dial) return null;
-  const current = build[dial.key];
+  // Builds saved before L became the real 90 mm wheel carry 100; it drives the same, so it reads as L.
+  const current = dial.key === 'wheelSizeMm' && build.wheelSizeMm === 100 ? 90 : build[dial.key];
   return (
     <section className="rr-card flex flex-col gap-2 p-3" aria-label={dial.title}>
       <div className="flex items-baseline justify-between gap-2">
