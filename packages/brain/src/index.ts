@@ -344,10 +344,10 @@ export function buildJevRequest(question: BrainQuestion, model: string = JEV_MOD
 const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null;
 
 /** Documented Choice answer → probabilities over our options (renormalised) + selected action. */
-export function parseJevResponse(
+export function parseJevResponse<T extends string = Action>(
   body: unknown,
-  options: readonly Action[],
-): { probabilities: Probabilities; selected: Action; model?: string } {
+  options: readonly T[],
+): { probabilities: Partial<Record<T, number>>; selected: T; model?: string } {
   const answer = isRecord(body) && isRecord(body.answers) ? body.answers[QUESTION_ID] : undefined;
   if (!isRecord(answer) || !isRecord(answer.probabilities)) {
     throw new JevError('bad_response', 'Jev response has no answers.action.probabilities');
@@ -359,9 +359,7 @@ export function parseJevResponse(
   });
   const total = values.reduce((sum, p) => sum + p, 0);
   if (total <= 0) throw new JevError('bad_response', 'Jev returned no probability mass for the available actions');
-  const probabilities: Probabilities = Object.fromEntries(
-    options.map((action, i) => [action, Math.min(1, (values[i] ?? 0) / total)]),
-  );
+  const probabilities = Object.fromEntries(options.map((action, i) => [action, Math.min(1, (values[i] ?? 0) / total)])) as Partial<Record<T, number>>;
   const argmax = options.reduce((best, action) =>
     (probabilities[action] ?? 0) > (probabilities[best] ?? 0) ? action : best,
   );
@@ -373,38 +371,43 @@ export function parseJevResponse(
   };
 }
 
-/** One Jev call per decision. Throws JevError on any failure; the caller owns the fallback. */
-export function createJevBrain(options: JevBrainOptions = {}): Brain {
+/** What one Jev Choice call returns: the option it chose and its probability per option. Never text. */
+export interface JevChoice<T extends string> {
+  readonly choice: T;
+  readonly probabilities: Partial<Record<T, number>>;
+  /** Measured response time, ms. */
+  readonly latencyMs: number;
+  readonly model: string;
+}
+
+/**
+ * One Choice question to Jev, for any set of option ids (rail actions, Lab Mission moves).
+ * Throws JevError on any failure. The deadline is enforced twice: the abort signal cancels the request, and
+ * the race guarantees the call settles even if an aborted body read never does (seen as a hung benchmark run).
+ */
+export function askJevChoice<T extends string>(request: JevRequest, optionIds: readonly T[], options: JevBrainOptions = {}): Promise<JevChoice<T>> {
   assertServer();
-  const model = options.model ?? JEV_MODEL_ID;
   const timeoutMs = options.timeoutMs ?? JEV_TIMEOUT_MS;
   const doFetch = options.fetch ?? fetch;
+  const controller = new AbortController();
 
-  const ask = async (question: BrainQuestion, controller: AbortController): Promise<BrainDecision> => {
+  const ask = async (): Promise<JevChoice<T>> => {
     const apiKey = options.apiKey ?? process.env.JEV_API_KEY;
     if (!apiKey) throw new JevError('missing_key', 'JEV_API_KEY is not set');
-
     const started = performance.now();
     try {
       const response = await doFetch(JEV_ENDPOINT, {
         method: 'POST',
         headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify(buildJevRequest(question, model)),
+        body: JSON.stringify(request),
         signal: controller.signal,
       });
       if (!response.ok) {
         const detail = (await response.text().catch(() => '')).slice(0, 300);
         throw new JevError('http', `Jev responded ${response.status}: ${detail}`, response.status);
       }
-      const parsed = parseJevResponse(await response.json(), question.options);
-      return {
-        probabilities: parsed.probabilities,
-        selected: parsed.selected,
-        policy: 'jev',
-        fallback: false,
-        latencyMs: Math.round(performance.now() - started),
-        model: parsed.model ?? model,
-      };
+      const parsed = parseJevResponse(await response.json(), optionIds);
+      return { choice: parsed.selected, probabilities: parsed.probabilities, latencyMs: Math.round(performance.now() - started), model: parsed.model ?? request.model };
     } catch (error) {
       if (error instanceof JevError) throw error;
       if (controller.signal.aborted) throw new JevError('timeout', `Jev exceeded ${timeoutMs} ms`);
@@ -412,22 +415,27 @@ export function createJevBrain(options: JevBrainOptions = {}): Brain {
     }
   };
 
-  // The deadline is enforced twice: the abort signal cancels the request, and the race guarantees that
-  // decide() settles even if an aborted body read never does (seen as a hung run in the benchmark).
-  const decide = (question: BrainQuestion): Promise<BrainDecision> => {
-    const controller = new AbortController();
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    const deadline = new Promise<never>((_resolve, reject) => {
-      timer = setTimeout(() => {
-        controller.abort();
-        reject(new JevError('timeout', `Jev exceeded ${timeoutMs} ms`));
-      }, timeoutMs);
-    });
-    const answer = ask(question, controller);
-    // A late rejection of the losing promise must not surface as unhandled.
-    answer.catch(() => undefined);
-    return Promise.race([answer, deadline]).finally(() => clearTimeout(timer));
-  };
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const deadline = new Promise<never>((_resolve, reject) => {
+    timer = setTimeout(() => {
+      controller.abort();
+      reject(new JevError('timeout', `Jev exceeded ${timeoutMs} ms`));
+    }, timeoutMs);
+  });
+  const answer = ask();
+  // A late rejection of the losing promise must not surface as unhandled.
+  answer.catch(() => undefined);
+  return Promise.race([answer, deadline]).finally(() => clearTimeout(timer));
+}
 
-  return { decide };
+/** One Jev call per decision. Throws JevError on any failure; the caller owns the fallback. */
+export function createJevBrain(options: JevBrainOptions = {}): Brain {
+  assertServer();
+  const model = options.model ?? JEV_MODEL_ID;
+  return {
+    decide: async (question: BrainQuestion): Promise<BrainDecision> => {
+      const answer = await askJevChoice(buildJevRequest(question, model), question.options, options);
+      return { probabilities: answer.probabilities, selected: answer.choice, policy: 'jev', fallback: false, latencyMs: answer.latencyMs, model: answer.model };
+    },
+  };
 }
