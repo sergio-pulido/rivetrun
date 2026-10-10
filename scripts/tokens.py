@@ -100,7 +100,6 @@ def session_row(path: Path, since: datetime) -> dict | None:
         'name': f'[{role}]' if role else (title or path.stem[:8]),
         'role': role.lower() if role else None,
         'title': title,
-        'sessionId': path.stem,
         'models': models,
         'mainModels': sorted({response['model'] for response in main.values()}),
         'subagentModels': sorted({response['model'] for response in agents.values()}),
@@ -195,8 +194,8 @@ def grand_total(claude_code: dict, arena: dict) -> dict:
         'note': 'Measured tokens only: Claude Code sessions (input + output + cache write + cache read) plus the published arena '
                 f"tables. Of the Claude Code figure, {claude_code['cacheReadTokens']:,} are cache reads (the conversation re-read "
                 f"from cache on every turn); fresh input is {claude_code['inputTokens']:,}, cache writes "
-                f"{claude_code['cacheWriteTokens']:,}, output {claude_code['outputTokens']:,}. Everything listed under "
-                'notMeasured is excluded, not estimated.',
+                f"{claude_code['cacheWriteTokens']:,}, output {claude_code['outputTokens']:,}. Whatever is listed as not measured "
+                'is left out, not estimated.',
     }
 
 
@@ -277,8 +276,8 @@ def main() -> None:
             'claudeCode': {
                 'method': 'python3 scripts/tokens.py: sums message.usage from the Claude Code transcripts of this repository on the '
                           "human's Mac (the files ccusage reads), one count per API response, sessions and their subagents. "
-                          'totalTokens = input + output + cache write + cache read, as ccusage defines it. Sessions were still '
-                          'running at generatedAt.',
+                          'totalTokens = input + output + cache write + cache read, as ccusage defines it. The sessions were still '
+                          'running when this was written.',
                 'sessions': rows,
                 'total': sums,
             },

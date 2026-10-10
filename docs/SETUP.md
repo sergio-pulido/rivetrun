@@ -99,7 +99,7 @@ The other 94 commits cannot be attributed from the subject: 19 are `docs:` commi
 ### Tokens
 
 <!-- tokens:start -->
-Measured at 2026-10-10T12:43+02:00, counting from 2026-10-09T18:00+02:00 (docs/tokens.json, written by `python3 scripts/tokens.py`). The sessions were still running, so the figures keep growing until they stop.
+Measured at 2026-10-10T12:44+02:00, counting from 2026-10-09T18:00+02:00 (docs/tokens.json, written by `python3 scripts/tokens.py`). The sessions were still running, so the figures keep growing until they stop.
 
 | Claude Code session | Model in its transcript | Total tokens | Input | Output | Cache write | Cache read | API responses |
 |---|---|---|---|---|---|---|---|
@@ -107,12 +107,12 @@ Measured at 2026-10-10T12:43+02:00, counting from 2026-10-09T18:00+02:00 (docs/t
 | [BRAIN] | `claude-opus-5-5`; subagents `claude-sonnet-5-5` | 347,912,854 | 1,587 | 819,830 | 2,114,154 | 344,977,283 | 718 |
 | [SIM] | `claude-opus-5-5`; subagents `claude-sonnet-5-5` | 371,071,945 | 1,689 | 898,095 | 1,775,889 | 368,396,272 | 757 |
 | [GAME] | `claude-opus-5-5` | 525,787,435 | 1,895 | 1,259,690 | 3,587,812 | 520,938,038 | 872 |
-| [UI] | `claude-opus-5-5` | 432,819,982 | 1,697 | 1,068,595 | 3,063,334 | 428,686,356 | 786 |
-| [MASTER] | `claude-opus-5-5`; subagents `claude-opus-5-5` | 282,114,733 | 1,224 | 630,359 | 1,775,669 | 279,707,481 | 520 |
+| [UI] | `claude-opus-5-5` | 433,493,918 | 1,701 | 1,070,397 | 3,064,753 | 429,357,067 | 788 |
+| [MASTER] | `claude-opus-5-5`; subagents `claude-opus-5-5` | 282,696,600 | 1,230 | 632,061 | 1,779,419 | 280,283,890 | 523 |
 | [LAB] | `claude-opus-5-5`; subagents `claude-sonnet-5-5` | 194,726,615 | 985 | 963,539 | 1,949,133 | 191,812,958 | 452 |
-| **All sessions** | | **2,161,081,153** | **9,174** | **5,704,892** | **14,510,406** | **2,140,856,681** | **4,151** |
+| **All sessions** | | **2,162,336,956** | **9,184** | **5,708,396** | **14,515,575** | **2,142,103,801** | **4,156** |
 
-- Measured total: 2,167,500,190 tokens = 2,161,081,153 in Claude Code + 6,419,037 in the arena tables.
+- Measured total: 2,168,755,993 tokens = 2,162,336,956 in Claude Code + 6,419,037 in the arena tables.
 - 99.1% of the Claude Code figure is cache reads: the conversation so far, re-read from the cache on every turn. Total = input + output + cache write + cache read, the sum `ccusage` reports.
 - Arena API: 6,331,971 input and 87,066 output tokens over the 12 paid rows of the published tables, US$3.65; the facts-only columns cost another US$0.53 and their tokens were not recorded.
 - Jev is counted in calls, not tokens: 10,101 in the last benchmark run and 1,687 in the published arena tables. Its tokens: not measured (the API returns usage with every answer, docs/JEV.md, but nothing recorded it).
