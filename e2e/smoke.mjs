@@ -2,7 +2,7 @@
 // Headless Chromium against QA_BASE_URL. scripts/qa.sh points it at a production build of the commit under test;
 // on its own it defaults to the dev server. It starts no server and writes nothing outside e2e/screens.
 //   node e2e/smoke.mjs                 all steps
-//   QA_ONLY=drive node e2e/smoke.mjs   one step group: pages | drive | jev | lab | missions | race | desktop
+//   QA_ONLY=drive node e2e/smoke.mjs   one step group: pages | drive | jev | m5 | lab | missions | race | desktop
 // Env: QA_BASE_URL (default http://localhost:3000), QA_SCREENS (output directory), QA_HEADED=1 to watch.
 // Exit code: 0 when no step failed (skips are allowed), 1 otherwise. A summary lands in <QA_SCREENS>/summary.json.
 import { mkdirSync, writeFileSync } from 'node:fs';
@@ -405,6 +405,52 @@ try {
     }, page);
   }
 
+  // ---- Q12: a first-timer on the Room Challenge. Full throttle all the way; do only what the stuck prompt says. ------
+  if (wants('m5')) {
+    await step('drive M5 · stuck prompt', async () => {
+      await go(page, '/brief/M5');
+      await page.getByRole('link', { name: /^Drive$/ }).first().click();
+      const coachStart = page.locator('button.rr-btn-primary').first();
+      if (await coachStart.waitFor({ state: 'visible', timeout: 2500 }).then(() => true, () => false)) await coachStart.click();
+      await page.waitForURL('**/run/M5', { timeout: NAV_MS });
+      await page.locator('[aria-label^="M5 "]').waitFor({ state: 'visible', timeout: NAV_MS });
+      await page.keyboard.down('ArrowUp');
+      const prompts = new Set();
+      let taps = 0;
+      let lastTap = 0;
+      let shotTaken = false;
+      const deadline = Date.now() + 170_000;
+      while (Date.now() < deadline && new URL(page.url()).pathname !== '/result') {
+        const alerts = await page.locator('[role="alert"]').allInnerTexts().catch(() => []);
+        const text = alerts.join(' ').replace(/\s+/g, ' ');
+        const prompt = text.match(/STUCK IN \d+ s[^a-z]*?(TAP CLIMB|EASE OFF THE THROTTLE|HOLD WINCH|GIVE IT THROTTLE|THIS BUILD CANNOT PASS HERE)/);
+        if (prompt) {
+          prompts.add(prompt[1]);
+          if (!shotTaken) {
+            shotTaken = true;
+            await shot(page, 'phone-13-m5-stuck-prompt');
+          }
+          if (prompt[1] === 'TAP CLIMB' && Date.now() - lastTap > 2500) {
+            lastTap = Date.now();
+            taps += 1;
+            await page.keyboard.press('Space');
+          }
+        }
+        await sleep(120);
+      }
+      await page.keyboard.up('ArrowUp');
+      await page.waitForURL('**/result', { timeout: 10_000 });
+      const headline = (await page.locator('h1').first().innerText()).trim();
+      await sleep(1500);
+      await shot(page, 'phone-14-result-m5');
+      await assertHealthy(page, seen);
+      const seenPrompts = [...prompts].join(', ') || 'none';
+      if (!/finished/i.test(headline)) throw new Error(`result headline is "${headline}" (prompts seen: ${seenPrompts}; climb taps: ${taps})`);
+      const time = (await page.locator('body').innerText()).match(/(\d+\.\d)\s*s/)?.[1];
+      return `Finished${time ? ` in ${time} s` : ''} at full throttle; prompts seen: ${seenPrompts}; climb taps: ${taps}`;
+    }, page);
+  }
+
   if (wants('lab')) {
     await step('/lab', async () => {
       const status = await go(page, '/lab');
@@ -412,8 +458,16 @@ try {
       await visibleText(page, 'Brain Arena');
       await sleep(800);
       await shot(page, 'phone-08-lab');
+      const labTab = page.getByRole('tab', { name: /Lab Missions/i }).or(page.getByRole('button', { name: /Lab Missions/i })).first();
+      let tab = 'no Lab Missions tab';
+      if (await labTab.isVisible().catch(() => false)) {
+        await labTab.click();
+        await sleep(800);
+        await shot(page, 'phone-08b-lab-missions');
+        tab = /grid simulation/i.test(await page.locator('body').innerText()) ? 'Lab Missions tab says "grid simulation"' : 'Lab Missions tab does NOT say "grid simulation"';
+      }
       await assertHealthy(page, seen);
-      return 'Brain Arena visible';
+      return `Brain Arena visible; ${tab}`;
     }, page);
 
     await step('lab mission', async () => {
