@@ -101,5 +101,27 @@
       ]
     }
   ],
-  "sameCameraAndScale": true
+  "sameCameraAndScale": true,
+  "lineup": {
+    "file": "apps/web/public/renders/presets/lineup.webp",
+    "url": "/renders/presets/lineup.webp",
+    "sizeBytes": 201418,
+    "resolutionPx": [
+      2400,
+      900
+    ],
+    "quality": 95,
+    "order": [
+      "speedster",
+      "mud_crawler",
+      "all_rounder",
+      "deep_diver"
+    ],
+    "placementPx": {
+      "cardSize": 750,
+      "stepX": 550,
+      "top": 75
+    },
+    "transparent": true
+  }
 }
