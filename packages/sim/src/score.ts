@@ -64,6 +64,13 @@ export function why(state: RunState): string {
   if (state.dnfReason === 'damage' && here.terrain === 'water' && here.depthCm > spec.maxWadingDepthCm && !spec.waterproof) {
     return `Flooded in ${here.depthCm} cm of water — no waterproof case`;
   }
+  // Standing still on firm ground without ever spinning the wheels is not a grip problem: nothing drove the robot.
+  const spun = (state.stats.slipSByTerrain[here.terrain] ?? 0) > 0.5;
+  if (state.dnfReason === 'stuck' && !spun && TERRAINS[here.terrain].sinkage < 0.2 && Math.abs(here.slopeDeg) < 5) {
+    return state.config.manual
+      ? `Stood still on ${terrain} for too long — hold the throttle to drive`
+      : `Stopped on ${terrain} and never drove on`;
+  }
   if (state.dnfReason === 'stuck') return `Bogged down on ${terrain} — ${spec.locomotionName.toLowerCase()} could not grip`;
   if (state.dnfReason === 'battery') return `Battery died on ${terrain} at ${Math.round((sim.x / state.world.lengthM) * 100)}% of the track`;
   if (state.dnfReason === 'timeout') return `Ran out of time on ${terrain}`;
