@@ -1,8 +1,34 @@
 # RivetRun — QA log
 
-Owner of this file: sim session. Tested on `http://localhost:3000` (the human's dev server) in the Claude browser pane, phone viewport 390×844 unless stated. Input is keyboard events, not touch. Nothing here was run on a real phone.
+Owner of this file: [MASTER] since Sat 03:45 (docs/OVERNIGHT.md). Everything from "Open regressions" down is the sim session's earlier log, tested in the Claude browser pane on `http://localhost:3000` at 390×844 with keyboard input. Nothing in this file was run on a real phone.
 
-Status: **OPEN** = reproduces now · **FIXED** = fix retested in the browser · **REPORTED FIXED** = owner says fixed, not retested by sim · **NOT A BUG** = explained.
+Status: **OPEN** = reproduces now · **FIXED** = fix retested · **REPORTED FIXED** = owner says fixed, not retested · **NOT A BUG** = explained.
+
+## Overnight gate (RR-OVERNIGHT)
+
+`scripts/qa.sh` gates a commit. `scripts/qa.sh --tag` tags it `demo-good-<HHMM>` and pushes the tag when every step passes. Logs: `e2e/out/<HHMM>/`. Screens: `e2e/screens/<HHMM>/` (not committed).
+
+| Step | Runs on | Proves |
+|---|---|---|
+| install, typecheck, unit tests | a clean worktree of the commit (`../rivetrun-qa`) | The commit installs from the lockfile, every package typechecks and every unit test passes with nothing uncommitted helping. |
+| determinism | same | Two runs of `scripts/balance.ts --seeds 2` give byte-identical tables. |
+| balance | same | Every mission is finished by at least one core build within budget, and the default build finishes M1. |
+| build | same | `next build` of the commit succeeds. Type errors do not fail it (`ignoreBuildErrors`), which is why typecheck is its own step. |
+| e2e smoke | the dev server on :3000, i.e. the working tree | Headless Chromium (Playwright, software WebGL): Home → Workshop → Brief M1 → first-run coach marks → a Drive run on M1 by keyboard (full throttle, brake a metre before the scan zone, hold for the scan, drive to the finish) → Result; `/lab`; `/screen` → Room Race on M1 with two JEV bots to FINISH; 1280×720 stills of Home, Workshop, Brief and `/lab`. One retry after 20 s if a step fails. |
+| demo build (hourly) | `../rivetrun-demo` | `pnpm demo:stable -- --build-only`. Skipped while anything serves on :3001. |
+
+What a `demo-good-*` tag does not prove:
+- The e2e ran on the dev build of the working tree, not on a production build of the tagged commit. The tag message records how many source files were uncommitted at that moment.
+- Software rendering at a few frames per second: no frame-rate, touch or real-phone result. Input is keyboard.
+- The Room Race had bots only: no phone joined.
+- "One Lab Mission start to finish" is skipped until `/scenarios` exists.
+
+## Overnight findings
+
+| # | Owner | Status | What | Evidence |
+|---|---|---|---|---|
+| Q1 | game | FIXED (51ff71a) | Committed main failed `tsc` after the weather commits: the new RunEvent `gust` had no case in `runFeed.ts` (the HUD view would become `undefined` on a gust), and `snow` was missing from the terrain look and texture tables. | Gate at c9f6f27 and 7b2bd6a red on typecheck; green at the first tag. |
+| Q2 | brain | FIXED (4e29cd8) | `snow` missing from the `/screen` lane-strip colours. | Same gate runs. |
 
 ## Open regressions
 

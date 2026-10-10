@@ -1,0 +1,12 @@
+{
+  "name": "rivetrun-e2e",
+  "private": true,
+  "type": "module",
+  "description": "RivetRun e2e smoke (owner: [MASTER]). Kept outside the pnpm workspace so the root lockfile and the demo build never change.",
+  "scripts": {
+    "smoke": "node smoke.mjs"
+  },
+  "dependencies": {
+    "playwright-core": "1.58.2"
+  }
+}

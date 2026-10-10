@@ -51,6 +51,26 @@ e2e smoke (Playwright, headless Chromium from /opt or the local install): Home, 
 ## Queues
 Items are in priority order. IDs are OVN-<owner>-<n>.
 
+### Board (kept by [MASTER], updated 04:00)
+"Reported" is the owner's word; "QA" is what the gate or the e2e screens showed.
+
+| Item | State | Commit | QA |
+|---|---|---|---|
+| OVN-SIM-1 | no report yet (asked 03:57) | d966fc9 and earlier | Sim unit tests green in the gate. |
+| OVN-GAME-1 | reported done | 7947a69 | e2e: keyboard run on M1 brakes into the scan zone, "SCANNING · SURVIVOR", finishes. SLIP and the red speedometer not seen by anyone yet. |
+| OVN-UI-1 | reported done | 5eaa447 | Brief M1 objectives seen in the e2e screens. Inventory not retested by QA. |
+| OVN-BRAIN-0 | reported done | 7b2bd6a | `--ref --build-only` run by brain. Serving a tag is untested until the human does it. |
+| OVN-BRAIN-1 | in progress | fbd325e, 0b617e9 | — |
+| OVN-SIM-2 | in progress (wind, gusts, cold, snow, weatherEffects in) | 9d3db6c, c9f6f27, 4c97762 | Broke typecheck in game and brain paths (Q1, Q2 in docs/QA.md); both fixed. |
+| OVN-UI-2 | reported done | 573ff51 | Wind, fog, night and snow cards cannot be seen until M8/M9 exist. |
+| OVN-GAME-2 | in progress | — | — |
+| OVN-LAB-1 | [LAB] session started 03:50 | — | — |
+
+Re-prioritised 03:58:
+- [UI] is two waves ahead: OVN-UI-4, then OVN-UI-5. OVN-UI-3 waits for the "lab" block of docs/arena-results.json (OVN-BRAIN-3 ← OVN-LAB-1/2).
+- [SIM]: a new union member (terrain, RunEvent type, trigger) is announced to [GAME], [BRAIN] and [UI] before it is committed. M8/M9 enter `MISSION_IDS` only after game and brain confirm `snow` and `gust` are handled.
+- [LAB]: /scenarios stays off the Home screen until [MASTER] has seen it green; `data-testid` hooks for the e2e (see the message of 03:58).
+
 ### Wave 0 — finish what is in flight (now → 05:30)
 - OVN-SIM-1: RR-GAMEPLAY-V3 P1 physics: analog input, traction and wheelspin, grip-limited braking, safe speeds and impact damage, scan zones. Accept: tests for each; a full-throttle run on M3 mud is slower than a feathered one.
 - OVN-GAME-1: v3 controls: throttle and brake sliders 0..1 with the thumb gauge, SLIP and wheel spin, next-hazard warning with safe speed, scan-zone pads with a progress ring. Accept: a scripted e2e run brakes into an M1 scan zone and completes the scan.
