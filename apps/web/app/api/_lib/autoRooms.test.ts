@@ -67,7 +67,9 @@ describe('auto rooms', () => {
     expect(picked).toMatchObject({ kind: 'human', build: PRESETS.mud_crawler.build, pick: { presetId: 'mud_crawler', agent: 'human', strategy: 'careful' } });
     // The phone that tapped nothing: All-rounder, Jev, the plan.
     const defaulted = started.players.find((p) => p.id === other.playerId)!;
-    expect(defaulted).toMatchObject({ kind: 'jev', model: 'jev-1.13.0', build: PRESETS.all_rounder.build, pick: { presetId: 'all_rounder', agent: 'jev-1.13.0', strategy: 'plan' } });
+    expect(defaulted).toMatchObject({ kind: 'jev', model: 'jev-1.13.0', plan: true, pick: { presetId: 'all_rounder', agent: 'jev-1.13.0', strategy: 'plan' } });
+    // The committed plan for the play mission is applied: its briefing reaches the driver.
+    expect(defaulted.briefing!.length).toBeGreaterThan(10);
     const bots = started.players.filter((p) => p.serverDriven);
     expect(bots).toHaveLength(2);
     // A second room runs the same mission on the same seed.

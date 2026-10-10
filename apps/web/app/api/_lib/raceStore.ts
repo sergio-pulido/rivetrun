@@ -1,4 +1,4 @@
-import { MissionIdSchema, type GhostTrace, type MissionId, type PlayerPick } from '@rivetrun/contracts';
+import type { GhostTrace, MissionId, PlayerPick } from '@rivetrun/contracts';
 import { MISSIONS, PRESETS, SCAN_RULES, driveSeed, runHeuristicSync, score, TUNING } from '@rivetrun/sim';
 import {
   ARENA_BRAINS,
@@ -30,7 +30,8 @@ import {
 } from '../../race/_lib/protocol';
 import { peekGhost, requestGhost } from './ghostStore';
 import { recordHumanRun } from './humanArena';
-import { resolveStrategy } from './playPlans';
+import { PLAY_MISSION } from '@/play/playMission';
+import { resolveStrategy } from './playStrategy';
 import { addRun } from './store';
 
 const SCAN_MISS_PENALTY_MS = SCAN_RULES.missPenaltyS * 1000;
@@ -420,10 +421,7 @@ const maxAutoRooms = (): number => {
   return Number.isInteger(value) && value > 0 ? value : DEFAULT_MAX_AUTO_ROOMS;
 };
 /** The mission every auto room runs (env PLAY_MISSION, from the rehearsal), on its fixed seed so the board compares like with like. */
-const playMission = (): MissionId => {
-  const parsed = MissionIdSchema.safeParse(process.env.PLAY_MISSION);
-  return parsed.success ? parsed.data : 'M5';
-};
+const playMission = (): MissionId => PLAY_MISSION;
 
 const expired = (room: Room, now: number): boolean =>
   room.auto !== undefined && ((room.auto.finishedAt !== null && now >= room.auto.finishedAt + AUTO_CLOSE_AFTER_RESULTS_MS) || (room.status === 'lobby' && room.auto.phones.size === 0 && now >= room.auto.endsAt));
@@ -438,11 +436,12 @@ function applyPick(room: Room, player: RacePlayer, pick: PlayerPick): void {
   room.players.set(player.id, {
     ...rest,
     kind: human ? 'human' : 'jev',
-    build: PRESETS[pick.presetId].build,
+    // The plan carries its own build, which may add a part to the preset's.
+    build: strategy.build,
     pick,
     ready: true,
     // A human drives by hand: the strategy is shown on their lane but there is no brain to brief.
-    ...(human ? {} : { model: pick.agent, priority: strategy.priority, ...(strategy.briefing ? { briefing: strategy.briefing } : {}) }),
+    ...(human ? {} : { model: pick.agent, priority: strategy.priority, briefing: strategy.briefing }),
     ...(strategy.plan ? { plan: true } : {}),
   });
 }
@@ -461,8 +460,8 @@ function heuristicTrace(room: Room): GhostTrace {
 /** Fills the room to AUTO_MIN_LANES with bots the server moves itself: Jev with the plan when its recorded run is ready, the fixed rules otherwise. */
 function fillWithBots(room: Room, auto: AutoRoom): void {
   const strategy = resolveStrategy(room.missionId, 'all_rounder', 'plan');
-  const build = PRESETS.all_rounder.build;
-  const ready = peekGhost({ missionId: room.missionId, seed: room.seed, build, priority: strategy.priority, ...(strategy.briefing ? { briefing: strategy.briefing } : {}) });
+  const build = strategy.build;
+  const ready = peekGhost({ missionId: room.missionId, seed: room.seed, build, priority: strategy.priority, briefing: strategy.briefing });
   let n = 0;
   while (room.players.size < AUTO_MIN_LANES) {
     n += 1;
@@ -470,10 +469,11 @@ function fillWithBots(room: Room, auto: AutoRoom): void {
     const jev = ready !== null && n === 1;
     const base = jev ? (strategy.plan ? 'Jev + plan' : 'Jev') : 'Fixed rules';
     const taken = new Set([...room.players.values()].map((player) => player.nickname));
-    const nickname = taken.has(base) ? `${base} ${n}` : base;
+    let nickname = base;
+    for (let suffix = 2; taken.has(nickname); suffix += 1) nickname = `${base} ${suffix}`;
     const seat = seatPlayer(room, {
       nickname, kind: 'jev', build, model: jev ? JEV_AGENT : 'heuristic', serverDriven: true,
-      ...(jev ? { priority: strategy.priority, ...(strategy.briefing ? { briefing: strategy.briefing } : {}), ...(strategy.plan ? { plan: true } : {}) } : {}),
+      ...(jev ? { priority: strategy.priority, briefing: strategy.briefing, ...(strategy.plan ? { plan: true } : {}) } : {}),
     });
     auto.replays.set(seat.playerId, jev ? ready.ghost : heuristicTrace(room));
   }
@@ -562,7 +562,7 @@ export function matchRoom(options: { nickname?: string; test?: boolean } = {}): 
     // The lobby's 30 s are used to drive the fill bot's run once, so it is ready at the start. Not for load tests.
     if (!test) {
       const strategy = resolveStrategy(missionId, 'all_rounder', 'plan');
-      requestGhost({ missionId, seed: room.seed, build: PRESETS.all_rounder.build, priority: strategy.priority, ...(strategy.briefing ? { briefing: strategy.briefing } : {}) });
+      requestGhost({ missionId, seed: room.seed, build: strategy.build, priority: strategy.priority, briefing: strategy.briefing });
     }
   }
   const taken = new Set([...room.players.values()].map((player) => player.nickname.toLowerCase()));
