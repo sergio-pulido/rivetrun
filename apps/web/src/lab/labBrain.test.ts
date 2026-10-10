@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { LAB_DEFAULT_BUILDS, LAB_SCENARIOS, buildLabQuestion, createLab, labHeuristicDecide, type LabQuestion } from '@rivetrun/lab';
-import { LAB_DECIDE_URL, jevIsLive, jevLabBrain } from './labBrain';
+import { LAB_DECIDE_URL, jevLabBrain, jevSeat } from './labBrain';
 
 const question = ((): LabQuestion => {
   const state = createLab({ scenario: LAB_SCENARIOS.maze, seed: 1001, entries: [{ agentId: 'you', build: LAB_DEFAULT_BUILDS.maze }] });
@@ -58,10 +58,22 @@ describe('Jev on Lab Missions', () => {
   });
 
   it('says Jev is live only when the route answers and its key is set', async () => {
-    expect(await jevIsLive(async () => json({ ok: true, model: 'jev-1.13.0', configured: true }))).toBe(true);
+    expect(await jevSeat(async () => json({ ok: true, model: 'jev-1.13.0', configured: true }))).toEqual({ live: true, factsOnly: false });
     // No key: every question would come back 503 and fall back.
-    expect(await jevIsLive(async () => json({ ok: true, model: 'jev-1.13.0', configured: false }))).toBe(false);
-    expect(await jevIsLive(async () => json({ error: 'not found' }, 404))).toBe(false);
-    expect(await jevIsLive(async () => { throw new Error('offline'); })).toBe(false);
+    expect(await jevSeat(async () => json({ ok: true, model: 'jev-1.13.0', configured: false }))).toEqual({ live: false, factsOnly: false });
+    expect(await jevSeat(async () => json({ error: 'not found' }, 404))).toEqual({ live: false, factsOnly: false });
+    expect(await jevSeat(async () => { throw new Error('offline'); })).toEqual({ live: false, factsOnly: false });
+  });
+
+  it('offers the facts-only question only when the route lists it, and asks for it with verdicts=0', async () => {
+    expect(await jevSeat(async () => json({ ok: true, configured: true, questions: ['lab-q3', 'lab-q3-facts'] }))).toEqual({ live: true, factsOnly: true });
+    expect(await jevSeat(async () => json({ ok: true, configured: true, questions: ['lab-q3'] }))).toEqual({ live: true, factsOnly: false });
+    const urls: string[] = [];
+    const fetchImpl: typeof fetch = async (url) => { urls.push(String(url)); return json({ choice: other, latencyMs: 300, policy: 'jev', question: 'lab-q3-facts' }); };
+    const facts = await jevLabBrain({ fetchImpl, factsOnly: true }).decide(question);
+    await jevLabBrain({ fetchImpl }).decide(question);
+    expect(urls).toEqual([`${LAB_DECIDE_URL}?verdicts=0`, LAB_DECIDE_URL]);
+    // The answer says which wording it was given; the page shows that, it does not guess.
+    expect(facts.question).toBe('lab-q3-facts');
   });
 });

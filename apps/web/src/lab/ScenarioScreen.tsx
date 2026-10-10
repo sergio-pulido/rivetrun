@@ -7,11 +7,11 @@ import { useBuildStore } from '@/state/build';
 import { saveResult, useLabBests } from './bests';
 import { SCENARIO_BRIEFS, labLoadouts, sensorLine } from './copy';
 import { Simplifications } from './Simplifications';
-import { JEV_LIVE_NOTE, STAND_IN_NOTE } from './labBrain';
+import { JEV_FACTS_NOTE, JEV_LIVE_NOTE, JEV_VERDICT_NOTE, STAND_IN_NOTE } from './labBrain';
 import { LabLegend } from './LabLegend';
 import { LabPlay } from './LabPlay';
 import { LabResult } from './LabResult';
-import { useJevLive, useLabRun, type LabMode, type LabRunSetup } from './useLabRun';
+import { useJevSeat, useLabRun, type LabMode, type LabRunSetup } from './useLabRun';
 
 /** One Lab Mission from brief to result. */
 export function ScenarioScreen({ id }: { readonly id: LabScenarioId }) {
@@ -26,7 +26,11 @@ export function ScenarioScreen({ id }: { readonly id: LabScenarioId }) {
   const [bestBefore, setBestBefore] = useState<number | null>(null);
   const bests = useLabBests();
   const { view, controls } = useLabRun(setup);
-  const jevLive = useJevLive();
+  const seat = useJevSeat();
+  const jevLive = seat === null ? null : seat.live;
+  /** Jev is asked without the fixed rules' verdict on each option. Only on offer when the server has that question. */
+  const [factsOnly, setFactsOnly] = useState(false);
+  const jevFacts = factsOnly && seat?.factsOnly === true;
   const loadout = loadouts.find((l) => l.id === loadoutId) ?? loadouts[0]!;
   const twoRobots = scenario.agents.length > 1;
   const robotLine = `${loadout.name} · ${sensorLine(loadout.build)}`;
@@ -40,7 +44,7 @@ export function ScenarioScreen({ id }: { readonly id: LabScenarioId }) {
 
   const start = (): void => {
     setBestBefore(bests[id]?.score ?? null);
-    setSetup({ scenarioId: id, seed: LAB_SEEDS[0], build: loadout.build, mode, jevLive: jevLive === true, attempt: (setup?.attempt ?? 0) + 1 });
+    setSetup({ scenarioId: id, seed: LAB_SEEDS[0], build: loadout.build, mode, jevLive: jevLive === true, jevFacts, attempt: (setup?.attempt ?? 0) + 1 });
   };
 
   if (setup !== null && view !== null && result) {
@@ -48,7 +52,7 @@ export function ScenarioScreen({ id }: { readonly id: LabScenarioId }) {
     const newBest = score > 0 && (bestBefore === null || score > bestBefore);
     return <LabResult result={result} mode={setup.mode} robot={robotLine} newBest={newBest} onRetry={start} onChangeBuild={() => setSetup(null)} />;
   }
-  if (setup !== null && view !== null) return <LabPlay view={view} controls={controls} mode={setup.mode} robot={robotLine} jevLive={setup.jevLive} />;
+  if (setup !== null && view !== null) return <LabPlay view={view} controls={controls} mode={setup.mode} robot={robotLine} jevLive={setup.jevLive} jevFacts={setup.jevFacts} />;
 
   return (
     <div className="mx-auto flex w-full max-w-[430px] flex-col gap-3">
@@ -106,8 +110,22 @@ export function ScenarioScreen({ id }: { readonly id: LabScenarioId }) {
             </button>
           ))}
         </div>
+        {(mode === 'jev' || twoRobots) && seat?.live && seat.factsOnly ? (
+          <div className="grid grid-cols-2 gap-2" role="group" aria-label="What Jev is told">
+            {([false, true] as const).map((facts) => (
+              <button
+                key={String(facts)} type="button" aria-pressed={factsOnly === facts} onClick={() => setFactsOnly(facts)} data-testid={facts ? 'jev-facts' : 'jev-verdict'}
+                className={`rr-btn !min-h-11 !text-[11px] ${factsOnly === facts ? 'rr-btn-brain' : 'rr-btn-secondary'}`}
+              >
+                {facts ? 'Jev decides from facts only' : 'Jev is told the verdict'}
+              </button>
+            ))}
+          </div>
+        ) : null}
         {mode === 'jev' || twoRobots ? (
-          <p className="text-xs leading-snug text-cyan-muted" data-testid="scenario-brain-note">{jevLive === null ? 'Checking whether Jev is reachable…' : jevLive ? JEV_LIVE_NOTE : STAND_IN_NOTE}</p>
+          <p className="text-xs leading-snug text-cyan-muted" data-testid="scenario-brain-note">
+            {jevLive === null ? 'Checking whether Jev is reachable…' : !jevLive ? STAND_IN_NOTE : jevFacts ? JEV_FACTS_NOTE : `${JEV_LIVE_NOTE} ${JEV_VERDICT_NOTE}`}
+          </p>
         ) : null}
       </section>
 

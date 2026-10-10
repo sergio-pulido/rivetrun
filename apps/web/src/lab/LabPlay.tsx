@@ -55,10 +55,12 @@ interface LabPlayProps {
   readonly robot: string;
   /** Jev is asked live (the thread then shows its latencies and any FALLBACK); false = the fixed rules sit in its seat. */
   readonly jevLive: boolean;
+  /** Jev is asked the facts-only question: nothing in it says which option the fixed rules rate as correct. */
+  readonly jevFacts: boolean;
 }
 
 /** The run: status line, the map, the last thing the robot noticed, the arrow pad and the brain's thread. */
-export function LabPlay({ view, controls, mode, robot, jevLive }: LabPlayProps) {
+export function LabPlay({ view, controls, mode, robot, jevLive, jevFacts }: LabPlayProps) {
   const { state } = view;
   const me = state.agents.find((agent) => agent.id === LAB_PLAYER)!;
   const driving = mode === 'drive';
@@ -155,7 +157,7 @@ export function LabPlay({ view, controls, mode, robot, jevLive }: LabPlayProps) 
         <DecisionThread
           decisions={thread}
           limit={driving ? 3 : 5}
-          title={`${driving ? (rival?.label ?? 'Jev') : 'Your robot'} · ${jevLive ? 'Jev decides, live' : 'decisions by the fixed rules'}${view.thinking.length > 0 ? ' · thinking' : ''}`}
+          title={`${driving ? (rival?.label ?? 'Jev') : 'Your robot'} · ${!jevLive ? 'decisions by the fixed rules' : jevFacts ? 'Jev decides from facts only, live' : 'Jev decides, live (told the verdict)'}${view.thinking.length > 0 ? ' · thinking' : ''}`}
         />
         </div>
       ) : null}

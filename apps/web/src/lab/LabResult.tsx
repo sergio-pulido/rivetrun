@@ -20,10 +20,12 @@ interface LabResultProps {
 }
 
 /** How it went: the headline, the score and what it was made of, the decisions, and what the sensors never saw. */
-/** "7 decisions · 2 by the fixed rules (FALLBACK)": how many a brain made and how many it missed. */
-const tally = (decisions: readonly { readonly fallback: boolean }[]): string => {
+/** "7 decisions · 2 by the fixed rules (FALLBACK) · question lab-q3": how many a brain made, how many it missed, and what it was asked. */
+const tally = (decisions: readonly { readonly fallback: boolean; readonly question?: string }[]): string => {
   const missed = decisions.filter((d) => d.fallback).length;
-  return `${decisions.length} decisions${missed > 0 ? ` · ${missed} by the fixed rules (FALLBACK)` : ''}`;
+  // The wording of the question the brain answered, as the server names it: with or without the fixed rules' verdict.
+  const asked = [...new Set(decisions.flatMap((d) => (d.question ? [d.question] : [])))];
+  return `${decisions.length} decisions${missed > 0 ? ` · ${missed} by the fixed rules (FALLBACK)` : ''}${asked.length > 0 ? ` · question ${asked.join(', ')}` : ''}`;
 };
 
 export function LabResult({ result, mode, robot, newBest, onRetry, onChangeBuild }: LabResultProps) {
@@ -61,7 +63,10 @@ export function LabResult({ result, mode, robot, newBest, onRetry, onChangeBuild
           Your robot sensed {fog.sensedPct} % of the map.
           {fog.missed.length > 0 ? ` It never saw: ${fog.missed.join(', ')}.` : ' Nothing on it went unseen.'}
         </p>
-        <LabBoard state={result.final} reveal />
+        {/* On a wide screen the map gives up height to its heading and caption, so the result fits without scrolling. */}
+        <div className="lg:[&_svg]:max-h-[calc(100dvh-250px)]">
+          <LabBoard state={result.final} reveal />
+        </div>
         <p className="text-[11px] leading-snug text-faint">The whole map. Hatched tiles were never reported by a sensor.</p>
       </section>
 

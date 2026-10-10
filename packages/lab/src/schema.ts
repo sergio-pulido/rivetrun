@@ -174,6 +174,8 @@ export const LabDecisionSchema = z.object({
   fallback: z.boolean().optional(),
   /** True when the answer came from a cache of an identical question: `latencyMs` is then about 0, not the model's time. */
   cached: z.boolean().optional(),
+  /** Which wording of the question the brain answered, as its caller names it (e.g. with or without the fixed rules' verdict on each option). */
+  question: z.string().optional(),
 });
 export type LabDecision = z.infer<typeof LabDecisionSchema>;
 

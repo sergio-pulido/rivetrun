@@ -46,6 +46,8 @@ export interface LabDecisionLog {
   readonly fallback: boolean;
   /** True when the answer came from a cache of an identical question, not from a fresh call. */
   readonly cached: boolean;
+  /** The wording of the question the brain answered, when it says. */
+  readonly question?: string;
   readonly latencyMs: number;
   /** Sim time at which the choice took effect. */
   readonly appliedT: number;
@@ -204,6 +206,7 @@ export function createLabDriver(scenario: LabScenario, seed: number, entries: re
         ...(o.predicted?.batteryAfterPct !== undefined ? { batteryAfterPct: o.predicted.batteryAfterPct } : {}),
       })),
       choice: option.id, choiceLabel: option.label, policy, fallback: decision.fallback === true, cached: decision.cached === true,
+      ...(decision.question !== undefined ? { question: decision.question } : {}),
       latencyMs: decision.latencyMs, appliedT: applyT,
       chip: `${question.trigger.label} → ${option.label}${decision.fallback ? ' (FALLBACK)' : probability !== undefined ? ` (${Math.round(probability * 100)} %)` : ''} · ${decision.cached ? 'cached' : `${Math.round(decision.latencyMs)} ms`}`,
     };
