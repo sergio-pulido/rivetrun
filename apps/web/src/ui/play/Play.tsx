@@ -196,7 +196,7 @@ export function Play({ agents, plans, missions, defaultMission, missionStep }: P
   }, []);
   useEffect(() => {
     if (!room?.seat || !arrivedWith) return;
-    void fetch(`/api/race/${room.code}/pick`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ...room.seat, pick: { ...DEFAULT_PLAY_PICK, agent: DEFAULT_AGENT, presetId: arrivedWith } }), cache: 'no-store' }).catch(() => undefined);
+    void fetch(`/api/race/${room.code}/pick`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ...room.seat, pick: { ...DEFAULT_PLAY_PICK, agent: DEFAULT_AGENT, presetId: arrivedWith }, ready: false }), cache: 'no-store' }).catch(() => undefined);
     // Sent once per room: later taps send the whole pick themselves.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [room?.code, arrivedWith]);
@@ -256,7 +256,9 @@ export function Play({ agents, plans, missions, defaultMission, missionStep }: P
     setStage(after(stage));
     if (!room?.seat) return;
     // The whole pick goes with every tap, so the last one the server holds is complete. Never free text.
-    void fetch(`/api/race/${room.code}/pick`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ...room.seat, pick: next }), cache: 'no-store' }).catch(() => undefined);
+    // A room starts as soon as everyone in it has picked: only the last tap (the driver) says this phone is done.
+    const done = after(stage) === 'waiting';
+    void fetch(`/api/race/${room.code}/pick`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ...room.seat, pick: next, ...(done ? {} : { ready: false }) }), cache: 'no-store' }).catch(() => undefined);
   };
 
   const plan = missionId ? (plans[missionId]?.[pick.presetId] ?? null) : null;
