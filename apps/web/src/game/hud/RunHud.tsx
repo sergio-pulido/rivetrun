@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { Build, GhostTrace, Mission, Obstacle, SimState } from '@rivetrun/contracts';
 import { isMuted, toggleMute } from '../audio/sfx';
 import { DriveControls } from '../drive/DriveControls';
@@ -8,7 +8,10 @@ import type { DriveInput } from '../drive/driveInput';
 import { useRunHaptics } from '../drive/haptics';
 import { DNF_LABEL, POLICY_LABEL, TERRAIN_LOOK, UI } from '../palette';
 import { useRunView, type RunFeed, type RunView } from '../runFeed';
+import { sensesOf, type Senses } from '../sense';
 import { BrainHud } from './BrainHud';
+import { DECISION_CHIPS, type DecisionChip } from './decisionChip';
+import { DecisionChips } from './DecisionChips';
 import { FpsBadge } from './FpsBadge';
 import styles from './hud.module.css';
 import { TopBar } from './TopBar';
@@ -146,7 +149,7 @@ function FallToast({ fall }: { fall: { readonly falls: number; readonly at: numb
   }, [fall.at]);
   if (!shown) return null;
   return (
-    <div className="absolute inset-x-0 flex justify-center" style={{ top: '26%' }}>
+    <div className="absolute inset-x-0 flex justify-center" style={{ top: '33%' }}>
       <span className="rounded-lg px-3 py-2 font-mono text-[12px] font-semibold tracking-[1px]" style={{ border: `2px solid ${UI.bad}`, background: 'rgb(14 16 19 / 0.88)', color: UI.bad }}>
         FELL · +5 s · {fall.falls} of 3
       </span>
@@ -167,7 +170,7 @@ function ContactToast({ hit }: { hit: NonNullable<RunView['lastDamage']> }) {
   const what = hit.obstacle ? `HIT ${OBSTACLE_NAME[hit.obstacle]}` : hit.roughEntry ? `TOO FAST ONTO ${TERRAIN_LOOK[hit.roughEntry].label.toUpperCase()}` : null;
   if (!shown || !what || hit.amountPct < 0.5) return null;
   return (
-    <div className="absolute inset-x-0 flex justify-center" style={{ top: '26%' }}>
+    <div className="absolute inset-x-0 flex justify-center" style={{ top: '33%' }}>
       <span className="rounded-lg px-3 py-2 font-mono text-[12px] font-semibold tracking-[1px]" style={{ border: `2px solid ${UI.warn}`, background: 'rgb(14 16 19 / 0.88)', color: UI.warn }}>
         {what} · −{hit.amountPct.toFixed(0)}%
       </span>
@@ -178,7 +181,7 @@ function ContactToast({ hit }: { hit: NonNullable<RunView['lastDamage']> }) {
 /** Stopped against an obstacle the robot cannot roll over: stays up for as long as the sim says so. */
 function BlockedChip({ kind }: { kind: Obstacle }) {
   return (
-    <div className="absolute inset-x-0 flex justify-center" style={{ top: '26%' }}>
+    <div className="absolute inset-x-0 flex justify-center" style={{ top: '33%' }}>
       <span className="rounded-lg px-3 py-2 text-center font-mono text-[12px] font-semibold leading-snug tracking-[1px]" style={{ border: `2px solid ${UI.bad}`, background: 'rgb(14 16 19 / 0.88)', color: UI.bad }}>
         BLOCKED BY {OBSTACLE_NAME[kind]}
         <span className="block text-[10px] font-normal" style={{ color: UI.text }}>
@@ -189,6 +192,37 @@ function BlockedChip({ kind }: { kind: Obstacle }) {
   );
 }
 
+/** What the build senses ahead, or that it senses nothing: the same fact the band on the track shows. */
+function SenseChip({ senses }: { senses: Senses }) {
+  const color = senses.blind ? UI.bad : UI.cyanText;
+  return (
+    <span className="rounded-[7px] px-2 py-1 font-mono text-[10px] leading-[13px]" style={{ border: `1px solid ${senses.blind ? UI.bad : '#1f5a63'}`, background: senses.blind ? 'rgb(42 14 12 / 0.88)' : 'rgb(8 24 27 / 0.85)', color }}>
+      {senses.blind ? (
+        <>
+          <span className="font-semibold">BLIND</span> · no forward sensor
+        </>
+      ) : (
+        <>
+          <span style={{ color: UI.dim }}>SENSES AHEAD · </span>
+          {senses.ranges.map((range) => `${range.label} ${Number.isInteger(range.rangeM) ? range.rangeM : range.rangeM.toFixed(1)} m`).join(' · ')}
+        </>
+      )}
+    </span>
+  );
+}
+
+const OBSTACLE_WORD: Readonly<Record<Obstacle, string>> = { rock: 'rock', log: 'log', step: 'step' };
+
+/**
+ * The decision log for the HUD. A blind build that hits an obstacle gets its chip even when the sim
+ * did not label the hit (events older than Brain v3): the sim's own label wins when it is there.
+ */
+function logChips(chips: readonly DecisionChip[], hit: RunView['lastHit'], senses: Senses | null): readonly DecisionChip[] {
+  if (!senses?.blind || !hit || hit.blind) return chips;
+  const blind: DecisionChip = { id: `b${hit.t}`, t: hit.t, text: `BLIND · hit ${OBSTACLE_WORD[hit.obstacle]} at ${Math.round(hit.xM)} m: no distance sensor`, tone: 'blind' };
+  return [...chips, blind].sort((a, b) => a.t - b.t).slice(-DECISION_CHIPS);
+}
+
 /** DOM overlay for the run view: top bar, slow-mo pill + cyan frame, end stamp and the Brain sheet. */
 export function RunHud({ mission, feed, ghosts = [], drive, build }: RunHudProps) {
   const view = useRunView(feed);
@@ -197,6 +231,8 @@ export function RunHud({ mission, feed, ghosts = [], drive, build }: RunHudProps
   const thinking = view.pending !== null && !driving;
   useRunHaptics(feed, driving);
   const dnf = view.dnfReason;
+  const senses = useMemo(() => (build ? sensesOf(build, mission.weather) : null), [build, mission.weather]);
+  const chips = useMemo(() => logChips(view.chips, view.lastHit, senses), [view.chips, view.lastHit, senses]);
 
   return (
     <div className="pointer-events-none absolute inset-0 select-none overflow-hidden">
@@ -225,6 +261,13 @@ export function RunHud({ mission, feed, ghosts = [], drive, build }: RunHudProps
             </span>
           )}
         </div>
+        {/* The decision log (Brain v3): what the robot senses, then its last three decisions, newest first. */}
+        {!view.done && (
+          <div className="mt-3 flex flex-col items-start gap-1">
+            {senses && <SenseChip senses={senses} />}
+            <DecisionChips chips={chips} />
+          </div>
+        )}
       </div>
 
       {view.lastFall && !view.done ? <FallToast fall={view.lastFall} /> : null}

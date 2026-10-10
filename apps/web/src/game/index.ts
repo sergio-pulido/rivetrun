@@ -25,6 +25,14 @@ export type { BrainHudProps } from './hud/BrainHud';
 export { TopBar } from './hud/TopBar';
 export type { TopBarProps } from './hud/TopBar';
 export { RunHud } from './hud/RunHud';
+// Brain v3 decision log: the last three decisions as chips, for the run HUD and the big screen.
+export { DecisionChips } from './hud/DecisionChips';
+export type { DecisionChipsProps } from './hud/DecisionChips';
+export { DECISION_CHIPS, chipsFromRecords, decisionChipText } from './hud/decisionChip';
+export type { DecisionChip, DecisionChipTone } from './hud/decisionChip';
+// What a build can sense ahead of its nose (the band on the track, the BLIND marker).
+export { senseLabel, sensesOf } from './sense';
+export type { SenseRange, Senses } from './sense';
 // The loading cover every 3D view shows until its first frame; use it for your own lazy 3D too.
 export { SceneLoader } from './SceneLoader';
 export type { SceneLoaderProps } from './SceneLoader';

@@ -21,12 +21,19 @@ const TRIGGER_LABEL: Readonly<Record<DecisionTrigger, string>> = {
   slip: 'slip',
   damage: 'damage',
   interval: 'check-in',
+  energy: 'energy',
+  actuator: 'actuator',
 };
+
+/** Brain v3 questions say why they were asked in their own words; older ones only have the trigger kind. */
+const triggerText = (question: BrainQuestion): string => question.cause?.label ?? `trigger: ${TRIGGER_LABEL[question.trigger]}`;
 
 /** Actions a build can lack, and the part that unlocks them. */
 const LOCKED_BY: Readonly<Partial<Record<Action, string>>> = { deploy_winch: 'needs Winch' };
 
 const DEFAULT_LOOKAHEAD_S = 1.5;
+/** Option rows the sheet has room for on a phone without covering the robot. */
+const MAX_OPTION_ROWS = 6;
 
 type ChipTone = 'known' | 'unknown' | 'drone' | 'alert';
 
@@ -174,8 +181,15 @@ export function BrainHud({ pending = null, last = null, decisionCount = 0 }: Bra
   const thinking = pending !== null;
   const options: readonly Action[] = question?.options ?? ['cruise', 'accelerate', 'slow_down', 'brake'];
   const locked = question ? ActionSchema.options.filter((action) => !question.options.includes(action) && LOCKED_BY[action]) : [];
-  const rows = options.length + locked.length;
-  const rowHeight = rows <= 5 ? 32 : rows === 6 ? 28 : 25;
+  // The sheet keeps its height however many commands a build has (gameplay v3 added three): the chosen
+  // option and the likeliest ones get a row, in the question's order; the rest are named in one line.
+  const ranked = decision ? [...options].sort((a, b) => (decision.probabilities[b] ?? 0) - (decision.probabilities[a] ?? 0)) : options;
+  const kept = new Set(ranked.slice(0, MAX_OPTION_ROWS));
+  const shown = options.filter((action) => kept.has(action));
+  const folded = options.filter((action) => !kept.has(action));
+  const lockedShown = locked.slice(0, Math.max(0, MAX_OPTION_ROWS - shown.length));
+  const rows = shown.length + lockedShown.length;
+  const rowHeight = rows <= 5 ? 32 : 28;
   const brief = briefLabel(question?.briefing);
   const lookaheadS = question?.lookaheadS ?? DEFAULT_LOOKAHEAD_S;
 
@@ -191,7 +205,8 @@ export function BrainHud({ pending = null, last = null, decisionCount = 0 }: Bra
               <span className={styles.pulse} style={{ color: UI.cyan }}>
                 JEV · <Elapsed since={pending.since} />
               </span>
-              {' · '}trigger: {TRIGGER_LABEL[pending.question.trigger]}
+              {' · '}
+              {triggerText(pending.question)}
             </>
           ) : decision && question ? (
             <>
@@ -204,7 +219,8 @@ export function BrainHud({ pending = null, last = null, decisionCount = 0 }: Bra
               )}
               {' · '}
               <span className="tabular-nums">{Math.round(decision.latencyMs)} ms</span>
-              {' · '}trigger: {TRIGGER_LABEL[question.trigger]}
+              {' · '}
+              {triggerText(question)}
             </>
           ) : (
             'standby'
@@ -215,7 +231,7 @@ export function BrainHud({ pending = null, last = null, decisionCount = 0 }: Bra
       <Perceived perceived={question?.perceived ?? null} />
 
       <div className="flex flex-col" style={{ gap: rows <= 5 ? 6 : 5 }}>
-        {options.map((action) => {
+        {shown.map((action) => {
           const entry = question?.lookahead.find((candidate) => candidate.action === action);
           const chosen = decision?.selected === action;
           return (
@@ -230,9 +246,14 @@ export function BrainHud({ pending = null, last = null, decisionCount = 0 }: Bra
             />
           );
         })}
-        {locked.map((action) => (
+        {lockedShown.map((action) => (
           <OptionRow key={action} action={action} state="locked" probability={null} height={rowHeight} />
         ))}
+        {folded.length > 0 && (
+          <span className="truncate px-1 font-mono text-[10px] leading-[13px]" style={{ color: UI.dim }}>
+            +{folded.length} more: {folded.join(' · ')}
+          </span>
+        )}
       </div>
 
       <div className="flex items-center justify-between gap-3">

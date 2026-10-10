@@ -72,6 +72,9 @@ const DRIVE: Readonly<Record<Action, number>> = {
   climb_mode: 0.5,
   deploy_winch: 0.34,
   jump: 0.9,
+  coast: 0.45,
+  brake_soft: 0.2,
+  scan: 0,
 };
 
 interface Core {

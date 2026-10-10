@@ -11,11 +11,13 @@ import { restDrive, type Expression, type RobotDrive } from '../robot/drive';
 import { RobotModel } from '../robot/RobotModel';
 import type { DriveInput } from '../drive/driveInput';
 import type { RunFeed } from '../runFeed';
+import { sensesOf } from '../sense';
 import { PIT_DEPTH, basinDepthAt, layoutTrack, sampleTrack, type TrackLayout } from '../track';
 import { Particles, type ParticleEmitter } from './Particles';
 import { restPose, type Pose } from './pose';
 import { restRide, rideOver, stanceFor } from './ride';
 import { ScoutDroneRig } from './ScoutDroneRig';
+import { SenseBand } from './SenseBand';
 import { EFFECT_PARTICLES, Tag, swimLift } from './shared';
 import { World } from './World';
 
@@ -367,6 +369,7 @@ export function RunScene({ mission, build, feed, ghosts = [], particleBudget = 1
   const layout = useMemo(() => layoutTrack(mission.track), [mission.track]);
   const pose = useRef<Pose>(restPose());
   const hasDrone = build.sensors.includes('scout_drone');
+  const senses = useMemo(() => sensesOf(build, mission.weather), [build, mission.weather]);
   const timeScale = useRef(1);
   const particles = useRef<ParticleEmitter>(null);
   const sun = useRef<DirectionalLight>(null);
@@ -378,6 +381,7 @@ export function RunScene({ mission, build, feed, ghosts = [], particleBudget = 1
         <Ghost key={trace.policy} trace={trace} build={build} layout={layout} pose={pose} timeScale={timeScale} driving={hands !== undefined} />
       ))}
       <Player feed={feed} build={build} layout={layout} pose={pose} timeScale={timeScale} particles={particles} hands={hands} />
+      <SenseBand layout={layout} pose={pose} feed={feed} senses={senses} />
       {hasDrone && <ScoutDroneRig feed={feed} layout={layout} pose={pose} />}
       <Particles ref={particles} timeScale={timeScale} budget={particleBudget} />
       <CameraRig pose={pose} light={sun} startX={0} wide={hasDrone} driving={hands !== undefined} />

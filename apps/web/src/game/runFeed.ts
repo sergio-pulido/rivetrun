@@ -1,6 +1,7 @@
 'use client';
 
 import { useSyncExternalStore } from 'react';
+import { DECISION_CHIPS, decisionChipText, type DecisionChip } from './hud/decisionChip';
 import type {
   BrainDecision,
   BrainQuestion,
@@ -26,6 +27,8 @@ export interface RunView {
     readonly at: number;
   } | null;
   readonly decisionCount: number;
+  /** The decision log as chips, oldest first: the last few decisions, hints and blind hits (Brain v3). */
+  readonly chips: readonly DecisionChip[];
   readonly lastDamage: {
     readonly cause: DamageCause;
     readonly amountPct: number;
@@ -35,6 +38,8 @@ export interface RunView {
     readonly blocked?: boolean;
     readonly roughEntry?: TerrainId;
   } | null;
+  /** The last obstacle the robot ran into (other damage does not replace it): the HUD's blind-hit chip reads it. */
+  readonly lastHit: { readonly t: number; readonly xM: number; readonly obstacle: Obstacle; readonly blind: boolean } | null;
   /** Last touchdown after airtime (gameplay v2): drives landing dust, shake and haptics. */
   readonly lastLanding: { readonly impactMps: number; readonly airtimeS: number; readonly damagePct: number; readonly at: number } | null;
   /** Last fall into a gap: the robot respawns at `respawnX`. */
@@ -50,7 +55,9 @@ const EMPTY: RunView = {
   pending: null,
   decision: null,
   decisionCount: 0,
+  chips: [],
   lastDamage: null,
+  lastHit: null,
   lastLanding: null,
   lastFall: null,
   outcome: null,
@@ -68,6 +75,8 @@ export interface RunFeed {
 
 const now = (): number => (typeof performance === 'undefined' ? 0 : performance.now());
 
+const withChip = (chips: readonly DecisionChip[], chip: DecisionChip): readonly DecisionChip[] => [...chips, chip].slice(-DECISION_CHIPS);
+
 function reduce(view: RunView, event: RunEvent): RunView {
   switch (event.type) {
     case 'frame':
@@ -80,11 +89,24 @@ function reduce(view: RunView, event: RunEvent): RunView {
         pending: null,
         decision: { question: event.question, decision: event.decision, t: event.t, at: now() },
         decisionCount: view.decisionCount + 1,
+        chips: withChip(view.chips, {
+          id: `d${view.decisionCount}`,
+          t: event.t,
+          text: decisionChipText(event.question, event.decision, event.log),
+          // A hint in Drive mode is shown, not applied.
+          tone: event.advisory ? 'hint' : event.decision.fallback ? 'fallback' : 'decision',
+        }),
       };
     case 'damage':
       return {
         ...view,
-        lastDamage: { cause: event.cause, amountPct: event.amountPct, at: now(), obstacle: event.obstacle, blocked: event.blocked, roughEntry: event.roughEntry },
+        lastDamage: {
+          cause: event.cause, amountPct: event.amountPct, at: now(),
+          obstacle: event.obstacle, blocked: event.blocked, roughEntry: event.roughEntry,
+        },
+        lastHit: event.obstacle ? { t: event.t, xM: view.state?.x ?? 0, obstacle: event.obstacle, blind: event.blind === true } : view.lastHit,
+        // "BLIND · hit rock at 22 m: no distance sensor": the sim's own words.
+        chips: event.blind && event.label ? withChip(view.chips, { id: `b${event.t}`, t: event.t, text: event.label, tone: 'blind' }) : view.chips,
       };
     case 'finish':
       return { ...view, pending: null, outcome: event.outcome, done: true };

@@ -58,6 +58,9 @@ export const ACTION_LABEL: Readonly<Record<Action, string>> = {
   climb_mode: 'Climb mode',
   deploy_winch: 'Deploy winch',
   jump: 'Jump',
+  coast: 'Coast',
+  brake_soft: 'Brake soft',
+  scan: 'Scan',
 };
 
 export const POLICY_LABEL: Readonly<Record<Policy, string>> = {
