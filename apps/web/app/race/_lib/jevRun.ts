@@ -4,7 +4,7 @@ import type { Brain, Build, DecisionLog, Mission } from '@rivetrun/contracts';
 import { runController } from '@rivetrun/sim';
 import { createClientBrain } from '@/brain/clientBrain';
 import { entryFromDecision, entryFromLog, type ThreadEntry } from '@/brain/thread';
-import { createRunFeed } from '@/game/runFeed';
+import { createRunFeed, type RunFeed } from '@/game/runFeed';
 import { STATE_POST_MS } from './protocol';
 import { reportFinal, reportState, type RaceSeat, type StateReport } from './report';
 
@@ -26,11 +26,14 @@ export interface JevRunOptions {
   readonly who?: string;
   /** Live Arena: the brain that drives this bot instead of Jev through /api/decide. */
   readonly brain?: Brain;
+  /** A feed to draw the run from (a phone watching its own picked agent); absent = a private one. */
+  readonly feed?: RunFeed;
 }
 
 /** Starts the bot now. Returns a stop function. */
-export function startJevRun({ code, raceNo, seat, mission, seed, build, briefing, priority = 0.5, onDecision, who = 'JEV', brain }: JevRunOptions): () => void {
-  const feed = createRunFeed();
+export function startJevRun({ code, raceNo, seat, mission, seed, build, briefing, priority = 0.5, onDecision, who = 'JEV', brain, feed: given }: JevRunOptions): () => void {
+  const feed = given ?? createRunFeed();
+  feed.reset();
   let stopped = false;
   // What the results screen says about this brain: how fast it answered and what its waiting cost.
   const answered: number[] = [];

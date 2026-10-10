@@ -1,7 +1,7 @@
 'use client';
 
 import type { GhostTrace } from '@rivetrun/contracts';
-import { compileTrack, MISSIONS } from '@rivetrun/sim';
+import { compileTrack, heuristicBrain, MISSIONS } from '@rivetrun/sim';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -10,10 +10,12 @@ import { createDriveInput } from '@/game/drive/driveInput';
 import { useRunHaptics } from '@/game/drive/haptics';
 import { RunAlerts } from '@/game/hud/RunHud';
 import RunCanvas from '@/game/RunCanvas';
+import { createClientBrain } from '@/brain/clientBrain';
 import { AppHeader } from '@/ui/AppHeader';
 import { createRunFeed, useRunView } from '@/game/runFeed';
 import { startHumanRun } from '../_lib/humanRun';
-import { duelVerdict, formatRaceTime, penaltyNote, rankPlayers, resultShort, type RacePlayer, type RaceSnapshot } from '../_lib/protocol';
+import { startJevRun } from '../_lib/jevRun';
+import { ARENA_DECIDE_TIMEOUT_MS, duelVerdict, formatRaceTime, penaltyNote, rankPlayers, resultShort, type RacePlayer, type RaceSnapshot } from '../_lib/protocol';
 import { Ranking } from '../_lib/Ranking';
 import type { RaceSeat } from '../_lib/report';
 
@@ -32,6 +34,9 @@ interface RaceRunProps {
 const LATE_START_MS = 1500;
 /** The reload note stays up for the first metres of the restarted run. */
 const RESTART_NOTE_M = 6;
+
+/** The arena id of Jev: a picked Jev drives through /api/decide like every JEV bot. */
+const JEV_AGENT = 'jev-1.13.0';
 
 /** Drives this phone's run: starts driveController on the start signal and reports at 5 Hz. */
 function useDrive(snapshot: RaceSnapshot, seat: RaceSeat, me: RacePlayer, clockOffsetMs: number) {
@@ -59,7 +64,15 @@ function useDrive(snapshot: RaceSnapshot, seat: RaceSeat, me: RacePlayer, clockO
     setLateByS(waitMs < -LATE_START_MS ? Math.round(-waitMs / 1000) : null);
     const timer = setTimeout(
       () => {
-        stop = startHumanRun({ code, raceNo, seat, mission: MISSIONS[missionId], seed, build, feed, drive });
+        // A player who picked an AI agent on /play (kind 'jev'): this phone runs that agent's robot and watches it.
+        stop =
+          me.kind === 'jev'
+            ? startJevRun({
+                code, raceNo, seat, mission: MISSIONS[missionId], seed, build, feed, briefing: me.briefing, priority: me.priority, who: me.nickname,
+                // Jev goes through /api/decide; any other model through the arena route, with the same briefing.
+                ...(me.model && me.model !== JEV_AGENT ? { brain: me.model === 'heuristic' ? heuristicBrain : createClientBrain({ url: `/api/arena/decide?model=${encodeURIComponent(me.model)}`, timeoutMs: ARENA_DECIDE_TIMEOUT_MS, briefing: me.briefing }) } : {}),
+              })
+            : startHumanRun({ code, raceNo, seat, mission: MISSIONS[missionId], seed, build, feed, drive });
       },
       Math.max(0, waitMs),
     );
@@ -135,7 +148,10 @@ export default function RaceRun({ snapshot, seat, me, now, clockOffsetMs }: Race
   const elapsedMs = snapshot.startAt === null ? 0 : Math.max(0, now - snapshot.startAt);
   const closesInS = snapshot.closesAt === null ? null : Math.max(0, Math.ceil((snapshot.closesAt - now) / 1000));
   const state = view.state;
-  const driving = racing && !localDone && !official;
+  const agentDrives = me.kind === 'jev';
+  const running = racing && !localDone && !official;
+  // The pedals are for a human driver only; a picked agent's phone watches.
+  const driving = running && !agentDrives;
   useRunHaptics(feed, driving);
 
   return (
@@ -183,6 +199,14 @@ export default function RaceRun({ snapshot, seat, me, now, clockOffsetMs }: Race
         <div className="pointer-events-none absolute inset-x-0 top-[22%] z-[16] flex justify-center px-4">
           <p className="rr-mono rounded border border-[var(--rr-warn,#f5a524)] bg-black/80 px-3 py-2 text-center text-[11px] uppercase tracking-wider text-[var(--rr-warn,#f5a524)]">
             Page reloaded · back on the start line · the race clock kept running ({lateByS} s)
+          </p>
+        </div>
+      ) : null}
+
+      {running && agentDrives ? (
+        <div className="pointer-events-none absolute inset-x-0 bottom-6 z-10 flex justify-center px-4">
+          <p className="rr-mono rounded-lg border border-slate-line bg-black/80 px-3 py-2 text-center text-xs uppercase tracking-wider text-led">
+            {me.nickname} is driving your robot{me.plan ? ' · with the plan' : ''}
           </p>
         </div>
       ) : null}
