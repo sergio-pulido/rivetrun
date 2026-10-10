@@ -595,7 +595,8 @@
     "Each question tells the brain which option the fixed rules rate as correct. These tables measure whether a model follows that under its real latency.",
     "The \"facts\" numbers of a row are the same missions and seeds with a question that states no verdict: the same state, options and predicted numbers, and what a missed scan or an empty battery costs.",
     "No fallback for anyone: an answer that is late or missing leaves the robot on its last command.",
-    "Claude Haiku 5.5 (gameplay 3, 24 runs), Claude Sonnet 5.5 (gameplay 3, 24 runs), Claude Opus 5.5 (reasoning) (gameplay 3, 7 runs): carried over from an earlier version of the game because the provider could not be called again; not comparable with the rows run on gameplay 4."
+    "Claude Haiku 5.5 (gameplay 3, 24 runs), Claude Sonnet 5.5 (gameplay 3, 24 runs), Claude Opus 5.5 (reasoning) (gameplay 3, 7 runs): carried over from an earlier version of the game because the provider could not be called again; not comparable with the rows run on gameplay 4.",
+    "M8's scan zone moved 2 m after these runs (e06a3c5); the fixed rules' M8 score moved by 2 points."
   ],
   "lab": {
     "date": "2026-10-10",

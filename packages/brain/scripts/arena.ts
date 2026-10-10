@@ -189,6 +189,8 @@ const FACTS_FIELDS = ['runs', 'seeds', 'finishPct', 'meanScore', 'meanTimeS', 'm
 type FactsRow = Partial<Pick<Row, (typeof FACTS_FIELDS)[number]>>;
 type RowWithFacts = Row & { facts?: FactsRow };
 
+const M8_NOTE = "M8's scan zone moved 2 m after these runs (e06a3c5); the fixed rules' M8 score moved by 2 points.";
+
 async function main(): Promise<void> {
   // --facts: ask the facts-only wording and file the numbers under each row's `facts`, next to the row's own.
   const factsRun = has('facts');
@@ -287,10 +289,13 @@ async function main(): Promise<void> {
   const promptHash = arenaPromptHash();
   const previousFile = existsSync(OUT_JSON) ? (JSON.parse(readFileSync(OUT_JSON, 'utf8')) as { lab?: unknown }) : {};
   const older = rows.filter((row) => row.gameplayVersion !== undefined && row.gameplayVersion !== GAMEPLAY_VERSION);
+  // Rows driven before e06a3c5 had M8's scan pad 2 m earlier; rows re-run since do not need the note.
+  const m8Stale = rows.some((row) => row.simCommit !== SIM_COMMIT);
   const notes = [
     VERDICT_NOTE,
     ...(rows.some((row) => (row as RowWithFacts).facts) ? ['The "facts" numbers of a row are the same missions and seeds with a question that states no verdict: the same state, options and predicted numbers, and what a missed scan or an empty battery costs.'] : []),
     'No fallback for anyone: an answer that is late or missing leaves the robot on its last command.',
+    ...(m8Stale ? [M8_NOTE] : []),
     ...(older.length > 0 ? [`${older.map((row) => `${row.label} (gameplay ${row.gameplayVersion}, ${row.runs} runs)`).join(', ')}: carried over from an earlier version of the game because the provider could not be called again; not comparable with the rows run on gameplay ${GAMEPLAY_VERSION}.`] : []),
   ];
   const results = {
@@ -342,6 +347,7 @@ async function main(): Promise<void> {
     ),
     ...notOk.map((c) => `| ${c.tier} | ${c.label} (\`${c.id}\`) | ${c.status === 'not_configured' ? 'not configured' : 'not run'}: ${publicReason(c.reason)} | | | | | | | | | | |`),
     '',
+    ...(rows.some((row) => row.simCommit !== SIM_COMMIT) ? [`- ${M8_NOTE}`] : []),
     '- Late crashes: the robot hit something, got blocked or fell while its previous answer had not arrived yet. "—" = that row was run before this rule and has not been re-counted.',
     ...notes.filter((note) => /carried over/.test(note)).map((note) => `- ${note}`),
     commits.length > 1
