@@ -138,8 +138,9 @@ const EMPTY: Readonly<Record<Track, { readonly title: string; readonly text: str
   lab: { title: 'No Lab Missions results yet', text: 'The same brains on the grid scenarios appear here once that track has run. Nothing is shown until there are real runs to show.' },
 };
 
-/** What a reader needs to know about capture the flag when the runner's own notes do not say it. */
-const CTF_NOTE = 'Capture the flag is a race against a rival robot: a brain that answers too slowly loses the flag and scores 0 on it.';
+/** What a reader needs to know about capture the flag when the runner's own notes do not say it. The rival's response time is the lab package's. */
+const ctfNote = (rivalMs: number | null): string =>
+  `Capture the flag is a race against a rival robot${rivalMs === null ? '' : ` that answers in ${rivalMs} ms`}: a brain that answers more slowly loses the flag and scores 0 on it.`;
 
 function Scenarios({ section }: { readonly section: ArenaSection }) {
   const table = scenarioTable(section);
@@ -184,10 +185,10 @@ function Scenarios({ section }: { readonly section: ArenaSection }) {
   );
 }
 
-function Results({ section }: { readonly section: ArenaSection }) {
+function Results({ section, ctfRivalMs }: { readonly section: ArenaSection; readonly ctfRivalMs: number | null }) {
   const rows = arenaRows(section);
   // The runner's notes when the file carries them; otherwise the one thing the CTF column cannot be read without.
-  const notes = section.notes.length > 0 ? section.notes : section.scenarios.includes('ctf') ? [CTF_NOTE] : [];
+  const notes = section.notes.length > 0 ? section.notes : section.scenarios.includes('ctf') ? [ctfNote(ctfRivalMs)] : [];
   return (
     <>
       {section.scenarios.length > 0 ? (
@@ -227,7 +228,13 @@ function Results({ section }: { readonly section: ArenaSection }) {
  * the rail missions and Lab Missions (a grid simulation). Shows the brain session's results file; a track with
  * no results says so and shows no figures.
  */
-export function BrainArena({ arena }: { readonly arena: Arena | null }) {
+interface BrainArenaProps {
+  readonly arena: Arena | null;
+  /** How fast the capture-the-flag rival answers, from the lab package: for the note under the Lab Missions table. */
+  readonly ctfRivalMs?: number | null;
+}
+
+export function BrainArena({ arena, ctfRivalMs = null }: BrainArenaProps) {
   const [track, setTrack] = useState<Track>('rail');
   const section: ArenaSection | null = track === 'rail' ? arena : (arena?.lab ?? null);
   const hasResults = section !== null && section.contestants.length + section.notRun.length > 0;
@@ -263,7 +270,7 @@ export function BrainArena({ arena }: { readonly arena: Arena | null }) {
 
       <div role="tabpanel" className="flex flex-col gap-3.5">
         {hasResults ? (
-          <Results section={section} />
+          <Results section={section} ctfRivalMs={ctfRivalMs} />
         ) : (
           <div className="flex flex-col gap-1.5 rounded-xl border border-dashed border-line-3 px-3.5 py-5 text-center">
             <p className="font-display text-[15px] font-semibold">{EMPTY[track].title}</p>
