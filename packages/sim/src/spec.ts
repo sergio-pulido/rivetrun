@@ -59,6 +59,9 @@ export function buildIssues(build: Build): string[] {
   });
 }
 
+/** Size L: the 90 mm wheel, the largest in the real parts list (docs/MK2_BOM.md). */
+const WHEEL_L = { speed: 1.15, force: 0.87, massKg: 0.15, impact: 0.75, wading: 1.25, costEur: 10 } as const;
+
 /** Gameplay v2 tuning. Every factor is 1 at the stock setting, so untuned builds drive exactly as before. */
 export const BUILD_TUNING = {
   stockCells: 2,
@@ -68,7 +71,9 @@ export const BUILD_TUNING = {
   wheel: {
     60: { speed: 0.85, force: 1.18, massKg: -0.1, impact: 1.25, wading: 0.75, costEur: 0 },
     80: { speed: 1, force: 1, massKg: 0, impact: 1, wading: 1, costEur: 0 },
-    100: { speed: 1.15, force: 0.87, massKg: 0.15, impact: 0.75, wading: 1.25, costEur: 10 },
+    90: WHEEL_L,
+    /** Old value for L: builds saved before the BOM fixed the size at 90 mm drive exactly the same. */
+    100: WHEEL_L,
   },
   /** Gear step 1 (speed) … 5 (torque). */
   gearSpeed: [1.3, 1.15, 1, 0.87, 0.75],

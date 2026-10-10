@@ -75,8 +75,8 @@ export const BuildSchema = z.object({
   // Gameplay v2 tuning. All optional: absent reproduces the part's stock behaviour.
   /** Battery cells in series, 1S–4S. */
   batteryCells: z.number().int().min(1).max(4).optional(),
-  /** Wheel diameter: S / M / L. */
-  wheelSizeMm: z.union([z.literal(60), z.literal(80), z.literal(100)]).optional(),
+  /** Wheel diameter: S 60 / M 80 / L 90 (the largest real wheel in docs/MK2_BOM.md). 100 is the old value for L, still accepted from saved builds. */
+  wheelSizeMm: z.union([z.literal(60), z.literal(80), z.literal(90), z.literal(100)]).optional(),
   /** Gearing, 1 = speed … 5 = torque. */
   gearStep: z.number().int().min(1).max(5).optional(),
 });
