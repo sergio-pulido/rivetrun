@@ -63,6 +63,7 @@ print('PASS',len(manifest['props']),'meshopt props:',triangles,'triangles;',size
 
 review=json.loads((HERE/"review.json").read_text())
 import hashlib
-for file,sha in review["activeSha256"].items():assert hashlib.sha256((ROOT/"apps/web/public/env/m7"/file).read_bytes()).hexdigest()==sha
-assert hashlib.sha256((ROOT/"docs/inputs/m7-env.json").read_bytes()).hexdigest()==review["activeManifestSha256"]
-print("PASS active delivery unchanged; candidate awaits Sergio.")
+expected=review["candidateSha256"] if review["status"]=="approved_and_applied" else review["activeSha256"]
+for file,sha in expected.items():assert hashlib.sha256((ROOT/"apps/web/public/env/m7"/file).read_bytes()).hexdigest()==sha
+assert hashlib.sha256((ROOT/"docs/inputs/m7-env.json").read_bytes()).hexdigest()==review.get("publishedManifestSha256",review["activeManifestSha256"])
+print("PASS active delivery matches the approved complete set." if review["status"]=="approved_and_applied" else "PASS active delivery unchanged; candidate awaits Sergio.")

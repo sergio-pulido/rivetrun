@@ -10,7 +10,8 @@ for layer in manifest['layers']:
  with Image.open(path) as image:
   assert image.size==(4096,1024) and image.convert('RGBA').getchannel('A').getextrema()==(0,255)
  assert layer['horizonFromTop']==.4 and layer['cameraDepressionDegrees']==15
-print('PASS three transparent 4096×1024 parallax layers, each ≤600 KB.')
+assert sum(p['sizeBytes'] for p in manifest['layers'])<=600000
+print('PASS three transparent 4096×1024 parallax layers, ≤600 KB total.')
 if '--layers-only' in sys.argv:sys.exit(0)
 expected={'cracked_slab_01','cracked_slab_02','cracked_slab_03','slab_rebar','rubble_pile_01','rubble_pile_02','collapsed_wall','crash_barrier','warning_tape_posts','emergency_tripod_light','rescue_beacon'}
 assert {p['id'] for p in manifest['props']}==expected
@@ -55,5 +56,5 @@ for entry in manifest['props']:
  assert all(abs(box[i][1]-box[i][0]-entry['envelopeM'][i])<.01 for i in range(3)),(entry['id'],'envelope',box)
  assert entry['upAxis']=='+Y' and entry['units']=='metres' and entry['suggestedScale']==1
 triangles=sum(p['triangles'] for p in manifest['props']);size=sum(p['sizeBytes'] for p in manifest['props'])
-assert triangles<=30000 and size<=2000000
+assert triangles<=15000 and size<=1200000
 print('PASS',len(manifest['props']),'meshopt props:',triangles,'triangles;',size,'bytes; +Y up, metre bounds, origin at base-centre.')

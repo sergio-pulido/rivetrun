@@ -1,3 +1,7 @@
+## Approved variation pass
+
+The complete variation from ea99147 / 6623f24 / e91bc07 is now active. Current editable scenes are `m7_city_layers.blend` and `m7_props.blend`; the matching generators and validation commands are documented in `variation/README.md`. The previous generators below describe the original delivery. Budgets: 449,822 bytes for all backdrop layers, 1,061,800 bytes and 13,302 triangles for all props. No further M7 art is planned before the freeze.
+
 # M7 — Earthquake Rescue environment
 
 Author: sergio.pulido@alodai.com. Original Blender scenery and generic props, with no people, lettering or logos. These assets do not alter the vehicle, track geometry, simulation, Jev or Room Race.

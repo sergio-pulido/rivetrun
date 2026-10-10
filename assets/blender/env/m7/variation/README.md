@@ -2,7 +2,7 @@
 
 Author: sergio.pulido@alodai.com. Prepared 2026-10-10 before the 13:30 Europe/Madrid cutoff.
 
-**Pending Sergio's visual approval. The active M7 delivery is unchanged.** M9 was closed with pushed commit 82287aa and is outside this pass.
+**Approved by Sergio and applied as one complete set.** M9 was closed with pushed commit 82287aa and is outside this pass.
 
 ## Review
 
@@ -27,7 +27,7 @@ Budgets measured from the final files:
 
 `review.json` records active and candidate SHA-256 hashes. `skyline_inventory.json` records the seeded skyline heights, silhouette styles and damage flags; the two landmark towers are additional.
 
-## Verify before approval
+## Verify the approved delivery
 
 From the repository root:
 
@@ -36,6 +36,6 @@ From the repository root:
 node assets/blender/env/m7/variation/verify_meshopt.mjs
 ```
 
-The Python check verifies the stricter total budgets, transparent layer dimensions, GLB axes/base origins, runtime compatibility and that active files remain unchanged. The Node check decodes every meshopt primitive locally, checks finite positions/normals and valid indices, and verifies embedded textures. Both commands passed.
+The Python check verifies the stricter total budgets, transparent layer dimensions, GLB axes/base origins, runtime compatibility and that active files exactly match the approved set. The Node check decodes every meshopt primitive locally, checks finite positions/normals and valid indices, and verifies embedded textures. Both commands passed.
 
 No vehicle, game code, simulation, printing, M9 or other sessions' files were changed. No Draco, CDN decoder, figures or logos.

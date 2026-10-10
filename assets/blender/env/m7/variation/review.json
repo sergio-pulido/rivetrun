@@ -1,5 +1,5 @@
 {
-  "status": "complete_candidate_pending_Sergio_approval",
+  "status": "approved_and_applied",
   "author": "sergio.pulido@alodai.com",
   "compression": "meshopt",
   "webpQuality": 94,
@@ -54,5 +54,8 @@
     "props/emergency_tripod_light.glb": "39284dfaef833d8c264b77865470bd5dbefcc93a2485a8adbc8adc7e6bb4ff0b",
     "props/rescue_beacon.glb": "41d096a97e89377d7195113cd5f9cb576d5e5009b8694f4bde115d4de521ff45"
   },
-  "activeManifestSha256": "5c12c2ca7bddf50c919158c911d76a4d514615a668bc399d9b3a3b9000d8aa36"
+  "activeManifestSha256": "5c12c2ca7bddf50c919158c911d76a4d514615a668bc399d9b3a3b9000d8aa36",
+  "approval": "Human approved the full set from ea99147 / 6623f24 / e91bc07.",
+  "seamAdjustment": "Not applied: the y\u2248490 boundary belongs to the review composite, not the transparent runtime layers. Shipping the exact approved assets.",
+  "publishedManifestSha256": "a3551bccc6e55f3486ea45f0c837d6cf6c62f51093f295f55d9c50796f38eb6c"
 }
