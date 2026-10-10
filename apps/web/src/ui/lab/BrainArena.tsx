@@ -36,9 +36,9 @@ function Table({ arena }: { readonly arena: Arena }) {
               <th scope="row" className="sticky left-0 max-w-[150px] bg-panel py-2 pr-3 text-left font-normal">
                 <span className="flex items-center gap-1.5">
                   <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: row.configured ? DOT[row.kind] : 'transparent', border: row.configured ? undefined : '1px dashed var(--color-line-3)' }} />
-                  <span className={`truncate font-display text-[13px] font-semibold ${row.configured ? 'text-text' : ''}`}>{row.label}</span>
+                  <span className={`font-display text-[13px] font-semibold ${row.configured ? 'truncate text-text' : 'leading-tight'}`}>{row.label}</span>
                 </span>
-                <span className="block truncate pl-3.5 text-[10px] text-muted">{row.detail}</span>
+                <span className={`block pl-3.5 text-[10px] text-muted ${row.configured ? 'truncate' : 'whitespace-normal leading-tight'}`}>{row.detail}</span>
               </th>
               {[row.finish, row.score, row.decisions, row.p50, row.p95, row.lateCrashes, row.cost].map((cell, index) => (
                 <td key={COLUMNS[index]} className="whitespace-nowrap px-2 py-2">
@@ -83,19 +83,26 @@ function Scatter({ arena }: { readonly arena: Arena }) {
             ↑ MEAN SCORE
           </text>
         </g>
-        {plot.points.map((point) => {
-          // Labels turn inwards near the right edge so they stay inside the plot.
-          const flip = point.x > (padding + right) / 2;
-          return (
-            <g key={point.id}>
-              <circle cx={point.x} cy={point.y} r="5" fill={DOT[point.kind]} stroke="var(--color-ground)" strokeWidth="1.5" />
-              <text x={point.x + (flip ? -9 : 9)} y={point.y + 3.5} textAnchor={flip ? 'end' : 'start'} fontFamily="var(--font-sans)" fontSize="10" fill="var(--color-text-2)">
-                {point.label}
-              </text>
-            </g>
-          );
-        })}
+        {/* Numbered rather than named on the plot: brains that score alike sit too close for names to stay readable. */}
+        {plot.points.map((point, index) => (
+          <g key={point.id}>
+            <circle cx={point.x} cy={point.y} r="8" fill={DOT[point.kind]} stroke="var(--color-ground)" strokeWidth="1.5" />
+            <text x={point.x} y={point.y + 3.5} textAnchor="middle" fontFamily="var(--font-mono)" fontSize="10" fontWeight="600" fill="var(--color-ground)">
+              {index + 1}
+            </text>
+          </g>
+        ))}
       </svg>
+      <ol className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] leading-snug text-text-2">
+        {plot.points.map((point, index) => (
+          <li key={point.id} className="flex items-center gap-1.5">
+            <span className="grid h-4 w-4 place-items-center rounded-full font-mono text-[10px] font-semibold text-ground" style={{ background: DOT[point.kind] }}>
+              {index + 1}
+            </span>
+            {point.label}
+          </li>
+        ))}
+      </ol>
       <p className="text-[11px] leading-snug text-muted">Up and to the left is better: a higher score from a faster answer.</p>
     </figure>
   );
@@ -115,7 +122,7 @@ export function BrainArena({ arena }: { readonly arena: Arena | null }) {
         <p className="text-[13px] leading-snug text-text-2">Same robot, same seed, same sensors, same question. Different brains. Their answers arrive with their real latency: the robot holds its last command until then.</p>
       </div>
 
-      {arena && arena.contestants.length > 0 ? (
+      {arena && arena.contestants.length + arena.notRun.length > 0 ? (
         <>
           <Table arena={arena} />
           <Scatter arena={arena} />

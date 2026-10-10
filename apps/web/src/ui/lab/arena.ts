@@ -24,6 +24,9 @@ const ContestantSchema = z.object({
   lateCrashes: z.number().int().min(0).nullish(),
   /** Only when a price is configured: providers report tokens, not money. */
   costPerRunUsd: z.number().min(0).nullish(),
+  /** Tokens per run, as the provider reported them. */
+  inputTokens: z.number().min(0).nullish(),
+  outputTokens: z.number().min(0).nullish(),
 });
 export type Contestant = z.infer<typeof ContestantSchema>;
 
@@ -32,13 +35,19 @@ const FileSchema = z.object({
   runs: z.number().int().min(0),
   promptHash: z.string().nullish(),
   contestants: z.array(z.unknown()),
+  /** Brains that are set up but were not run, with the reason. */
+  notRun: z.array(z.unknown()).nullish(),
 });
+
+const NotRunSchema = z.object({ id: z.string().min(1), label: z.string().min(1), reason: z.string().min(1) });
+export type NotRun = z.infer<typeof NotRunSchema>;
 
 export interface Arena {
   readonly date: string;
   readonly runs: number;
   readonly promptHash: string | null;
   readonly contestants: readonly Contestant[];
+  readonly notRun: readonly NotRun[];
 }
 
 /** The results file as the page uses it, or null when there is none to use. A malformed contestant is skipped. */
@@ -49,7 +58,11 @@ export function parseArena(raw: unknown): Arena | null {
     const parsed = ContestantSchema.safeParse(entry);
     return parsed.success ? [parsed.data] : [];
   });
-  return { date: file.data.date, runs: file.data.runs, promptHash: file.data.promptHash ?? null, contestants };
+  const notRun = (file.data.notRun ?? []).flatMap((entry) => {
+    const parsed = NotRunSchema.safeParse(entry);
+    return parsed.success ? [parsed.data] : [];
+  });
+  return { date: file.data.date, runs: file.data.runs, promptHash: file.data.promptHash ?? null, contestants, notRun };
 }
 
 export interface ArenaRow {
@@ -57,7 +70,7 @@ export interface ArenaRow {
   readonly label: string;
   readonly kind: ContestantKind;
   readonly configured: boolean;
-  /** Model id and run count, or "not configured". */
+  /** Model id and run count, or why there are no figures: "not configured", "not run: …". */
   readonly detail: string;
   readonly finish: string;
   readonly score: string;
@@ -75,27 +88,37 @@ const latency = (ms: number): string => (ms < 1000 ? `${Math.round(ms)} ms` : `$
 /** Cents per run are fractions of a cent: keep the digits that matter. */
 const dollars = (usd: number): string => (usd === 0 ? '$0' : `$${usd < 0.01 ? usd.toFixed(4) : usd.toFixed(2)}`);
 
-/** One table row per contestant, every figure as text. */
+/** 35732 → "35.7k". */
+const thousands = (count: number): string => (count < 1000 ? `${Math.round(count)}` : `${(count / 1000).toFixed(1)}k`);
+
+const NO_FIGURES = { finish: MISSING, score: MISSING, decisions: MISSING, p50: MISSING, p95: MISSING, lateCrashes: MISSING, cost: MISSING } as const;
+
+/** One table row per contestant, every figure as text; then the brains that were not run, with the reason. */
 export function arenaRows(arena: Arena): readonly ArenaRow[] {
-  return arena.contestants.map((entry) => {
-    const configured = entry.status === 'ok';
-    const of = <T,>(value: T | null | undefined): T | null => (configured ? (value ?? null) : null);
-    const runs = of(entry.runs);
+  const measured = arena.contestants.map((entry): ArenaRow => {
+    if (entry.status !== 'ok') return { id: entry.id, label: entry.label, kind: entry.kind, configured: false, detail: 'not configured', ...NO_FIGURES };
+    const runs = entry.runs ?? null;
+    // A model id that only repeats the name adds nothing.
+    const model = entry.modelId && entry.modelId.toLowerCase() !== entry.label.toLowerCase() ? entry.modelId : null;
+    const tokens = typeof entry.inputTokens === 'number' && typeof entry.outputTokens === 'number' ? entry.inputTokens + entry.outputTokens : null;
     return {
       id: entry.id,
       label: entry.label,
       kind: entry.kind,
-      configured,
-      detail: configured ? [entry.modelId, runs === null ? null : `${runs} ${runs === 1 ? 'run' : 'runs'}`].filter(Boolean).join(' · ') : 'not configured',
-      finish: shown(of(entry.finishPct), (value) => `${Math.round(value)}%`),
-      score: shown(of(entry.meanScore), (value) => `${Math.round(value)}`),
-      decisions: shown(of(entry.decisionsPerRun), (value) => value.toFixed(1)),
-      p50: shown(of(entry.latencyP50Ms), latency),
-      p95: shown(of(entry.latencyP95Ms), latency),
-      lateCrashes: shown(of(entry.lateCrashes), (value) => `${value}`),
-      cost: shown(of(entry.costPerRunUsd), dollars),
+      configured: true,
+      detail: [model, runs === null ? null : `${runs} ${runs === 1 ? 'run' : 'runs'}`].filter(Boolean).join(' · '),
+      finish: shown(entry.finishPct, (value) => `${Math.round(value)}%`),
+      score: shown(entry.meanScore, (value) => `${Math.round(value)}`),
+      decisions: shown(entry.decisionsPerRun, (value) => value.toFixed(1)),
+      p50: shown(entry.latencyP50Ms, latency),
+      p95: shown(entry.latencyP95Ms, latency),
+      lateCrashes: shown(entry.lateCrashes, (value) => `${value}`),
+      // No price configured: the tokens the provider reported stand in, labelled as tokens, never turned into money.
+      cost: typeof entry.costPerRunUsd === 'number' ? dollars(entry.costPerRunUsd) : tokens === null ? MISSING : `${thousands(tokens)} tok`,
     };
   });
+  const held = arena.notRun.filter((entry) => !arena.contestants.some((contestant) => contestant.id === entry.id)).map((entry): ArenaRow => ({ id: entry.id, label: entry.label, kind: 'llm', configured: false, detail: `not run: ${entry.reason}`, ...NO_FIGURES }));
+  return [...measured, ...held];
 }
 
 export interface PlotBox {

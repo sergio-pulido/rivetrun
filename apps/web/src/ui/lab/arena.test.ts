@@ -9,7 +9,7 @@ const FILE = {
   contestants: [
     { id: 'jev', label: 'Jev', kind: 'jev', status: 'ok', runs: 21, finishPct: 90.5, meanScore: 780.4, decisionsPerRun: 9.42, latencyP50Ms: 340, latencyP95Ms: 1280, lateCrashes: 1 },
     { id: 'heuristic', label: 'Heuristic', kind: 'heuristic', status: 'ok', runs: 21, finishPct: 71, meanScore: 640, decisionsPerRun: 9, latencyP50Ms: 0, latencyP95Ms: 0, lateCrashes: 0, costPerRunUsd: 0 },
-    { id: 'claude-haiku-5-5', label: 'Claude Haiku 5.5', kind: 'llm', status: 'ok', modelId: 'claude-haiku-5-5', runs: 21, finishPct: 86, meanScore: 712, decisionsPerRun: 9.4, latencyP50Ms: 410, latencyP95Ms: 2400, lateCrashes: 2, costPerRunUsd: 0.0031 },
+    { id: 'claude-haiku-5-5', label: 'Claude Haiku 5.5', kind: 'llm', status: 'ok', modelId: 'Claude Haiku 5.5', runs: 21, finishPct: 86, meanScore: 712, decisionsPerRun: 9.4, latencyP50Ms: 410, latencyP95Ms: 2400, lateCrashes: 2, costPerRunUsd: 0.0031 },
     { id: 'claude-opus-5-5', label: 'Claude Opus 5.5', kind: 'llm', status: 'not_configured' },
   ],
 };
@@ -39,11 +39,32 @@ describe('arenaRows', () => {
   it('formats every figure, and never shows a missing one as zero', () => {
     expect(rows[0]).toMatchObject({ label: 'Jev', finish: '91%', score: '780', decisions: '9.4', p50: '340 ms', p95: '1.28 s', lateCrashes: '1', cost: '—', configured: true });
     expect(rows[1]).toMatchObject({ p50: '0 ms', lateCrashes: '0', cost: '$0' });
-    expect(rows[2]).toMatchObject({ p95: '2.40 s', cost: '$0.0031', detail: 'claude-haiku-5-5 · 21 runs' });
+    expect(rows[2]).toMatchObject({ p95: '2.40 s', cost: '$0.0031', detail: '21 runs' });
   });
 
   it('shows a brain with no key as not configured, with no figures', () => {
     expect(rows[3]).toMatchObject({ label: 'Claude Opus 5.5', configured: false, finish: '—', score: '—', p50: '—', cost: '—', detail: 'not configured' });
+  });
+});
+
+describe('rows without a price or without runs', () => {
+  it('shows reported tokens where no price is configured, as tokens', () => {
+    const arena = parseArena({ ...FILE, contestants: [{ id: 'claude-sonnet-5-5', label: 'Claude Sonnet 5.5', kind: 'llm', status: 'ok', modelId: 'claude-sonnet-5-5', runs: 24, inputTokens: 31381, outputTokens: 354 }] })!;
+    expect(arenaRows(arena)[0]).toMatchObject({ cost: '31.7k tok', detail: 'claude-sonnet-5-5 · 24 runs', finish: '—' });
+  });
+
+  it('lists a brain that was set up but not run, with the reason and no figures', () => {
+    const arena = parseArena({ ...FILE, notRun: [{ id: 'claude-opus-5-5-r', label: 'Claude Opus 5.5 (reasoning)', reason: 'held until the cost of the row is approved' }, { id: 'jev', label: 'Jev', reason: 'already a contestant' }] })!;
+    const rows = arenaRows(arena);
+    expect(rows).toHaveLength(5);
+    expect(rows[4]).toMatchObject({ label: 'Claude Opus 5.5 (reasoning)', configured: false, detail: 'not run: held until the cost of the row is approved', score: '—', cost: '—' });
+  });
+
+  it('reads the results file that is in the repo', async () => {
+    const { arenaResults } = await import('./arenaData');
+    const real = arenaResults();
+    // The file is the brain session's; when it is there it must parse and every row must have a name.
+    if (real) expect(arenaRows(real).every((row) => row.label.length > 0)).toBe(true);
   });
 });
 
