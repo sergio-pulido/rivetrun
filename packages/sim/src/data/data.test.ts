@@ -45,7 +45,8 @@ describe('sim data (v0) matches contracts', () => {
     }
     expect(MISSIONS.M4.weather).toBe('cold');
     expect(MISSIONS.M5.weather).toBe('rain');
-    expect(new Set(MISSIONS.M5.track.segments.map((s) => s.terrain)).size).toBe(TerrainIdSchema.options.length);
+    // Every terrain except snow, which belongs to the weather missions.
+    expect(new Set(MISSIONS.M5.track.segments.map((s) => s.terrain)).size).toBe(TerrainIdSchema.options.length - 1);
   });
 
   it('keeps the spec constants', () => {

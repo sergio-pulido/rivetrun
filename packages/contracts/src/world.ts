@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-export const TerrainIdSchema = z.enum(['asphalt', 'grass', 'sand', 'mud', 'ice', 'water', 'rock']);
+export const TerrainIdSchema = z.enum(['asphalt', 'grass', 'sand', 'mud', 'ice', 'water', 'rock', 'snow']);
 export type TerrainId = z.infer<typeof TerrainIdSchema>;
 
 export const TerrainSchema = z.object({

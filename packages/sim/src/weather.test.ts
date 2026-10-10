@@ -89,3 +89,28 @@ describe('weather: visibility', () => {
     if (seenAt(day) !== undefined && seenAt(night) !== undefined) expect(seenAt(night)!).toBeGreaterThan(seenAt(day)!);
   });
 });
+
+describe('weather: snow', () => {
+  const strip = (terrain: 'asphalt' | 'snow' | 'ice'): Mission => ({ ...MISSIONS.M1, scanZones: [], track: { segments: [{ terrain, lengthM: 30, slopeDeg: 0 }] } });
+
+  it('snow is slower and hungrier than asphalt (the robot sinks in) and grips better than ice', async () => {
+    const road = await outcome(strip('asphalt'), allRounder);
+    const snow = await outcome(strip('snow'), allRounder);
+    expect(snow.finished).toBe(true);
+    expect(snow.energyUsedPct).toBeGreaterThan(road.energyUsedPct * 1.5);
+    const stopOn = (terrain: 'snow' | 'ice'): number => {
+      let state = createRun({ mission: strip(terrain), seed: 1, build: allRounder, priority: 0.5, manual: true });
+      for (let i = 0; i < 2000 && state.sim.x < 10; i += 1) state = step(state, 'climb_mode');
+      const from = state.sim.x;
+      for (let i = 0; i < 2000 && state.sim.v > 1e-3; i += 1) state = step(state, 'brake');
+      return state.sim.x - from;
+    };
+    expect(stopOn('snow')).toBeLessThan(stopOn('ice'));
+  });
+
+  it('narrow road wheels bog down on a snowy slope that tracks climb', async () => {
+    const hill: Mission = { ...MISSIONS.M1, scanZones: [], track: { segments: [{ terrain: 'asphalt', lengthM: 5, slopeDeg: 0 }, { terrain: 'snow', lengthM: 15, slopeDeg: 10 }] } };
+    expect((await outcome(hill, speedster)).finished).toBe(false);
+    expect((await outcome(hill, PRESETS.mud_crawler.build)).finished).toBe(true);
+  });
+});

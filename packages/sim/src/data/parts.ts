@@ -7,17 +7,17 @@ export const PARTS: readonly Part[] = [
   {
     id: 'wheels', name: 'Wheels', slot: 'locomotion', blurb: 'Light and fast on hard ground.',
     massKg: 0.4, costEur: 20, powerW: 0, unlockPoints: 0,
-    effects: { grip: { asphalt: 1.1, ice: 0.6, mud: 0.7, sand: 0.8 }, sinkageFactor: 1.2, maxSlopeDeg: 18, maxWadingDepthCm: 20 },
+    effects: { grip: { asphalt: 1.1, ice: 0.6, mud: 0.7, sand: 0.8, snow: 0.7 }, sinkageFactor: 1.2, maxSlopeDeg: 18, maxWadingDepthCm: 20 },
   },
   {
     id: 'offroad_wheels', name: 'Off-road wheels', slot: 'locomotion', blurb: 'Knobbly tyres: grip on loose ground.',
     massKg: 0.7, costEur: 45, powerW: 0, unlockPoints: 0,
-    effects: { grip: { grass: 1.2, sand: 1.2, mud: 1.1, rock: 1.2, ice: 0.8 }, sinkageFactor: 0.9, maxSlopeDeg: 24, maxWadingDepthCm: 35, clearanceFactor: 1.25 },
+    effects: { grip: { grass: 1.2, sand: 1.2, mud: 1.1, rock: 1.2, ice: 0.8, snow: 1.2 }, sinkageFactor: 0.9, maxSlopeDeg: 24, maxWadingDepthCm: 35, clearanceFactor: 1.25 },
   },
   {
     id: 'tracks', name: 'Tracks', slot: 'locomotion', blurb: 'Slow, heavy, almost never slips or sinks.',
     massKg: 1.3, costEur: 80, powerW: 2, unlockPoints: 0,
-    effects: { grip: { asphalt: 0.9, sand: 1.4, mud: 1.6, ice: 1.8, water: 1.2, rock: 1.1 }, sinkageFactor: 0.4, maxSlopeDeg: 32, roughGroundFactor: 0.35, maxWadingDepthCm: 45, clearanceFactor: 1.5 },
+    effects: { grip: { asphalt: 0.9, sand: 1.4, mud: 1.6, ice: 1.8, water: 1.2, rock: 1.1, snow: 1.6 }, sinkageFactor: 0.4, maxSlopeDeg: 32, roughGroundFactor: 0.35, maxWadingDepthCm: 45, clearanceFactor: 1.5 },
   },
   // Motor (exactly 1)
   {

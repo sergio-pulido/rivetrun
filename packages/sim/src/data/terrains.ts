@@ -9,6 +9,8 @@ export const TERRAINS: Readonly<Record<TerrainId, Terrain>> = {
   ice: { id: 'ice', name: 'Ice', baseFriction: 0.15, rollingResistance: 0.01, sinkage: 0, impactRisk: 0.5, waterDamage: 0 },
   water: { id: 'water', name: 'Shallow water', baseFriction: 0.4, rollingResistance: 0.12, sinkage: 0.2, impactRisk: 0.1, waterDamage: 2 },
   rock: { id: 'rock', name: 'Rock', baseFriction: 0.7, rollingResistance: 0.12, sinkage: 0, impactRisk: 0.8, waterDamage: 0 },
+  // Fresh snow over a firm base: rubber grips about twice as well as on ice, and the robot sinks in.
+  snow: { id: 'snow', name: 'Snow', baseFriction: 0.3, rollingResistance: 0.1, sinkage: 0.4, impactRisk: 0.1, waterDamage: 0 },
 };
 
 export const TERRAIN_IDS = Object.keys(TERRAINS) as readonly TerrainId[];
