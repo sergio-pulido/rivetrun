@@ -15,6 +15,8 @@ export const LAB_TUNING = {
   fallDamagePct: 25,
   collisionS: 1.5,
   tagStunS: 2,
+  /** A robot that has just picked something up or taken it cannot be tagged for this long. */
+  tagGraceS: 2,
   pickS: 1,
   dropS: 0.5,
   scanS: 1.5,

@@ -138,16 +138,17 @@ export function senseTiles(state: LabState, agent: AgentState): SenseResult {
   return { agent: { ...agent, known, knownObjects: objects }, fresh };
 }
 
-function seenTraffic(state: LabState, agent: AgentState, id: string, cell: Cell): SeenMover | undefined {
+function seenTraffic(state: LabState, agent: AgentState, id: string, cell: Cell, next?: Cell): SeenMover | undefined {
   const seen = seeCell(state, agent, cell);
   const via = seen.label ?? seen.geometry;
-  return via === undefined || via === 'core' ? undefined : { id, cell, labelled: seen.label !== undefined, via };
+  return via === undefined || via === 'core' ? undefined : { id, cell, ...(next ? { next } : {}), labelled: seen.label !== undefined, via };
 }
 
 /** Movers and other robots in view right now. Cheap: run every step. */
 export function senseTraffic(state: LabState, agent: AgentState): AgentState {
-  const visibleMovers = state.movers.flatMap((mover) => seenTraffic(state, agent, mover.id, mover.route[mover.index]!) ?? []);
-  const visibleRivals = state.agents.flatMap((other) => (other.id === agent.id ? [] : (seenTraffic(state, agent, other.id, other.cell) ?? [])));
+  // A sensor that keeps something moving in view also knows which way it moves: its next tile.
+  const visibleMovers = state.movers.flatMap((mover) => seenTraffic(state, agent, mover.id, mover.route[mover.index]!, mover.route[(mover.index + 1) % mover.route.length]) ?? []);
+  const visibleRivals = state.agents.flatMap((other) => (other.id === agent.id || other.status !== 'running' ? [] : (seenTraffic(state, agent, other.id, other.cell, other.move?.to) ?? [])));
   return { ...agent, visibleMovers, visibleRivals };
 }
 

@@ -11,7 +11,7 @@ This is a grid simulation, and the UI says so. One tile is `scenario.tileM` metr
   safe contact speed (the bumper halves it); eco pace is the rail's steady throttle.
 - **Simplified**: movement is tile to tile at a steady speed (no acceleration); a ramp costs as a climb in both
   directions; a loaded motor is slower by up to 60 %; a fall or a collision puts the robot back on the tile it
-  came from; forklifts do not stop.
+  came from; a forklift turns back for a robot standing in its way and runs into one that drives in front of it.
 
 ## Fog of war = sensor coverage
 A robot's map holds only what its own sensors have reported (`sensing.ts`).
@@ -42,7 +42,28 @@ Between decisions the robot follows corridors round corners and follows planned 
 An answer takes effect after its latency; a brain that throws or names an option that was not on offer is a miss
 and the last command holds (no fallback inside the sim).
 
+## The five scenarios (`LAB_SCENARIOS`)
+| id | Objective | What decides it |
+|---|---|---|
+| `maze` | Reach the exit of an unmapped maze (only where the exit lies is known) | Sensing. Heuristic, same build: lidar 59 tiles, camera 71, ultrasonic 115; blind is wrecked on the walls, or gets out battered with a bumper |
+| `warehouse` | Deliver 3 parcels to their bays, one at a time, among 3 forklifts; 2 m tiles | Seeing the forklifts (lidar: no collision on any seed; camera looks ahead only) and the battery (the small pack runs flat) |
+| `mars` | Take 3 of 5 soil samples and return to the lander; a dust storm cuts camera range | The moisture probe (no probe, no sample), the battery on sand, craters a ranger cannot see |
+| `house` | Go into 4 rooms and scan 4 checkpoints | The camera (scanning needs it; only it sees the stairs) |
+| `ctf` | Two robots, one flag: first to bring it home | The driver: decision latency and route. Driving into the carrier takes the flag and stuns it for 2 s; a fresh carrier is safe for 2 s |
+
+`LAB_SCENARIO_IDS`, `LAB_DEFAULT_BUILDS[id]` (a build that completes it), `LAB_SEEDS = [1001, 1002, 1003]` (the seed
+moves forklifts and the storm, never the map), `LAB_PLAYER = 'you'`, `LAB_RIVAL = 'jev'`.
+
 ## API
+```ts
+import { runLabHeadless, LAB_DEFAULT_BUILDS, LAB_SEEDS } from '@rivetrun/lab';
+
+const { outcome, decisions, misses } = await runLabHeadless('maze', LAB_SEEDS[0], LAB_DEFAULT_BUILDS.maze, brain);
+```
+`runLabHeadless(scenarioId | scenario, seed, build, brain, { briefing?, rival?, maxDecisions?, frameEvery? })` drives the
+player's robot with `brain`. In a two-robot scenario the rival gets the same build and the heuristic answering in
+`LAB_RIVAL_LATENCY_MS` (400 ms) unless `rival` says otherwise. For several brains at once use `runLabEntries`:
+
 ```ts
 import { createLabDriver, runLabEntries, runLabSync, labHeuristicBrain, LabQuestionSchema, LabDecisionSchema } from '@rivetrun/lab';
 

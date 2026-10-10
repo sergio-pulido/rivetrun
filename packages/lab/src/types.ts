@@ -57,7 +57,7 @@ export interface LabZone {
   readonly cells: readonly number[];
 }
 
-/** Scripted traffic, e.g. a forklift. It does not stop for robots. */
+/** Scripted traffic, e.g. a forklift. It turns back for a robot standing in its way, and runs into one that drives in front of it. */
 export interface LabMoverDef {
   readonly id: string;
   readonly label: string;
@@ -137,8 +137,8 @@ export interface LabScenario {
   readonly carryLimit: number;
   /** each = every robot runs to its own end; first = the first robot to complete ends the run. */
   readonly ends: 'each' | 'first';
-  /** Bumping a robot that carries an item makes it drop the item and stuns it. */
-  readonly tagDrops: boolean;
+  /** Bumping a robot that carries an item takes the item from it (if there is room to carry it) and stuns it. */
+  readonly tagSteals: boolean;
   readonly maxS: number;
   readonly score: LabScoreWeights;
 }
@@ -170,6 +170,8 @@ export interface KnownObject {
 export interface SeenMover {
   readonly id: string;
   readonly cell: Cell;
+  /** The tile it is heading for, from tracking it. Absent for something standing still. */
+  readonly next?: Cell;
   /** False when only a ranger sees it: an obstacle that moves, nothing more. */
   readonly labelled: boolean;
   readonly via: SensorSource;
@@ -268,6 +270,8 @@ export interface AgentState {
   readonly visitedZones: readonly string[];
   /** Goal ids the robot has stood on. */
   readonly reached: readonly string[];
+  /** Sim time until which what it carries cannot be tagged away: it has only just picked it up or taken it. */
+  readonly safeUntilT: number;
   readonly memory: TriggerMemory;
   /** Set on the step in which something fired; cleared on the next. */
   readonly trigger?: LabTrigger;
@@ -301,7 +305,8 @@ export type LabEvent =
   | { readonly type: 'fell'; readonly t: number; readonly agentId: string; readonly at: Cell; readonly damagePct: number }
   | { readonly type: 'collision'; readonly t: number; readonly agentId: string; readonly moverId: string; readonly at: Cell; readonly damagePct: number }
   | { readonly type: 'blocked'; readonly t: number; readonly agentId: string; readonly at: Cell; readonly reason: string }
-  | { readonly type: 'picked' | 'delivered' | 'scanned' | 'dropped'; readonly t: number; readonly agentId: string; readonly objectId: string }
+  /** `taken`: tagged away from another robot. `dropped`: left on the tile by a robot that was tagged or is out. */
+  | { readonly type: 'picked' | 'delivered' | 'scanned' | 'dropped' | 'taken'; readonly t: number; readonly agentId: string; readonly objectId: string }
   | { readonly type: 'zone'; readonly t: number; readonly agentId: string; readonly zoneId: string }
   | { readonly type: 'weather'; readonly t: number; readonly label: string; readonly active: boolean }
   | { readonly type: 'ended'; readonly t: number; readonly agentId: string; readonly status: AgentStatus; readonly dnfReason?: LabDnfReason };

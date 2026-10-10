@@ -263,11 +263,11 @@ describe('traffic, weather and two robots', () => {
     expect(camera.events.find((e) => e.type === 'weather')).toMatchObject({ label: 'Dust storm', active: true });
   });
 
-  it('two robots, first to bring the flag home wins; a tag makes the carrier drop it', () => {
+  it('two robots, first to bring the flag home wins; a tag takes the flag from its carrier', () => {
     const rows = ['###########', '#A...F...B#', '###########'];
     const map = parseMap(rows, { defaultTerrain: 'asphalt' });
     const ctf: LabScenario = {
-      ...scenarioOf(['###########', '#S...F...B#', '###########']), planMap: true, ends: 'first', tagDrops: true,
+      ...scenarioOf(['###########', '#S...F...B#', '###########']), planMap: true, ends: 'first', tagSteals: true,
       agents: [{ id: 'you', label: 'You', start: markerCell(map, 'A'), heading: 'E' }, { id: 'jev', label: 'Jev', start: markerCell(map, 'B'), heading: 'W' }],
       objects: [
         { id: 'flag', kind: 'flag', label: 'the flag', at: markerCell(map, 'F'), destKind: 'home', inPlan: true },
@@ -287,11 +287,17 @@ describe('traffic, weather and two robots', () => {
     driver.command('jev', { type: 'goto', to: markerCell(map, 'F'), interact: 'flag' });
     while (driver.state.agents[1]!.carrying.length === 0 && driver.state.t < 20) driver.advance();
     expect(driver.state.objects.find((o) => o.id === 'flag')).toMatchObject({ status: 'carried', by: 'jev' });
-    driver.command('you', { type: 'goto', to: driver.state.agents[1]!.cell });
-    while (driver.state.agents[1]!.carrying.length > 0 && driver.state.t < 40) driver.advance();
-    expect(driver.state.objects.find((o) => o.id === 'flag')).toMatchObject({ status: 'idle', at: driver.state.agents[1]!.cell });
+    // Just picked up, the flag is safe for 2 s: the first bump is only a bump. The player keeps at it.
+    while (driver.state.agents[1]!.carrying.length > 0 && driver.state.t < 40) {
+      if (driver.state.agents[0]!.command.type === 'idle') driver.command('you', { type: 'goto', to: driver.state.agents[1]!.cell });
+      driver.advance();
+    }
+    expect(driver.result().events.filter((e) => e.type === 'bump' && e.agentId === 'you').length).toBeGreaterThanOrEqual(2);
+    expect(driver.state.objects.find((o) => o.id === 'flag')).toMatchObject({ status: 'carried', by: 'you' });
+    expect(driver.state.agents[0]!.carrying).toEqual(['flag']);
     expect(driver.state.agents[1]!.busy?.kind).toBe('stun');
-    expect(driver.state.agents[1]!.trigger).toMatchObject({ cause: 'tagged' });
+    expect(driver.state.agents[1]!.trigger).toMatchObject({ cause: 'tagged', label: 'CORE · tagged by You: lost the flag' });
+    expect(driver.result().events.find((e) => e.type === 'taken')).toMatchObject({ agentId: 'you', objectId: 'flag' });
   });
 
   it('ending early at the end point is a partial result, scored by the share done', () => {

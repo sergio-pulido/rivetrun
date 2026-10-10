@@ -91,18 +91,26 @@ function bumpRobot(d: Draft, agent: AgentState, rivalIndex: number, to: Cell): A
   const rival = d.agents[rivalIndex]!;
   const source = contactSource(agent);
   d.events.push({ type: 'bump', t: d.t, agentId: agent.id, at: to, into: 'robot', damagePct: 0, blind: isBlind(agent) });
-  if (d.base.scenario.tagDrops && rival.carrying.length > 0) {
-    // Tagged: the carrier drops what it holds on its own tile and is stunned.
-    d.objects = d.objects.map((o) => (rival.carrying.includes(o.id) ? { id: o.id, at: rival.cell, status: 'idle' } : o));
-    rival.carrying.forEach((objectId) => d.events.push({ type: 'dropped', t: d.t, agentId: rival.id, objectId }));
-    d.agents[rivalIndex] = fire(
-      { ...rival, carrying: [], move: undefined, command: IDLE, carryM: 0, busy: { kind: 'stun', untilT: d.t + LAB_TUNING.tagStunS } },
-      { kind: 'body', cause: 'tagged', source: contactSource(rival), label: `${SOURCE_LABEL[contactSource(rival)]} · tagged by ${agent.label}: dropped what it carried` },
-    );
+  const bumped = { ...agent, command: IDLE, carryM: 0, busy: { kind: 'bump' as const, untilT: d.t + LAB_TUNING.bumpS }, stats: { ...agent.stats, bumps: agent.stats.bumps + 1 } };
+  if (!d.base.scenario.tagSteals || rival.carrying.length === 0 || d.t < rival.safeUntilT) {
+    return fire(bumped, { kind: 'body', cause: 'bumped', source, label: `${SOURCE_LABEL[source]} · bumped into ${rival.label}` });
   }
+  // Tagged: the carrier is stunned and loses what it holds, to the tagger as far as the tagger can carry it.
+  const room = Math.max(0, d.base.scenario.carryLimit - agent.carrying.length);
+  const taken = rival.carrying.slice(0, room);
+  d.objects = d.objects.map((o) => {
+    if (!rival.carrying.includes(o.id)) return o;
+    return taken.includes(o.id) ? { id: o.id, at: agent.cell, status: 'carried', by: agent.id } : { id: o.id, at: rival.cell, status: 'idle' };
+  });
+  rival.carrying.forEach((objectId) => d.events.push({ type: taken.includes(objectId) ? 'taken' : 'dropped', t: d.t, agentId: taken.includes(objectId) ? agent.id : rival.id, objectId }));
+  const names = rival.carrying.map((id) => defOf(d.base.scenario, id).label).join(' and ');
+  d.agents[rivalIndex] = fire(
+    { ...rival, carrying: [], move: undefined, command: IDLE, carryM: 0, busy: { kind: 'stun', untilT: d.t + LAB_TUNING.tagStunS } },
+    { kind: 'body', cause: 'tagged', source: contactSource(rival), label: `${SOURCE_LABEL[contactSource(rival)]} · tagged by ${agent.label}: lost ${names}` },
+  );
   return fire(
-    { ...agent, command: IDLE, carryM: 0, busy: { kind: 'bump', untilT: d.t + LAB_TUNING.bumpS }, stats: { ...agent.stats, bumps: agent.stats.bumps + 1 } },
-    { kind: 'body', cause: 'bumped', source, label: `${SOURCE_LABEL[source]} · bumped into ${rival.label}` },
+    { ...bumped, carrying: [...agent.carrying, ...taken], stats: agent.stats, safeUntilT: d.t + LAB_TUNING.tagGraceS },
+    { kind: 'actuator', cause: 'objective_done', source, label: `${SOURCE_LABEL[source]} · tagged ${rival.label}${taken.length > 0 ? `: took ${names}` : ''}` },
   );
 }
 
@@ -157,6 +165,8 @@ function tryMove(d: Draft, moving: AgentState, dir: Dir): AgentState {
     return { ...agent, carryM: 0, known: learnTile(agent.known, index, { blocked: true, kind: 'door', via: contactSource(agent) }), busy: { kind: 'door', untilT: d.t + LAB_TUNING.doorS } };
   }
   const rival = d.agents.findIndex((other) => other.id !== agent.id && other.status === 'running' && (sameCell(other.cell, to) || (other.move !== undefined && sameCell(other.move.to, to))));
+  // A robot driving off the tile is not in the way for long: wait for it rather than run into its back.
+  if (rival >= 0 && d.agents[rival]!.move !== undefined && !sameCell(d.agents[rival]!.move!.to, to)) return { ...agent, carryM: 0 };
   if (rival >= 0) return bumpRobot(d, agent, rival, to);
   const mover = d.movers.find((m) => sameCell(m.route[m.index]!, to));
   if (mover !== undefined) return collide(d, agent, mover.id, to);
@@ -259,7 +269,7 @@ function finishBusy(d: Draft, agent: AgentState): AgentState {
       if (object === undefined || def === undefined || object.status !== 'idle' || !sameCell(object.at, agent.cell)) return failed();
       d.objects = d.objects.map((o) => (o.id === object.id ? { ...o, status: 'carried', by: agent.id } : o));
       d.events.push({ type: 'picked', t: d.t, agentId: agent.id, objectId: object.id });
-      const carrying = settle(d, { ...free, carrying: [...free.carrying, object.id] });
+      const carrying = settle(d, { ...free, carrying: [...free.carrying, object.id], safeUntilT: d.t + LAB_TUNING.tagGraceS });
       return carrying.status !== 'running' ? carrying : fire(carrying, { kind: 'actuator', cause: 'objective_done', label: `CORE · picked up ${def.label}` });
     }
     case 'drop': {
@@ -348,9 +358,11 @@ function tickMovers(d: Draft): void {
     if (progress < 1) return { ...mover, progress };
     const index = (mover.index + 1) % mover.route.length;
     const cell = mover.route[index]!;
-    // It does not stop: a robot on the tile, or driving onto it, is hit.
-    d.agents = d.agents.map((agent) =>
-      agent.status === 'running' && (sameCell(agent.cell, cell) || (agent.move !== undefined && sameCell(agent.move.to, cell))) ? collide(d, agent, mover.id, cell) : agent);
+    // A robot standing in the way is seen in time: the mover turns back (a there-and-back route) or waits (a loop).
+    const standing = d.agents.some((agent) => agent.status === 'running' && agent.move === undefined && sameCell(agent.cell, cell));
+    if (standing) return def.loop === 'bounce' ? { ...mover, index: (mover.route.length - mover.index) % mover.route.length, progress: 0 } : { ...mover, progress: 0 };
+    // A robot driving onto the tile in front of it is not: it is hit.
+    d.agents = d.agents.map((agent) => (agent.status === 'running' && agent.move !== undefined && sameCell(agent.move.to, cell) ? collide(d, agent, mover.id, cell) : agent));
     return { ...mover, index, progress: progress - 1 };
   });
 }
@@ -433,7 +445,7 @@ export function createLab(config: LabConfig): LabState {
       id: def.id, label: def.label, build: entry.build, robot: deriveRobot(entry.build), ...(entry.policy ? { policy: entry.policy } : {}),
       cell: def.start, heading: def.heading, carryM: 0, command: IDLE, pace: entry.pace ?? 'full',
       batteryPct: 100, damagePct: 0, drawW: 0, speedMps: 0, carrying: [],
-      known: plan, knownObjects: planObjects, visibleMovers: [], visibleRivals: [], visitedZones: [], reached: [],
+      known: plan, knownObjects: planObjects, visibleMovers: [], visibleRivals: [], visitedZones: [], reached: [], safeUntilT: 0,
       memory: { signature: '', energyLow: false, moversInView: [], rivalsInView: [], visibility: 1, heldForMover: false, idleSinceT: -1 },
       status: 'running', stats: { tiles: 0, bumps: 0, collisions: 0, falls: 0, idleS: 0 },
     };

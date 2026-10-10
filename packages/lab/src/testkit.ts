@@ -16,7 +16,7 @@ export function scenarioOf(rows: readonly string[], extra: Partial<LabScenario> 
     agents: [{ id: 'you', label: 'You', start: markerCell(map, 'S'), heading: 'E' }],
     objects: exit, zones: [], movers: [], weather: [],
     objectives: [{ id: 'reach', label: 'Reach the exit', type: 'reach', target: 'exit' }],
-    carryLimit: 1, ends: 'each', tagDrops: false, maxS: 120,
+    carryLimit: 1, ends: 'each', tagSteals: false, maxS: 120,
     score: { base: 1000, perSecond: 4, perDamagePct: 6, perEnergyPct: 2, costDivisor: 5, dnfMax: 200, starThreshold: 600 },
     ...extra,
   };

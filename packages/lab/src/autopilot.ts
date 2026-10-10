@@ -44,7 +44,12 @@ export function signature(ctx: NavContext, cell: Cell, dir: Dir): string {
   return `${exits.left[0]}${exits.ahead[0]}${exits.right[0]}`;
 }
 
-const moverAt = (ctx: NavContext, agent: AgentState, cell: Cell): boolean => agent.visibleMovers.some((mover) => sameCell(mover.cell, cell));
+/** True for the tile a mover in view is on and the tile it is heading for: driving onto either is how a robot gets hit. */
+const moverAt = (agent: AgentState, cell: Cell): boolean =>
+  agent.visibleMovers.some((mover) => sameCell(mover.cell, cell) || (mover.next !== undefined && sameCell(mover.next, cell)));
+
+const moverTiles = (ctx: NavContext, agent: AgentState): Set<number> =>
+  new Set(agent.visibleMovers.flatMap((mover) => [mover.cell, ...(mover.next ? [mover.next] : [])]).filter((cell) => inside(ctx.map, cell)).map((cell) => indexOf(ctx.map, cell)));
 
 const moverAhead = (agent: AgentState): LabTrigger => {
   const mover = agent.visibleMovers[0];
@@ -61,7 +66,7 @@ function planHeading(ctx: NavContext, agent: AgentState, dir: Dir): Plan {
   const junction: LabTrigger = { kind: 'perception', cause: 'junction_reached', ...(source ? { source } : {}), label: `${SOURCE_LABEL[source ?? 'core']} · junction: ${open.join(' and ')} open` };
 
   if (exits.ahead !== 'blocked') {
-    if (moverAt(ctx, agent, stepCell(agent.cell, dir))) {
+    if (moverAt(agent, stepCell(agent.cell, dir))) {
       return { command, memory: { ...memory, heldForMover: true }, ...(agent.memory.heldForMover ? {} : { trigger: moverAhead(agent) }) };
     }
     // A side opening that was not there one tile ago: a choice. The robot keeps going until told otherwise.
@@ -90,9 +95,13 @@ function planGoto(ctx: NavContext, agent: AgentState, command: Extract<LabComman
     }
     return { command: IDLE, memory, trigger: { kind: 'perception', cause: 'target_reached', label: 'CORE · arrived' } };
   }
-  // Keep out of the tiles where something is moving, as long as it is in view.
-  const avoid = new Set(agent.visibleMovers.map((mover) => indexOf(ctx.map, mover.cell)));
-  const path = pathTo(navigate({ ...ctx, avoid }, agent.cell), ctx.map, command.to);
+  // Keep out of the tiles where something is moving, as long as it is in view; and drive round another robot
+  // rather than into it, unless there is no other way or it is the robot being chased.
+  const avoid = moverTiles(ctx, agent);
+  const target = indexOf(ctx.map, command.to);
+  const rivals = agent.visibleRivals.map((rival) => indexOf(ctx.map, rival.cell)).filter((index) => index !== target);
+  const round = rivals.length > 0 ? pathTo(navigate({ ...ctx, avoid: new Set([...avoid, ...rivals]) }, agent.cell), ctx.map, command.to) : undefined;
+  const path = round ?? pathTo(navigate({ ...ctx, avoid }, agent.cell), ctx.map, command.to);
   const next = path?.[0];
   if (next !== undefined) return { command, memory: { ...memory, heldForMover: false }, dir: dirBetween(agent.cell, next)! };
   if (avoid.size > 0 && pathTo(navigate(ctx, agent.cell), ctx.map, command.to) !== undefined) {

@@ -27,7 +27,7 @@ const round1 = (value: number): number => Math.round(value * 10) / 10;
 function why(agent: AgentState, done: number, total: number, timeS: number): string {
   const { stats } = agent;
   const knocks = [
-    stats.bumps > 0 ? `${stats.bumps} wall hit${stats.bumps === 1 ? '' : 's'}` : '',
+    stats.bumps > 0 ? `${stats.bumps} bump${stats.bumps === 1 ? '' : 's'}` : '',
     stats.falls > 0 ? `${stats.falls} fall${stats.falls === 1 ? '' : 's'}` : '',
     stats.collisions > 0 ? `${stats.collisions} collision${stats.collisions === 1 ? '' : 's'}` : '',
   ].filter(Boolean).join(', ');

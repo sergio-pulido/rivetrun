@@ -75,6 +75,8 @@ export function observeLab(state: LabState, agentId: string): LabObservation {
     `CORE · battery ${energy.batteryPct} %, about ${energy.rangeTiles} tiles of range at ${agent.pace} pace${way}`,
     `CORE · ${statuses.map((s) => `${s.label} ${s.have}/${s.need}`).join(' · ')}`,
     ...(agent.carrying.length > 0 ? [`CORE · carrying ${agent.carrying.map((id) => defOf(scenario, id).label).join(', ')}`] : []),
+    // Who holds what is public: the referee announces it. Where they are is not.
+    ...state.objects.flatMap((o) => (o.status === 'carried' && o.by !== agent.id ? [`CORE · ${state.agents.find((a) => a.id === o.by)?.label ?? 'another robot'} holds ${defOf(scenario, o.id).label}`] : [])),
     `${blind ? 'BLIND' : SOURCE_LABEL[surroundSource(agent)]} · ${DIRS.map((dir) => `${DIR_NAME[dir]} ${describe(around[dir])}`).join(' · ')}`,
     ...objects.map((o) => `${SOURCE_LABEL[o.source]} · ${o.label}, ${o.tiles === 0 ? 'here' : `${o.tiles} tiles ${o.bearing}`}`),
     ...moving.map((m) => `${SOURCE_LABEL[m.source]} · ${m.label.toLowerCase()}, ${m.tiles} tiles ${m.bearing}`),
@@ -104,7 +106,8 @@ const sameCommand = (a: LabCommand, b: LabCommand): boolean =>
   a.type === 'goto' && b.type === 'goto' ? sameCell(a.to, b.to) && a.interact === b.interact && a.thenHeading === b.thenHeading : a.type === 'heading' && b.type === 'heading' && a.dir === b.dir;
 
 interface Want {
-  readonly def: LabObjectDef;
+  /** The option's id. */
+  readonly id: string;
   readonly at: Cell;
   readonly kind: 'objective' | 'return';
   readonly label: string;
@@ -115,22 +118,23 @@ interface Want {
 }
 
 /**
- * True while the mission needs something the robot has not found and only a look can find: a parcel, a sample,
- * a checkpoint. The mission plan says how many there are, not where.
+ * What the mission still needs that the robot has not found. `find`: something is out there to find. `look`: it can
+ * only be found by looking at the floor (a parcel, a sample, a checkpoint), not by mapping walls; an exit is a gap
+ * in the wall, which a ranger finds too. The mission plan says how many things there are, not where.
  */
-function seeking(state: LabState, agent: AgentState): boolean {
+function seeking(state: LabState, agent: AgentState): { find: boolean; look: boolean } {
   const { scenario } = state;
   const statuses = objectiveStatus(state, agent);
   const unknown = (id: string): boolean => agent.knownObjects[id] === undefined;
-  if (agent.carrying.some((id) => destinationsOf(scenario, defOf(scenario, id), agent.id).every((depot) => unknown(depot.id)))) return true;
-  return scenario.objectives.some((objective, i) => {
-    if (statuses[i]!.done || objective.type === 'visit') return false;
-    if (objective.type === 'reach') {
-      const goal = finalGoal(scenario, agent.id);
-      return goal !== undefined && goal.kind !== 'exit' && unknown(goal.id);
-    }
-    return state.objects.some((object) => object.status === 'idle' && defOf(scenario, object.id).kind === objective.kind && unknown(object.id));
-  });
+  const goal = finalGoal(scenario, agent.id);
+  const goalHidden = goal !== undefined && unknown(goal.id) && scenario.objectives.some((objective, i) => objective.type === 'reach' && !statuses[i]!.done);
+  const depotHidden = agent.carrying.some((id) => destinationsOf(scenario, defOf(scenario, id), agent.id).every((depot) => unknown(depot.id)));
+  // Things the build could not pick up or scan anyway are not worth looking for.
+  const thingHidden = scenario.objectives.some((objective, i) =>
+    !statuses[i]!.done && (objective.type === 'deliver' || objective.type === 'collect' || objective.type === 'scan')
+    && state.objects.some((object) => { const def = defOf(scenario, object.id); return object.status === 'idle' && def.kind === objective.kind && unknown(object.id) && canSense(def, agent); }));
+  const look = depotHidden || thingHidden || (goalHidden && goal.kind !== 'exit');
+  return { find: look || goalHidden, look };
 }
 
 /** The known places the robot has a reason to go to now. */
@@ -144,16 +148,30 @@ function wants(state: LabState, agent: AgentState): Want[] {
     const item = defOf(scenario, id);
     for (const depot of destinationsOf(scenario, item, agent.id)) {
       const at = agent.knownObjects[depot.id]?.at;
-      if (at !== undefined) found.push({ def: depot, at, kind: 'objective', label: `Deliver ${item.label} to ${depot.label}`, description: `carrying ${item.label}`, interact: depot.id });
+      if (at !== undefined) found.push({ id: `goto:${depot.id}`, at, kind: 'objective', label: `Deliver ${item.label} to ${depot.label}`, description: `carrying ${item.label}`, interact: depot.id });
     }
   }
   for (const { def, at } of known) {
     const wanted = open('deliver', def.kind) || open('collect', def.kind);
     if (hasRole(def, 'item') && wanted && canSense(def, agent) && agent.carrying.length < scenario.carryLimit) {
-      found.push({ def, at, kind: 'objective', label: `Go and ${def.kind === 'sample' ? 'take' : 'pick up'} ${def.label}`, description: `${def.kind} for the mission`, interact: def.id });
+      found.push({ id: `goto:${def.id}`, at, kind: 'objective', label: `Go and ${def.kind === 'sample' ? 'take' : 'pick up'} ${def.label}`, description: `${def.kind} for the mission`, interact: def.id });
     }
     if (hasRole(def, 'check') && open('scan', def.kind) && canSense(def, agent)) {
-      found.push({ def, at, kind: 'objective', label: `Go and scan ${def.label}`, description: 'a checkpoint to scan', interact: def.id });
+      found.push({ id: `goto:${def.id}`, at, kind: 'objective', label: `Go and scan ${def.label}`, description: 'a checkpoint to scan', interact: def.id });
+    }
+  }
+  // Something the robot is after, in another robot's hands. Who holds what is public (the referee says so);
+  // where that robot is, only the sensors can tell.
+  if (scenario.tagSteals && agent.carrying.length < scenario.carryLimit) {
+    for (const object of state.objects) {
+      const def = defOf(scenario, object.id);
+      const holder = object.status === 'carried' && object.by !== agent.id ? state.agents.find((a) => a.id === object.by) : undefined;
+      if (holder === undefined || !(open('deliver', def.kind) || open('collect', def.kind))) continue;
+      const seen = agent.visibleRivals.find((rival) => rival.id === holder.id);
+      const base = destinationsOf(scenario, def, holder.id)[0];
+      const baseAt = base !== undefined ? agent.knownObjects[base.id]?.at : undefined;
+      if (seen !== undefined) found.push({ id: `tag:${holder.id}`, at: seen.cell, kind: 'objective', label: `Tag ${holder.label} and take ${def.label}`, description: `${holder.label} is in view with ${def.label}` });
+      else if (base !== undefined && baseAt !== undefined) found.push({ id: `goto:${base.id}`, at: baseAt, kind: 'objective', label: `Cut ${holder.label} off at ${base.label}`, description: `${holder.label} holds ${def.label} and is out of view` });
     }
   }
   const goal = finalGoal(scenario, agent.id);
@@ -162,8 +180,8 @@ function wants(state: LabState, agent: AgentState): Want[] {
   if (goal !== undefined && goalAt !== undefined && reach?.type === 'reach') {
     const othersDone = statuses.every((s, i) => s.done || scenario.objectives[i] === reach);
     const done = statuses.filter((s) => s.done).length;
-    if (!reach.last || othersDone) found.push({ def: goal, at: goalAt, kind: 'return', label: `Go to ${goal.label}`, description: 'completes the mission', completes: true });
-    else found.push({ def: goal, at: goalAt, kind: 'return', label: `Go to ${goal.label} and end the mission`, description: `ends it with ${done} of ${statuses.length} objectives done`, interact: goal.id, completes: false });
+    if (!reach.last || othersDone) found.push({ id: `goto:${goal.id}`, at: goalAt, kind: 'return', label: `Go to ${goal.label}`, description: 'completes the mission', completes: true });
+    else found.push({ id: `goto:${goal.id}`, at: goalAt, kind: 'return', label: `Go to ${goal.label} and end the mission`, description: `ends it with ${done} of ${statuses.length} objectives done`, interact: goal.id, completes: false });
   }
   return found;
 }
@@ -219,7 +237,7 @@ export function buildOptions(state: LabState, agentId: string, trigger?: LabTrig
     if (!Number.isFinite(nav.timeS[index]!)) { noWay.push(want.at); continue; }
     const predicted = predict(agent, nav, index, want.kind === 'return' ? 0 : backWh(index), scenario.defaultTerrain);
     add({
-      id: `goto:${want.def.id}`, kind: want.kind, label: want.label, description: `${predicted.steps} tiles by the known way; ${want.description}`,
+      id: want.id, kind: want.kind, label: want.label, description: `${predicted.steps} tiles by the known way; ${want.description}`,
       command: { type: 'goto', to: want.at, ...(want.interact !== undefined ? { interact: want.interact } : {}) },
       predicted, ...(want.completes !== undefined ? { completes: want.completes } : {}),
     });
@@ -240,8 +258,10 @@ export function buildOptions(state: LabState, agentId: string, trigger?: LabTrig
 
   // Exploring: one option per way out of this tile, to the nearest edge of the explored map that way.
   const toward = (cell: Cell): { towardTiles?: number } => (noWay.length > 0 ? { towardTiles: Math.min(...noWay.map((at) => manhattan(at, cell))) } : {});
-  const edges = frontiers(ctx, nav, seeking(state, agent));
-  for (const dir of DIRS) {
+  // Exploring needs a reason: something still to find, or a known place with no known way to it.
+  const sought = seeking(state, agent);
+  const edges = sought.find || noWay.length > 0 ? frontiers(ctx, nav, sought.look) : [];
+  for (const dir of sought.find || noWay.length > 0 ? DIRS : []) {
     const next = stepCell(agent.cell, dir);
     if (!inside(map, next)) continue;
     const nextIndex = indexOf(map, next);
@@ -266,7 +286,8 @@ export function buildOptions(state: LabState, agentId: string, trigger?: LabTrig
   if (agent.visibleMovers.length > 0 || agent.visibleRivals.length > 0 || trigger?.cause === 'mover_ahead') {
     add({ id: 'wait', kind: 'wait', label: `Wait ${WAIT_S} s`, description: 'hold still and look again', command: { type: 'wait', forS: WAIT_S }, predicted: { steps: 0, timeS: WAIT_S } });
   }
-  if (trigger?.kind === 'energy') {
+  // Pace is offered when it matters: on the energy line, and after driving into a wall (a slower hit costs less).
+  if (trigger?.kind === 'energy' || (trigger?.cause === 'bumped' && agent.damagePct > 0)) {
     const other: Pace = agent.pace === 'full' ? 'eco' : 'full';
     const range = energyView(state, { ...agent, pace: other }).rangeTiles;
     add({

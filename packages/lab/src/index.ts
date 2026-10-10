@@ -20,3 +20,5 @@ export { scoreLab } from './score';
 export type { LabOutcome } from './score';
 export { applyOption, createLabDriver, frameOf, runLabEntries, runLabSync } from './controller';
 export type { LabDecisionLog, LabDriver, LabFrame, LabMiss, LabRunEntry, LabRunOptions, LabRunResult } from './controller';
+export { LAB_DEFAULT_BUILDS, LAB_PLAYER, LAB_RIVAL, LAB_RIVAL_LATENCY_MS, LAB_SCENARIOS, LAB_SCENARIO_IDS, LAB_SEEDS, runLabHeadless } from './scenarios';
+export type { LabHeadlessOptions, LabHeadlessResult, LabScenarioId } from './scenarios';

@@ -31,6 +31,8 @@ export function labUtility(option: LabOption, question: LabQuestion): number {
       return question.trigger.cause === 'mover_ahead' ? 35 : 5;
     case 'pace':
       if (option.pace === 'eco' && question.trigger.cause === 'energy_low') return 95;
+      // Blind and just hit something: slow down first, then choose a way.
+      if (option.pace === 'eco' && question.trigger.cause === 'bumped' && question.observation.blind) return 95;
       return option.pace === 'full' && question.trigger.cause === 'energy_ok' ? 70 : -10;
   }
 }
