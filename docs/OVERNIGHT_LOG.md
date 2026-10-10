@@ -25,6 +25,9 @@ Written by [MASTER] for the human. Newest status first. Program: docs/OVERNIGHT.
 
 ## Status log
 
+### 04:38 · third tag
+`demo-good-0438` → f8b94fc. New in the e2e: Jev drives M1 from Play Now to the Result (33.4 s, no FALLBACK). It also showed that Jev skips the scan zone on M1 and loses to the fixed rules by 46 points (Q13, with [BRAIN]). Adds since 0432: the stranger table and the Brief's full-throttle warning, sim fuzz test in `pnpm test`, five Lab Missions in packages/lab (no screen yet), star thresholds for M8/M9.
+
 ### 04:32 · second tag
 `demo-good-0432` → ee76275, all steps green on the first attempt. Adds since 0426: v3 coach marks, the Result breakdown ("Where the run went"), weather chips fixed, one air rule for brains and players, the heuristic's approach to rough ground, replayable Drive runs, packages/lab (grid sim, not yet on a screen), arena Lab runner. Q6, Q7 and Q8 retested from the screens and closed.
 
