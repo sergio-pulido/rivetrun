@@ -28,6 +28,8 @@ const ContestantSchema = z.object({
   gameplayVersion: z.number().nullish(),
   /** Lab Missions: results per scenario. */
   byScenario: z.record(z.string(), z.object({ runs: z.number().min(0), completed: z.number().min(0), meanScore: z.number(), meanCompletionPct: z.number().min(0).max(100).nullish() })).nullish(),
+  /** The same runs with a question that states the facts but no verdict; present only where that was run. */
+  facts: z.object({ meanScore: z.number().nullish(), finishPct: z.number().min(0).max(100).nullish(), runs: z.number().min(0).nullish() }).nullish(),
   /** The seeds this brain ran on. */
   seeds: z.array(z.number()).nullish(),
   /** Tokens per run, as the provider reported them. */
@@ -120,7 +122,12 @@ export interface ArenaRow {
   /** Set when the row was run on another gameplay version than the rest of the table, e.g. "gameplay 3". */
   readonly carried: string | null;
   readonly finish: string;
+  /** Mean score when the question tells the brain which option the fixed rules rate as correct. */
   readonly score: string;
+  /** Mean score with the facts only: a figure, "same" for drivers that do not read the question, "not run" otherwise. */
+  readonly factsScore: string;
+  /** The facts-only score moved against the verdict score: 'down' means the brain did worse without the verdict. */
+  readonly factsMove: 'up' | 'down' | null;
   readonly decisions: string;
   readonly p50: string;
   readonly p95: string;
@@ -138,7 +145,7 @@ const dollars = (usd: number): string => (usd === 0 ? '$0' : `$${usd < 0.01 ? us
 /** 35732 → "35.7k". */
 const thousands = (count: number): string => (count < 1000 ? `${Math.round(count)}` : `${(count / 1000).toFixed(1)}k`);
 
-const NO_FIGURES = { finish: MISSING, score: MISSING, decisions: MISSING, p50: MISSING, p95: MISSING, lateCrashes: MISSING, cost: MISSING } as const;
+const NO_FIGURES = { factsScore: MISSING, factsMove: null, finish: MISSING, score: MISSING, decisions: MISSING, p50: MISSING, p95: MISSING, lateCrashes: MISSING, cost: MISSING } as const;
 
 /**
  * A "not run" reason fit to show: the runner sometimes records the provider's raw error (a status code and a JSON body).
@@ -175,6 +182,9 @@ export function scenarioTable(arena: ArenaSection): ScenarioTable | null {
   return rows.length > 0 && arena.scenarios.length > 0 ? { scenarios: arena.scenarios, rows } : null;
 }
 
+/** Whether any brain in this section was also run on the facts-only question: then the table has that column. */
+export const hasFacts = (arena: ArenaSection): boolean => arena.contestants.some((entry) => typeof entry.facts?.meanScore === 'number');
+
 /** How many runs the largest row has: rows with fewer are marked. */
 export const mostRuns = (arena: ArenaSection): number => Math.max(0, ...arena.contestants.map((entry) => (entry.status === 'ok' ? (entry.runs ?? 0) : 0)));
 
@@ -197,6 +207,12 @@ export function arenaRows(arena: ArenaSection): readonly ArenaRow[] {
       fewer: runs !== null && runs < mostRuns ? [`${runs} ${runs === 1 ? 'run' : 'runs'}`, entry.seeds ? `${entry.seeds.length} ${entry.seeds.length === 1 ? 'seed' : 'seeds'}` : null].filter(Boolean).join(' · ') : null,
       finish: shown(entry.finishPct, (value) => `${Math.round(value)}%`),
       score: shown(entry.meanScore, (value) => `${Math.round(value)}`),
+      // The fixed rules and the coin do not read the question, so it makes no difference to them.
+      factsScore: typeof entry.facts?.meanScore === 'number' ? `${Math.round(entry.facts.meanScore)}` : entry.kind === 'heuristic' || entry.kind === 'random' ? 'same' : 'not run',
+      factsMove:
+        typeof entry.facts?.meanScore === 'number' && typeof entry.meanScore === 'number' && Math.round(entry.facts.meanScore) !== Math.round(entry.meanScore)
+          ? entry.facts.meanScore > entry.meanScore ? 'up' : 'down'
+          : null,
       decisions: shown(entry.decisionsPerRun, (value) => value.toFixed(1)),
       p50: shown(entry.latencyP50Ms, latency),
       p95: shown(entry.latencyP95Ms, latency),

@@ -2,7 +2,7 @@
 
 import { useState, type ReactNode } from 'react';
 import { ArenaHumans } from './ArenaHumans';
-import { arenaLine, arenaRows, mostRuns, scatter, scenarioTable, type Arena, type ArenaSection, type ContestantKind } from './arena';
+import { arenaLine, arenaRows, hasFacts, mostRuns, scatter, scenarioTable, type Arena, type ArenaSection, type ContestantKind } from './arena';
 
 const PLOT = { width: 334, height: 230, padding: 30 } as const;
 
@@ -16,19 +16,24 @@ const DOT: Readonly<Record<ContestantKind, string>> = {
 };
 
 const COLUMNS = ['Finish', 'Score', 'Dec. / run', 'p50', 'p95', 'Late crashes', 'Cost / run'] as const;
+/** With a facts-only run in the file the one score column becomes two, titled as the QA lead asked. */
+const COLUMNS_WITH_FACTS = ['Finish', "Score · with the rules' verdict", 'Score · facts only', 'Dec. / run', 'p50', 'p95', 'Late crashes', 'Cost / run'] as const;
+const FACTS_TONE = { up: 'text-ok', down: 'text-warn' } as const;
 
 function Table({ arena }: { readonly arena: ArenaSection }) {
+  const facts = hasFacts(arena);
+  const columns: readonly string[] = facts ? COLUMNS_WITH_FACTS : COLUMNS;
   return (
     <div className="rr-scroll-x -mx-4 px-4">
-      <table className="w-full min-w-[620px] border-collapse text-right font-mono text-xs tabular-nums">
+      <table className={`w-full border-collapse text-right font-mono text-xs tabular-nums ${facts ? 'min-w-[720px]' : 'min-w-[620px]'}`}>
         <caption className="sr-only">Brain Arena results per contestant</caption>
         <thead>
           <tr className="text-[10px] font-medium uppercase tracking-[1px] text-muted">
             <th scope="col" className="sticky left-0 bg-panel py-2 pr-3 text-left font-medium">
               Brain
             </th>
-            {COLUMNS.map((column) => (
-              <th key={column} scope="col" className="whitespace-nowrap px-2 py-2 font-medium">
+            {columns.map((column) => (
+              <th key={column} scope="col" className={`px-2 py-2 font-medium ${column.startsWith('Score ·') ? 'min-w-[86px] whitespace-normal leading-tight' : 'whitespace-nowrap'}`}>
                 {column}
               </th>
             ))}
@@ -46,8 +51,15 @@ function Table({ arena }: { readonly arena: ArenaSection }) {
                 {row.fewer ? <span className="block pl-3.5 text-[10px] font-medium text-warn">{row.fewer} only</span> : null}
                 {row.carried ? <span className="block pl-3.5 text-[10px] font-medium text-warn">run on {row.carried}</span> : null}
               </th>
-              {[row.finish, row.score, row.decisions, row.p50, row.p95, row.lateCrashes, row.cost].map((cell, index) => (
-                <td key={COLUMNS[index]} className="whitespace-nowrap px-2 py-2">
+              <td className="whitespace-nowrap px-2 py-2">{row.finish}</td>
+              <td className="whitespace-nowrap px-2 py-2">{row.score}</td>
+              {facts ? (
+                <td className={`whitespace-nowrap px-2 py-2 ${row.factsMove ? FACTS_TONE[row.factsMove] : /^\d/.test(row.factsScore) ? '' : 'text-faint'}`} data-testid="facts-score">
+                  {row.factsScore}
+                </td>
+              ) : null}
+              {[row.decisions, row.p50, row.p95, row.lateCrashes, row.cost].map((cell, index) => (
+                <td key={index} className="whitespace-nowrap px-2 py-2">
                   {cell}
                 </td>
               ))}

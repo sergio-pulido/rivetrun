@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { arenaLine, arenaRows, cleanReason, parseArena, scatter, scenarioTable } from './arena';
+import { arenaLine, arenaRows, cleanReason, hasFacts, parseArena, scatter, scenarioTable } from './arena';
 
 const FILE = {
   date: '2026-10-10',
@@ -179,5 +179,25 @@ describe('cleanReason', () => {
     expect(cleanReason('no accepted mode: HTTP 400: {"type":"error","error":{"message":"Your credit balance is too low"}}')).toBe('the provider refused the request (HTTP 400)');
     expect(cleanReason('held until the cost of the row is approved')).toBe('held until the cost of the row is approved');
     expect(cleanReason('timeout {"raw":1}')).toBe('timeout');
+  });
+});
+
+describe('facts-only column', () => {
+  const brain = (id: string, kind: string, meanScore: number, facts?: { meanScore: number }) => ({ id, label: id, kind, status: 'ok', runs: 30, meanScore, ...(facts ? { facts } : {}) });
+  const arena = parseArena({ ...FILE, contestants: [brain('jev', 'jev', 546, { meanScore: 434 }), brain('nano', 'llm', 427, { meanScore: 450 }), brain('sonnet', 'llm', 425), brain('heuristic', 'heuristic', 554), brain('random', 'random', 41)] })!;
+
+  it('shows the score without the verdict where it was run, "same" for drivers that do not read the question, "not run" otherwise', () => {
+    expect(hasFacts(arena)).toBe(true);
+    expect(arenaRows(arena).map((row) => [row.score, row.factsScore, row.factsMove])).toEqual([
+      ['546', '434', 'down'],
+      ['427', '450', 'up'],
+      ['425', 'not run', null],
+      ['554', 'same', null],
+      ['41', 'same', null],
+    ]);
+  });
+
+  it('has no such column when nobody was run on the facts-only question', () => {
+    expect(hasFacts(parseArena(FILE)!)).toBe(false);
   });
 });
