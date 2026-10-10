@@ -10,7 +10,7 @@ were edited.
 
 ## Print-first delivery
 
-Six unique PETG parts are exported in millimetres, on their print faces. Every
+Nine unique PETG parts are exported in millimetres, on their print faces. Every
 STL was checked for closed manifold triangle edges, positive volume and a
 bounding box smaller than 180 × 180 × 180 mm. Quantities, actual slicer weights
 and hours are in `docs/inputs/printed-parts.json`.
@@ -19,18 +19,18 @@ and hours are in `docs/inputs/printed-parts.json`.
   adjustable mounting grid and routing/strap passages. Suitable for a **prototype
   fit-test**, not a promise that the final BOM needs no hole changes.
 - `motor_saddle.stl` and `motor_cap.stl`: four pairs; the body envelope follows
-  the earlier 10 × 12 × 25 mm N20 reference. 30 × 27 mm footprints leave 0.5 mm
+  the earlier 10 × 12 × 25 mm N20 reference. 30 × 27 mm footprints leave 1.2 mm
   lateral clearance to the 80 × 10 mm wheel envelope in the authored assembly.
-  The 4.0 mm insert pilot is **provisional**; 5.7 mm insert depth follows the BOM.
+  The 4.2 mm insert pilot is **provisional**; 5.7 mm insert depth follows the BOM.
   Wait for the ruthex installation diameter before printing saddles.
-- `battery_tray.stl`: for the BOM's Gens ace 2S large 104 × 34.5 × 14.5 mm pack,
+- `battery_tray.stl`: for the BOM's Gens ace 4S large 107 × 35 × 27 mm pack,
   with 1 mm lateral clearance, chassis mounting holes and strap routing slots.
   No strap has been invented or shown as an unlisted purchased component.
 - `board_standoff.stl`: generic M3 through-hole spacer; not a claim that M3 fits
   the Pi's mounting holes. Board-specific retention waits for its drawing.
 - `cable_clip.stl`: open cable restraint with an M3 mounting hole.
 
-Bambu Studio's bundled A1 mini 0.4 mm / Generic PETG profile was used with
+Bambu Studio's bundled A1 mini 0.4 mm / Bambu PETG HF profile was used with
 0.2 mm layers, 15% infill, no supports, no brim, and Textured PEI Plate.
 `slicer/<id>/<id>.3mf` contains the actual sliced job; the per-part log and
 flattened profiles are retained. These are estimates from slicing, not measured
@@ -96,3 +96,22 @@ changes; never carry old weights/times onto changed geometry.
    dimensions and generate the remaining catalog modules without placeholders.
 3. Complete purchased-part renders and the default hero; resolve the served
    folder with the game owner and run the complete preset and phone gate checks.
+
+## Consolidated-brief update
+
+The official ruthex STEP has a maximum circular/cylindrical radius of 2.3 mm
+(4.6 mm outer diameter). `mechanical-parameters.json` provides one
+`insertHoleMm` parameter for every insert socket. All bosses remain marked
+"hole size: calibrate". The coupon holes are 3.8, 4.0, 4.2, 4.4 mm left-to-right.
+
+The bridge and controller carrier now raise the Pi over the largest pack.
+The carrier has integral 16 mm posts, 2.4 mm locating pegs on the Pi's official
+58 × 49 mm / Ø2.7 mm mounting pattern, and flexible printed edge latches.
+M3 screws attach the carrier to the bridge; they do not pass through the Pi.
+The regulator's Ø2.18 mm mounting holes use printed locating pegs and latches;
+no unlisted M2 fastener has been modelled. Test these retainers physically.
+
+The S13V30F5 drawing confirms a 22.9 × 22.9 mm board: 18.5 mm is the hole
+centre spacing, not a board edge. Every slicer weight/time now comes directly
+from `result.json`, `total_used_g` and `total_predication`, using Bambu PETG HF
+density 1.28. Source URLs and drawing copies are in the owned asset folders.

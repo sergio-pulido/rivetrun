@@ -1,7 +1,7 @@
 {
     "error_string": "Success.",
     "layer_height": 0.20000000298023224,
-    "peak_rss_mb": 111.375,
+    "peak_rss_mb": 117.96875,
     "plate_index": 0,
     "return_code": 0,
     "sliced_plates": [
@@ -50,29 +50,29 @@
             "times": {
                 "conflict_check_time": 0,
                 "detect_overhangs_time": 2,
-                "export_gcode_time": 152,
+                "export_gcode_time": 188,
                 "flush_plan_time": 0,
-                "generate_support_material_time": 14,
-                "infill_generate_time": 29,
-                "infill_time": 55,
+                "generate_support_material_time": 10,
+                "infill_generate_time": 34,
+                "infill_time": 89,
                 "ironing_time": 0,
-                "make_perimeters_time": 31,
+                "make_perimeters_time": 51,
                 "multifilament_segment_2d_time": 0,
-                "other_slice_time": 6,
-                "prepare_infill_time": 26,
+                "other_slice_time": 10,
+                "prepare_infill_time": 55,
                 "region_split_time": 0,
                 "skirt_brim_time": 1,
-                "slice_layers_time": 8,
-                "sliced_time": 273,
-                "sliced_time_with_cache": 153,
+                "slice_layers_time": 12,
+                "sliced_time": 373,
+                "sliced_time_with_cache": 189,
                 "support_detect_time": 0,
                 "support_interface_time": 0,
                 "support_normal_generate_time": 0,
                 "support_toolpath_time": 0,
                 "support_tree_generate_time": 0,
-                "toolpath_time": 5,
-                "wall_time": 23,
-                "wipe_tower_time": 6
+                "toolpath_time": 10,
+                "wall_time": 35,
+                "wipe_tower_time": 10
             },
             "total_predication": 641.1932373046875,
             "triangle_count": 452,
@@ -81,12 +81,12 @@
     ],
     "sparse_infill_density": 15.0,
     "times": {
-        "export_3mf_time": 44,
+        "export_3mf_time": 39,
         "export_slicedata_time": 0,
-        "export_time": 957,
-        "import_time": 10,
+        "export_time": 999,
+        "import_time": 22,
         "load_slicedata_time": 0,
-        "prepare_time": 27
+        "prepare_time": 44
     },
     "wall_loops": 2
 }

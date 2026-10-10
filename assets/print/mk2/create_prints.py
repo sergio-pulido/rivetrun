@@ -16,7 +16,7 @@ OUT = Path(__file__).resolve().parent
 OUT.mkdir(parents=True, exist_ok=True)
 REFERENCE = ROOT/'docs/inputs/real-parts.json'
 parts = {p['id']:p for p in json.loads(REFERENCE.read_text())}
-motor = parts['motor_torque']['specs']['bodyDimensionsMm']
+motor = [10,12,25.6] # Official Pololu HPCB drawing 0J949, page 3; gearcase rotated 90 degrees.
 BOM = ROOT/'docs/inputs/bom-mk2.json'
 bom = json.loads(BOM.read_text())
 bom_items = {p['key']:p for p in bom['items']}
@@ -108,7 +108,7 @@ save(coupon,'insert_test_coupon','M3 heat-set insert calibration coupon',1,'Left
 # battery/electronics grid, protected edge cable passages and no cosmetic plates.
 base=block('chassis',(160,100,4),(0,0,2),1.0)
 for x in (-65,65):
-    for y in (-36,36):
+    for y in (-35,35):
         for dx in (-10,10):
             hole(base,(x+dx,y),3.4)
 for x in (-60,-40,-20,0,20,40,60):
@@ -123,9 +123,9 @@ for x in (-65,65):
 for x in (-10,10):
     for y in (-38,38):
         slot(base,(x,y),(9,3.4))
-save(base,'chassis_base','PETG chassis base',1,'160x100x4 mm. M3 clearance grid 20x24 mm; four N20 mount stations x +/-65, y +/-36. Printed flat. Hardware fit awaits final BOM; do not heat-set inserts into clearance holes.')
+save(base,'chassis_base','PETG chassis base',1,'160x100x4 mm. M3 clearance grid 20x24 mm; four N20 mount stations x +/-65, y +/-35. Printed flat. Hardware fit awaits final BOM; do not heat-set inserts into clearance holes.')
 
-# N20 split clamp. Body envelope is 10x12x25 mm in the supplied reference.
+# N20 split clamp. Body envelope is 10x12x25.6 mm in the supplied reference.
 # M3 cap insert sockets deliberately remain a separately parameterized feature.
 clearance=.3
 width,height,length=map(float,motor)
@@ -135,10 +135,10 @@ insert_depth=5.7
 saddle=block('motor saddle',(30,length+2,15),(0,0,7.5),.6)
 boolean(saddle,block('motor cavity',(width+2*clearance,length+10,30),(0,0,3+15)))
 for x in (-10,10):
-    hole(saddle,(x,0),3.4)
+    hole(saddle,(x,0),insert_pilot,5.72,2.85)
     for y in (-9,9):
         hole(saddle,(x,y),insert_pilot,insert_depth+.02,15-insert_depth/2)
-save(saddle,'motor_saddle','N20 motor saddle',4,'10x12x25 mm N20 envelope +0.3 mm clearance per side. Cap sockets are hole size: calibrate; insertHoleMm from mechanical-parameters.json, 5.7 mm depth; must match the chosen M3 insert datasheet before printing this part. Two base M3 through holes.')
+save(saddle,'motor_saddle','N20 motor saddle',4,'10x12x25.6 mm N20 envelope +0.3 mm clearance per side. Cap sockets are hole size: calibrate; insertHoleMm from mechanical-parameters.json, 5.7 mm depth; must match the chosen M3 insert datasheet before printing this part. Two bottom M3 insert sockets, using the same calibrated pilot; mount with M3x8 through the 4 mm base.')
 cap=block('motor cap',(30,length+2,3),(0,0,1.5),.5)
 for x in (-10,10):
     for y in (-9,9):
@@ -166,6 +166,62 @@ clip=block('routing clip',(18,10,8),(0,0,4),.5)
 boolean(clip,block('open cable channel',(5,14,12),(0,0,9)))
 hole(clip,(-6,0),3.4)
 save(clip,'cable_clip','Open cable routing clip',4,'Open 5 mm routing channel with one M3 screw; structural cable restraint, not decorative wiring. Print flat without supports.')
+
+# Electronics bridge: four PETG legs support a real plate above the 27 mm
+# battery. Invert for printing with the plate on the bed, legs upward.
+def union(obj,tool):
+    bpy.context.view_layer.objects.active=obj
+    m=obj.modifiers.new('Structural union','BOOLEAN');m.operation='UNION';m.solver='EXACT';m.object=tool
+    bpy.ops.object.modifier_apply(modifier=m.name);bpy.data.objects.remove(tool,do_unlink=True)
+
+# Added clearance holes match the bridge's integral legs; never M3 through
+# the Pi's 2.7 mm holes. The PCB is located and retained by printed pegs/clips.
+bridge=block('electronics bridge',(120,74,3),(0,0,36.5),.6)
+for x in (-37,37):
+    for y in (-29,29):
+        bpy.ops.mesh.primitive_cylinder_add(vertices=24,radius=7,depth=35.3,location=(x,y,17.65))
+        union(bridge,bpy.context.object)
+        hole(bridge,(x,y),insert_pilot,5.72,2.85)
+        hole(bridge,(x,y),insert_pilot,5.72,38-2.85)
+# Apply the print orientation directly to the stored mesh.
+for v in bridge.data.vertices:
+    world=bridge.matrix_world@v.co
+    v.co=(world.x,-world.y,38-world.z)
+bridge.location=(0,0,0)
+save(bridge,'electronics_bridge','Raised electronics bridge',1,'Printed upside-down: plate on bed, four legs upward. Assembly rotates 180 degrees around X and raises 38 mm. Two calibrated M3 insert sockets per leg; hole size: calibrate. 35 mm under-plate clearance for the largest battery.')
+
+carrier=block('controller carrier',(120,74,3),(0,0,1.5),.5)
+for x in (-37,37):
+    for y in (-29,29):hole(carrier,(x,y),3.4)
+# Pi centre is x=-12: official pattern x=-51,7; y=+/-24.5.
+for x in (-51,7):
+    for y in (-24.5,24.5):
+        bpy.ops.mesh.primitive_cylinder_add(vertices=24,radius=3.5,depth=16.2,location=(x,y,10.9))
+        union(carrier,bpy.context.object)
+        bpy.ops.mesh.primitive_cylinder_add(vertices=20,radius=1.2,depth=1.8,location=(x,y,19.8))
+        union(carrier,bpy.context.object)
+# Flexible edge latches use M3 only for carrier-to-bridge screws. They do not
+# force M3 screws through the Pi holes. Their fit is a print-test requirement.
+for sign in (-1,1):
+    union(carrier,block('spring arm',(3,1.2,18.4),(0,sign*29.2,12.1)))
+    union(carrier,block('PCB latch',(3,2.4,.8),(0,sign*28.5,21.0)))
+# Regulator: official 22.9 mm outline, 18.5 mm hole spacing, y=-9.25.
+for x in (38.75,57.25):
+    bpy.ops.mesh.primitive_cylinder_add(vertices=20,radius=2.5,depth=5.2,location=(x,-9.25,5.4))
+    union(carrier,bpy.context.object)
+    bpy.ops.mesh.primitive_cylinder_add(vertices=16,radius=.95,depth=1.8,location=(x,-9.25,8.8))
+    union(carrier,bpy.context.object)
+for sign in (-1,1):
+    union(carrier,block('regulator spring arm',(2,1.0,6.5),(48,sign*12.5,6.15)))
+    union(carrier,block('regulator latch',(2,2.0,.8),(48,sign*12.0,9.95)))
+save(carrier,'controller_carrier','Pi 5 and regulator carrier',1,'Pi 5 locating pegs fit 2.7 mm holes on the official 58x49 mm pattern; Pi centre x=-12. Integral 16 mm standoffs and PETG edge latches. Regulator pegs follow the official 18.5 mm hole spacing. No M3 through PCB holes. Latch/peg retention requires physical fit test; reference drawing is not production certified.')
+
+# Regenerate the base to add bridge mounting holes, preserving its output id.
+base.hide_set(False);base.hide_render=False
+for x in (-37,37):
+    for y in (-29,29):hole(base,(x,y),3.4)
+items[:]=[p for p in items if p['id']!='chassis_base']
+save(base,'chassis_base','PETG chassis base',1,'160x100x4 mm. M3 clearance grid; motor stations x +/-65, y +/-35. Bridge mounting pattern x +/-37, y +/-29. No M3 fasteners through the Pi PCB. Flat prototype print; validate physical fit.')
 
 (OUT/'print-geometry.json').write_text(json.dumps({'author':AUTHOR,'status':'provisional_fit_test_required','reference':str(REFERENCE.relative_to(ROOT)),'parts':items},indent=2)+'\n')
 scene['author']=AUTHOR

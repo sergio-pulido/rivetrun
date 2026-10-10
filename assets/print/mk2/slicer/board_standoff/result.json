@@ -1,7 +1,7 @@
 {
     "error_string": "Success.",
     "layer_height": 0.20000000298023224,
-    "peak_rss_mb": 121.40625,
+    "peak_rss_mb": 123.953125,
     "plate_index": 0,
     "return_code": 0,
     "sliced_plates": [
@@ -45,30 +45,30 @@
             ],
             "times": {
                 "conflict_check_time": 0,
-                "detect_overhangs_time": 11,
-                "export_gcode_time": 180,
+                "detect_overhangs_time": 1,
+                "export_gcode_time": 402,
                 "flush_plan_time": 0,
-                "generate_support_material_time": 30,
-                "infill_generate_time": 3,
-                "infill_time": 29,
+                "generate_support_material_time": 20,
+                "infill_generate_time": 4,
+                "infill_time": 8,
                 "ironing_time": 0,
-                "make_perimeters_time": 51,
+                "make_perimeters_time": 70,
                 "multifilament_segment_2d_time": 0,
-                "other_slice_time": 1,
-                "prepare_infill_time": 26,
+                "other_slice_time": 5,
+                "prepare_infill_time": 4,
                 "region_split_time": 0,
-                "skirt_brim_time": 0,
-                "slice_layers_time": 7,
-                "sliced_time": 309,
-                "sliced_time_with_cache": 180,
+                "skirt_brim_time": 1,
+                "slice_layers_time": 11,
+                "sliced_time": 522,
+                "sliced_time_with_cache": 403,
                 "support_detect_time": 0,
                 "support_interface_time": 0,
                 "support_normal_generate_time": 0,
                 "support_toolpath_time": 0,
                 "support_tree_generate_time": 0,
-                "toolpath_time": 6,
-                "wall_time": 44,
-                "wipe_tower_time": 1
+                "toolpath_time": 8,
+                "wall_time": 59,
+                "wipe_tower_time": 3
             },
             "total_predication": 617.326171875,
             "triangle_count": 160,
@@ -79,10 +79,10 @@
     "times": {
         "export_3mf_time": 28,
         "export_slicedata_time": 0,
-        "export_time": 574,
+        "export_time": 564,
         "import_time": 1,
         "load_slicedata_time": 0,
-        "prepare_time": 6
+        "prepare_time": 20
     },
     "wall_loops": 2
 }

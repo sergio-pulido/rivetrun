@@ -1,6 +1,6 @@
-; model printing time: 5m 54s; total estimated time: 6m 13s
-; total filament length [mm] : 342.40
-; total filament volume [cm^3] : 823.56
+; model printing time: 5m 53s; total estimated time: 6m 12s
+; total filament length [mm] : 342.37
+; total filament volume [cm^3] : 823.50
 ; total filament weight [g] : 1.05
 ; filament_density: 1.28
 ; filament_diameter: 1.75

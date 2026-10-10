@@ -1,7 +1,7 @@
-; model printing time: 15m 40s; total estimated time: 15m 59s
-; total filament length [mm] : 1789.44
-; total filament volume [cm^3] : 4304.11
-; total filament weight [g] : 5.51
+; model printing time: 1h 2m 5s; total estimated time: 1h 2m 24s
+; total filament length [mm] : 9991.34
+; total filament volume [cm^3] : 24032.00
+; total filament weight [g] : 30.76
 ; filament_density: 1.28
 ; filament_diameter: 1.75
 ; filament: 1
@@ -117,6 +117,236 @@
 ; timelapse_type = 0
 ; wall_filament = 0
 ; filament start gcode
+M1002 judge_flag timelapse_record_flag
+ ; timelapse without wipe tower
+M1002 judge_flag timelapse_record_flag
+ ; timelapse without wipe tower
+M1002 judge_flag timelapse_record_flag
+ ; timelapse without wipe tower
+M1002 judge_flag timelapse_record_flag
+ ; timelapse without wipe tower
+M1002 judge_flag timelapse_record_flag
+ ; timelapse without wipe tower
+M1002 judge_flag timelapse_record_flag
+ ; timelapse without wipe tower
+M1002 judge_flag timelapse_record_flag
+ ; timelapse without wipe tower
+M1002 judge_flag timelapse_record_flag
+ ; timelapse without wipe tower
+M1002 judge_flag timelapse_record_flag
+ ; timelapse without wipe tower
+M1002 judge_flag timelapse_record_flag
+ ; timelapse without wipe tower
+M1002 judge_flag timelapse_record_flag
+ ; timelapse without wipe tower
+M1002 judge_flag timelapse_record_flag
+ ; timelapse without wipe tower
+M1002 judge_flag timelapse_record_flag
+ ; timelapse without wipe tower
+M1002 judge_flag timelapse_record_flag
+ ; timelapse without wipe tower
+M1002 judge_flag timelapse_record_flag
+ ; timelapse without wipe tower
+M1002 judge_flag timelapse_record_flag
+ ; timelapse without wipe tower
+M1002 judge_flag timelapse_record_flag
+ ; timelapse without wipe tower
+M1002 judge_flag timelapse_record_flag
+ ; timelapse without wipe tower
+M1002 judge_flag timelapse_record_flag
+ ; timelapse without wipe tower
+M1002 judge_flag timelapse_record_flag
+ ; timelapse without wipe tower
+M1002 judge_flag timelapse_record_flag
+ ; timelapse without wipe tower
+M1002 judge_flag timelapse_record_flag
+ ; timelapse without wipe tower
+M1002 judge_flag timelapse_record_flag
+ ; timelapse without wipe tower
+M1002 judge_flag timelapse_record_flag
+ ; timelapse without wipe tower
+M1002 judge_flag timelapse_record_flag
+ ; timelapse without wipe tower
+M1002 judge_flag timelapse_record_flag
+ ; timelapse without wipe tower
+M1002 judge_flag timelapse_record_flag
+ ; timelapse without wipe tower
+M1002 judge_flag timelapse_record_flag
+ ; timelapse without wipe tower
+M1002 judge_flag timelapse_record_flag
+ ; timelapse without wipe tower
+M1002 judge_flag timelapse_record_flag
+ ; timelapse without wipe tower
+M1002 judge_flag timelapse_record_flag
+ ; timelapse without wipe tower
+M1002 judge_flag timelapse_record_flag
+ ; timelapse without wipe tower
+M1002 judge_flag timelapse_record_flag
+ ; timelapse without wipe tower
+M1002 judge_flag timelapse_record_flag
+ ; timelapse without wipe tower
+M1002 judge_flag timelapse_record_flag
+ ; timelapse without wipe tower
+M1002 judge_flag timelapse_record_flag
+ ; timelapse without wipe tower
+M1002 judge_flag timelapse_record_flag
+ ; timelapse without wipe tower
+M1002 judge_flag timelapse_record_flag
+ ; timelapse without wipe tower
+M1002 judge_flag timelapse_record_flag
+ ; timelapse without wipe tower
+M1002 judge_flag timelapse_record_flag
+ ; timelapse without wipe tower
+M1002 judge_flag timelapse_record_flag
+ ; timelapse without wipe tower
+M1002 judge_flag timelapse_record_flag
+ ; timelapse without wipe tower
+M1002 judge_flag timelapse_record_flag
+ ; timelapse without wipe tower
+M1002 judge_flag timelapse_record_flag
+ ; timelapse without wipe tower
+M1002 judge_flag timelapse_record_flag
+ ; timelapse without wipe tower
+M1002 judge_flag timelapse_record_flag
+ ; timelapse without wipe tower
+M1002 judge_flag timelapse_record_flag
+ ; timelapse without wipe tower
+M1002 judge_flag timelapse_record_flag
+ ; timelapse without wipe tower
+M1002 judge_flag timelapse_record_flag
+ ; timelapse without wipe tower
+M1002 judge_flag timelapse_record_flag
+ ; timelapse without wipe tower
+M1002 judge_flag timelapse_record_flag
+ ; timelapse without wipe tower
+M1002 judge_flag timelapse_record_flag
+ ; timelapse without wipe tower
+M1002 judge_flag timelapse_record_flag
+ ; timelapse without wipe tower
+M1002 judge_flag timelapse_record_flag
+ ; timelapse without wipe tower
+M1002 judge_flag timelapse_record_flag
+ ; timelapse without wipe tower
+M1002 judge_flag timelapse_record_flag
+ ; timelapse without wipe tower
+M1002 judge_flag timelapse_record_flag
+ ; timelapse without wipe tower
+M1002 judge_flag timelapse_record_flag
+ ; timelapse without wipe tower
+M1002 judge_flag timelapse_record_flag
+ ; timelapse without wipe tower
+M1002 judge_flag timelapse_record_flag
+ ; timelapse without wipe tower
+M1002 judge_flag timelapse_record_flag
+ ; timelapse without wipe tower
+M1002 judge_flag timelapse_record_flag
+ ; timelapse without wipe tower
+M1002 judge_flag timelapse_record_flag
+ ; timelapse without wipe tower
+M1002 judge_flag timelapse_record_flag
+ ; timelapse without wipe tower
+M1002 judge_flag timelapse_record_flag
+ ; timelapse without wipe tower
+M1002 judge_flag timelapse_record_flag
+ ; timelapse without wipe tower
+M1002 judge_flag timelapse_record_flag
+ ; timelapse without wipe tower
+M1002 judge_flag timelapse_record_flag
+ ; timelapse without wipe tower
+M1002 judge_flag timelapse_record_flag
+ ; timelapse without wipe tower
+M1002 judge_flag timelapse_record_flag
+ ; timelapse without wipe tower
+M1002 judge_flag timelapse_record_flag
+ ; timelapse without wipe tower
+M1002 judge_flag timelapse_record_flag
+ ; timelapse without wipe tower
+M1002 judge_flag timelapse_record_flag
+ ; timelapse without wipe tower
+M1002 judge_flag timelapse_record_flag
+ ; timelapse without wipe tower
+M1002 judge_flag timelapse_record_flag
+ ; timelapse without wipe tower
+M1002 judge_flag timelapse_record_flag
+ ; timelapse without wipe tower
+M1002 judge_flag timelapse_record_flag
+ ; timelapse without wipe tower
+M1002 judge_flag timelapse_record_flag
+ ; timelapse without wipe tower
+M1002 judge_flag timelapse_record_flag
+ ; timelapse without wipe tower
+M1002 judge_flag timelapse_record_flag
+ ; timelapse without wipe tower
+M1002 judge_flag timelapse_record_flag
+ ; timelapse without wipe tower
+M1002 judge_flag timelapse_record_flag
+ ; timelapse without wipe tower
+M1002 judge_flag timelapse_record_flag
+ ; timelapse without wipe tower
+M1002 judge_flag timelapse_record_flag
+ ; timelapse without wipe tower
+M1002 judge_flag timelapse_record_flag
+ ; timelapse without wipe tower
+M1002 judge_flag timelapse_record_flag
+ ; timelapse without wipe tower
+M1002 judge_flag timelapse_record_flag
+ ; timelapse without wipe tower
+M1002 judge_flag timelapse_record_flag
+ ; timelapse without wipe tower
+M1002 judge_flag timelapse_record_flag
+ ; timelapse without wipe tower
+M1002 judge_flag timelapse_record_flag
+ ; timelapse without wipe tower
+M1002 judge_flag timelapse_record_flag
+ ; timelapse without wipe tower
+M1002 judge_flag timelapse_record_flag
+ ; timelapse without wipe tower
+M1002 judge_flag timelapse_record_flag
+ ; timelapse without wipe tower
+M1002 judge_flag timelapse_record_flag
+ ; timelapse without wipe tower
+M1002 judge_flag timelapse_record_flag
+ ; timelapse without wipe tower
+M1002 judge_flag timelapse_record_flag
+ ; timelapse without wipe tower
+M1002 judge_flag timelapse_record_flag
+ ; timelapse without wipe tower
+M1002 judge_flag timelapse_record_flag
+ ; timelapse without wipe tower
+M1002 judge_flag timelapse_record_flag
+ ; timelapse without wipe tower
+M1002 judge_flag timelapse_record_flag
+ ; timelapse without wipe tower
+M1002 judge_flag timelapse_record_flag
+ ; timelapse without wipe tower
+M1002 judge_flag timelapse_record_flag
+ ; timelapse without wipe tower
+M1002 judge_flag timelapse_record_flag
+ ; timelapse without wipe tower
+M1002 judge_flag timelapse_record_flag
+ ; timelapse without wipe tower
+M1002 judge_flag timelapse_record_flag
+ ; timelapse without wipe tower
+M1002 judge_flag timelapse_record_flag
+ ; timelapse without wipe tower
+M1002 judge_flag timelapse_record_flag
+ ; timelapse without wipe tower
+M1002 judge_flag timelapse_record_flag
+ ; timelapse without wipe tower
+M1002 judge_flag timelapse_record_flag
+ ; timelapse without wipe tower
+M1002 judge_flag timelapse_record_flag
+ ; timelapse without wipe tower
+M1002 judge_flag timelapse_record_flag
+ ; timelapse without wipe tower
+M1002 judge_flag timelapse_record_flag
+ ; timelapse without wipe tower
+M1002 judge_flag timelapse_record_flag
+ ; timelapse without wipe tower
+M1002 judge_flag timelapse_record_flag
+ ; timelapse without wipe tower
+M1002 judge_flag timelapse_record_flag
+ ; timelapse without wipe tower
 M1002 judge_flag timelapse_record_flag
  ; timelapse without wipe tower
 M1002 judge_flag timelapse_record_flag

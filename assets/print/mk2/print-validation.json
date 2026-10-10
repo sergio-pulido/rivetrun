@@ -1,0 +1,114 @@
+{
+  "author": "sergio.pulido@alodai.com",
+  "status": "prototype_requires_insert_calibration_and_fit_test",
+  "stls": {
+    "insert_test_coupon": {
+      "triangles": 452,
+      "dimensionsMm": [
+        56.0,
+        18.0,
+        8.0
+      ],
+      "manifold": true,
+      "volumeMm3": 7730.31,
+      "grams": 4.4631,
+      "hours": 0.178109
+    },
+    "motor_saddle": {
+      "triangles": 612,
+      "dimensionsMm": [
+        30.0,
+        27.6,
+        15.0
+      ],
+      "manifold": true,
+      "volumeMm3": 8422.871,
+      "grams": 5.5093,
+      "hours": 0.266579
+    },
+    "motor_cap": {
+      "triangles": 464,
+      "dimensionsMm": [
+        30.0,
+        27.6,
+        3.0
+      ],
+      "manifold": true,
+      "volumeMm3": 2362.89,
+      "grams": 2.1066,
+      "hours": 0.09007
+    },
+    "battery_tray": {
+      "triangles": 492,
+      "dimensionsMm": [
+        113.0,
+        41.0,
+        8.0
+      ],
+      "manifold": true,
+      "volumeMm3": 14506.26,
+      "grams": 14.1535,
+      "hours": 0.354517
+    },
+    "board_standoff": {
+      "triangles": 160,
+      "dimensionsMm": [
+        7.0,
+        7.0,
+        16.0
+      ],
+      "manifold": true,
+      "volumeMm3": 467.18,
+      "grams": 0.6392,
+      "hours": 0.171479
+    },
+    "cable_clip": {
+      "triangles": 296,
+      "dimensionsMm": [
+        18.0,
+        10.0,
+        8.0
+      ],
+      "manifold": true,
+      "volumeMm3": 1111.055,
+      "grams": 1.0541,
+      "hours": 0.103536
+    },
+    "electronics_bridge": {
+      "triangles": 1086,
+      "dimensionsMm": [
+        120.0,
+        74.0,
+        38.0
+      ],
+      "manifold": true,
+      "volumeMm3": 47258.706,
+      "grams": 30.761,
+      "hours": 1.040119
+    },
+    "controller_carrier": {
+      "triangles": 1620,
+      "dimensionsMm": [
+        120.0,
+        74.0,
+        21.4
+      ],
+      "manifold": true,
+      "volumeMm3": 29323.215,
+      "grams": 22.827,
+      "hours": 0.706666
+    },
+    "chassis_base": {
+      "triangles": 3382,
+      "dimensionsMm": [
+        160.0,
+        100.0,
+        4.0
+      ],
+      "manifold": true,
+      "volumeMm3": 60366.082,
+      "grams": 40.2042,
+      "hours": 1.168679
+    }
+  }
+}

@@ -25,27 +25,6 @@
       "author": "sergio.pulido@alodai.com"
     },
     {
-      "id": "chassis_base",
-      "name": "PETG chassis base",
-      "stl": "assets/print/mk2/chassis_base.stl",
-      "qty": 1,
-      "material": "PETG",
-      "grams": null,
-      "hours": null,
-      "layerMm": 0.2,
-      "infillPct": 15,
-      "supports": false,
-      "source": "pending_slicer",
-      "volumeMm3": 60507.652,
-      "dimensionsMm": [
-        160.0,
-        100.0,
-        4.0
-      ],
-      "notes": "160x100x4 mm. M3 clearance grid 20x24 mm; four N20 mount stations x +/-65, y +/-36. Printed flat. Hardware fit awaits final BOM; do not heat-set inserts into clearance holes.",
-      "author": "sergio.pulido@alodai.com"
-    },
-    {
       "id": "motor_saddle",
       "name": "N20 motor saddle",
       "stl": "assets/print/mk2/motor_saddle.stl",
@@ -57,13 +36,13 @@
       "infillPct": 15,
       "supports": false,
       "source": "pending_slicer",
-      "volumeMm3": 8118.162,
+      "volumeMm3": 8422.873,
       "dimensionsMm": [
         30.0,
-        27.0,
+        27.6,
         15.0
       ],
-      "notes": "10x12x25 mm N20 envelope +0.3 mm clearance per side. Cap sockets are hole size: calibrate; insertHoleMm from mechanical-parameters.json, 5.7 mm depth; must match the chosen M3 insert datasheet before printing this part. Two base M3 through holes.",
+      "notes": "10x12x25.6 mm N20 envelope +0.3 mm clearance per side. Cap sockets are hole size: calibrate; insertHoleMm from mechanical-parameters.json, 5.7 mm depth; must match the chosen M3 insert datasheet before printing this part. Two bottom M3 insert sockets, using the same calibrated pilot; mount with M3x8 through the 4 mm base.",
       "author": "sergio.pulido@alodai.com"
     },
     {
@@ -78,10 +57,10 @@
       "infillPct": 15,
       "supports": false,
       "source": "pending_slicer",
-      "volumeMm3": 2309.041,
+      "volumeMm3": 2362.891,
       "dimensionsMm": [
         30.0,
-        27.0,
+        27.6,
         3.0
       ],
       "notes": "Flat cap for motor_saddle. Four M3 clearance holes. The cap acts on the saddle walls; final clamp height must be confirmed against the selected motor, not tightened onto a loose motor.",
@@ -148,6 +127,69 @@
         8.0
       ],
       "notes": "Open 5 mm routing channel with one M3 screw; structural cable restraint, not decorative wiring. Print flat without supports.",
+      "author": "sergio.pulido@alodai.com"
+    },
+    {
+      "id": "electronics_bridge",
+      "name": "Raised electronics bridge",
+      "stl": "assets/print/mk2/electronics_bridge.stl",
+      "qty": 1,
+      "material": "PETG",
+      "grams": null,
+      "hours": null,
+      "layerMm": 0.2,
+      "infillPct": 15,
+      "supports": false,
+      "source": "pending_slicer",
+      "volumeMm3": 47258.707,
+      "dimensionsMm": [
+        120.0,
+        74.0,
+        38.0
+      ],
+      "notes": "Printed upside-down: plate on bed, four legs upward. Assembly rotates 180 degrees around X and raises 38 mm. Two calibrated M3 insert sockets per leg; hole size: calibrate. 35 mm under-plate clearance for the largest battery.",
+      "author": "sergio.pulido@alodai.com"
+    },
+    {
+      "id": "controller_carrier",
+      "name": "Pi 5 and regulator carrier",
+      "stl": "assets/print/mk2/controller_carrier.stl",
+      "qty": 1,
+      "material": "PETG",
+      "grams": null,
+      "hours": null,
+      "layerMm": 0.2,
+      "infillPct": 15,
+      "supports": false,
+      "source": "pending_slicer",
+      "volumeMm3": 29323.218,
+      "dimensionsMm": [
+        120.0,
+        74.0,
+        21.4
+      ],
+      "notes": "Pi 5 locating pegs fit 2.7 mm holes on the official 58x49 mm pattern; Pi centre x=-12. Integral 16 mm standoffs and PETG edge latches. Regulator pegs follow the official 18.5 mm hole spacing. No M3 through PCB holes. Latch/peg retention requires physical fit test; reference drawing is not production certified.",
+      "author": "sergio.pulido@alodai.com"
+    },
+    {
+      "id": "chassis_base",
+      "name": "PETG chassis base",
+      "stl": "assets/print/mk2/chassis_base.stl",
+      "qty": 1,
+      "material": "PETG",
+      "grams": null,
+      "hours": null,
+      "layerMm": 0.2,
+      "infillPct": 15,
+      "supports": false,
+      "source": "pending_slicer",
+      "volumeMm3": 60366.09,
+      "dimensionsMm": [
+        160.0,
+        100.0,
+        4.0
+      ],
+      "notes": "160x100x4 mm. M3 clearance grid; motor stations x +/-65, y +/-35. Bridge mounting pattern x +/-37, y +/-29. No M3 fasteners through the Pi PCB. Flat prototype print; validate physical fit.",
       "author": "sergio.pulido@alodai.com"
     }
   ]
