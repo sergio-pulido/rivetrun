@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import type { Action, Brain, Build } from '@rivetrun/contracts';
-import { MISSIONS, PRESETS, controlToAction, createRun, driveSeed, heuristicBrain, heuristicDecide, runHeadless, safeSpeedMps, step } from './index';
+import type { Action, Brain, Build, Mission, RunEvent } from '@rivetrun/contracts';
+import { MISSIONS, PRESETS, controlToAction, createRun, driveController, driveSeed, heuristicBrain, heuristicDecide, jumpChargePower, runHeadless, safeSpeedMps, step } from './index';
 
 const allRounder = PRESETS.all_rounder.build;
 /** The heuristic, with every throttle level replaced by one pace. */
@@ -131,4 +131,109 @@ describe('gameplay v3: traction', () => {
     expect(ice).toBeGreaterThan(asphalt * 1.5);
     expect(stoppingDistance('asphalt', 'brake_soft')).toBeGreaterThan(asphalt);
   });
+});
+
+describe('gameplay v3 P2: air control', () => {
+  // A 20° ramp onto flat ground: the body leaves nose-up and has to be levelled in the air.
+  const rampTrack: Mission = { ...MISSIONS.M1, scanZones: [], track: { segments: [{ terrain: 'asphalt', lengthM: 8, slopeDeg: 0, feature: { type: 'ramp', launchDeg: 20, lengthM: 1.5 } }, { terrain: 'asphalt', lengthM: 20, slopeDeg: 0 }] } };
+  const fly = (inAir: Action, manual: boolean) => {
+    let state = createRun({ mission: rampTrack, seed: 1, build: allRounder, priority: 0.5, manual });
+    let pitchInAir: number | undefined;
+    for (let i = 0; i < 600 && !state.done; i += 1) {
+      state = step(state, state.airborne ? inAir : 'accelerate');
+      if (state.airborne) pitchInAir = state.sim.pitch;
+      if (state.lastAir?.type === 'landed') return { landed: state.lastAir, pitchInAir, v: state.sim.v, t: state.sim.t };
+    }
+    throw new Error('never landed');
+  };
+
+  it('throttle in the air pitches the nose up, brake pitches it down, and the landing is graded', () => {
+    const coasted = fly('coast', true);
+    expect(coasted.landed.grade).toBe('hard');
+    expect(coasted.landed.pitchErrorDeg).toBe(20);
+
+    const levelled = fly('brake_soft', true);
+    expect(levelled.pitchInAir!).toBeLessThan(coasted.pitchInAir!);
+    expect(levelled.landed.grade).toBe('clean');
+    expect(levelled.landed.damagePct).toBeLessThan(coasted.landed.damagePct);
+
+    const noseUp = fly('accelerate', true);
+    expect(noseUp.landed.pitchErrorDeg!).toBeGreaterThan(coasted.landed.pitchErrorDeg!);
+    expect(noseUp.landed.damagePct).toBeGreaterThan(coasted.landed.damagePct);
+  });
+
+  it('over 30° nose-first is a crash: damage, a dead stop and a second lost', () => {
+    const dropTrack: Mission = { ...MISSIONS.M1, scanZones: [], track: { segments: [{ terrain: 'asphalt', lengthM: 8, slopeDeg: 0 }, { terrain: 'asphalt', lengthM: 20, slopeDeg: 0, feature: { type: 'drop', heightM: 1.6 } }] } };
+    const land = (inAir: Action) => {
+      let state = createRun({ mission: dropTrack, seed: 1, build: allRounder, priority: 0.5, manual: true });
+      for (let i = 0; i < 600 && !state.done; i += 1) {
+        const before = state.sim.t;
+        state = step(state, state.airborne ? inAir : 'accelerate');
+        if (state.lastAir?.type === 'landed') return { landed: state.lastAir, v: state.sim.v, stepS: state.sim.t - before };
+      }
+      throw new Error('never landed');
+    };
+    const flat = land('coast');
+    const dive = land('brake');
+    expect(flat.landed.grade).toBe('clean');
+    expect(dive.landed.grade).toBe('crash');
+    // 10 % for the crash, halved by this build's bumper.
+    expect(dive.landed.damagePct).toBeCloseTo(flat.landed.damagePct + 5, 5);
+    expect(dive.v).toBe(0);
+    expect(dive.stepS).toBeCloseTo(1.05, 5);
+  });
+
+  it('a brain\'s robot is always level: no grade, the same landing as before', () => {
+    const auto = fly('coast', false);
+    expect(auto.landed.grade).toBeUndefined();
+    expect(auto.landed.damagePct).toBeLessThanOrEqual(fly('brake_soft', true).landed.damagePct + 1e-9);
+  });
+});
+
+describe('gameplay v3 P2: charged piston jump', () => {
+  const jumper: Build = { ...allRounder, extras: ['piston_jump'] };
+  const flat: Mission = { ...MISSIONS.M1, scanZones: [], track: { segments: [{ terrain: 'asphalt', lengthM: 60, slopeDeg: 0 }] } };
+
+  it('0.3–1.0 s of hold gives 40–100 % of the impulse', () => {
+    expect([0, 0.3, 0.65, 1, 2].map((heldS) => Math.round(jumpChargePower(heldS) * 100))).toEqual([40, 40, 70, 100, 100]);
+  });
+
+  /** Holds the jump button from 2 s of sim time for `holdS`, then lets go. Returns the peak height and charge shown. */
+  const hop = async (holdS: number, how: 'charge' | 'instant' = 'charge'): Promise<{ peakM: number; charge: number; airborneAt: number }> => {
+    let t = 0;
+    let peakM = 0;
+    let charge = 0;
+    let airborneAt = -1;
+    const events: RunEvent[] = [];
+    const controller = driveController(
+      { mission: flat, seed: 1, build: jumper, priority: 0.5 },
+      () => ({ throttle: 0.6, brake: 0, ...(t >= 2 && t < 2 + holdS ? (how === 'charge' ? { jumpHeld: true } : { special: 'jump' as const }) : {}) }),
+      { hints: false, timeScale: 200, onEvent: (event) => {
+        events.push(event);
+        if (event.type !== 'frame') return;
+        t = event.state.t;
+        peakM = Math.max(peakM, event.state.heightM ?? 0);
+        charge = Math.max(charge, event.state.jumpCharge ?? 0);
+        if (airborneAt < 0 && event.state.airborne) airborneAt = t;
+        if (t > 6) controller.stop();
+      } },
+    );
+    await controller.start().catch(() => undefined);
+    return { peakM, charge, airborneAt };
+  };
+
+  it('the piston fires on release, higher the longer it was held; a plain jump still fires at once at full power', async () => {
+    const tap = await hop(0.1);
+    const half = await hop(0.65);
+    const full = await hop(1.2);
+    expect(tap.airborneAt).toBeGreaterThan(2);
+    expect(full.airborneAt).toBeGreaterThanOrEqual(3.2);
+    expect(tap.peakM).toBeGreaterThan(0);
+    expect(half.peakM).toBeGreaterThan(tap.peakM * 2);
+    expect(full.peakM).toBeGreaterThan(half.peakM * 1.5);
+    expect(full.charge).toBe(1);
+    const instant = await hop(0.1, 'instant');
+    expect(instant.airborneAt).toBeLessThan(2.2);
+    expect(instant.peakM).toBeCloseTo(full.peakM, 2);
+  }, 20000);
 });

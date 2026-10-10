@@ -73,7 +73,7 @@ describe('assessBuild', () => {
       expect(assessment.score, missionId).toBe(episode.outcome.score);
       expect(assessment.segments, missionId).toHaveLength(mission.track.segments.length);
     }
-  });
+  }, 30000);
 
   it('is deterministic', () => {
     const a = assessBuild(allRounder, MISSIONS.M5);

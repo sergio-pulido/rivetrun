@@ -21,7 +21,7 @@ import { BRIEFING_MAX_CHARS } from '@rivetrun/contracts';
 import { heuristicDecide } from './brains';
 import { TUNING } from './data';
 import { START_TRIGGER, advanceBrain, availableActions, buildQuestion, observe } from './perception';
-import { createRun, markDecision, step, withAction } from './physics';
+import { createRun, jumpChargePower, markDecision, step, withAction } from './physics';
 import { score } from './score';
 import type { HeadlessOptions, HeadlessResult, RunConfig, RunController, RunControllerOptions, RunState, StepDamage } from './types';
 
@@ -232,7 +232,7 @@ function emitStepEvents(
   if (state.sim.gust !== undefined && state.sim.gust !== (prev.sim.gust ?? false)) emit({ type: 'gust', t: state.sim.t, on: state.sim.gust, windMps: state.sim.windMps ?? 0 });
   const air = state.lastAir;
   if (air?.type === 'airborne') emit({ type: 'airborne', t: state.sim.t, x: state.sim.x, v: state.sim.v, vy: state.vy, cause: air.cause });
-  if (air?.type === 'landed') emit({ type: 'landed', t: state.sim.t, x: state.sim.x, impactMps: air.impactMps, airtimeS: air.airtimeS, damagePct: air.damagePct });
+  if (air?.type === 'landed') emit({ type: 'landed', t: state.sim.t, x: state.sim.x, impactMps: air.impactMps, airtimeS: air.airtimeS, damagePct: air.damagePct, ...(air.grade ? { grade: air.grade, pitchErrorDeg: air.pitchErrorDeg } : {}) });
   if (air?.type === 'fell') emit({ type: 'fell', t: state.sim.t, x: air.fromX, falls: air.falls, respawnX: air.respawnX });
   const damage = state.lastDamage;
   if (damage) {
@@ -295,6 +295,8 @@ export function driveController(config: RunConfig, readInput: () => ControlInput
       const inputLog: { t: number; throttle: number; brake: number; special?: ControlInput['special']; action: Action }[] = [];
       let lastInput: { throttle: number; brake: number; special?: ControlInput['special'] } = { throttle: -1, brake: -1 };
       let lastAction: Action | undefined;
+      // Charged jump: seconds the button has been held; fires when it is let go.
+      let chargeS = 0;
       let accumulatedMs = 0;
       let last = now();
       const complete = (): void => {
@@ -313,8 +315,12 @@ export function driveController(config: RunConfig, readInput: () => ControlInput
           accumulatedMs -= TUNING.dtMs;
           const prev = state;
           const input = readInput();
-          const action = controlToAction(input, config.build);
-          state = step(state, action);
+          const charging = input.jumpHeld === true && state.spec.jumpImpulseMps > 0 && state.sim.t >= state.jumpReadyT && !state.airborne;
+          const release = !charging && chargeS > 0;
+          const action = release ? 'jump' : controlToAction(input, config.build);
+          if (charging) chargeS += TUNING.dtMs / 1000;
+          state = step({ ...state, jumpChargeS: charging ? chargeS : undefined, ...(release ? { jumpPower: jumpChargePower(chargeS) } : {}) }, action);
+          if (release) chargeS = 0;
           emitStepEvents(emit, prev, state, pendingDamage);
           if (state.stepCount % OBSERVE_EVERY_STEPS === 0) {
             emit({ type: 'observation', t: state.sim.t, observation: observe(state), control: { throttle: level(input.throttle), brake: level(input.brake), action } });

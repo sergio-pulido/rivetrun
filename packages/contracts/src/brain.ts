@@ -161,6 +161,11 @@ export const ControlInputSchema = z.object({
   brake: z.union([z.boolean(), z.number().min(0).max(1)]),
   /** Action button, only for parts the build has. */
   special: ControlSpecialSchema.optional(),
+  /**
+   * Charged piston jump: true while the jump button is held. The piston compresses and fires when this goes false
+   * (0.3–1.0 s of hold = 40–100 % of the impulse). `special: 'jump'` still fires at once at full power.
+   */
+  jumpHeld: z.boolean().optional(),
 });
 export type ControlInput = z.infer<typeof ControlInputSchema>;
 

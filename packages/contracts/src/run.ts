@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import {
   ActionSchema,
+  ControlSpecialSchema,
   BrainDecisionSchema,
   BrainQuestionSchema,
   PerceptionSchema,
@@ -63,6 +64,8 @@ export const SimStateSchema = z.object({
   windMps: z.number().optional(),
   /** True while a gust is blowing. */
   gust: z.boolean().optional(),
+  /** Piston charge while the player holds the jump button, 0..1 of full impulse (0.4 = a tap). */
+  jumpCharge: z.number().min(0).max(1).optional(),
 });
 export type SimState = z.infer<typeof SimStateSchema>;
 
@@ -101,7 +104,7 @@ export const OutcomeSchema = z.object({
       t: z.number(), xM: z.number(), label: z.string(), cause: TriggerCauseSchema, humanS: z.number().min(0).nullable(),
     })).optional(),
     /** Drive mode: the player's controls, one entry per change, in sim time. */
-    inputLog: z.array(z.object({ t: z.number(), throttle: z.number().min(0).max(1), brake: z.number().min(0).max(1), special: z.enum(['jump', 'winch', 'climb']).optional(), action: ActionSchema })).optional(),
+    inputLog: z.array(z.object({ t: z.number(), throttle: z.number().min(0).max(1), brake: z.number().min(0).max(1), special: ControlSpecialSchema.optional(), action: ActionSchema })).optional(),
   }).optional(),
   /** One-line explanation derived by the sim from ground truth, e.g. "Slipped 6 s on ice — no IMU". */
   why: z.string().max(200).optional(),
@@ -226,7 +229,13 @@ export const RunEventSchema = z.discriminatedUnion('type', [
     label: z.string().optional(),
   }),
   z.object({ type: z.literal('airborne'), t: z.number(), x: z.number(), v: z.number(), vy: z.number(), cause: z.enum(['ramp', 'jump', 'drop']) }),
-  z.object({ type: z.literal('landed'), t: z.number(), x: z.number(), impactMps: z.number().min(0), airtimeS: z.number().min(0), damagePct: z.number().min(0) }),
+  z.object({
+    type: z.literal('landed'), t: z.number(), x: z.number(), impactMps: z.number().min(0), airtimeS: z.number().min(0), damagePct: z.number().min(0),
+    /** Air control (Drive mode): how square the robot met the ground. Absent when a brain drives (always level). */
+    grade: z.enum(['clean', 'hard', 'crash']).optional(),
+    /** Nose angle against the ground at touchdown, degrees (positive = nose up). */
+    pitchErrorDeg: z.number().optional(),
+  }),
   /** A gust starts (`on`) or dies down. `windMps` is the headwind including it. */
   z.object({ type: z.literal('gust'), t: z.number(), on: z.boolean(), windMps: z.number() }),
   z.object({ type: z.literal('fell'), t: z.number(), x: z.number(), falls: z.number().int().min(1), respawnX: z.number() }),

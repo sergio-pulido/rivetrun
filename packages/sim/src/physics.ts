@@ -62,6 +62,12 @@ export const PHYSICS = {
   respawnRunUpM: 3,
   /** An armed piston waits for a gap or obstacle this far beyond its reach. */
   jumpArmRangeM: 2,
+  /** Air control (Drive mode): the wheels' reaction torque turns the body this fast at full throttle or full brake, °/s. */
+  airPitchRateDps: 60,
+  /** Landing grades by nose angle against the ground: within `cleanDeg` clean, up to `hardDeg` hard, beyond it nose-first a crash. */
+  landing: { cleanDeg: 10, hardDeg: 30, hardDamagePct: 5, crashDamagePct: 10, crashStallS: 1 },
+  /** Charged jump: holding 0.3–1.0 s gives 40–100 % of the piston's impulse. */
+  jumpCharge: { minS: 0.3, maxS: 1, minPower: 0.4 },
   /** Climb mode lifts the nose: this much more clearance over an obstacle. */
   climbClearanceFactor: 1.3,
   swimSpeedMps: 1.5,
@@ -301,6 +307,22 @@ const rampAt = (world: World, xM: number): Extract<WorldFeature, { type: 'ramp' 
 const gapAt = (world: World, xM: number): WorldFeature | undefined =>
   world.features.find((f) => f.type === 'gap' && f.endM - f.startM > PHYSICS.gapRollOverM && xM > f.startM + PHYSICS.gapRollOverM && xM < f.endM);
 
+/** Reaction torque in the air: +1 = full nose-up (throttle), −1 = full nose-down (brake). */
+function airTorque(action: Action): number {
+  if (action === 'brake') return -1;
+  if (action === 'brake_soft') return -0.5;
+  if (action === 'accelerate') return 1;
+  if (action === 'cruise' || action === 'climb_mode') return 0.6;
+  if (action === 'slow_down') return 0.3;
+  return 0;
+}
+
+/** Share of the piston's impulse after holding the button this long: 0.3–1.0 s gives 40–100 %. */
+export function jumpChargePower(heldS: number): number {
+  const { minS, maxS, minPower } = PHYSICS.jumpCharge;
+  return clamp(minPower + ((heldS - minS) / (maxS - minS)) * (1 - minPower), minPower, 1);
+}
+
 /** Airtime of a piston jump from flat ground, seconds. */
 export const jumpAirtimeS = (impulseMps: number): number => (2 * impulseMps) / G;
 
@@ -352,8 +374,12 @@ export function step(state: RunState, action: Action): RunState {
   let landing: StepDamage | undefined;
   let fell: Extract<WorldFeature, { type: 'gap' }> | undefined;
   let jumpJ = 0;
+  let airPitchDeg = state.airPitchDeg;
+  let crashed = false;
   const takeOff = (cause: 'ramp' | 'jump' | 'drop', fromHeightM: number, verticalMps: number): void => {
     airborne = true;
+    // The body leaves at the angle of the ground it left: a ramp sends it off nose-up.
+    if (state.config.manual) airPitchDeg = segment.slopeDeg + (cause === 'ramp' && ramp ? ramp.launchDeg : 0);
     heightM = fromHeightM;
     vy = verticalMps;
     airStartT = sim.t;
@@ -363,6 +389,8 @@ export function step(state: RunState, action: Action): RunState {
   if (wasAirborne) {
     vy -= G * DT_S;
     heightM += vy * DT_S;
+    // Throttle spins the wheels up and the body turns nose-up; the brake turns it nose-down.
+    if (airPitchDeg !== undefined) airPitchDeg = clamp(airPitchDeg + airTorque(action) * PHYSICS.airPitchRateDps * DT_S, -90, 90);
   } else if (ramp && x >= ramp.endM) {
     const launchRad = ramp.launchDeg * DEG;
     if (Math.abs(v) >= PHYSICS.minLaunchMps) {
@@ -378,9 +406,10 @@ export function step(state: RunState, action: Action): RunState {
   if (!airborne && action === 'jump' && spec.jumpImpulseMps > 0 && sim.t >= jumpReadyT && !afloat) {
     const timing = state.config.manual ? null : jumpLeadM(state, v);
     if (!timing || timing.targetM - x <= timing.leadM) {
-      takeOff('jump', ramp ? (x - ramp.startM) * Math.tan(ramp.launchDeg * DEG) : 0, spec.jumpImpulseMps);
+      const power = clamp(state.jumpPower ?? 1, PHYSICS.jumpCharge.minPower, 1);
+      takeOff('jump', ramp ? (x - ramp.startM) * Math.tan(ramp.launchDeg * DEG) : 0, spec.jumpImpulseMps * power);
       jumpReadyT = sim.t + spec.jumpCooldownS;
-      jumpJ = spec.jumpPowerW;
+      jumpJ = spec.jumpPowerW * power;
     }
   }
   if (airborne && wasAirborne && heightM <= 0) {
@@ -389,9 +418,17 @@ export function step(state: RunState, action: Action): RunState {
       fell = gap;
     } else {
       const impactMps = Math.abs(vy);
-      const amountPct = Math.max(0, impactMps - PHYSICS.safeLandingMps) ** 2 * PHYSICS.landingDamagePerMps2 * spec.impactDamageFactor;
+      const speedPct = Math.max(0, impactMps - PHYSICS.safeLandingMps) ** 2 * PHYSICS.landingDamagePerMps2 * spec.impactDamageFactor;
+      // Air control: how square the robot meets the ground. A brain's robot is always level.
+      const rules = PHYSICS.landing;
+      const pitchErrorDeg = airPitchDeg === undefined ? undefined : Math.round((airPitchDeg - world.segments[segmentIndexAt(world, x, state.segmentIndex)]!.slopeDeg) * 10) / 10;
+      const off = Math.abs(pitchErrorDeg ?? 0);
+      const grade = pitchErrorDeg === undefined ? undefined : off <= rules.cleanDeg ? ('clean' as const) : off > rules.hardDeg && pitchErrorDeg < 0 ? ('crash' as const) : ('hard' as const);
+      const gradePct = grade === 'crash' ? rules.crashDamagePct : grade === 'hard' ? rules.hardDamagePct * Math.min(1, (off - rules.cleanDeg) / (rules.hardDeg - rules.cleanDeg)) : 0;
+      const amountPct = speedPct + gradePct * spec.impactDamageFactor;
+      crashed = grade === 'crash';
       landing = { cause: 'impact', amountPct, air: 'landing', speedMps: impactMps };
-      lastAir = { type: 'landed', impactMps, airtimeS: Math.max(0, sim.t + DT_S - airStartT), damagePct: amountPct };
+      lastAir = { type: 'landed', impactMps, airtimeS: Math.max(0, sim.t + DT_S - airStartT), damagePct: amountPct, ...(grade ? { grade, pitchErrorDeg } : {}) };
     }
     airborne = false;
     heightM = 0;
@@ -478,7 +515,13 @@ export function step(state: RunState, action: Action): RunState {
     heightM = 0;
     vy = 0;
     stepCount += Math.round((PHYSICS.fallPenaltyS * 1000) / TUNING.dtMs);
+    airPitchDeg = undefined;
     lastAir = { type: 'fell', falls, respawnX, fromX };
+  }
+  // A nose-first crash stops the robot dead and costs a second to recover.
+  if (crashed) {
+    v = 0;
+    stepCount += Math.round((PHYSICS.landing.crashStallS * 1000) / TUNING.dtMs);
   }
   damage = Math.min(100, damage);
 
@@ -546,7 +589,10 @@ export function step(state: RunState, action: Action): RunState {
   const groundHeightM = Math.max(rampHeightM, deckHeightM, bump.heightM);
   const shownHeightM = airborne ? Math.max(0, heightM) : groundHeightM;
   const surfaceSlopeDeg = nextSegment.slopeDeg + (nextRamp ? nextRamp.launchDeg : 0) + bump.slopeDeg;
-  const pitch = airborne
+  if (!airborne) airPitchDeg = undefined;
+  const pitch = airborne && airPitchDeg !== undefined
+    ? airPitchDeg
+    : airborne
     ? clamp(Math.atan2(vy, Math.max(0.2, Math.abs(v))) / DEG, -35, 35)
     : surfaceSlopeDeg + clamp(-motion.accel * 1.5, -8, 8);
 
@@ -565,6 +611,7 @@ export function step(state: RunState, action: Action): RunState {
       effects: effectsFor(nextSegment.terrain, airborne ? 0 : v, motion.slipPct, damage, action, t < sparksUntilT, submergedDepthM),
       ...(shownHeightM > 0 || airborne ? { heightM: shownHeightM, vy: airborne ? vy : 0, airborne } : {}),
       ...(blockedBy ? { blockedBy } : {}),
+      ...(state.jumpChargeS ? { jumpCharge: jumpChargePower(state.jumpChargeS) } : {}),
       ...(hasWind(state.environment) ? { windMps: Math.round(headwindMps(state.environment, t) * 10) / 10, gust: gustAt(state.environment, t) > 0 } : {}),
       ...(scanning ? { scan: scanning } : {}),
       ...((state.config.mission.scanZones ?? []).length > 0 ? { scansDone: scans.done.length, scansMissed: scans.missed.length } : {}),
@@ -587,6 +634,9 @@ export function step(state: RunState, action: Action): RunState {
     falls,
     jumpReadyT,
     lastAir,
+    airPitchDeg,
+    jumpChargeS: state.jumpChargeS,
+    jumpPower: undefined,
     blockedBy,
     scans,
     drawW: drawJ / DT_S,

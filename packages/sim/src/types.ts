@@ -51,7 +51,7 @@ export interface BrainMemory {
 /** What happened in the air during the last step, if anything. */
 export type AirEvent =
   | { readonly type: 'airborne'; readonly cause: 'ramp' | 'jump' | 'drop' }
-  | { readonly type: 'landed'; readonly impactMps: number; readonly airtimeS: number; readonly damagePct: number }
+  | { readonly type: 'landed'; readonly impactMps: number; readonly airtimeS: number; readonly damagePct: number; readonly grade?: 'clean' | 'hard' | 'crash'; readonly pitchErrorDeg?: number }
   | { readonly type: 'fell'; readonly falls: number; readonly respawnX: number; readonly fromX: number };
 
 /** Damage applied by the last step, if any. */
@@ -114,6 +114,12 @@ export interface RunState {
   /** Sim time at which the piston can fire again. */
   readonly jumpReadyT: number;
   readonly lastAir?: AirEvent;
+  /** Drive mode: the body's pitch in the air, degrees. The player turns it with throttle and brake. */
+  readonly airPitchDeg?: number;
+  /** Drive mode: seconds the jump button has been held (charging the piston). */
+  readonly jumpChargeS?: number;
+  /** Share of the piston's impulse the next jump uses (set by a charged release). Absent = full. */
+  readonly jumpPower?: number;
   /** The obstacle the robot is stopped against, if any. */
   readonly blockedBy?: Obstacle;
   /** Electrical draw in the last step, watts (core kit: current sensing). */
