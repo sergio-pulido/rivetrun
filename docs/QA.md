@@ -19,6 +19,22 @@ Status: **OPEN** = reproduces now · **FIXED** = fix retested in the browser · 
 - Seen by sim shortly after: `/run/M1` showed "3D VIEW UNAVAILABLE ON THIS DEVICE", then requests returned empty responses, then nothing was listening on port 3000. Browser QA is not possible until the server is back.
 - The server came back. `assessBuild` measured in the browser (run page, dev build, `window.__rivetrunSim`): first call per mission 5.5–13 ms, worst of 84 further calls (every preset × every mission × 3) 19.7 ms on M6 with Deep Diver. Target was under 200 ms.
 
+## Brain v3 and gameplay v3, sim side — 10 Oct
+
+| Check | Result |
+|---|---|
+| A blind build is told nothing about the track ahead and hits the rock | PASS (unit test; the event reads "BLIND · hit rock at N m: no distance sensor"). |
+| A build without an IMU never reports slip or tilt | PASS (unit test on M3 and M4, every decision and 400 observations). |
+| No decision on a long uniform segment | PASS (100 m of asphalt: one decision, the start). |
+| Same seed and same latencies give the same run | PASS (350 ms fixed latency, M4 and M7). A 900 ms answer applies 0.9 s later and costs over a metre. |
+| Decisions per run, heuristic, seed 1001, 7 missions × 4 presets | 12.0 measured by sim before the energy triggers, 15.4 measured by brain after; 21.4 before v3, 62 % of those on the clock. |
+| Energy makes pace matter on M5 and M6 | PASS (unit test): heavy build on the small battery runs out at 90 % of the track at full throttle, finishes at steady; the heuristic eases off and finishes. |
+| Scan zones | PASS (unit test): the All-rounder stops and scans on M1; the Mud Crawler has no camera, misses it and pays 10 s. |
+| Preset finish rates, M1–M7, after all of it | PASS: identical to before v3. Scores are lower (energy costs more). |
+| Drive mode in the browser after the changes | One run on M1: hints arrive as chips, telemetry button present, run finishes. The 3D view showed the game session's "unavailable" fallback while they were mid-edit. |
+
+Open, sim: none known. Not done from the v3 specs: air pitch and landing grades, charged piston jump (both P2); continuous analog throttle (the slider maps to four levels).
+
 ## Strategy layer and physical plausibility — 10 Oct
 
 | Check | Result |
