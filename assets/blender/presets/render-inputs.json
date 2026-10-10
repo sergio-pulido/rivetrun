@@ -236,5 +236,5 @@
     "tracks": -0.205
   },
   "missingPartsPolicy": "Omit absent models; never use procedural or invented geometry.",
-  "libraryPlacement": "Existing component meshes only; metres ×10 = MK-II render units. Enclosure sits on chassis deck, IMU inside it; external sensors lifted onto enclosure. This is render placement, no new rover module or manufactured mount."
+  "libraryPlacement": "Existing component meshes only; metres \u00d710 = MK-II render units. Enclosure sits on chassis deck; controller and IMU are inside it, external sensors lifted onto enclosure. This is render placement, no new rover module or manufactured mount."
 }

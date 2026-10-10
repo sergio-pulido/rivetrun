@@ -13,7 +13,7 @@
       "master": "assets/blender/presets/speedster.png",
       "file": "apps/web/public/renders/presets/speedster.webp",
       "url": "/renders/presets/speedster.webp",
-      "sizeBytes": 67704,
+      "sizeBytes": 67626,
       "resolutionPx": [
         768,
         768
@@ -35,7 +35,7 @@
       "master": "assets/blender/presets/mud_crawler.png",
       "file": "apps/web/public/renders/presets/mud_crawler.webp",
       "url": "/renders/presets/mud_crawler.webp",
-      "sizeBytes": 28788,
+      "sizeBytes": 23130,
       "resolutionPx": [
         768,
         768
@@ -57,7 +57,7 @@
       "master": "assets/blender/presets/all_rounder.png",
       "file": "apps/web/public/renders/presets/all_rounder.webp",
       "url": "/renders/presets/all_rounder.webp",
-      "sizeBytes": 72572,
+      "sizeBytes": 72808,
       "resolutionPx": [
         768,
         768
@@ -80,7 +80,7 @@
       "master": "assets/blender/presets/deep_diver.png",
       "file": "apps/web/public/renders/presets/deep_diver.webp",
       "url": "/renders/presets/deep_diver.webp",
-      "sizeBytes": 54244,
+      "sizeBytes": 48892,
       "resolutionPx": [
         768,
         768
@@ -105,7 +105,7 @@
   "lineup": {
     "file": "apps/web/public/renders/presets/lineup.webp",
     "url": "/renders/presets/lineup.webp",
-    "sizeBytes": 201418,
+    "sizeBytes": 193372,
     "resolutionPx": [
       2400,
       900
@@ -123,5 +123,16 @@
       "top": 75
     },
     "transparent": true
+  },
+  "og": {
+    "file": "apps/web/public/og.png",
+    "sizeBytes": 208247,
+    "resolutionPx": [
+      1200,
+      630
+    ],
+    "background": "#0e1013, app ground token",
+    "title": "RIVETRUN",
+    "tagline": "Build a real robot. Let the AI drive."
   }
 }

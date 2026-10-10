@@ -20,6 +20,8 @@ for preset in data['presets']:
   modules[key]=(group,list(imported));all_meshes.extend(o for o in imported if o.type=='MESH')
  if 'waterproof_case' in modules:
   chassis_lo,chassis_hi=bounds(modules['chassis'][1]);group,objects=modules['waterproof_case'];lo,hi=bounds(objects);group.location.z+=chassis_hi[2]+.01-lo[2];height=hi[2]-lo[2]
+  # Keep the existing controller inside the closed purchased enclosure, not poking through its lid.
+  _,case_hi=bounds(objects);controller,controller_objects=modules['controller'];_,controller_hi=bounds(controller_objects);controller.location.z+=min(0,case_hi[2]-.025-controller_hi[2])
   for sensor in preset['build']['sensors']:
    if sensor not in modules:continue
    if sensor=='imu':
