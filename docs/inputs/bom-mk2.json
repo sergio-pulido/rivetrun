@@ -1635,6 +1635,76 @@
    "status": "design",
    "scenario": null,
    "notes": "No official knobbly tyre exists for this shaft family. Proposal: print a TPU tread over the Pololu hub of the chosen size. Needs a printer that handles TPU."
+  },
+  {
+   "key": "arduino_uno_r4_wifi",
+   "gameId": null,
+   "group": "locked",
+   "category": "compute",
+   "name": "Arduino UNO R4 WiFi",
+   "manufacturer": "Arduino",
+   "model": "UNO R4 WiFi",
+   "qty": 1,
+   "unit": "pcs",
+   "url": "https://store.arduino.cc/products/uno-r4-wifi",
+   "pageTitle": "Arduino® UNO R4 WiFi – 32-bit MCU with WiFi & Bluetooth — Arduino Official Store",
+   "priceShown": "€30.50 (VAT incl.)",
+   "specs": {
+    "mcu": "Renesas RA4M1 (Arm Cortex-M4) + ESP32-S3",
+    "operatingV": "5 V",
+    "vinV": "6–24",
+    "dimensionsMm": "68.85 x 53.34",
+    "massG": 48
+   },
+   "status": "verified",
+   "scenario": null,
+   "notes": "Alternative real-time controller: runs motors and sensors without a Pi; no camera or onboard AI."
+  },
+  {
+   "key": "ir_distance_sharp_gp2y0a21",
+   "gameId": null,
+   "group": "locked",
+   "category": "sensor",
+   "name": "Sharp/Socle GP2Y0A21YK0F Analog Distance Sensor 10-80cm",
+   "manufacturer": "Pololu (vendor)",
+   "model": "#136",
+   "qty": 1,
+   "unit": "pcs",
+   "url": "https://www.pololu.com/product/136",
+   "pageTitle": "Pololu - Sharp/Socle GP2Y0A21YK0F Analog Distance Sensor 10-80cm",
+   "priceShown": "US$12.95",
+   "specs": {
+    "range": "10–80 cm",
+    "supplyV": "4.5–5.5",
+    "output": "analog voltage",
+    "dimensionsMm": "44.5 x 18.9 x 13.5",
+    "massG": 3.5
+   },
+   "status": "verified",
+   "scenario": "navigation",
+   "notes": "Infrared distance sensor. Analog output: the Pi 5 needs an ADC."
+  },
+  {
+   "key": "battery_holder_4aa",
+   "gameId": null,
+   "group": "locked",
+   "category": "battery",
+   "name": "4-AA Battery Holder",
+   "manufacturer": "Pololu (vendor)",
+   "model": "#1153",
+   "qty": 1,
+   "unit": "pcs",
+   "url": "https://www.pololu.com/product/1153",
+   "pageTitle": "Pololu - 4-AA Battery Holder",
+   "priceShown": "US$2.99",
+   "specs": {
+    "cells": "4 x AA",
+    "leads": "two 6\" 24 AWG leads, no connector",
+    "dimensionsMm": "58 x 63 x 16"
+   },
+   "status": "verified",
+   "scenario": null,
+   "notes": "Simplest power option for a light test build; no balance charging, low current."
   }
  ]
 }

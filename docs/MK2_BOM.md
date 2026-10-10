@@ -99,6 +99,9 @@ The game's 100 mm wheel maps to the real 90 mm Pololu wheel, the largest in the 
 | Brushless DC Motor with Encoder 12V 159RPM | rough terrain | [DFRobot FIT0441](https://www.dfrobot.com/product-1364.html) | $19.90 | Driver built in, so no separate ESC. Suits a 3S pack. |
 | Micro Servo - High Powered, High Torque Metal Gear - TowerPro MG92B | search and rescue | [TowerPro (sold by Adafruit) MG92B (Adafruit PID 2307)](https://www.adafruit.com/product/2307) | $11.95 USD | Two for a pan-tilt camera mount. |
 | Adafruit I2S MEMS Microphone Breakout - SPH0645LM4H | earthquake rubble | [Adafruit SPH0645LM4H (PID 3421)](https://www.adafruit.com/product/3421) | $6.95 USD | Listens for calls or tapping from survivors. |
+| Arduino UNO R4 WiFi | — | [Arduino UNO R4 WiFi](https://store.arduino.cc/products/uno-r4-wifi) | €30.50 (VAT incl.) | Alternative real-time controller: runs motors and sensors without a Pi; no camera or onboard AI. |
+| Sharp/Socle GP2Y0A21YK0F Analog Distance Sensor 10-80cm | navigation | [Pololu (vendor) #136](https://www.pololu.com/product/136) | US$12.95 | Infrared distance sensor. Analog output: the Pi 5 needs an ADC. |
+| 4-AA Battery Holder | — | [Pololu (vendor) #1153](https://www.pololu.com/product/1153) | US$2.99 | Simplest power option for a light test build; no balance charging, low current. |
 
 ## Fab Lab tools
 | Tool | Used for | Source | Price shown | Notes |
