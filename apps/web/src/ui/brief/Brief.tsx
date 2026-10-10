@@ -7,6 +7,7 @@ import { MISSIONS, TUNING, compileTrack } from '@rivetrun/sim';
 import { TERRAIN_LOOK } from '@/game/palette';
 import { useBuildStore } from '@/state/build';
 import { useWorkshopUi } from '@/state/workshop';
+import { PersonalBestCard } from '@/ui/bests/PersonalBestCard';
 import { BUDGET_EUR, buildName, buildStats, missionBlockers, missionWarnings, presetThatFinishes } from '@/ui/buildStats';
 import { SavedBuilds } from '@/ui/builds/SavedBuilds';
 import { PlayLink } from '@/ui/coach/PlayLink';
@@ -176,6 +177,8 @@ export function Brief({ missionId }: { readonly missionId: MissionId }) {
       </div>
 
       <TestRun mission={mission} result={testRun} />
+
+      <PersonalBestCard mission={mission} build={build} />
 
       <SensePanel build={build} />
 

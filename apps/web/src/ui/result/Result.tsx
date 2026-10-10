@@ -2,11 +2,14 @@
 
 import Link from 'next/link';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import type { GhostTrace } from '@rivetrun/contracts';
 import { MISSION_IDS, MISSIONS, compileTrack, whyLine } from '@rivetrun/sim';
 import { DNF_LABEL } from '@/game/palette';
 import { useBuildStore } from '@/state/build';
+import { usePersonalBestsStore } from '@/state/personalBests';
 import { AppHeader } from '@/ui/AppHeader';
-import { buildStats } from '@/ui/buildStats';
+import { newBestLine, type BestVerdict } from '@/ui/bests/bests';
+import { buildName, buildStats } from '@/ui/buildStats';
 import { formatSeconds } from '@/ui/format';
 import { LOCKED_PARTS, isUnlocked, useProgressStore } from '@/state/progress';
 import { useRunStore, type RunResult } from '@/state/run';
@@ -18,7 +21,7 @@ import { DuelTable } from './DuelTable';
 import { ReactionDuel } from './ReactionDuel';
 import { pairWithGhost, parseReactions, reactionDuel } from './reactions';
 import { ScoreBreakdown } from './ScoreBreakdown';
-import { downloadEpisode, share, type ShareResult } from './share';
+import { downloadEpisode, downloadShareCard, share, type ShareResult } from './share';
 import { SubmitRun } from './SubmitRun';
 import { useCountUp } from './useCountUp';
 
@@ -74,6 +77,8 @@ function Summary({ result }: { readonly result: RunResult }) {
   const briefing = useBuildStore((store) => store.briefing);
   const award = useProgressStore((store) => store.award);
   const [earned, setEarned] = useState(0);
+  const recordBest = usePersonalBestsStore((store) => store.record);
+  const [bestVerdict, setBestVerdict] = useState<BestVerdict | null>(null);
   const [shared, setShared] = useState<ShareResult | null>(null);
   // Retry deploys the robot on the bench now, which may have changed since this run.
   const overBudgetEur = buildStats(useBuildStore((store) => store.build)).overBudgetEur;
@@ -98,6 +103,14 @@ function Summary({ result }: { readonly result: RunResult }) {
     if (paid > 0) setEarned(paid);
   }, [award, episode]);
 
+  // Counts the run towards the personal best for this mission and robot, once. The player's own trace (when the run
+  // page hands it over) is kept with a new best so it can be raced as a ghost.
+  useEffect(() => {
+    const trace = (result as RunResult & { readonly trace?: GhostTrace }).trace;
+    const recorded = recordBest(episode, buildName(episode.build), episode.policy === 'human' ? trace : undefined);
+    if (!recorded.repeat) setBestVerdict(newBestLine(outcome, recorded));
+  }, [recordBest, episode, outcome, result]);
+
   return (
     <main className="mx-auto flex min-h-dvh max-w-[430px] flex-col gap-3 px-4 pb-[max(18px,env(safe-area-inset-bottom))] pt-[max(18px,env(safe-area-inset-top))]">
       <AppHeader back="/" label="Result" />
@@ -114,6 +127,16 @@ function Summary({ result }: { readonly result: RunResult }) {
           <Stars count={outcome.stars} size={30} animate />
         </div>
       </header>
+
+      {bestVerdict ? (
+        <p
+          className={`rr-pop rounded-[14px] border px-3 py-2.5 text-[13px] leading-snug ${bestVerdict.fresh ? 'border-orange bg-orange-deep text-text' : 'border-line bg-panel-2 text-text-2'}`}
+          role="status"
+        >
+          {bestVerdict.fresh ? <span className="mr-1.5 font-mono text-[10px] font-semibold tracking-[1.5px] text-orange">NEW PERSONAL BEST · </span> : null}
+          {bestVerdict.text}
+        </p>
+      ) : null}
 
       <p className="rr-rise rounded-[14px] border border-line bg-panel-2 px-3 py-2.5 text-[13px] leading-snug text-[#D7DBE0]" style={{ ['--i' as string]: 1 }}>
         <span className="font-mono text-[10px] font-medium tracking-[1.5px] text-orange-soft">WHY · </span>
@@ -181,7 +204,7 @@ function Summary({ result }: { readonly result: RunResult }) {
           type="button"
           className={TILE}
           onClick={() => {
-            void share(episode).then(setShared);
+            void share(episode, result.ghosts).then(setShared);
           }}
         >
           <Tile icon="share">SHARE</Tile>
@@ -190,6 +213,13 @@ function Summary({ result }: { readonly result: RunResult }) {
           <Tile icon="download">EPISODE</Tile>
         </button>
       </nav>
+      {shared && shared.outcome !== 'shared' ? (
+        // This browser shared no image: the card can still be saved and sent by hand.
+        <button type="button" onClick={() => void downloadShareCard(episode, result.ghosts)} className="flex min-h-11 items-center justify-center gap-2 rounded-xl border border-line-3 font-mono text-[11px] font-medium tracking-[1px] text-text active:bg-panel-2">
+          <Icon name="download" size={16} />
+          SAVE THE SHARE CARD (PNG)
+        </button>
+      ) : null}
       {shared?.outcome === 'copied' ? (
         <p role="status" className="text-center font-mono text-[11px] text-muted">
           Copied to the clipboard.

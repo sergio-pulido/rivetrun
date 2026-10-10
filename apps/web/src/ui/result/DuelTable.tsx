@@ -47,8 +47,10 @@ function scoreVerdict(rows: readonly Row[]): string {
 /** Drive mode: you against the AI on the clock, same robot and seed. Exported for tests. */
 export function driveVerdict(you: Outcome, rival: Outcome, rivalPolicy: Policy): string {
   const ai = rivalPolicy === 'jev';
-  const name = ai ? 'Jev' : POLICY_LABEL[rivalPolicy];
-  const beaten = ai ? 'the AI' : name;
+  // A 'human' rival is the ghost of the player's own best run with this robot.
+  const own = rivalPolicy === 'human';
+  const name = ai ? 'Jev' : own ? 'Your best run' : POLICY_LABEL[rivalPolicy];
+  const beaten = ai ? 'the AI' : own ? 'your best run' : name;
   if (you.finished && rival.finished) {
     // Compared as shown, so the margin always matches the two times on screen.
     const margin = Number(formatSeconds(rival.timeS)) - Number(formatSeconds(you.timeS));
@@ -82,12 +84,15 @@ export function DuelTable({ episode, ghosts, briefing }: DuelTableProps) {
   const latency = median(episode.decisions.filter((decision) => !decision.fallback).map((decision) => decision.latencyMs));
   const brief = briefingName(briefing);
   // Drive mode falls back to a heuristic rival when the Jev ghost cannot be fetched.
-  const standIn = drove && rival !== undefined && rival.policy !== 'jev';
+  // Racing your own ghost: the rival is a recording of you, not a brain.
+  const ownGhost = drove && rival !== undefined && rival.policy === 'human';
+  const standIn = drove && rival !== undefined && rival.policy !== 'jev' && !ownGhost;
+  const label = (row: Row): string => (!row.player && row.policy === 'human' ? 'YOUR BEST' : POLICY_LABEL[row.policy]);
 
   return (
     <section className="rr-card-brain flex flex-col gap-2 !rounded-2xl p-3">
       <div className="flex items-baseline justify-between">
-        <h2 className="font-display text-base font-bold tracking-[2px] text-cyan">{drove ? `YOU VS ${rival ? POLICY_LABEL[rival.policy] : 'JEV'}` : 'BRAIN DUEL'}</h2>
+        <h2 className="font-display text-base font-bold tracking-[2px] text-cyan">{drove ? `YOU VS ${rival ? label(rival) : 'JEV'}` : 'BRAIN DUEL'}</h2>
         <span className="text-[11px] text-cyan-muted">same robot · same seed</span>
       </div>
 
@@ -97,7 +102,9 @@ export function DuelTable({ episode, ghosts, briefing }: DuelTableProps) {
         </p>
       ) : null}
 
-      {standIn ? (
+      {ownGhost ? (
+        <p className="rounded-[10px] border border-dashed border-[#1F3A3F] px-2.5 py-2 text-xs leading-snug text-cyan-muted">The ghost was your own best run with this robot on this mission.</p>
+      ) : standIn ? (
         <p className="rounded-[10px] border border-dashed border-[#1F3A3F] px-2.5 py-2 text-xs leading-snug text-cyan-muted">
           Jev&apos;s ghost was not ready, so {POLICY_LABEL[rival.policy]} drove the rival on its fixed rules. No briefing applied.
         </p>
@@ -120,20 +127,20 @@ export function DuelTable({ episode, ghosts, briefing }: DuelTableProps) {
         <span className="text-right">DMG</span>
         <span className="text-right">SCORE</span>
       </div>
-      {rows.map((row) => (
+      {rows.map((row, index) => (
         <div
-          key={row.policy}
+          key={`${index}:${row.policy}`}
           className={`${COLUMNS} min-h-10 rounded-[10px] border px-2 py-1 font-mono text-[13px] tabular-nums ${
             row.player ? (drove ? 'border-orange bg-orange/10 text-text' : 'border-cyan bg-cyan/15 text-text') : `border-[#1F3A3F] ${row.outcome.finished ? 'text-text-2' : 'text-[#8A929C]'}`
           }`}
         >
           <span className="flex min-w-0 flex-col">
             <span className="font-semibold">
-              {POLICY_LABEL[row.policy]}
+              {label(row)}
               {row.player && !drove ? ' · YOU' : ''}
             </span>
             <span className="truncate text-[9px] text-cyan-muted">
-              {row.player && !drove ? `brief: ${brief ?? 'none'}` : (row.fallbackNote ?? RIVAL_NOTE[row.policy])}
+              {row.player && !drove ? `brief: ${brief ?? 'none'}` : (row.fallbackNote ?? (!row.player && row.policy === 'human' ? 'your earlier run' : RIVAL_NOTE[row.policy]))}
             </span>
           </span>
           <span className="text-right">{row.outcome.finished ? `${formatSeconds(row.outcome.timeS)}s` : 'DNF'}</span>

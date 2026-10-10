@@ -37,4 +37,10 @@ describe('driveVerdict', () => {
   it('names the heuristic when it stood in for Jev', () => {
     expect(driveVerdict(outcome({ timeS: 20 }), outcome({ timeS: 25 }), 'heuristic')).toBe('You beat HEURISTIC by 5.0 s');
   });
+
+  it('speaks of your best run when the ghost is your own', () => {
+    expect(driveVerdict(outcome({ timeS: 27.4 }), outcome({ timeS: 29.7 }), 'human')).toBe('You beat your best run by 2.3 s');
+    expect(driveVerdict(outcome({ timeS: 30.2 }), outcome({ timeS: 29.7 }), 'human')).toBe('Your best run wins by 0.5 s');
+    expect(driveVerdict(outcome({ finished: false, progressFraction: 0.4 }), outcome({ timeS: 29.7 }), 'human')).toBe('Your best run finished. You did not');
+  });
 });

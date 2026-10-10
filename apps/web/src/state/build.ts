@@ -14,6 +14,10 @@ const DEFAULT_MISSION: MissionId = 'M1';
 export const PlayModeSchema = z.enum(['drive', 'jev']);
 export type PlayMode = z.infer<typeof PlayModeSchema>;
 
+/** Who the player races in Drive mode: Jev on the same robot, or the ghost of their own best run with it. */
+export const RivalSchema = z.enum(['jev', 'self']);
+export type Rival = z.infer<typeof RivalSchema>;
+
 const LoadoutSchema = z.object({
   build: BuildSchema,
   priority: PrioritySchema,
@@ -22,6 +26,8 @@ const LoadoutSchema = z.object({
   briefing: BriefingSchema.default(''),
   /** Gameplay v2: Drive is the default. Saves written before the field existed load as Drive. */
   mode: PlayModeSchema.default('drive'),
+  /** Saves written before the field existed load as Jev. The run page reads it; without a stored best it races Jev anyway. */
+  rival: RivalSchema.default('jev'),
 });
 type Loadout = z.infer<typeof LoadoutSchema>;
 
@@ -36,6 +42,8 @@ interface BuildStore extends Loadout {
   readonly setBriefing: (briefing: string) => void;
   /** The run page reads this field to pick Drive mode or Jev mode. */
   readonly setMode: (mode: PlayMode) => void;
+  /** Drive mode: race Jev, or the ghost of your own best run with this robot. */
+  readonly setRival: (rival: Rival) => void;
   /** Loads the saved loadout. Called once on the client after mount. */
   readonly hydrate: () => void;
 }
@@ -61,7 +69,7 @@ const mirror = (loadout: Loadout): void => {
 };
 
 const save = (state: Loadout): void =>
-  writeJson(STORAGE_KEY, { build: state.build, priority: state.priority, missionId: state.missionId, briefing: state.briefing, mode: state.mode });
+  writeJson(STORAGE_KEY, { build: state.build, priority: state.priority, missionId: state.missionId, briefing: state.briefing, mode: state.mode, rival: state.rival });
 
 export const useBuildStore = create<BuildStore>((set, get) => {
   const commit = (patch: Partial<Loadout>): void => {
@@ -76,11 +84,13 @@ export const useBuildStore = create<BuildStore>((set, get) => {
     missionId: DEFAULT_MISSION,
     briefing: '',
     mode: 'drive',
+    rival: 'jev',
     setBuild: (build) => commit({ build }),
     setPriority: (priority) => commit({ priority: Math.min(1, Math.max(0, priority)) }),
     setMission: (missionId) => commit({ missionId }),
     setBriefing: (briefing) => commit({ briefing: briefing.slice(0, BRIEFING_MAX_CHARS) }),
     setMode: (mode) => commit({ mode }),
+    setRival: (rival) => commit({ rival }),
     hydrate: () => {
       const parsed = LoadoutSchema.safeParse(readJson(STORAGE_KEY));
       if (!parsed.success || !isValidBuild(parsed.data.build)) return;
