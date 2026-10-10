@@ -68,6 +68,9 @@ interface Budget {
 
 class CapReached extends Error {}
 
+/** First error text seen per reason in this invocation, printed with each row. */
+const firstErrors: Record<string, string> = {};
+
 function arenaBrain(decide: ReturnType<Contestant['forRun']>, stats: RunStats, budget: Budget, price: Contestant['price']): Brain {
   let held: Action | null = null;
   return {
@@ -96,6 +99,8 @@ function arenaBrain(decide: ReturnType<Contestant['forRun']>, stats: RunStats, b
         const message = error instanceof Error ? error.message : 'error';
         const reason = /^HTTP \d+/.exec(message)?.[0] ?? (/no answer within/.test(message) ? 'timeout' : /option|JSON/.test(message) ? 'unusable reply' : 'network error');
         stats.reasons[reason] = (stats.reasons[reason] ?? 0) + 1;
+        // The provider's own first message per reason, for the log (it never contains the request or a key).
+        firstErrors[reason] ??= message.slice(0, 220);
         // Before the first answer there is no command to hold: the robot does not drive.
         const hold: Action = held && question.options.includes(held) ? held : question.options.includes('coast') ? 'coast' : question.options[0]!;
         return { probabilities: { [hold]: 0 }, selected: hold, policy: 'jev', fallback: false, latencyMs: ARENA_TIMEOUT_MS };
@@ -168,6 +173,8 @@ function summarise(contestant: Contestant, runs: readonly RunStats[], budget: Bu
     lateCrashRule: LATE_CRASH_RULE,
     /** The commit of the sim these runs were driven on: rows from different commits are not strictly comparable. */
     simCommit: SIM_COMMIT,
+    /** Hash of the prompt template this row was asked with. */
+    promptHash: arenaPromptHash(),
     ...(usage ? { inputTokens: round(inTok, 0), outputTokens: round(outTok, 0) } : {}),
     // Dollars only from reported tokens and the provider's official price page.
     ...(priced ? { costPerRunUsd: Number((budget.spentUsd / runs.length).toFixed(5)), totalCostUsd: Number(budget.spentUsd.toFixed(4)), priceUsdPerMTok: contestant.price, priceSource: contestant.priceSource } : {}),
@@ -236,6 +243,8 @@ async function main(): Promise<void> {
         (budget.stopped ? ` · STOPPED at the $${capUsd} cap` : '') +
         (row.noDecisions > 0 ? ` · ${row.noDecisions} unanswered (${Object.entries(reasons).map(([reason, count]) => `${reason} × ${count}`).join(', ')})` : ''),
     );
+    for (const reason of Object.keys(reasons)) if (firstErrors[reason]) console.info(`   first "${reason}": ${firstErrors[reason]}`);
+    for (const key of Object.keys(firstErrors)) delete firstErrors[key];
   }
   const wallS = (performance.now() - started) / 1000;
 
@@ -304,6 +313,10 @@ async function main(): Promise<void> {
       ? `- Rows were driven on different commits of the sim (${rows.map((row) => `${row.label}: ${row.simCommit}`).join(', ')}), so they are not strictly comparable until all are re-run together.`
       : `- Every row was driven on sim commit ${commits[0] ?? SIM_COMMIT}.`,
     `- Cost = tokens the provider reported × its official price per million tokens on ${date}: Anthropic ${PRICE_SOURCES.anthropic} · OpenAI ${PRICE_SOURCES.openai} (each model's page) · DeepSeek ${PRICE_SOURCES.deepseek} (peak-hour, cache-miss rate, so an upper bound).`,
+    '',
+    new Set(rows.map((row) => row.promptHash)).size === 1
+      ? `- Every row was asked with the same prompt template (hash \`${promptHash}\`).`
+      : `- Rows were asked with different prompt templates (${rows.map((row) => `${row.label}: ${row.promptHash ?? 'unknown'}`).join(', ')}): re-run them together before comparing.`,
     '',
     '## Mode parameters sent, per contestant',
     ...rows.filter((row) => row.params).map((row) => `- \`${row.id}\`: \`${JSON.stringify(row.params)}\`${row.priceUsdPerMTok ? ` · $${row.priceUsdPerMTok.in} in / $${row.priceUsdPerMTok.out} out per million tokens` : ''}`),

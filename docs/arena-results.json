@@ -1,6 +1,6 @@
 {
   "date": "2026-10-10",
-  "runs": 223,
+  "runs": 237,
   "promptHash": "9a0e9a761a",
   "gameplayVersion": 3,
   "missions": [
@@ -53,7 +53,8 @@
       "latencyP95Ms": 299,
       "lateCrashes": 8,
       "lateCrashRule": "impact|blocked|fell",
-      "simCommit": "d966fc9"
+      "simCommit": "d966fc9",
+      "promptHash": "9a0e9a761a"
     },
     {
       "id": "claude-haiku-5-5",
@@ -94,7 +95,8 @@
         "in": 0.1,
         "out": 0.5
       },
-      "priceSource": "https://claude.com/pricing"
+      "priceSource": "https://claude.com/pricing",
+      "promptHash": "9a0e9a761a"
     },
     {
       "id": "gpt-5-nano",
@@ -133,7 +135,8 @@
         "in": 0.05,
         "out": 0.4
       },
-      "priceSource": "https://developers.openai.com/api/docs/models"
+      "priceSource": "https://developers.openai.com/api/docs/models",
+      "promptHash": "9a0e9a761a"
     },
     {
       "id": "gpt-6-luna",
@@ -173,7 +176,8 @@
         "in": 0.1,
         "out": 0.5
       },
-      "priceSource": "https://developers.openai.com/api/docs/models"
+      "priceSource": "https://developers.openai.com/api/docs/models",
+      "promptHash": "9a0e9a761a"
     },
     {
       "id": "deepseek-flash",
@@ -215,7 +219,8 @@
         "in": 0.3,
         "out": 1.2
       },
-      "priceSource": "https://api-docs.deepseek.com/quick_start/pricing"
+      "priceSource": "https://api-docs.deepseek.com/quick_start/pricing",
+      "promptHash": "9a0e9a761a"
     },
     {
       "id": "claude-sonnet-5-5",
@@ -256,7 +261,8 @@
         "in": 2,
         "out": 10
       },
-      "priceSource": "https://claude.com/pricing"
+      "priceSource": "https://claude.com/pricing",
+      "promptHash": "9a0e9a761a"
     },
     {
       "id": "gpt-5.6-luna",
@@ -296,7 +302,90 @@
         "in": 0.2,
         "out": 1.2
       },
-      "priceSource": "https://developers.openai.com/api/docs/models"
+      "priceSource": "https://developers.openai.com/api/docs/models",
+      "promptHash": "9a0e9a761a"
+    },
+    {
+      "id": "gpt-6.1-sol",
+      "modelId": "gpt-6.1-sol",
+      "label": "GPT-6.1 Sol (reasoning)",
+      "kind": "llm",
+      "tier": "reasoning",
+      "status": "ok",
+      "params": {
+        "max_completion_tokens": 4096
+      },
+      "seeds": [
+        1001
+      ],
+      "runs": 7,
+      "finishPct": 71,
+      "meanScore": 481,
+      "meanTimeS": 38.4,
+      "meanDamagePct": 34.7,
+      "scansDone": 0,
+      "decisionsPerRun": 13,
+      "noDecisions": 0,
+      "latencyP50Ms": 1162,
+      "latencyP95Ms": 3336,
+      "lateCrashes": 10,
+      "lateCrashRule": "impact|blocked|fell",
+      "simCommit": "51ff71a",
+      "promptHash": "9a0e9a761a",
+      "inputTokens": 18146,
+      "outputTokens": 329,
+      "costPerRunUsd": 0.03958,
+      "totalCostUsd": 0.2771,
+      "priceUsdPerMTok": {
+        "in": 2,
+        "out": 10
+      },
+      "priceSource": "https://developers.openai.com/api/docs/models",
+      "capUsd": 10,
+      "stoppedAtCap": false
+    },
+    {
+      "id": "deepseek-v4-pro",
+      "modelId": "deepseek-v4-pro",
+      "label": "DeepSeek V4 Pro (reasoning)",
+      "kind": "llm",
+      "tier": "reasoning",
+      "status": "ok",
+      "params": {
+        "thinking": {
+          "type": "enabled"
+        },
+        "temperature": 0,
+        "max_tokens": 4096
+      },
+      "seeds": [
+        1001
+      ],
+      "runs": 7,
+      "finishPct": 57,
+      "meanScore": 398,
+      "meanTimeS": 38.3,
+      "meanDamagePct": 27.4,
+      "scansDone": 0,
+      "decisionsPerRun": 3.3,
+      "noDecisions": 10,
+      "latencyP50Ms": 4672,
+      "latencyP95Ms": 6988,
+      "lateCrashes": 1,
+      "lateCrashRule": "impact|blocked|fell",
+      "simCommit": "51ff71a",
+      "promptHash": "9a0e9a761a",
+      "inputTokens": 4135,
+      "outputTokens": 788,
+      "costPerRunUsd": 0.00858,
+      "totalCostUsd": 0.0601,
+      "priceUsdPerMTok": {
+        "in": 1.32,
+        "out": 3.96
+      },
+      "priceSource": "https://api-docs.deepseek.com/quick_start/pricing",
+      "capUsd": 10,
+      "stoppedAtCap": false
     },
     {
       "id": "claude-opus-5-5",
@@ -337,7 +426,8 @@
       },
       "priceSource": "https://claude.com/pricing",
       "capUsd": 10,
-      "stoppedAtCap": false
+      "stoppedAtCap": false,
+      "promptHash": "9a0e9a761a"
     },
     {
       "id": "heuristic",
@@ -363,7 +453,8 @@
       "latencyP95Ms": 0,
       "lateCrashes": 0,
       "lateCrashRule": "impact|blocked|fell",
-      "simCommit": "d966fc9"
+      "simCommit": "d966fc9",
+      "promptHash": "9a0e9a761a"
     },
     {
       "id": "random",
@@ -389,7 +480,8 @@
       "latencyP95Ms": 0,
       "lateCrashes": 0,
       "lateCrashRule": "impact|blocked|fell",
-      "simCommit": "d966fc9"
+      "simCommit": "d966fc9",
+      "promptHash": "9a0e9a761a"
     }
   ],
   "notRun": []
