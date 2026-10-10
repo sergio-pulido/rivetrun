@@ -9,7 +9,6 @@ export interface Pose {
   /** Interpolated sim time: ghosts play against it. */
   t: number;
   shakeUntil: number;
-  thinking: boolean;
 }
 
-export const restPose = (): Pose => ({ ready: false, s: 0, x: 0, y: 0, v: 0, t: 0, shakeUntil: 0, thinking: false });
+export const restPose = (): Pose => ({ ready: false, s: 0, x: 0, y: 0, v: 0, t: 0, shakeUntil: 0 });

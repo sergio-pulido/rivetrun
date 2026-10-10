@@ -164,7 +164,7 @@ function briefLabel(briefing: string | undefined): string | null {
 }
 
 export interface BrainHudProps {
-  /** The question being decided right now (run is in slow-mo), if any. */
+  /** The question the brain is answering right now, if any. The run does not wait for it. */
   pending?: { readonly question: BrainQuestion; readonly since: number } | null;
   /** The last answered question and its decision. */
   last?: { readonly question: BrainQuestion; readonly decision: BrainDecision } | null;

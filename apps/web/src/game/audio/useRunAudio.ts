@@ -63,9 +63,9 @@ export function useRunAudio(feed: RunFeed, build: Build): void {
           (state.effects.includes('slip') ? 0.35 : 0) +
           (heavy ? 0.3 : 0) +
           (state.effects.includes('winch') ? 0.3 : 0);
-        // Spinning wheels rev the motor even when the robot barely moves; slow-mo drops the pitch.
+        // Spinning wheels rev the motor even when the robot barely moves.
         const speed = Math.max(Math.abs(state.v), Math.abs(state.wheelSpin) * 0.3) / TOP_SPEED_MPS;
-        setEngine(clamp(speed, 0, 1) * (view.pending ? 0.6 : 1), clamp(load, 0, 1));
+        setEngine(clamp(speed, 0, 1), clamp(load, 0, 1));
       } else if (prev.state !== null && !prev.done) {
         setEngine(0, 0);
       }

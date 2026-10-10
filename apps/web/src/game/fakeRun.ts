@@ -407,7 +407,7 @@ export interface FakeRun {
   readonly stop: () => void;
 }
 
-/** Wall-clock fake run with pending decisions, slow-mo, latency and the odd fallback. */
+/** Wall-clock fake run with pending decisions, latency and the odd fallback. The last command holds while one is pending. */
 export function createFakeRun({ mission, build, onEvent, seed = 1, priority = 0.5, control }: FakeRunOptions): FakeRun {
   const world = worldOf(mission, build);
   const rand = mulberry32(seed);
@@ -437,7 +437,7 @@ export function createFakeRun({ mission, build, onEvent, seed = 1, priority = 0.
     const dtWall = Math.min(0.1, (time - last) / 1000);
     last = time;
     if (pending && time >= pendingUntil) resolve();
-    budget += dtWall * (pending ? TUNING.decision.slowMoFactor : 1);
+    budget += dtWall;
     while (budget >= DT) {
       budget -= DT;
       if (control) {

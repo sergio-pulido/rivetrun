@@ -17,13 +17,6 @@
 }
 
 /* Cyan frame around the whole view while Jev is deciding. */
-.frame {
-  box-shadow:
-    inset 0 0 0 3px rgb(63 208 224 / 0.45),
-    inset 0 0 70px rgb(63 208 224 / 0.16);
-  transition: opacity 160ms ease-out;
-}
-
 .pill {
   border: 1px solid #3fd0e0;
   background: rgb(8 24 27 / 0.85);

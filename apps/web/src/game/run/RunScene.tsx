@@ -80,10 +80,10 @@ function Player({ feed, build, layout, pose, timeScale, particles, hands }: Play
       snap.current = true;
       return;
     }
-    const scale = view.done ? 0 : view.pending ? TUNING.decision.slowMoFactor : 1;
-    timeScale.current = damp(timeScale.current ?? 1, view.done ? 1 : scale, 10, dt);
-    // The sim ticks at 20 Hz (5 Hz in slow-mo): extrapolate one tick, then ease.
-    const ahead = Math.min(((now - view.stateAt) / 1000) * scale, SIM_DT);
+    // Brain v3: the run does not slow down while the brain decides (latency is real, the last command holds).
+    timeScale.current = 1;
+    // The sim ticks at 20 Hz: extrapolate one tick, then ease. Nothing moves once the run is over.
+    const ahead = view.done ? 0 : Math.min((now - view.stateAt) / 1000, SIM_DT);
     const target = state.x + state.v * ahead;
     const p = pose.current;
     const jump = !p.ready || snap.current || Math.abs(target - p.s) > 3;
@@ -91,7 +91,6 @@ function Player({ feed, build, layout, pose, timeScale, particles, hands }: Play
     p.s = jump ? target : damp(p.s, target, 22, dt);
     p.t = state.t + ahead;
     p.v = state.v;
-    p.thinking = view.pending !== null;
     swim.current = damp(swim.current, state.thrusting ? 1 : 0, 2.5, dt);
     // The sim's x is the nose. On the ground the axles ride the sim's solid ground (ramps, decks,
     // obstacles); in the air the height comes from the sim and follows vy between ticks.
@@ -302,7 +301,7 @@ interface RigProps {
 function CameraRig({ pose, light, startX, wide, driving }: RigProps) {
   const camera = useThree((state) => state.camera) as PerspectiveCamera;
   const size = useThree((state) => state.size);
-  const focus = useRef({ x: startX, y: 0, zoom: 1, init: false });
+  const focus = useRef({ x: startX, y: 0, init: false });
   const target = useMemo(() => new Vector3(), []);
 
   useFrame((_, rawDt) => {
@@ -311,11 +310,10 @@ function CameraRig({ pose, light, startX, wide, driving }: RigProps) {
     const f = focus.current;
     const aspect = size.width / Math.max(1, size.height);
     const portrait = aspect < 1;
-    f.zoom = damp(f.zoom, p.thinking && !driving ? 0.86 : 1, 5, dt);
     const halfV = (camera.fov * Math.PI) / 360;
     const byWidth = (driving ? VIEW_WIDTH_DRIVE_M : wide ? VIEW_WIDTH_DRONE_M : VIEW_WIDTH_M) / (2 * Math.tan(halfV) * aspect);
     const byHeight = MIN_VIEW_HEIGHT_M / (2 * Math.tan(halfV));
-    const distance = Math.max(byWidth, byHeight) * f.zoom;
+    const distance = Math.max(byWidth, byHeight);
 
     // Landscape (laptop, big screen): the Brain sheet sits bottom-centre, so park the robot left of it.
     const viewWidthM = 2 * distance * Math.tan(halfV) * aspect;

@@ -223,11 +223,11 @@ function logChips(chips: readonly DecisionChip[], hit: RunView['lastHit'], sense
   return [...chips, blind].sort((a, b) => a.t - b.t).slice(-DECISION_CHIPS);
 }
 
-/** DOM overlay for the run view: top bar, slow-mo pill + cyan frame, end stamp and the Brain sheet. */
+/** DOM overlay for the run view: top bar, the decision log, a mark while Jev is thinking, end stamp and the Brain sheet. */
 export function RunHud({ mission, feed, ghosts = [], drive, build }: RunHudProps) {
   const view = useRunView(feed);
   const driving = drive !== undefined;
-  // Drive mode has no slow-mo: the player is the one deciding.
+  // The run keeps its pace while Jev thinks (Brain v3): a small mark says a question is out. Not in Drive mode: the player decides there.
   const thinking = view.pending !== null && !driving;
   useRunHaptics(feed, driving);
   const dnf = view.dnfReason;
@@ -237,7 +237,6 @@ export function RunHud({ mission, feed, ghosts = [], drive, build }: RunHudProps
   return (
     <div className="pointer-events-none absolute inset-0 select-none overflow-hidden">
       <Underwater state={view.state} />
-      <div className={`${styles.frame} absolute inset-0`} style={{ opacity: thinking ? 1 : 0 }} />
       {drive && build ? (
         <div className="pointer-events-auto absolute inset-0">
           <DriveControls drive={drive} feed={feed} build={build} />
@@ -257,7 +256,7 @@ export function RunHud({ mission, feed, ghosts = [], drive, build }: RunHudProps
             <RivalChip trace={ghosts[0]} state={view.state} />
           ) : (
             <span className={`${styles.pill} whitespace-nowrap px-3 py-1.5 font-mono text-[10px] leading-none`} style={{ opacity: thinking ? 1 : 0 }}>
-              SLOW-MO · JEV IS DECIDING
+              JEV IS THINKING
             </span>
           )}
         </div>
