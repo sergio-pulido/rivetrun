@@ -77,9 +77,10 @@ function zoneAhead(mission: Mission, build: Build, observation: Observation | nu
     if (!onPad && (zone.distanceM < 0 || !inView)) continue;
     const needs = plan?.needs ?? [];
     const carried = new Set(build.sensors.map((id) => PARTS_BY_ID.get(id)?.effects.sensor));
-    // The build has a sensor the zone accepts and the sim still says no: the conditions rule it out (a camera in the dark).
+    // The build has a sensor the zone accepts and the sim still says no: at night an ordinary camera or the drone cannot scan
+    // (the sim's canScan in weather.ts; those are its only two reasons).
     const cannot = needs.some((need) => carried.has(need))
-      ? mission.conditions?.visibility === 'night' ? 'too dark for this camera' : 'not in these conditions'
+      ? mission.conditions?.visibility === 'night' ? 'too dark: needs a NoIR camera or a light sensor' : 'not in these conditions'
       : `needs ${needs.map((need) => NEEDS_WORD[need] ?? need).join(' or ')}`;
     return { label: zone.label, distanceM: zone.distanceM, canScan: zone.canScan, onPad, shortM: !onPad && stopped && zone.distanceM > 0 ? zone.distanceM - reach : null, cannot };
   }
@@ -95,9 +96,8 @@ function ZoneChip({ zone }: { zone: ZoneAhead }) {
     return (
       <span className={BOX} style={{ border: '2px dashed #4a525d', background: BACK, color: UI.dim }}>
         CANNOT SCAN · {zone.label.toUpperCase()}
-        <span className="block text-[11px]">
-          {zone.cannot} · keep driving (+{SCAN_RULES.missPenaltyS} s)
-        </span>
+        <span className="block text-[11px]">{zone.cannot}</span>
+        <span className="block text-[11px]">keep driving (+{SCAN_RULES.missPenaltyS} s)</span>
       </span>
     );
   }
