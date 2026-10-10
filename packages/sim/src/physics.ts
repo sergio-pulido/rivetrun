@@ -34,8 +34,8 @@ export const PHYSICS = {
   /** Landings softer than this are free. */
   safeLandingMps: 4.5,
   landingDamagePerMps: 10,
-  /** Height at which an airborne robot passes over an obstacle. */
-  obstacleClearM: 0.3,
+  /** Margin above an obstacle's top at which an airborne robot passes over it. */
+  obstacleClearM: 0.02,
   /** Wheels roll straight over gaps this narrow. */
   gapRollOverM: 0.15,
   fallDamagePct: 15,
@@ -356,7 +356,8 @@ export function step(state: RunState, action: Action): RunState {
   let blockedBy: RunState['blockedBy'];
   const reachCm = spec.clearanceCm * (action === 'climb_mode' ? PHYSICS.climbClearanceFactor : 1);
   for (const obstacle of world.obstacles) {
-    const cleared = (wasAirborne || airborne) && Math.min(state.heightM, heightM) >= PHYSICS.obstacleClearM;
+    // In the air an obstacle is cleared when the robot is above its top, not above a fixed height.
+    const cleared = (wasAirborne || airborne) && Math.min(state.heightM, heightM) >= obstacle.heightM + PHYSICS.obstacleClearM;
     if (sim.x < obstacle.xM && x >= obstacle.xM && !cleared) {
       const speed = Math.abs(v);
       // Too tall to roll over: the robot stops against its near face. The winch hauls it over anything.
