@@ -12,5 +12,5 @@ describe('fuzz: random builds and random inputs never break the sim', () => {
     expect(result.violations).toEqual([]);
     // Sanity: the fuzz is not just 500 robots standing still.
     expect(result.finished).toBeGreaterThan(20);
-  }, 10000);
+  }, 60000); // about 4 s alone; the limit leaves room for a loaded machine (the gate runs several suites at once)
 });

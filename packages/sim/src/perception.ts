@@ -1,6 +1,6 @@
 import { GAMEPLAY_VERSION } from '@rivetrun/contracts';
 import type {
-  Action, BrainQuestion, Build, DecisionTrigger, LookaheadEntry, Observation, Obstacle, Perception, SensorSource, TerrainId, Trigger, TriggerCause,
+  Action, BrainQuestion, Build, DecisionTrigger, LookaheadEntry, Observation, Obstacle, Perception, ScanZone, SensorSource, TerrainId, Trigger, TriggerCause,
 } from '@rivetrun/contracts';
 import { TUNING } from './data';
 import { canScan, cameraFactor, capacityFactor, gustAt, headwindMps, rangerFactor } from './weather';
@@ -301,6 +301,22 @@ export function lookaheadSeconds(state: RunState): number {
   return TUNING.decision.lookaheadS;
 }
 
+/** What an option does about the next scan zone, as facts: where it ends up against the pad, and whether it can still stop on it. */
+function scanFact(before: RunState, after: RunState, zone: ScanZone): NonNullable<LookaheadEntry['scan']> {
+  const padEndM = zone.atM + zone.halfLengthM + SCAN.reachM;
+  const padStartM = zone.atM - zone.halfLengthM - SCAN.reachM;
+  // Stopping distance from the end of the window: the hard brake on the believed ground.
+  let braking = after;
+  for (let i = 0; i < 200 && !braking.done && Math.abs(braking.sim.v) > 0.02; i += 1) braking = step(braking, 'brake');
+  const stopDistanceM = Math.max(0, braking.sim.x - after.sim.x);
+  const outcome = after.scans.done.includes(zone.id) && !before.scans.done.includes(zone.id) ? 'scanned'
+    : after.scans.missed.includes(zone.id) || after.sim.x > padEndM ? 'passed'
+    : after.sim.x >= padStartM && Math.abs(after.sim.v) < SCAN.maxSpeedMps ? 'holding'
+    : after.sim.x + stopDistanceM <= padEndM ? 'can_stop'
+    : 'will_pass';
+  return { zoneId: zone.id, label: zone.label, outcome, missCostS: SCAN.missPenaltyS, padEndInM: round(padEndM - after.sim.x, 2), stopDistanceM: round(stopDistanceM, 2) };
+}
+
 /** Forward-simulates each action for the lookahead window on what the robot believes, never on the true track. */
 export function lookahead(state: RunState, actions: readonly Action[], seen: Observation = observe(state)): LookaheadEntry[] {
   const steps = Math.round((lookaheadSeconds(state) * 1000) / TUNING.dtMs);
@@ -323,9 +339,24 @@ export function lookahead(state: RunState, actions: readonly Action[], seen: Obs
     blockedBy: felt ? state.blockedBy : undefined,
   };
   const remainingM = Math.max(0, state.world.lengthM - state.sim.x);
+  // The next zone from the mission plan that this build can scan and has not dealt with yet.
+  const zone = (state.config.mission.scanZones ?? []).find((z) =>
+    !state.scans.done.includes(z.id) && !state.scans.missed.includes(z.id) && canScan(state.spec, state.environment, z) && z.atM + z.halfLengthM + SCAN.reachM >= state.sim.x);
   return actions.map((action) => {
     let future = believed;
-    for (let i = 0; i < steps && !future.done; i += 1) future = step(future, action);
+    let contact: LookaheadEntry['contact'];
+    for (let i = 0; i < steps && !future.done; i += 1) {
+      future = step(future, action);
+      const hit = future.lastDamage;
+      if (!contact && hit && hit.cause === 'impact' && (hit.obstacle !== undefined || hit.roughEntry !== undefined)) {
+        contact = {
+          kind: hit.obstacle ?? 'rough_ground',
+          speedMps: round(hit.speedMps ?? 0, 2),
+          safeSpeedMps: hit.obstacle !== undefined ? safeContactSpeedMps(state.spec, hit.obstacle) : PHYSICS.roughEntrySafeMps,
+          damagePct: round(hit.amountPct, 2),
+        };
+      }
+    }
     const progressM = future.sim.x - state.sim.x;
     const energyPct = Math.max(0, state.sim.battery - future.sim.battery);
     // Energy line: what is left at the finish if this option's pace and draw held for the rest of the run.
@@ -337,6 +368,9 @@ export function lookahead(state: RunState, actions: readonly Action[], seen: Obs
       energyPct: round(energyPct, 2),
       projectedFinishPct: round(Math.max(-100, Math.min(100, projectedFinishPct)), 1),
       assumed: progressM > seen.forwardRangeM,
+      endSpeedMps: round(future.sim.v, 2),
+      ...(zone ? { scan: scanFact(believed, future, zone) } : {}),
+      ...(contact ? { contact } : {}),
     };
   });
 }

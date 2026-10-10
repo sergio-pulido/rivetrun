@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Brain, Build, Mission, RunEvent } from '@rivetrun/contracts';
-import { MISSIONS, PRESETS, createRun, driveController, driveSeed, heuristicBrain, heuristicDecide, observe, runController, runHeadless, senses, step } from './index';
+import { MISSIONS, PRESETS, createRun, driveController, driveSeed, heuristicBrain, heuristicDecide, observe, runController, runHeadless, senses, step, buildQuestion, START_TRIGGER } from './index';
 
 const blind: Build = { locomotion: 'offroad_wheels', motor: 'motor_torque', battery: 'battery_large', sensors: [], extras: [] };
 const withImu: Build = { ...blind, sensors: ['imu'] };
@@ -190,4 +190,62 @@ describe('heuristic: more sight must not mean more damage (M4)', () => {
     // It used to be 44 % for the All-rounder: seen from 6 m, decided once, never asked again.
     expect(await meanDamage(MISSIONS.M4, PRESETS.all_rounder.build)).toBeLessThan(5);
   }, 30000);
+});
+
+describe('facts, no verdict: what each option does about a scan zone and a hazard (OVN-SIM-24)', () => {
+  const at = (xM: number, cruise: 'accelerate' | 'slow_down' = 'accelerate') => {
+    let state = createRun({ mission: MISSIONS.M1, seed: 7, build: PRESETS.all_rounder.build, priority: 0.5 });
+    for (let i = 0; i < 2000 && state.sim.x < xM; i += 1) state = step(state, cruise);
+    return state;
+  };
+  const entry = (state: ReturnType<typeof at>, action: string) => buildQuestion(state, START_TRIGGER).lookahead.find((l) => l.action === action)!;
+
+  it('before the pad: full throttle will pass it, braking can still stop on it, and passing costs 10 s', () => {
+    const zone = MISSIONS.M1.scanZones![0]!;
+    const state = at(zone.atM - 2.5);
+    const full = entry(state, 'accelerate').scan!;
+    const brake = entry(state, 'brake').scan!;
+    expect(full.zoneId).toBe(zone.id);
+    expect(full.missCostS).toBe(10);
+    expect(['will_pass', 'passed']).toContain(full.outcome);
+    expect(['can_stop', 'holding']).toContain(brake.outcome);
+    expect(brake.padEndInM).toBeGreaterThan(0);
+    expect(full.stopDistanceM).toBeGreaterThan(brake.stopDistanceM);
+    // Facts only: no option carries a word about which one is right.
+    expect(Object.keys(full).sort()).toEqual(['label', 'missCostS', 'outcome', 'padEndInM', 'stopDistanceM', 'zoneId']);
+  });
+
+  it('stopped on the pad: the scan option completes the scan inside the window', () => {
+    const zone = MISSIONS.M1.scanZones![0]!;
+    let state = at(zone.atM - 1, 'slow_down');
+    for (let i = 0; i < 200 && Math.abs(state.sim.v) > 0.05; i += 1) state = step(state, 'brake');
+    expect(Math.abs(state.sim.x - zone.atM)).toBeLessThan(zone.halfLengthM + 0.3);
+    const question = buildQuestion(state, START_TRIGGER);
+    expect(question.options).toContain('scan');
+    expect(question.lookahead.find((l) => l.action === 'scan')!.scan!.outcome).toBe('scanned');
+    expect(['passed', 'will_pass']).toContain(question.lookahead.find((l) => l.action === 'accelerate')!.scan!.outcome);
+  });
+
+  it('a build that cannot scan the zone gets no scan fact, and after the last zone there is none', () => {
+    const noCamera = { ...PRESETS.all_rounder.build, sensors: ['imu'] };
+    const state = createRun({ mission: MISSIONS.M1, seed: 7, build: noCamera, priority: 0.5 });
+    expect(buildQuestion(state, START_TRIGGER).lookahead.every((l) => l.scan === undefined)).toBe(true);
+    expect(buildQuestion(at(MISSIONS.M1.scanZones![0]!.atM + 3), START_TRIGGER).lookahead.every((l) => l.scan === undefined)).toBe(true);
+  });
+
+  it('a hazard inside the window: contact speed against the safe speed, with the damage it costs', () => {
+    // M1's step, about 1 m ahead, at full speed.
+    const step1 = createRun({ mission: MISSIONS.M1, seed: 7, build: PRESETS.all_rounder.build, priority: 0.5 }).world.obstacles[0]!;
+    const state = at(step1.xM - 1.2);
+    const full = entry(state, 'accelerate');
+    const eased = entry(state, 'brake');
+    expect(full.contact).toBeDefined();
+    expect(full.contact!.kind).toBe('step');
+    expect(full.contact!.speedMps).toBeGreaterThan(full.contact!.safeSpeedMps);
+    expect(full.contact!.damagePct).toBeGreaterThan(0);
+    expect(full.damagePct).toBeGreaterThanOrEqual(full.contact!.damagePct);
+    // Braking either stops short of it or meets it at a speed that costs less.
+    expect(eased.contact?.damagePct ?? 0).toBeLessThan(full.contact!.damagePct);
+    expect(full.endSpeedMps).toBeDefined();
+  });
 });

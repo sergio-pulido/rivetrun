@@ -63,6 +63,33 @@ export const LookaheadEntrySchema = z.object({
   projectedFinishPct: z.number().optional(),
   /** True when the simulated window ran past what the sensors know, onto track assumed to continue unchanged. */
   assumed: z.boolean().optional(),
+  /** Speed at the end of the window, m/s. */
+  endSpeedMps: z.number().optional(),
+  /**
+   * Facts, no verdict (OVN-SIM-24). The next scan zone this build can scan, and what this option does about it:
+   * scanned = the scan completes inside the window · holding = stopped on the pad, scan in progress ·
+   * can_stop = not there yet, and braking from the end of the window still stops on the pad ·
+   * will_pass = braking from the end of the window stops beyond the pad · passed = the pad is passed inside the window.
+   * Passing costs `missCostS` seconds on the clock.
+   */
+  scan: z.object({
+    zoneId: z.string(),
+    label: z.string(),
+    outcome: z.enum(['scanned', 'holding', 'can_stop', 'will_pass', 'passed']),
+    missCostS: z.number().min(0),
+    /** Metres from the robot at the end of the window to the far edge of the pad (negative = beyond it). */
+    padEndInM: z.number(),
+    /** Metres needed to stop from the end of the window with the hard brake, on the ground the robot believes in. */
+    stopDistanceM: z.number().min(0),
+  }).optional(),
+  /** The first contact inside the window, if any: an obstacle hit or driving onto rough ground. */
+  contact: z.object({
+    kind: z.enum(['rock', 'step', 'log', 'rough_ground']),
+    speedMps: z.number().min(0),
+    /** At or below this speed the contact costs nothing for this build. */
+    safeSpeedMps: z.number().min(0),
+    damagePct: z.number().min(0),
+  }).optional(),
 });
 export type LookaheadEntry = z.infer<typeof LookaheadEntrySchema>;
 
