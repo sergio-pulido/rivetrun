@@ -9,8 +9,7 @@ import { createHash } from 'node:crypto';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import type { Build } from '@rivetrun/contracts';
-import * as lab from '@rivetrun/lab';
-import { labHeuristicBrain, labRandomBrain, LAB_VERSION, runLabEntries, type LabBrain, type LabQuestion, type LabRunResult, type LabScenario } from '@rivetrun/lab';
+import { labHeuristicBrain, labRandomBrain, LAB_DEFAULT_BUILDS, LAB_PLAYER, LAB_RIVAL_LATENCY_MS, LAB_SCENARIOS, LAB_SCENARIO_IDS, LAB_SEEDS, LAB_VERSION, runLabHeadless, type LabBrain, type LabQuestion, type LabRunResult, type LabScenario } from '@rivetrun/lab';
 import { scenarioOf, withSensors } from '../../lab/src/testkit';
 import { labDecider } from '../src/arena/lab';
 import { ARENA_TIMEOUT_MS, PRICE_SOURCES, resolveContestants, type Contestant, type Tier } from '../src/arena/providers';
@@ -19,7 +18,6 @@ import { buildLabTextPrompt, LAB_QUESTION_VERSION, LAB_SYSTEM } from '../src/lab
 const OUT_JSON = fileURLToPath(new URL('../../../docs/arena-results.json', import.meta.url));
 const OUT_MD = fileURLToPath(new URL('../../../docs/ARENA_LAB.md', import.meta.url));
 const SIM_COMMIT = execFileSync('git', ['rev-parse', '--short', 'HEAD'], { encoding: 'utf8' }).trim();
-const DEFAULT_SEEDS = [1001, 1002, 1003];
 
 interface LabEntry {
   readonly scenario: LabScenario;
@@ -39,18 +37,8 @@ function entries(): LabEntry[] {
     const maze = scenarioOf(['#########', '#S..#...#', '#.#.#.#.#', '#.#...#E#', '#########'], { id: 'smoke-maze', name: 'Smoke maze', description: 'Reach the exit of a small maze.' });
     return [{ scenario: maze, build: withSensors('lidar_rplidar_c1', 'camera'), seeds: [1001] }];
   }
-  // The registry lands with OVN-LAB-2. Read defensively so a missing export is a clear message, not a crash.
-  const registry = (lab as Record<string, unknown>).LAB_SCENARIOS;
-  if (!Array.isArray(registry) || registry.length === 0) {
-    console.error('@rivetrun/lab exports no LAB_SCENARIOS yet: nothing to run (use --smoke to test the brains on a small maze).');
-    process.exit(1);
-  }
-  return (registry as { scenario?: LabScenario; build?: Build; defaultBuild?: Build; seeds?: readonly number[] }[]).flatMap((item) => {
-    const scenario = item.scenario ?? (item as unknown as LabScenario);
-    const build = item.build ?? item.defaultBuild;
-    if (!scenario?.id || !build) return [];
-    return [{ scenario, build, seeds: item.seeds ?? DEFAULT_SEEDS }];
-  });
+  const only = flag('scenarios')?.split(',');
+  return LAB_SCENARIO_IDS.filter((id) => !only || only.includes(id)).map((id) => ({ scenario: LAB_SCENARIOS[id], build: LAB_DEFAULT_BUILDS[id], seeds: LAB_SEEDS }));
 }
 
 interface RowStats {
@@ -129,12 +117,11 @@ async function main(): Promise<void> {
     const stats: RowStats = { runs: [], latenciesMs: [], misses: 0, inputTokens: 0, outputTokens: 0, usageReported: false, spentUsd: 0 };
     const tasks = todo.flatMap((entry) =>
       entry.seeds.map((seed) => async (): Promise<LabRunResult> => {
-        const agentId = entry.scenario.agents[0]!.id;
+        const agentId = entry.scenario.agents.some((agent) => agent.id === LAB_PLAYER) ? LAB_PLAYER : entry.scenario.agents[0]!.id;
         const brain = labBrain(contestant, seed, stats);
         const spy: LabBrain = { decide: (question) => ((sample ??= question), brain.decide(question)) };
-        // Other robots in a two-robot scenario are driven by the lab heuristic.
-        const others = entry.scenario.agents.slice(1).map((agent) => ({ agentId: agent.id, build: entry.build, brain: labHeuristicBrain }));
-        const result = await runLabEntries(entry.scenario, seed, [{ agentId, build: entry.build, brain: spy, policy: 'jev' }, ...others]);
+        // A rival robot (CTF) is the lab heuristic on the same build, answering in LAB_RIVAL_LATENCY_MS.
+        const result = await runLabHeadless(entry.scenario, seed, entry.build, spy);
         const outcome = result.outcomes[agentId]!;
         const mine = result.misses.filter((miss) => miss.agentId === agentId);
         stats.misses += mine.length;
@@ -145,8 +132,15 @@ async function main(): Promise<void> {
     );
     const local = contestant.kind === 'heuristic' || contestant.kind === 'random';
     stats.runs = await pool(tasks, local ? 1 : 4);
-    const outcomes = stats.runs.map((run) => run.outcomes[run.final.agents[0]!.id]!);
-    const decisions = stats.runs.map((run) => run.decisions.filter((d) => d.agentId === run.final.agents[0]!.id).length);
+    const me = (run: LabRunResult): string => (run.outcomes[LAB_PLAYER] ? LAB_PLAYER : run.final.agents[0]!.id);
+    const outcomes = stats.runs.map((run) => run.outcomes[me(run)]!);
+    const decisions = stats.runs.map((run) => run.decisions.filter((d) => d.agentId === me(run)).length);
+    const byScenario = Object.fromEntries(
+      todo.map((entry) => {
+        const mine = stats.runs.filter((run) => run.scenarioId === entry.scenario.id).map((run) => run.outcomes[me(run)]!);
+        return [entry.scenario.id, { runs: mine.length, completed: mine.filter((o) => o.finished).length, meanScore: Math.round(mean(mine.map((o) => o.score)) ?? 0), meanCompletionPct: Math.round((mean(mine.map((o) => o.completion)) ?? 0) * 100) }];
+      }),
+    );
     rows.push({
       id: contestant.id,
       modelId: contestant.id,
@@ -165,6 +159,7 @@ async function main(): Promise<void> {
       noDecisions: stats.misses,
       latencyP50Ms: local ? 0 : round(percentile(stats.latenciesMs, 50), 0),
       latencyP95Ms: local ? 0 : round(percentile(stats.latenciesMs, 95), 0),
+      byScenario,
       simCommit: SIM_COMMIT,
       ...(stats.usageReported ? { inputTokens: Math.round(stats.inputTokens / stats.runs.length), outputTokens: Math.round(stats.outputTokens / stats.runs.length) } : {}),
       ...(stats.usageReported && contestant.price ? { costPerRunUsd: Number((stats.spentUsd / stats.runs.length).toFixed(5)), totalCostUsd: Number(stats.spentUsd.toFixed(4)), priceSource: contestant.priceSource } : {}),
@@ -212,11 +207,17 @@ async function main(): Promise<void> {
       '',
       `Generated by \`packages/brain/scripts/arena-lab.ts\` · lab version ${LAB_VERSION} · prompt hash \`${promptHash}\` · commit ${SIM_COMMIT}.`,
       '',
-      `- Scenarios: ${block.scenarios.join(', ')} × seeds ${block.seeds.join(', ')}, each on the scenario's default build. In two-robot scenarios the other robot is driven by the lab heuristic.`,
+      `- Scenarios: ${block.scenarios.join(', ')} × seeds ${block.seeds.join(', ')}, each on the scenario's default build (Mars carries the moisture probe it needs). Seeds move the forklifts and the storm, never the map: maze, house and ctf have the same layout on every seed.`,
+      `- CTF is a race against a rival robot: the lab heuristic on the same build, answering in ${LAB_RIVAL_LATENCY_MS} ms. A contestant slower than about that per decision loses the flag ("beaten", score 0). That is by design.`,
       `- One call per trigger, no fallback, ${ARENA_TIMEOUT_MS / 1000} s deadline: an error, a late answer or a choice not on offer is "unanswered" and the robot keeps its command. Latency is applied in sim time.`,
       '- Fast tier and baselines only. Cost = reported tokens × the provider\'s official price (see docs/ARENA.md for the sources).',
       '',
       ...table,
+      '',
+      '## Score by scenario (runs completed / runs)',
+      `| Contestant | ${block.scenarios.join(' | ')} |`,
+      `| - | ${block.scenarios.map(() => '-').join(' | ')} |`,
+      ...rows.map((r) => `| ${r.label} | ${block.scenarios.map((id) => { const s = (r.byScenario as Record<string, { runs: number; completed: number; meanScore: number }>)[id]; return s ? `${s.meanScore} (${s.completed}/${s.runs})` : '—'; }).join(' | ')} |`),
       '',
     ].join('\n'),
   );

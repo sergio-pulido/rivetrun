@@ -1,8 +1,8 @@
 {
   "date": "2026-10-10",
-  "runs": 237,
+  "runs": 279,
   "promptHash": "9a0e9a761a",
-  "gameplayVersion": 3,
+  "gameplayVersion": 4,
   "missions": [
     "M1",
     "M2",
@@ -10,13 +10,18 @@
     "M4",
     "M5",
     "M6",
-    "M7"
+    "M7",
+    "M8",
+    "M9"
   ],
   "seeds": [
-    1001
+    1001,
+    1002,
+    1003
   ],
   "builds": [
-    "all_rounder"
+    "all_rounder",
+    "deep_diver"
   ],
   "timeoutMs": 10000,
   "priceSources": {
@@ -41,20 +46,144 @@
         1002,
         1003
       ],
-      "runs": 24,
-      "finishPct": 75,
-      "meanScore": 490,
-      "meanTimeS": 49.7,
-      "meanDamagePct": 28.4,
+      "runs": 30,
+      "finishPct": 80,
+      "meanScore": 533,
+      "meanTimeS": 52.2,
+      "meanDamagePct": 20.3,
       "scansDone": 1,
-      "decisionsPerRun": 18.9,
+      "decisionsPerRun": 23.6,
       "noDecisions": 0,
-      "latencyP50Ms": 247,
-      "latencyP95Ms": 299,
-      "lateCrashes": 8,
+      "latencyP50Ms": 245,
+      "latencyP95Ms": 317,
+      "lateCrashes": 7,
       "lateCrashRule": "impact|blocked|fell",
-      "simCommit": "d966fc9",
+      "simCommit": "ee76275",
       "promptHash": "9a0e9a761a"
+    },
+    {
+      "id": "gpt-5-nano",
+      "modelId": "gpt-5-nano",
+      "label": "GPT-5 nano",
+      "kind": "llm",
+      "tier": "fast",
+      "status": "ok",
+      "params": {
+        "reasoning_effort": "minimal",
+        "max_completion_tokens": 512
+      },
+      "seeds": [
+        1001,
+        1002,
+        1003
+      ],
+      "runs": 30,
+      "finishPct": 70,
+      "meanScore": 433,
+      "meanTimeS": 44.8,
+      "meanDamagePct": 41.8,
+      "scansDone": 0,
+      "decisionsPerRun": 20.7,
+      "noDecisions": 0,
+      "latencyP50Ms": 710,
+      "latencyP95Ms": 969,
+      "lateCrashes": 46,
+      "lateCrashRule": "impact|blocked|fell",
+      "simCommit": "ee76275",
+      "promptHash": "9a0e9a761a",
+      "inputTokens": 29639,
+      "outputTokens": 481,
+      "costPerRunUsd": 0.00167,
+      "totalCostUsd": 0.0502,
+      "priceUsdPerMTok": {
+        "in": 0.05,
+        "out": 0.4
+      },
+      "priceSource": "https://developers.openai.com/api/docs/models"
+    },
+    {
+      "id": "gpt-6-luna",
+      "modelId": "gpt-6-luna",
+      "label": "GPT-6 Luna",
+      "kind": "llm",
+      "tier": "fast",
+      "status": "ok",
+      "params": {
+        "reasoning_effort": "none",
+        "temperature": 0,
+        "max_completion_tokens": 128
+      },
+      "seeds": [
+        1001,
+        1002,
+        1003
+      ],
+      "runs": 30,
+      "finishPct": 80,
+      "meanScore": 480,
+      "meanTimeS": 52,
+      "meanDamagePct": 28.9,
+      "scansDone": 0,
+      "decisionsPerRun": 21.6,
+      "noDecisions": 0,
+      "latencyP50Ms": 797,
+      "latencyP95Ms": 1172,
+      "lateCrashes": 36,
+      "lateCrashRule": "impact|blocked|fell",
+      "simCommit": "ee76275",
+      "promptHash": "9a0e9a761a",
+      "inputTokens": 30693,
+      "outputTokens": 330,
+      "costPerRunUsd": 0.00323,
+      "totalCostUsd": 0.097,
+      "priceUsdPerMTok": {
+        "in": 0.1,
+        "out": 0.5
+      },
+      "priceSource": "https://developers.openai.com/api/docs/models"
+    },
+    {
+      "id": "deepseek-flash",
+      "modelId": "deepseek-flash",
+      "label": "DeepSeek Flash",
+      "kind": "llm",
+      "tier": "fast",
+      "status": "ok",
+      "params": {
+        "thinking": {
+          "type": "disabled"
+        },
+        "temperature": 0,
+        "max_tokens": 64
+      },
+      "seeds": [
+        1001,
+        1002,
+        1003
+      ],
+      "runs": 30,
+      "finishPct": 80,
+      "meanScore": 453,
+      "meanTimeS": 48.1,
+      "meanDamagePct": 36,
+      "scansDone": 0,
+      "decisionsPerRun": 20.7,
+      "noDecisions": 0,
+      "latencyP50Ms": 814,
+      "latencyP95Ms": 1069,
+      "lateCrashes": 39,
+      "lateCrashRule": "impact|blocked|fell",
+      "simCommit": "ee76275",
+      "promptHash": "9a0e9a761a",
+      "inputTokens": 30250,
+      "outputTokens": 316,
+      "costPerRunUsd": 0.00945,
+      "totalCostUsd": 0.2836,
+      "priceUsdPerMTok": {
+        "in": 0.3,
+        "out": 1.2
+      },
+      "priceSource": "https://api-docs.deepseek.com/quick_start/pricing"
     },
     {
       "id": "claude-haiku-5-5",
@@ -99,51 +228,11 @@
       "promptHash": "9a0e9a761a"
     },
     {
-      "id": "gpt-5-nano",
-      "modelId": "gpt-5-nano",
-      "label": "GPT-5 nano",
+      "id": "gpt-5.6-luna",
+      "modelId": "gpt-5.6-luna",
+      "label": "GPT-5.6 Luna",
       "kind": "llm",
-      "tier": "fast",
-      "status": "ok",
-      "params": {
-        "reasoning_effort": "minimal",
-        "max_completion_tokens": 512
-      },
-      "seeds": [
-        1001,
-        1002,
-        1003
-      ],
-      "runs": 24,
-      "finishPct": 67,
-      "meanScore": 425,
-      "meanTimeS": 42.4,
-      "meanDamagePct": 43.8,
-      "scansDone": 0,
-      "decisionsPerRun": 15.8,
-      "noDecisions": 0,
-      "latencyP50Ms": 763,
-      "latencyP95Ms": 1094,
-      "lateCrashes": 33,
-      "lateCrashRule": "impact|blocked|fell",
-      "simCommit": "d966fc9",
-      "inputTokens": 22340,
-      "outputTokens": 369,
-      "costPerRunUsd": 0.00126,
-      "totalCostUsd": 0.0304,
-      "priceUsdPerMTok": {
-        "in": 0.05,
-        "out": 0.4
-      },
-      "priceSource": "https://developers.openai.com/api/docs/models",
-      "promptHash": "9a0e9a761a"
-    },
-    {
-      "id": "gpt-6-luna",
-      "modelId": "gpt-6-luna",
-      "label": "GPT-6 Luna",
-      "kind": "llm",
-      "tier": "fast",
+      "tier": "mid",
       "status": "ok",
       "params": {
         "reasoning_effort": "none",
@@ -155,72 +244,29 @@
         1002,
         1003
       ],
-      "runs": 24,
-      "finishPct": 75,
-      "meanScore": 482,
-      "meanTimeS": 52,
-      "meanDamagePct": 24.7,
+      "runs": 30,
+      "finishPct": 80,
+      "meanScore": 484,
+      "meanTimeS": 50.7,
+      "meanDamagePct": 27.2,
       "scansDone": 0,
-      "decisionsPerRun": 16.4,
+      "decisionsPerRun": 20.9,
       "noDecisions": 0,
-      "latencyP50Ms": 776,
-      "latencyP95Ms": 1605,
-      "lateCrashes": 17,
+      "latencyP50Ms": 836,
+      "latencyP95Ms": 1074,
+      "lateCrashes": 36,
       "lateCrashRule": "impact|blocked|fell",
-      "simCommit": "d966fc9",
-      "inputTokens": 22983,
-      "outputTokens": 252,
-      "costPerRunUsd": 0.00242,
-      "totalCostUsd": 0.0582,
+      "simCommit": "ee76275",
+      "promptHash": "9a0e9a761a",
+      "inputTokens": 29642,
+      "outputTokens": 320,
+      "costPerRunUsd": 0.00631,
+      "totalCostUsd": 0.1894,
       "priceUsdPerMTok": {
-        "in": 0.1,
-        "out": 0.5
-      },
-      "priceSource": "https://developers.openai.com/api/docs/models",
-      "promptHash": "9a0e9a761a"
-    },
-    {
-      "id": "deepseek-flash",
-      "modelId": "deepseek-flash",
-      "label": "DeepSeek Flash",
-      "kind": "llm",
-      "tier": "fast",
-      "status": "ok",
-      "params": {
-        "thinking": {
-          "type": "disabled"
-        },
-        "temperature": 0,
-        "max_tokens": 64
-      },
-      "seeds": [
-        1001,
-        1002,
-        1003
-      ],
-      "runs": 24,
-      "finishPct": 75,
-      "meanScore": 457,
-      "meanTimeS": 46,
-      "meanDamagePct": 36.1,
-      "scansDone": 0,
-      "decisionsPerRun": 16.8,
-      "noDecisions": 0,
-      "latencyP50Ms": 789,
-      "latencyP95Ms": 1033,
-      "lateCrashes": 30,
-      "lateCrashRule": "impact|blocked|fell",
-      "simCommit": "d966fc9",
-      "inputTokens": 24186,
-      "outputTokens": 257,
-      "costPerRunUsd": 0.00756,
-      "totalCostUsd": 0.1816,
-      "priceUsdPerMTok": {
-        "in": 0.3,
+        "in": 0.2,
         "out": 1.2
       },
-      "priceSource": "https://api-docs.deepseek.com/quick_start/pricing",
-      "promptHash": "9a0e9a761a"
+      "priceSource": "https://developers.openai.com/api/docs/models"
     },
     {
       "id": "claude-sonnet-5-5",
@@ -262,47 +308,6 @@
         "out": 10
       },
       "priceSource": "https://claude.com/pricing",
-      "promptHash": "9a0e9a761a"
-    },
-    {
-      "id": "gpt-5.6-luna",
-      "modelId": "gpt-5.6-luna",
-      "label": "GPT-5.6 Luna",
-      "kind": "llm",
-      "tier": "mid",
-      "status": "ok",
-      "params": {
-        "reasoning_effort": "none",
-        "temperature": 0,
-        "max_completion_tokens": 128
-      },
-      "seeds": [
-        1001,
-        1002,
-        1003
-      ],
-      "runs": 24,
-      "finishPct": 75,
-      "meanScore": 475,
-      "meanTimeS": 47.2,
-      "meanDamagePct": 32,
-      "scansDone": 0,
-      "decisionsPerRun": 16.3,
-      "noDecisions": 0,
-      "latencyP50Ms": 901,
-      "latencyP95Ms": 1367,
-      "lateCrashes": 27,
-      "lateCrashRule": "impact|blocked|fell",
-      "simCommit": "d966fc9",
-      "inputTokens": 22963,
-      "outputTokens": 251,
-      "costPerRunUsd": 0.00489,
-      "totalCostUsd": 0.1174,
-      "priceUsdPerMTok": {
-        "in": 0.2,
-        "out": 1.2
-      },
-      "priceSource": "https://developers.openai.com/api/docs/models",
       "promptHash": "9a0e9a761a"
     },
     {
@@ -441,19 +446,19 @@
         1002,
         1003
       ],
-      "runs": 24,
-      "finishPct": 75,
-      "meanScore": 497,
-      "meanTimeS": 46.2,
-      "meanDamagePct": 24,
-      "scansDone": 12,
-      "decisionsPerRun": 19.1,
+      "runs": 30,
+      "finishPct": 80,
+      "meanScore": 554,
+      "meanTimeS": 48.3,
+      "meanDamagePct": 15.1,
+      "scansDone": 15,
+      "decisionsPerRun": 23.9,
       "noDecisions": 0,
       "latencyP50Ms": 0,
       "latencyP95Ms": 0,
       "lateCrashes": 0,
       "lateCrashRule": "impact|blocked|fell",
-      "simCommit": "d966fc9",
+      "simCommit": "ee76275",
       "promptHash": "9a0e9a761a"
     },
     {
@@ -468,21 +473,400 @@
         1002,
         1003
       ],
-      "runs": 24,
-      "finishPct": 8,
-      "meanScore": 78,
-      "meanTimeS": 97.6,
-      "meanDamagePct": 9.2,
-      "scansDone": 4,
-      "decisionsPerRun": 9.3,
+      "runs": 30,
+      "finishPct": 0,
+      "meanScore": 41,
+      "meanDamagePct": 4.7,
+      "scansDone": 2,
+      "decisionsPerRun": 8.5,
       "noDecisions": 0,
       "latencyP50Ms": 0,
       "latencyP95Ms": 0,
       "lateCrashes": 0,
       "lateCrashRule": "impact|blocked|fell",
-      "simCommit": "d966fc9",
+      "simCommit": "ee76275",
       "promptHash": "9a0e9a761a"
     }
   ],
-  "notRun": []
+  "notRun": [],
+  "lab": {
+    "date": "2026-10-10",
+    "runs": 90,
+    "promptHash": "d86bb5a2bd",
+    "labVersion": 1,
+    "scenarios": [
+      "maze",
+      "warehouse",
+      "mars",
+      "house",
+      "ctf"
+    ],
+    "seeds": [
+      1001,
+      1002,
+      1003
+    ],
+    "timeoutMs": 10000,
+    "priceSources": {
+      "anthropic": "https://claude.com/pricing",
+      "openai": "https://developers.openai.com/api/docs/models",
+      "deepseek": "https://api-docs.deepseek.com/quick_start/pricing"
+    },
+    "contestants": [
+      {
+        "id": "jev-1.13.0",
+        "modelId": "jev-1.13.0",
+        "label": "Jev",
+        "kind": "jev",
+        "tier": "fast",
+        "status": "ok",
+        "params": {
+          "api": "TypeSafe systemone",
+          "question": "choice"
+        },
+        "runs": 15,
+        "finishPct": 100,
+        "meanScore": 642,
+        "meanTimeS": 59.7,
+        "meanDamagePct": 4,
+        "meanCompletionPct": 100,
+        "decisionsPerRun": 10.7,
+        "noDecisions": 0,
+        "latencyP50Ms": 242,
+        "latencyP95Ms": 289,
+        "byScenario": {
+          "maze": {
+            "runs": 3,
+            "completed": 3,
+            "meanScore": 696,
+            "meanCompletionPct": 100
+          },
+          "warehouse": {
+            "runs": 3,
+            "completed": 3,
+            "meanScore": 410,
+            "meanCompletionPct": 100
+          },
+          "mars": {
+            "runs": 3,
+            "completed": 3,
+            "meanScore": 515,
+            "meanCompletionPct": 100
+          },
+          "house": {
+            "runs": 3,
+            "completed": 3,
+            "meanScore": 754,
+            "meanCompletionPct": 100
+          },
+          "ctf": {
+            "runs": 3,
+            "completed": 3,
+            "meanScore": 837,
+            "meanCompletionPct": 100
+          }
+        },
+        "simCommit": "90d1f73",
+        "promptHash": "d86bb5a2bd"
+      },
+      {
+        "id": "heuristic",
+        "modelId": "heuristic",
+        "label": "Heuristic",
+        "kind": "heuristic",
+        "tier": "baseline",
+        "status": "ok",
+        "runs": 15,
+        "finishPct": 100,
+        "meanScore": 696,
+        "meanTimeS": 50.6,
+        "meanDamagePct": 2,
+        "meanCompletionPct": 100,
+        "decisionsPerRun": 10.5,
+        "noDecisions": 0,
+        "latencyP50Ms": 0,
+        "latencyP95Ms": 0,
+        "byScenario": {
+          "maze": {
+            "runs": 3,
+            "completed": 3,
+            "meanScore": 708,
+            "meanCompletionPct": 100
+          },
+          "warehouse": {
+            "runs": 3,
+            "completed": 3,
+            "meanScore": 495,
+            "meanCompletionPct": 100
+          },
+          "mars": {
+            "runs": 3,
+            "completed": 3,
+            "meanScore": 664,
+            "meanCompletionPct": 100
+          },
+          "house": {
+            "runs": 3,
+            "completed": 3,
+            "meanScore": 775,
+            "meanCompletionPct": 100
+          },
+          "ctf": {
+            "runs": 3,
+            "completed": 3,
+            "meanScore": 837,
+            "meanCompletionPct": 100
+          }
+        },
+        "simCommit": "90d1f73",
+        "promptHash": "d86bb5a2bd"
+      },
+      {
+        "id": "random",
+        "modelId": "random",
+        "label": "Random",
+        "kind": "random",
+        "tier": "baseline",
+        "status": "ok",
+        "runs": 15,
+        "finishPct": 73,
+        "meanScore": 484,
+        "meanTimeS": 56.7,
+        "meanDamagePct": 0,
+        "meanCompletionPct": 73,
+        "decisionsPerRun": 8.4,
+        "noDecisions": 0,
+        "latencyP50Ms": 0,
+        "latencyP95Ms": 0,
+        "byScenario": {
+          "maze": {
+            "runs": 3,
+            "completed": 3,
+            "meanScore": 694,
+            "meanCompletionPct": 100
+          },
+          "warehouse": {
+            "runs": 3,
+            "completed": 3,
+            "meanScore": 607,
+            "meanCompletionPct": 100
+          },
+          "mars": {
+            "runs": 3,
+            "completed": 0,
+            "meanScore": 0,
+            "meanCompletionPct": 0
+          },
+          "house": {
+            "runs": 3,
+            "completed": 3,
+            "meanScore": 563,
+            "meanCompletionPct": 100
+          },
+          "ctf": {
+            "runs": 3,
+            "completed": 2,
+            "meanScore": 558,
+            "meanCompletionPct": 67
+          }
+        },
+        "simCommit": "90d1f73",
+        "promptHash": "d86bb5a2bd"
+      },
+      {
+        "id": "gpt-5-nano",
+        "modelId": "gpt-5-nano",
+        "label": "GPT-5 nano",
+        "kind": "llm",
+        "tier": "fast",
+        "status": "ok",
+        "params": {
+          "reasoning_effort": "minimal",
+          "max_completion_tokens": 512
+        },
+        "runs": 15,
+        "finishPct": 67,
+        "meanScore": 395,
+        "meanTimeS": 75.9,
+        "meanDamagePct": 0,
+        "meanCompletionPct": 70,
+        "decisionsPerRun": 13.1,
+        "noDecisions": 1,
+        "latencyP50Ms": 872,
+        "latencyP95Ms": 1291,
+        "byScenario": {
+          "maze": {
+            "runs": 3,
+            "completed": 3,
+            "meanScore": 597,
+            "meanCompletionPct": 100
+          },
+          "warehouse": {
+            "runs": 3,
+            "completed": 3,
+            "meanScore": 621,
+            "meanCompletionPct": 100
+          },
+          "mars": {
+            "runs": 3,
+            "completed": 1,
+            "meanScore": 205,
+            "meanCompletionPct": 50
+          },
+          "house": {
+            "runs": 3,
+            "completed": 3,
+            "meanScore": 553,
+            "meanCompletionPct": 100
+          },
+          "ctf": {
+            "runs": 3,
+            "completed": 0,
+            "meanScore": 0,
+            "meanCompletionPct": 0
+          }
+        },
+        "simCommit": "90d1f73",
+        "inputTokens": 11439,
+        "outputTokens": 297,
+        "costPerRunUsd": 0.00069,
+        "totalCostUsd": 0.0104,
+        "priceSource": "https://developers.openai.com/api/docs/models",
+        "promptHash": "d86bb5a2bd"
+      },
+      {
+        "id": "gpt-6-luna",
+        "modelId": "gpt-6-luna",
+        "label": "GPT-6 Luna",
+        "kind": "llm",
+        "tier": "fast",
+        "status": "ok",
+        "params": {
+          "reasoning_effort": "none",
+          "temperature": 0,
+          "max_completion_tokens": 128
+        },
+        "runs": 15,
+        "finishPct": 80,
+        "meanScore": 463,
+        "meanTimeS": 79.3,
+        "meanDamagePct": 1,
+        "meanCompletionPct": 80,
+        "decisionsPerRun": 14.4,
+        "noDecisions": 0,
+        "latencyP50Ms": 852,
+        "latencyP95Ms": 1421,
+        "byScenario": {
+          "maze": {
+            "runs": 3,
+            "completed": 3,
+            "meanScore": 640,
+            "meanCompletionPct": 100
+          },
+          "warehouse": {
+            "runs": 3,
+            "completed": 3,
+            "meanScore": 503,
+            "meanCompletionPct": 100
+          },
+          "mars": {
+            "runs": 3,
+            "completed": 3,
+            "meanScore": 452,
+            "meanCompletionPct": 100
+          },
+          "house": {
+            "runs": 3,
+            "completed": 3,
+            "meanScore": 722,
+            "meanCompletionPct": 100
+          },
+          "ctf": {
+            "runs": 3,
+            "completed": 0,
+            "meanScore": 0,
+            "meanCompletionPct": 0
+          }
+        },
+        "simCommit": "90d1f73",
+        "inputTokens": 13120,
+        "outputTokens": 240,
+        "costPerRunUsd": 0.00143,
+        "totalCostUsd": 0.0215,
+        "priceSource": "https://developers.openai.com/api/docs/models",
+        "promptHash": "d86bb5a2bd"
+      },
+      {
+        "id": "deepseek-flash",
+        "modelId": "deepseek-flash",
+        "label": "DeepSeek Flash",
+        "kind": "llm",
+        "tier": "fast",
+        "status": "ok",
+        "params": {
+          "thinking": {
+            "type": "disabled"
+          },
+          "temperature": 0,
+          "max_tokens": 64
+        },
+        "runs": 15,
+        "finishPct": 80,
+        "meanScore": 408,
+        "meanTimeS": 85.9,
+        "meanDamagePct": 3,
+        "meanCompletionPct": 80,
+        "decisionsPerRun": 12.6,
+        "noDecisions": 1,
+        "latencyP50Ms": 852,
+        "latencyP95Ms": 1051,
+        "byScenario": {
+          "maze": {
+            "runs": 3,
+            "completed": 3,
+            "meanScore": 442,
+            "meanCompletionPct": 100
+          },
+          "warehouse": {
+            "runs": 3,
+            "completed": 3,
+            "meanScore": 444,
+            "meanCompletionPct": 100
+          },
+          "mars": {
+            "runs": 3,
+            "completed": 3,
+            "meanScore": 518,
+            "meanCompletionPct": 100
+          },
+          "house": {
+            "runs": 3,
+            "completed": 3,
+            "meanScore": 634,
+            "meanCompletionPct": 100
+          },
+          "ctf": {
+            "runs": 3,
+            "completed": 0,
+            "meanScore": 0,
+            "meanCompletionPct": 0
+          }
+        },
+        "simCommit": "90d1f73",
+        "inputTokens": 11333,
+        "outputTokens": 212,
+        "costPerRunUsd": 0.00365,
+        "totalCostUsd": 0.0548,
+        "priceSource": "https://api-docs.deepseek.com/quick_start/pricing",
+        "promptHash": "d86bb5a2bd"
+      }
+    ],
+    "notRun": [
+      {
+        "id": "claude-haiku-5-5",
+        "label": "Claude Haiku 5.5",
+        "reason": "no accepted mode: HTTP 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"Your credit balance is too low to access the Anthropic API. Please go to Plans & Bi"
+      }
+    ]
+  }
 }
