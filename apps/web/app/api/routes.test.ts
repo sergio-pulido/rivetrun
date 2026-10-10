@@ -40,6 +40,12 @@ describe('API routes', () => {
     await expectError(await decide(post('/api/decide', JSON.stringify(question))), 503, 'upstream_error');
   });
 
+  it('refuses a body over 2 MB before parsing it (review round: no route had a size limit)', async () => {
+    const huge = JSON.stringify({ nickname: 'ada', pad: 'a'.repeat(2_100_000) });
+    expect((await runs(post('/api/runs', huge))).status).toBe(413);
+    expect((await decide(post('/api/decide', huge))).status).toBe(413);
+  });
+
   it('POST /api/runs: 400 on an invalid episode', async () => {
     await expectError(await runs(post('/api/runs', JSON.stringify({ nickname: 'ada', episode: {} }))), 400, 'bad_request');
   });

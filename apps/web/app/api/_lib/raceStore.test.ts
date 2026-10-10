@@ -1,7 +1,9 @@
-import { heuristicBrain, MISSIONS, PRESETS, runHeadless } from '@rivetrun/sim';
+import type { Episode } from '@rivetrun/contracts';
+import { heuristicBrain, MISSIONS, PRESETS, replayDrive, runHeadless } from '@rivetrun/sim';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { COUNTDOWN_MS, rankPlayers, resultText, type JoinResponse } from '../../race/_lib/protocol';
 import { applyAction, createRoom, readRoom } from './raceStore';
+import { episodeCount } from './store';
 
 const build = PRESETS.all_rounder.build;
 const TRACK_M = 20;
@@ -55,5 +57,33 @@ describe('room race results', () => {
     expect(second!.raceMs! - first!.raceMs!).toBe(6_000);
     expect(resultText(second!, TRACK_M)).toContain('incl. +10 s missed scan');
     expect(resultText(first!, TRACK_M)).not.toContain('missed scan');
+  });
+  it('logs a human race run only when its input log replays to the posted result (review round)', () => {
+    const inputLog = [{ t: 0, throttle: 1, brake: 0, action: 'accelerate' as const }];
+    const { episode: replayed } = replayDrive({ mission: MISSIONS.M2, seed: 77, build, priority: 0.5 }, inputLog);
+    const honest: Episode = { ...replayed, outcome: { ...replayed.outcome, breakdown: { ...replayed.outcome.breakdown!, inputLog } } };
+    const invented: Episode = { ...honest, outcome: { ...honest.outcome, score: honest.outcome.score + 500 } };
+
+    const post = (episode: Episode): number => {
+      const { code } = createRoom('M2');
+      const joined = applyAction(code, { action: 'join', nickname: 'Racer', build });
+      if (!joined.ok || !joined.data) throw new Error('join failed');
+      applyAction(code, { action: 'start' });
+      applyAction(code, { action: 'start' });
+      vi.advanceTimersByTime(COUNTDOWN_MS + 100);
+      const raceNo = readRoom(code)!.snapshot.raceNo;
+      vi.advanceTimersByTime(3_000);
+      const before = episodeCount();
+      applyAction(code, {
+        action: 'state', playerId: joined.data.playerId, token: joined.data.token, raceNo, x: TRACK_M, v: 0, damagePct: 0, batteryPct: 90,
+        lastAction: null, lastActionP: null, thinking: false, done: true, finished: true, dnfReason: null, score: episode.outcome.score, episode,
+      });
+      // The race result stands either way: it is the server's clock.
+      expect(readRoom(code)!.snapshot.players[0]).toMatchObject({ done: true, finished: true });
+      return episodeCount() - before;
+    };
+
+    expect(post(honest)).toBe(1);
+    expect(post(invented)).toBe(0);
   });
 });
