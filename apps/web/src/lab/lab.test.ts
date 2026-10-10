@@ -13,8 +13,10 @@ const me = (state: LabState) => state.agents[0]!;
 describe('Lab Missions copy', () => {
   it('says in plain words that this is a grid simulation, and where the grid departs from the track', () => {
     expect(LAB_HONESTY).toMatch(/grid simulation/);
-    expect(LAB_SIMPLIFICATIONS).toHaveLength(4);
+    // The list is the sim's and grows with it: the page shows whatever it holds for the lab.
+    expect(LAB_SIMPLIFICATIONS.length).toBeGreaterThanOrEqual(4);
     expect(LAB_SIMPLIFICATIONS.join(' ')).toMatch(/four tiles next to the robot/);
+    expect(new Set(LAB_SIMPLIFICATIONS).size).toBe(LAB_SIMPLIFICATIONS.length);
   });
 
   it('has a brief for every scenario', () => {
