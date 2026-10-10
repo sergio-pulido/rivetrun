@@ -389,7 +389,8 @@ export function RunHud({ mission, feed, ghosts = NO_GHOSTS, drive, build }: RunH
         </div>
       )}
 
-      {!driving && (
+      {/* On a short screen the end stamp needs the room the Brain sheet takes: the sheet steps aside once the run is over. */}
+      {!driving && !(short && view.done) && (
         // With the telemetry drawer open the thread replaces the Brain sheet where the two would cover the robot between them.
         <div className={`absolute bottom-0 ${short ? 'right-0 w-[360px]' : 'inset-x-0 mx-auto max-w-[430px]'} ${drawerOpen ? 'portrait:hidden max-[1239px]:hidden' : ''}`}>
           <BrainHud pending={view.pending} last={view.decision} decisionCount={view.decisionCount} compact={short} />
