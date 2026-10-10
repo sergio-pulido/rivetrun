@@ -38,6 +38,9 @@ Written by [MASTER] for the human. Newest status first. Program: docs/OVERNIGHT.
 
 ## Status log
 
+### 15:20 · `demo-good-1520`: the tag to serve
+`demo-good-1520` → 3304a7d: `demo-good-1505` plus the final token figures (docs/tokens.json, docs/SETUP.md, docs/how-built.json and the script; no application code), so /lab on the served build shows the 15:06 count. Tagged five minutes after the 15:15 line for that reason only. Old flows green on the first attempt; every new-flow line green again, the untouched phone included; 40 phones: 40 of 40, poll p95 10 ms. From here a tag needs a critical fix and a sentence on what breaks without it.
+
 ### 15:07 · `demo-good-1450`, `demo-good-1505`, the final token count
 `demo-good-1450` → 744e7b0: RR-THRUST, RR-GUARD with the replay of stored runs, /play as vehicle → driver, rooms per mission, Home on /play (RR-HOME, RR-HOME-2), the mission thumbnails, plans for the play missions. Old flows 23 of 23 on the first attempt.
 `demo-good-1505` → d6780f1: adds the mission step as the default (/play is mission → vehicle → driver) and the list M7, M5, M8. Old flows green on the first attempt, and for the first time every new-flow line is green on a production build:
