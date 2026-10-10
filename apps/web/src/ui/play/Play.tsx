@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { BRIEFING_PRESETS, DEFAULT_PLAY_PICK, type PlayStrategy, type PlayerPick, type PresetId } from '@rivetrun/contracts';
 import { PRESETS } from '@rivetrun/sim';
-// The Room Race's own robot drawing: the same robot the player then sees on the track.
+// The Room Race's own robot drawing, for a preset whose render cannot be loaded.
 import { RobotGlyph } from '../../../app/race/_lib/RobotGlyph';
 import { AppHeader } from '@/ui/AppHeader';
 import { Icon } from '@/ui/Icon';
@@ -47,6 +47,17 @@ function keepSeat(room: Room): void {
   } catch {
     // Private mode: the race page will ask the player to join instead.
   }
+}
+
+/**
+ * The preset as rendered from its exact build (public/renders/presets); the drawn robot if the image does not load.
+ * The renders are square with the robot in the middle band, so the slot crops the empty top and bottom.
+ */
+function PresetArt({ id }: { readonly id: PresetId }) {
+  const [failed, setFailed] = useState(false);
+  if (failed) return <RobotGlyph build={PRESETS[id].build} color="#ff6a13" className="h-12 w-[70px] shrink-0" />;
+  // eslint-disable-next-line @next/next/no-img-element
+  return <img src={`/renders/presets/${id}.webp`} alt="" width={104} height={72} onError={() => setFailed(true)} className="h-[72px] w-[104px] shrink-0 object-cover" />;
 }
 
 function Ring({ left, seconds }: { readonly left: number; readonly seconds: number }) {
@@ -243,7 +254,7 @@ export function Play({ agents, plans }: { readonly agents: readonly PlayAgent[];
                   testId={`play-vehicle-${id}`}
                   on={pick.presetId === id}
                   onPick={() => choose({ presetId: id })}
-                  lead={<RobotGlyph build={PRESETS[id].build} color="#ff6a13" className="h-12 w-[70px] shrink-0" />}
+                  lead={<PresetArt id={id} />}
                   title={PRESETS[id].name}
                   line={PRESETS[id].blurb}
                 />
