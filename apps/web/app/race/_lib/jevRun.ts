@@ -18,6 +18,8 @@ export interface JevRunOptions {
   readonly seed: number;
   readonly build: Build;
   readonly briefing?: string;
+  /** 0 = pure speed … 1 = pure safety. A plan sets it; without one the room's 0.5. */
+  readonly priority?: number;
   /** Called for every decision the bot makes, for the big screen's live thread. */
   readonly onDecision?: (entry: ThreadEntry) => void;
   /** The bot's name in the thread, e.g. "JEV-1". */
@@ -27,7 +29,7 @@ export interface JevRunOptions {
 }
 
 /** Starts the bot now. Returns a stop function. */
-export function startJevRun({ code, raceNo, seat, mission, seed, build, briefing, onDecision, who = 'JEV', brain }: JevRunOptions): () => void {
+export function startJevRun({ code, raceNo, seat, mission, seed, build, briefing, priority = 0.5, onDecision, who = 'JEV', brain }: JevRunOptions): () => void {
   const feed = createRunFeed();
   let stopped = false;
   // What the results screen says about this brain: how fast it answered and what its waiting cost.
@@ -60,7 +62,7 @@ export function startJevRun({ code, raceNo, seat, mission, seed, build, briefing
     };
   };
 
-  const controller = runController({ mission, seed, build, priority: 0.5 }, brain ?? createClientBrain({ briefing, isAirborne: () => feed.get().state?.airborne === true }), {
+  const controller = runController({ mission, seed, build, priority }, brain ?? createClientBrain({ briefing, isAirborne: () => feed.get().state?.airborne === true }), {
     onEvent: (event) => {
       feed.push(event);
       // Hints (advisory) are not decisions the bot acted on.

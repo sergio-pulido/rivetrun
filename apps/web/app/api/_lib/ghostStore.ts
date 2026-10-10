@@ -1,7 +1,8 @@
 import { createHash } from 'node:crypto';
-import { createJevBrain } from '@rivetrun/brain';
+import { createJevBrain, JEV_MODEL_ID } from '@rivetrun/brain';
+import { resolveContestants } from '@rivetrun/brain/arena';
 import type { Brain, Build, GhostTrace, MissionId } from '@rivetrun/contracts';
-import { driveSeed, MISSION_IDS, MISSIONS, runHeadless } from '@rivetrun/sim';
+import { driveSeed, heuristicBrain, MISSION_IDS, MISSIONS, runHeadless } from '@rivetrun/sim';
 import { faultedJev, type JevFault } from './jevFault';
 import { waitForQuiet } from './liveTraffic';
 import { CACHE_VERSION } from './version';
@@ -14,6 +15,11 @@ export interface GhostRequest {
   readonly build: Build;
   readonly priority: number;
   readonly briefing?: string;
+  /**
+   * Who drives this ghost: an arena contestant id (RR-PLAN §4, a player's picked agent). Absent = Jev, as in Drive mode.
+   * Paid models are called through the arena adapters and their cost goes to the live ledger.
+   */
+  readonly agent?: string;
   /** Test switch (jevFault.ts): drive this ghost with a Jev that fails or never answers in time. */
   readonly fault?: JevFault;
 }
@@ -89,6 +95,40 @@ function pump(): void {
 
 const jev = createJevBrain();
 
+// A picked agent other than Jev: the fixed rules, or a model through the arena's own adapter (same prompt and
+// parameters as the arena table). Each is checked against its provider once per server start.
+const agents = new Map<string, Promise<Brain>>();
+const liveLedger = (): { spentUsd: number; calls: number } => {
+  const holderOfLedger = globalThis as typeof globalThis & { __rivetrunLiveArena?: { spentUsd: number; calls: number } & Record<string, unknown> };
+  return (holderOfLedger.__rivetrunLiveArena ??= { contestants: new Map(), spentUsd: 0, calls: 0 });
+};
+const liveCapUsd = (): number => Number(process.env.ARENA_LIVE_CAP_USD ?? 3);
+
+function agentBrain(agent: string): Promise<Brain> {
+  const known = agents.get(agent);
+  if (known) return known;
+  const made = (async (): Promise<Brain> => {
+    if (agent === 'heuristic') return heuristicBrain;
+    const contestant = (await resolveContestants((spec) => spec.id === agent)).find((candidate) => candidate.id === agent && candidate.status === 'ok');
+    if (!contestant) throw new Error(`${agent} is not available on this server`);
+    const decide = contestant.forRun(0);
+    return {
+      decide: async (question) => {
+        if (contestant.price && liveLedger().spentUsd >= liveCapUsd()) throw new Error('the spending cap for live model calls is reached');
+        const answer = await decide(question);
+        const book = liveLedger();
+        book.calls += 1;
+        if (answer.usage && contestant.price) book.spentUsd += (answer.usage.inputTokens * contestant.price.in + answer.usage.outputTokens * contestant.price.out) / 1e6;
+        return { probabilities: answer.probabilities, selected: answer.choice, policy: 'jev', fallback: false, latencyMs: answer.latencyMs, model: agent };
+      },
+    };
+  })();
+  // A failed check is not remembered: the next request tries again.
+  made.catch(() => agents.delete(agent));
+  agents.set(agent, made);
+  return made;
+}
+
 const prints = new Map<MissionId, string>();
 /** A short fingerprint of a mission's data, computed once per mission. */
 function missionPrint(id: MissionId): string {
@@ -113,6 +153,7 @@ const keyOf = (request: GhostRequest): string =>
     { ...request.build, sensors: [...request.build.sensors].sort(), extras: [...request.build.extras].sort() },
     request.priority,
     request.briefing ?? '',
+    request.agent ?? JEV_MODEL_ID,
     request.fault ?? '',
   ]);
 
@@ -130,7 +171,7 @@ async function compute(key: string, request: GhostRequest, low = false): Promise
     pump();
   });
   try {
-    const { episode, ghost } = await runHeadless(MISSIONS[request.missionId], request.seed, request.build, request.fault ? faultedJev(request.fault) : low ? politeJev(key) : jev, {
+    const { episode, ghost } = await runHeadless(MISSIONS[request.missionId], request.seed, request.build, request.fault ? faultedJev(request.fault) : request.agent && request.agent !== JEV_MODEL_ID ? await agentBrain(request.agent) : low ? politeJev(key) : jev, {
       priority: request.priority,
       policy: 'jev',
       briefing: request.briefing,
@@ -139,7 +180,7 @@ async function compute(key: string, request: GhostRequest, low = false): Promise
     const fallbacks = episode.decisions.filter((decision) => decision.fallback).length;
     // A run Jev never answered is the heuristic's run: it must not be served under Jev's name.
     if (decisions > 0 && fallbacks === decisions) {
-      remember(key, { state: 'failed', at: Date.now(), reason: 'Jev answered none of the decisions' });
+      remember(key, { state: 'failed', at: Date.now(), reason: 'the driver answered none of the decisions' });
     } else {
       // The telemetry console replays this thread against the ghost's clock. Only entries the sim logged are
       // passed on: nothing is reconstructed here, and Jev's answer is a choice with probabilities, never text.
@@ -200,7 +241,7 @@ export function requestGhost(request: GhostRequest): GhostAnswer {
     return { status: 'pending' };
   }
   if (entry?.state === 'failed' && Date.now() - entry.at < RETRY_AFTER_FAILURE_MS) return { status: 'unavailable', reason: entry.reason };
-  if (!request.fault && !process.env.JEV_API_KEY) return { status: 'unavailable', reason: 'JEV_API_KEY is not set' };
+  if (!request.fault && !request.agent && !process.env.JEV_API_KEY) return { status: 'unavailable', reason: 'JEV_API_KEY is not set' };
   // Each new ghost is a full run of Jev calls: when this many are already waiting, the phone races the fixed rules.
   if (state.waiting.filter((item) => !item.low).length >= MAX_REQUEST_QUEUE) return { status: 'unavailable', reason: 'too many ghosts are being prepared' };
   remember(key, { state: 'pending', since: Date.now() });

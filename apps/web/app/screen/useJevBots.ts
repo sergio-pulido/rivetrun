@@ -37,10 +37,11 @@ function saveSeats(code: string, seats: readonly RaceSeat[]): void {
  * The brain behind a live Arena bot: the fixed rules run here; every model is asked through the server, with a
  * longer wait than the game's 1.2 s because slow answers are what the Arena shows. Undefined = an ordinary JEV bot.
  */
-function arenaBrain(model: string | undefined): Brain | undefined {
+function arenaBrain(model: string | undefined, briefing: string | undefined): Brain | undefined {
   if (!model) return undefined;
   if (model === 'heuristic') return heuristicBrain;
-  return createClientBrain({ url: `/api/arena/decide?model=${encodeURIComponent(model)}`, timeoutMs: ARENA_DECIDE_TIMEOUT_MS });
+  // A plan's briefing travels in the question, so every model reads the same orders (RR-PLAN §2).
+  return createClientBrain({ url: `/api/arena/decide?model=${encodeURIComponent(model)}`, timeoutMs: ARENA_DECIDE_TIMEOUT_MS, briefing });
 }
 
 export interface JevBots {
@@ -83,7 +84,7 @@ export function useJevBots(snapshot: RaceSnapshot | null, clockOffsetMs: number)
       () => {
         for (const bot of bots) {
           const seat = seats.find((candidate) => candidate.playerId === bot.id);
-          if (seat) stops.push(startJevRun({ code, raceNo, seat, mission: MISSIONS[missionId], seed, build: bot.build, briefing: bot.briefing, who: bot.nickname, onDecision, brain: arenaBrain(bot.model) }));
+          if (seat) stops.push(startJevRun({ code, raceNo, seat, mission: MISSIONS[missionId], seed, build: bot.build, briefing: bot.briefing, priority: bot.priority, who: bot.nickname, onDecision, brain: arenaBrain(bot.model, bot.briefing) }));
         }
       },
       Math.max(0, startAt - (Date.now() + clockOffsetMs)),
