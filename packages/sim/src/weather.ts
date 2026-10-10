@@ -70,7 +70,9 @@ export function capacityFactor(environment: Environment): number {
 /** Range multiplier for a camera (or the scout drone's camera when `aboveRain`). `nightVision` = NoIR with IR lamps. */
 export function cameraFactor(environment: Environment, options: { aboveRain?: boolean; nightVision?: boolean; lights?: boolean } = {}): number {
   const c = conditionsOf(environment);
-  let factor = environment.weather === 'rain' && !options.aboveRain ? TUNING.weather.rain.cameraRangeFactor : 1;
+  // Rain is rain whether the mission says so with its label or with its precipitation.
+  const raining = environment.weather === 'rain' || c.precipitation === 'rain' || c.precipitation === 'heavy_rain';
+  let factor = raining && !options.aboveRain ? TUNING.weather.rain.cameraRangeFactor : 1;
   if (c.precipitation === 'snow') factor *= WEATHER.camera.snow;
   if (c.visibility === 'fog') factor *= WEATHER.camera.fog;
   if (c.visibility === 'night' && !options.nightVision) factor *= options.lights ? WEATHER.camera.nightWithLights : WEATHER.camera.night;

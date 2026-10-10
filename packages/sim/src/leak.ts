@@ -1,4 +1,4 @@
-import type { Action, BrainQuestion, Build, Mission, Segment } from '@rivetrun/contracts';
+import type { Action, BrainQuestion, Build, Conditions, Mission, Segment } from '@rivetrun/contracts';
 import { MISSIONS, PRESETS } from './data';
 import { START_TRIGGER, buildQuestion, observe } from './perception';
 import { createRun, step } from './physics';
@@ -43,8 +43,9 @@ export const LEAK_BUILDS: Readonly<Record<string, Build>> = {
   probe_lidar: { ...PRESETS.all_rounder.build, sensors: ['moisture_probe', 'lidar_rplidar_c1'], extras: ['piston_jump'] },
 };
 
-export const leakMission = (variant: string): Mission => ({
+export const leakMission = (variant: string, conditions?: Conditions): Mission => ({
   ...MISSIONS.M1,
+  ...(conditions ? { conditions } : {}),
   // The scan zone is in the shared part: the plan gives its position to every build.
   scanZones: [{ id: 'leak-zone', label: 'marker', atM: 20, halfLengthM: 0.5, needs: ['camera', 'ultrasonic'] }],
   track: { segments: [...shared, ...LEAK_VARIANTS[variant]!] },
@@ -63,8 +64,8 @@ export interface LeakSample {
  * Drives the build down one variant with a fixed command script and returns what a brain would be given at every
  * fifth step, for as long as the robot is before the point of divergence.
  */
-export function leakSamples(build: Build, variant: string, seed = 7): LeakSample[] {
-  let state = createRun({ mission: leakMission(variant), seed, build, priority: 0.5 });
+export function leakSamples(build: Build, variant: string, seed = 7, conditions?: Conditions): LeakSample[] {
+  let state = createRun({ mission: leakMission(variant, conditions), seed, build, priority: 0.5 });
   const script: Action[] = ['accelerate', 'cruise', 'slow_down', 'climb_mode', 'cruise', 'brake_soft', 'accelerate'];
   const samples: LeakSample[] = [];
   for (let i = 0; i < 4000 && !state.done && state.sim.x < LEAK_DIVERGE_M; i += 1) {
