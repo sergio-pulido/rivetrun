@@ -38,6 +38,23 @@ function buildProblem(plan: z.infer<typeof PlanAnswerSchema>): string | null {
   return null;
 }
 
+/**
+ * A plan for a picked vehicle must stay that vehicle (so the vehicle a player taps still means something when every
+ * AI driver runs the plan): same locomotion, motor and battery; at most one sensor and one extra replaced.
+ */
+function vehicleProblem(plan: z.infer<typeof PlanAnswerSchema>, presetId: PresetId): string | null {
+  const preset = PRESETS[presetId].build;
+  const { build } = plan;
+  if (plan.presetId !== presetId) return `presetId must be "${presetId}"`;
+  if (build.locomotion !== preset.locomotion) return `keep the vehicle's locomotion "${preset.locomotion}"`;
+  if (build.motor !== preset.motor) return `keep the vehicle's motor "${preset.motor}"`;
+  if (build.battery !== preset.battery) return `keep the vehicle's battery "${preset.battery}"`;
+  const replaced = (mine: readonly string[], theirs: readonly string[]): number => theirs.filter((id) => !mine.includes(id)).length;
+  if (replaced(build.sensors, preset.sensors) > 1) return `replace at most one of the vehicle's sensors (${preset.sensors.join(', ')})`;
+  if (replaced(build.extras, preset.extras) > 1) return `replace at most one of the vehicle's extras (${preset.extras.join(', ')})`;
+  return null;
+}
+
 export interface PlanResult {
   readonly plan: Plan;
   /** 'model' = planned now; 'pregenerated' = the model's answers were unusable and the committed plan is returned. */
@@ -88,7 +105,7 @@ export async function makePlan(missionId: MissionId, presetId: PresetId | undefi
     costUsd += answer.costUsd;
     fellBackBecause ??= answer.fellBackBecause;
     const parsed = PlanAnswerSchema.safeParse(tidy(extractJson(answer.text)));
-    const problem = parsed.success ? buildProblem(parsed.data) : parsed.error.issues.slice(0, 3).map((issue) => `${issue.path.join('.') || 'answer'}: ${issue.message}`).join('; ');
+    const problem = parsed.success ? (buildProblem(parsed.data) ?? (presetId ? vehicleProblem(parsed.data, presetId) : null)) : parsed.error.issues.slice(0, 3).map((issue) => `${issue.path.join('.') || 'answer'}: ${issue.message}`).join('; ');
     if (parsed.success && problem === null) return { plan: { ...parsed.data, generatedBy: stamp(answer) }, source: 'model', costUsd, ...(fellBackBecause ? { fellBackBecause } : {}) };
     previousError = problem ?? 'not a JSON object of the requested shape';
   }

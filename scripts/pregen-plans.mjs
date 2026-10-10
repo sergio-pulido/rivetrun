@@ -18,10 +18,17 @@ mkdirSync(dir, { recursive: true });
 for (const missionId of missions) {
   const plans = {};
   for (const presetId of PRESETS) {
-    const response = await fetch(`${BASE}/api/plan`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ missionId, presetId }) });
-    const body = await response.json().catch(() => ({}));
-    if (!response.ok || body.source !== 'model') {
-      console.error(`${missionId} ${presetId}: no plan from a model (${response.status} ${body.source ?? body.error ?? ''}). File not written.`);
+    // A plan the model got wrong twice, or a server hiccup, is asked for again before giving up on the file.
+    let response;
+    let body = {};
+    for (let attempt = 0; attempt < 3; attempt++) {
+      response = await fetch(`${BASE}/api/plan`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ missionId, presetId }) }).catch(() => null);
+      body = response ? await response.json().catch(() => ({})) : {};
+      if (response?.ok && body.source === 'model') break;
+      console.error(`${missionId} ${presetId}: attempt ${attempt + 1} gave ${response?.status ?? 'no answer'} ${body.source ?? body.error ?? ''}`);
+    }
+    if (!response?.ok || body.source !== 'model') {
+      console.error(`${missionId} ${presetId}: no plan from a model (${response?.status ?? 'no answer'} ${body.source ?? body.error ?? ''}). File not written.`);
       process.exit(1);
     }
     plans[presetId] = body.plan;

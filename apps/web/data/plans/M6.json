@@ -1,0 +1,174 @@
+{
+  "missionId": "M6",
+  "generatedAt": "2026-10-10T12:08:39.808Z",
+  "generatedWith": "scripts/pregen-plans.mjs",
+  "plans": {
+    "speedster": {
+      "build": {
+        "locomotion": "wheels",
+        "motor": "motor_light",
+        "battery": "battery_small",
+        "sensors": [
+          "camera",
+          "ultrasonic"
+        ],
+        "extras": [
+          "waterproof_case",
+          "thruster_kit"
+        ]
+      },
+      "presetId": "speedster",
+      "priority": 0.4,
+      "briefing": "Fast on asphalt. Under 1 m/s on rock. Thrusters on in water, steady. Slow for log and step. Save battery: no idling, no stops. Finish.",
+      "rationale": "Water up to 120 cm cannot be crossed without a sealed hull and thrusters, so the ducted fan is swapped for the case and thruster kit. Wheels, motor, battery and sensors are unchanged. The small battery is tight, so the driver must keep moving.",
+      "partsWhy": [
+        {
+          "partId": "waterproof_case",
+          "why": "Seals the hull so the 60-120 cm water stretches don't destroy it."
+        },
+        {
+          "partId": "thruster_kit",
+          "why": "Needed to swim 60-120 cm deep; wheels only wade 20 cm."
+        },
+        {
+          "partId": "camera",
+          "why": "Reads the next terrain 6 m ahead: rock, water, log, step."
+        },
+        {
+          "partId": "ultrasonic",
+          "why": "Sees the log and the step in time to slow down."
+        }
+      ],
+      "generatedBy": {
+        "provider": "anthropic",
+        "model": "claude-sonnet-5-5",
+        "ms": 11751,
+        "at": "2026-10-10T12:08:14.969Z"
+      }
+    },
+    "mud_crawler": {
+      "build": {
+        "locomotion": "tracks",
+        "motor": "motor_torque",
+        "battery": "battery_large",
+        "sensors": [
+          "imu"
+        ],
+        "extras": [
+          "waterproof_case",
+          "thruster_kit"
+        ]
+      },
+      "presetId": "mud_crawler",
+      "priority": 0.5,
+      "briefing": "Full speed on asphalt. Under 1 m/s on rock (12-20m, 85-95m). Thrusters on in water 20-85m, steady. Keep climbing the 12° slope. Don't stop.",
+      "rationale": "Water 60-120 cm is deeper than tracks can wade (45 cm), so the thruster kit is needed on top of the sealed case. The IMU stays for the 12° slope. Slow on rock for the rough-ground rule, otherwise go fast.",
+      "partsWhy": [
+        {
+          "partId": "thruster_kit",
+          "why": "Swims 60-120 cm; tracks only wade 45 cm."
+        },
+        {
+          "partId": "waterproof_case",
+          "why": "Sealed hull needed in every water stretch; thrusters require it."
+        },
+        {
+          "partId": "imu",
+          "why": "Feels the 12° slope at the end."
+        }
+      ],
+      "generatedBy": {
+        "provider": "anthropic",
+        "model": "claude-sonnet-5-5",
+        "ms": 6996,
+        "at": "2026-10-10T12:08:22.100Z"
+      }
+    },
+    "all_rounder": {
+      "build": {
+        "locomotion": "offroad_wheels",
+        "motor": "motor_torque",
+        "battery": "battery_large",
+        "sensors": [
+          "camera",
+          "ultrasonic"
+        ],
+        "extras": [
+          "waterproof_case",
+          "thruster_kit"
+        ]
+      },
+      "presetId": "all_rounder",
+      "priority": 0.6,
+      "briefing": "Rock 12-20m and 85-95m: slow under 1 m/s. Water 20-85m: thrusters on, steady, go over the 4cm log. 70-85m climbs 8°. Full speed on asphalt.",
+      "rationale": "The brief has 120 cm of water. That needs a sealed hull and thrusters, and the thruster kit requires the case. Both extras must replace the bumper, which strictly stretches the one-extra swap limit. Locomotion, motor, battery and sensors stay as in the all-rounder.",
+      "partsWhy": [
+        {
+          "partId": "waterproof_case",
+          "why": "Sealed hull is required in every water stretch."
+        },
+        {
+          "partId": "thruster_kit",
+          "why": "Swims 60-120 cm deep; wheels only wade 35 cm."
+        },
+        {
+          "partId": "camera",
+          "why": "Reads the next terrain change so the driver can slow for rock and water."
+        },
+        {
+          "partId": "ultrasonic",
+          "why": "Spots the log and step ahead."
+        }
+      ],
+      "generatedBy": {
+        "provider": "anthropic",
+        "model": "claude-sonnet-5-5",
+        "ms": 10427,
+        "at": "2026-10-10T12:08:32.594Z"
+      }
+    },
+    "deep_diver": {
+      "build": {
+        "locomotion": "wheels",
+        "motor": "motor_torque",
+        "battery": "battery_large",
+        "sensors": [
+          "ultrasonic",
+          "camera"
+        ],
+        "extras": [
+          "waterproof_case",
+          "thruster_kit"
+        ]
+      },
+      "presetId": "deep_diver",
+      "priority": 0.6,
+      "briefing": "Fast on asphalt. Under 1 m/s on rock 12-20m and 85-95m. Thrusters on in water 20-85m; slow for log at 55-70m. Climb 12° steadily.",
+      "rationale": "The Deep Diver already has the sealed case and thrusters (120 cm swim) this mission needs, so no part swap is justified. Camera and ultrasonic cover the terrain changes and the log. Priority leans safe because of the rock and log impacts.",
+      "partsWhy": [
+        {
+          "partId": "waterproof_case",
+          "why": "Sealed hull is required for every water stretch."
+        },
+        {
+          "partId": "thruster_kit",
+          "why": "Swims up to 120 cm; wheels alone only wade 20 cm."
+        },
+        {
+          "partId": "camera",
+          "why": "Reads upcoming terrain so the driver can switch modes in time."
+        },
+        {
+          "partId": "ultrasonic",
+          "why": "Detects the log and rock steps ahead."
+        }
+      ],
+      "generatedBy": {
+        "provider": "anthropic",
+        "model": "claude-sonnet-5-5",
+        "ms": 7164,
+        "at": "2026-10-10T12:08:39.779Z"
+      }
+    }
+  }
+}

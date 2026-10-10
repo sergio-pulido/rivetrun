@@ -1,0 +1,167 @@
+{
+  "missionId": "M5",
+  "generatedAt": "2026-10-10T12:07:30.846Z",
+  "generatedWith": "scripts/pregen-plans.mjs",
+  "plans": {
+    "speedster": {
+      "build": {
+        "locomotion": "wheels",
+        "motor": "motor_light",
+        "battery": "battery_small",
+        "sensors": [
+          "camera",
+          "ultrasonic"
+        ],
+        "extras": [
+          "waterproof_case"
+        ]
+      },
+      "presetId": "speedster",
+      "priority": 0.5,
+      "briefing": "Rain, save battery. Cruise asphalt/grass. Steady in sand, water, mud. Rock: under 1 m/s, log ahead. Ice: crawl. Step 60m: slow. Then sprint.",
+      "rationale": "The water (26-32 m) and mud (32-42 m) stretches both need a sealed hull, so the waterproof case replaces the ducted fan. Wheels, light motor and small battery stay as they are. The camera and ultrasonic already cover terrain and obstacles. Battery is tight, so no wasted speed.",
+      "partsWhy": [
+        {
+          "partId": "waterproof_case",
+          "why": "Water 10 cm and mud 8 cm both require a sealed hull."
+        },
+        {
+          "partId": "camera",
+          "why": "Reads the next terrain so the driver can adapt speed."
+        },
+        {
+          "partId": "ultrasonic",
+          "why": "Detects the log and the step before impact."
+        }
+      ],
+      "generatedBy": {
+        "provider": "anthropic",
+        "model": "claude-sonnet-5-5",
+        "ms": 7746,
+        "at": "2026-10-10T12:07:07.210Z"
+      }
+    },
+    "mud_crawler": {
+      "build": {
+        "locomotion": "tracks",
+        "motor": "motor_torque",
+        "battery": "battery_large",
+        "sensors": [
+          "imu"
+        ],
+        "extras": [
+          "waterproof_case"
+        ]
+      },
+      "presetId": "mud_crawler",
+      "priority": 0.6,
+      "briefing": "Full speed on asphalt/grass. Water 26-32, mud 32-42: steady, never stop. Rock 42-50: crawl under 1 m/s. Ice 50-60 gentle. Step at 60.",
+      "rationale": "The stock Mud Crawler already meets every need in the brief. Tracks give grip and climb. The sealed case covers water and mud. The IMU senses the 10° slope. Nothing forces a swap, so I keep the build and use the briefing to slow the driver for the rock and ice.",
+      "partsWhy": [
+        {
+          "partId": "tracks",
+          "why": "Grip on sand, mud and ice; climbs 10°; wades 10 cm; clears the log and step."
+        },
+        {
+          "partId": "waterproof_case",
+          "why": "Sealed hull needed for the water and mud stretches."
+        },
+        {
+          "partId": "imu",
+          "why": "Needed to feel the 10° mud slope."
+        },
+        {
+          "partId": "motor_torque",
+          "why": "Torque for the mud pull and sand."
+        }
+      ],
+      "generatedBy": {
+        "provider": "anthropic",
+        "model": "claude-sonnet-5-5",
+        "ms": 8493,
+        "at": "2026-10-10T12:07:15.745Z"
+      }
+    },
+    "all_rounder": {
+      "build": {
+        "locomotion": "offroad_wheels",
+        "motor": "motor_torque",
+        "battery": "battery_large",
+        "sensors": [
+          "camera",
+          "ultrasonic"
+        ],
+        "extras": [
+          "waterproof_case"
+        ]
+      },
+      "presetId": "all_rounder",
+      "priority": 0.6,
+      "briefing": "Under 1 m/s entering rock at 42m. Steady power through water and mud, no stops. Gentle on ice. Slow for the step at 60m, then full speed.",
+      "rationale": "Water (10 cm) and mud (8 cm) both need a sealed hull, so the waterproof case replaces the bumper. The off-road wheels already handle the climbs, the 35 cm wading depth and the log. The camera and ultrasonic stay as they are.",
+      "partsWhy": [
+        {
+          "partId": "waterproof_case",
+          "why": "Water 10 cm and mud 8 cm both require a sealed hull."
+        },
+        {
+          "partId": "camera",
+          "why": "Reads the terrain ahead so the driver can slow before rock, ice and the step."
+        },
+        {
+          "partId": "ultrasonic",
+          "why": "Spots the log and the step ahead."
+        }
+      ],
+      "generatedBy": {
+        "provider": "anthropic",
+        "model": "claude-sonnet-5-5",
+        "ms": 6853,
+        "at": "2026-10-10T12:07:22.634Z"
+      }
+    },
+    "deep_diver": {
+      "build": {
+        "locomotion": "wheels",
+        "motor": "motor_torque",
+        "battery": "battery_large",
+        "sensors": [
+          "ultrasonic",
+          "camera"
+        ],
+        "extras": [
+          "waterproof_case",
+          "thruster_kit"
+        ]
+      },
+      "presetId": "deep_diver",
+      "priority": 0.6,
+      "briefing": "Rain. Sand/mud: steady full power, no stops. Water: sealed, steady. Rock 42m: under 1 m/s, ease over log. Ice: coast gently.",
+      "rationale": "The brief shows no stretch the stock Deep Diver cannot cross: wheels give grip of 0.8 on sand, 0.7 on mud and 0.6 on ice, and the case seals the 10 cm water and 8 cm mud. The torque motor covers the pulls, so no part swap is allowed. The driver is told to slow for rock, log and step.",
+      "partsWhy": [
+        {
+          "partId": "waterproof_case",
+          "why": "Sealed hull is required for the 10 cm water and the 8 cm mud."
+        },
+        {
+          "partId": "motor_torque",
+          "why": "Torque for the 10° mud climb and the 16 N pull."
+        },
+        {
+          "partId": "camera",
+          "why": "Reads the next terrain so the driver can adjust speed early."
+        },
+        {
+          "partId": "ultrasonic",
+          "why": "Detects the log and the step ahead so the driver can slow."
+        }
+      ],
+      "generatedBy": {
+        "provider": "anthropic",
+        "model": "claude-sonnet-5-5",
+        "ms": 8149,
+        "at": "2026-10-10T12:07:30.818Z"
+      }
+    }
+  }
+}

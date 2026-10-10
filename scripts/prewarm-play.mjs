@@ -1,18 +1,18 @@
-// Prewarms every combination a phone can pick on /play (docs/PLAY_AND_PLAN.md §6): 4 vehicles × 3 AI agents ×
-// 4 strategies = 48 runs on the hands-on mission, driven once on the served build so no phone waits for one.
+// Prewarms every combination a phone can pick on /play (docs/PLAY_AND_PLAN.md §6, amended 10 Oct 14:00): the play
+// missions × 4 vehicles × 3 AI drivers, each with Claude's stored plan for that mission and vehicle. 4 missions = 48
+// runs, driven once on the served build so that no phone waits for one and no visitor request has to call a model.
 // Run it against the server the audience will use, after it has started and before the demo:
-//   BASE=http://localhost:3001 node scripts/prewarm-play.mjs [missionId]
-// The two paid agents (GPT-6 Luna, DeepSeek Flash) cost about half a US cent a run: about US$0.20 in all, under the
-// server's ARENA_LIVE_CAP_USD.
+//   BASE=http://localhost:3001 node scripts/prewarm-play.mjs [M7,M5,M8,M6]
+// The two paid drivers (GPT-6 Luna, DeepSeek Flash) cost about one US cent a run: about US$0.30 in all. Run it from
+// the presenter's machine (localhost): those calls then count against ARENA_LIVE_CAP_USD, not the visitors' budget.
 const BASE = process.env.BASE ?? 'http://localhost:3001';
-const mission = process.argv[2];
+const MISSIONS = (process.argv[2] ?? process.env.PLAY_MISSIONS ?? 'M7,M5,M8,M6').split(',').map((id) => id.trim()).filter(Boolean);
 const PRESETS = ['speedster', 'mud_crawler', 'all_rounder', 'deep_diver'];
 const AGENTS = ['jev-1.13.0', 'gpt-6-luna', 'deepseek-flash'];
-const STRATEGIES = ['plan', 'daredevil', 'careful', 'eco'];
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-const combos = PRESETS.flatMap((preset) => AGENTS.flatMap((agent) => STRATEGIES.map((strategy) => ({ preset, agent, strategy }))));
-const url = (combo) => `${BASE}/api/play/ghost?${new URLSearchParams({ ...combo, ...(mission ? { mission } : {}), status: '1' })}`;
+const combos = MISSIONS.flatMap((mission) => PRESETS.flatMap((preset) => AGENTS.map((agent) => ({ mission, preset, agent, strategy: 'plan' }))));
+const url = (combo) => `${BASE}/api/play/ghost?${new URLSearchParams({ ...combo, status: '1' })}`;
 const state = new Map(combos.map((combo) => [JSON.stringify(combo), 'asked']));
 const started = Date.now();
 
@@ -26,7 +26,7 @@ for (let round = 0; round < 240; round++) {
       const body = await (await fetch(url(combo))).json();
       if (body.status === 'ready') {
         state.set(key, 'ready');
-        console.log(`ready  ${combo.preset.padEnd(12)} ${combo.agent.padEnd(15)} ${combo.strategy.padEnd(10)} ${body.finished ? `${body.timeS} s` : 'did not finish'} · ${body.decisions} decisions, ${body.fallbacks} by the fixed rules`);
+        console.log(`ready  ${combo.mission} ${combo.preset.padEnd(12)} ${combo.agent.padEnd(15)} ${body.pick?.plan ? 'plan' : 'NO PLAN STORED'} ${body.finished ? `${body.timeS} s` : 'did not finish'} · ${body.decisions} decisions, ${body.fallbacks} by the fixed rules`);
       } else if (body.status === 'unavailable') {
         // The server retries a failed run after 30 s: keep asking for a while before giving up on it.
         if (round > 60) state.set(key, 'unavailable');

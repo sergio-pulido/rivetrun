@@ -1,0 +1,155 @@
+{
+  "missionId": "M8",
+  "generatedAt": "2026-10-10T12:08:03.188Z",
+  "generatedWith": "scripts/pregen-plans.mjs",
+  "plans": {
+    "speedster": {
+      "build": {
+        "locomotion": "wheels",
+        "motor": "motor_light",
+        "battery": "battery_small",
+        "sensors": [
+          "camera",
+          "ultrasonic"
+        ],
+        "extras": [
+          "waterproof_case"
+        ]
+      },
+      "presetId": "speedster",
+      "priority": 0.6,
+      "briefing": "Fast on asphalt/grass. Under 1 m/s on rock. Steady through water and mud. Scan at the 28 m mast. Save battery, no idling.",
+      "rationale": "Water (4 cm) and mud (6 cm) both need a sealed hull, so the waterproof case replaces the ducted fan, which would drain the small battery anyway. Camera and ultrasonic already cover the mast scan, so both stay.",
+      "partsWhy": [
+        {
+          "partId": "waterproof_case",
+          "why": "Water and mud stretches need a sealed hull to finish."
+        },
+        {
+          "partId": "camera",
+          "why": "Reads terrain ahead and scans the weather mast at 28 m."
+        },
+        {
+          "partId": "ultrasonic",
+          "why": "Cheap, low-power obstacle sensing; also valid for the mast scan."
+        }
+      ],
+      "generatedBy": {
+        "provider": "anthropic",
+        "model": "claude-sonnet-5-5",
+        "ms": 10740,
+        "at": "2026-10-10T12:07:41.635Z"
+      }
+    },
+    "mud_crawler": {
+      "build": {
+        "locomotion": "tracks",
+        "motor": "motor_torque",
+        "battery": "battery_large",
+        "sensors": [
+          "ultrasonic"
+        ],
+        "extras": [
+          "waterproof_case"
+        ]
+      },
+      "presetId": "mud_crawler",
+      "priority": 0.6,
+      "briefing": "Go steady. Scan the mast at 28m. Rock 18-30 and 34-44: under 1 m/s. Slow for water at 30 and mud at 54. Full speed on asphalt and grass.",
+      "rationale": "The weather mast at 28 m needs a camera or ultrasonic, and the IMU can't scan it. Swapping the IMU for the cheap ultrasonic avoids a 10 s penalty and helps spot rocks and logs. Tracks, torque motor, large battery and sealed case already cover grass, rock, water and mud.",
+      "partsWhy": [
+        {
+          "partId": "ultrasonic",
+          "why": "Scans the weather mast at 28 m and detects rocks and logs; cheap and light."
+        },
+        {
+          "partId": "waterproof_case",
+          "why": "Sealed hull is required for the 4 cm water and the 6 cm mud."
+        }
+      ],
+      "generatedBy": {
+        "provider": "anthropic",
+        "model": "claude-sonnet-5-5",
+        "ms": 5685,
+        "at": "2026-10-10T12:07:47.358Z"
+      }
+    },
+    "all_rounder": {
+      "build": {
+        "locomotion": "offroad_wheels",
+        "motor": "motor_torque",
+        "battery": "battery_large",
+        "sensors": [
+          "camera",
+          "ultrasonic"
+        ],
+        "extras": [
+          "waterproof_case"
+        ]
+      },
+      "presetId": "all_rounder",
+      "priority": 0.6,
+      "briefing": "Rock 18-30 and 34-44: under 1 m/s. Steady through water 30-34 and mud 54-62. Scan mast at 28m. Full speed on asphalt and grass.",
+      "rationale": "The brief requires a sealed hull for 4 cm water and 6 cm mud, so the bumper is swapped for the waterproof case. Camera and ultrasonic both cover the mast scan at 28 m, so the sensors stay. The driver is told to slow to under 1 m/s on rock.",
+      "partsWhy": [
+        {
+          "partId": "waterproof_case",
+          "why": "Water (4 cm) and mud (6 cm) both need a sealed hull to finish."
+        },
+        {
+          "partId": "camera",
+          "why": "Kept: scans the weather mast at 28 m and reads terrain ahead."
+        }
+      ],
+      "generatedBy": {
+        "provider": "anthropic",
+        "model": "claude-sonnet-5-5",
+        "ms": 6545,
+        "at": "2026-10-10T12:07:53.939Z"
+      }
+    },
+    "deep_diver": {
+      "build": {
+        "locomotion": "wheels",
+        "motor": "motor_torque",
+        "battery": "battery_large",
+        "sensors": [
+          "ultrasonic",
+          "camera"
+        ],
+        "extras": [
+          "waterproof_case",
+          "thruster_kit"
+        ]
+      },
+      "presetId": "deep_diver",
+      "priority": 0.6,
+      "briefing": "Fast on asphalt. Under 1 m/s on rock; ease over logs. Steady through water and mud, no stalling. Scan at 28 m mast. Sprint last 6 m.",
+      "rationale": "Nothing in the brief proves the stock Deep Diver cannot finish or scan. Camera and ultrasonic both cover the 28 m mast. The sealed case covers the 4 cm water and 6 cm mud. The wheels' 18° slope limit clears the 8° climb. So the build stays as chosen.",
+      "partsWhy": [
+        {
+          "partId": "waterproof_case",
+          "why": "Sealed hull is needed for the 4 cm water and 6 cm mud."
+        },
+        {
+          "partId": "camera",
+          "why": "Scans the weather mast at 28 m and reads terrain ahead."
+        },
+        {
+          "partId": "ultrasonic",
+          "why": "Backup mast scan and spots rocks and logs ahead."
+        },
+        {
+          "partId": "motor_torque",
+          "why": "Torque for the mud pull and the grass climb."
+        }
+      ],
+      "generatedBy": {
+        "provider": "anthropic",
+        "model": "claude-sonnet-5-5",
+        "ms": 9152,
+        "at": "2026-10-10T12:08:03.181Z"
+      }
+    }
+  }
+}
