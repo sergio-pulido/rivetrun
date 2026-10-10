@@ -21,3 +21,5 @@ export { controlToAction, decisionLog, driveController, replayDrive, runControll
 export { assessBuild, capabilities, capabilityList, meetsDemand, missionDemands, partGives, partsProviding } from './strategy';
 export type { BuildAssessment, Capabilities, CapabilityId, CapabilityItem, DemandTest, SegmentAssessment, SegmentDemand, SegmentVerdict } from './strategy';
 export type { DriveLogEntry } from './controller';
+export { naiveDrive, carefulDrive, fullThrottleCheck } from './stranger';
+export type { FullThrottleCheck } from './stranger';
