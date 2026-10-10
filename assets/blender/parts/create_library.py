@@ -1,7 +1,7 @@
 """Component library sourced from the MK-II BOM and official drawings.
 Author: sergio.pulido@alodai.com. No logos or text geometry.
 """
-import bpy,json,math,re,sys,shutil
+import bpy,json,math,re,sys,shutil,struct
 from pathlib import Path
 from mathutils import Vector
 HERE=Path(__file__).resolve().parent
@@ -126,8 +126,9 @@ def finish(key,group=None,heavy=False):
     path=OUT/(key+'.glb');bpy.ops.object.select_all(action='DESELECT')
     for o in [root,*root.children_recursive]:o.select_set(True)
     bpy.context.view_layer.objects.active=root
-    bpy.ops.export_scene.gltf(filepath=str(path),export_format='GLB',use_selection=True,export_yup=True,export_extras=True,export_animations=False,export_cameras=False,export_lights=False,export_draco_mesh_compression_enable=True,export_draco_mesh_compression_level=6,export_original_specular=False)
-    assert path.stat().st_size<=(250000 if heavy else 150000),(key,path.stat().st_size)
+    bpy.ops.export_scene.gltf(filepath=str(path),export_format='GLB',use_selection=True,export_yup=True,export_extras=True,export_animations=False,export_cameras=False,export_lights=False,export_draco_mesh_compression_enable=False,export_draco_mesh_compression_level=6,export_original_specular=False)
+    blob=path.read_bytes();length=struct.unpack_from('<I',blob,12)[0];doc=json.loads(blob[20:20+length]);tris=sum(doc['accessors'][p['indices']]['count']//3 for m in doc.get('meshes',[]) for p in m['primitives'])
+    # Final download budget is checked after compress_meshopt.py; Blender writes a plain intermediate.
     blend=HERE/((group or key)+'.blend')
     # Variant groups retain collections from the prior file by appending the
     # previous variant's collection before saving the shared source.
@@ -143,9 +144,12 @@ def finish(key,group=None,heavy=False):
         for c in dst.collections:
             if c:
                 bpy.context.scene.collection.children.link(c)
+                duplicates=[o for o in c.all_objects if o.type=='EMPTY' and o.name.split('.')[0]=='part_'+key and o is not root]
+                for old_root in duplicates:
+                    for old in [*old_root.children_recursive,old_root]:bpy.data.objects.remove(old,do_unlink=True)
                 for o in c.all_objects:o.hide_render=True;o.hide_set(True)
     bpy.context.scene['author']=AUTHOR;bpy.ops.wm.save_as_mainfile(filepath=str(blend))
-    entries[key]={'key':key,'blend':str(blend.relative_to(ROOT)),'glb':str(path.relative_to(ROOT)),'render':str((RENDERS/(key+'.png')).relative_to(ROOT)),'envelopeMm':envelope,'dimsSource':source,'approximations':approximations,'tris':tris,'glbKb':round(path.stat().st_size/1000,3),'author':AUTHOR,'units':'metres','upAxis':'+Y','origin':'mounting-face centre','renderFrameMm':220,'compression':'Draco'}
+    entries[key]={'key':key,'blend':str(blend.relative_to(ROOT)),'glb':str(path.relative_to(ROOT)),'render':str((RENDERS/(key+'.png')).relative_to(ROOT)),'envelopeMm':envelope,'dimsSource':source,'approximations':approximations,'tris':tris,'glbKb':round(path.stat().st_size/1000,3),'author':AUTHOR,'units':'metres','upAxis':'+Y','origin':'mounting-face centre','renderFillTarget':.75,'compression':'none_intermediate'}
     MANIFEST.write_text(json.dumps(list(entries.values()),indent=2)+'\n');render(key)
     print('LIBRARY READY '+key,flush=True)
 

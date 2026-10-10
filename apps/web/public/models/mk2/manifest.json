@@ -16,112 +16,124 @@
       "slot": "fixed",
       "triangles": 2200,
       "meshes": 1,
-      "bytes": 123044,
+      "bytes": 41136,
       "printedParts": [
         "chassis_base"
-      ]
+      ],
+      "compression": "meshopt"
     },
     "wheels": {
       "file": "wheels.glb",
       "slot": "locomotion",
       "triangles": 5352,
       "meshes": 12,
-      "bytes": 286276,
+      "bytes": 30472,
       "printedParts": [
         "motor_cap",
         "motor_saddle"
-      ]
+      ],
+      "compression": "meshopt"
     },
     "motor_light": {
       "file": "motor_light.glb",
       "slot": "motor",
       "triangles": 1698,
       "meshes": 4,
-      "bytes": 102120,
-      "printedParts": []
+      "bytes": 37196,
+      "printedParts": [],
+      "compression": "meshopt"
     },
     "motor_torque": {
       "file": "motor_torque.glb",
       "slot": "motor",
       "triangles": 1698,
       "meshes": 4,
-      "bytes": 102120,
-      "printedParts": []
+      "bytes": 37196,
+      "printedParts": [],
+      "compression": "meshopt"
     },
     "battery_small": {
       "file": "battery_small.glb",
       "slot": "battery",
       "triangles": 844,
       "meshes": 2,
-      "bytes": 52344,
+      "bytes": 15868,
       "printedParts": [
         "battery_tray"
-      ]
+      ],
+      "compression": "meshopt"
     },
     "battery_large": {
       "file": "battery_large.glb",
       "slot": "battery",
       "triangles": 844,
       "meshes": 2,
-      "bytes": 52348,
+      "bytes": 15760,
       "printedParts": [
         "battery_tray"
-      ]
+      ],
+      "compression": "meshopt"
     },
     "ultrasonic": {
       "file": "ultrasonic.glb",
       "slot": "sensor",
       "triangles": 196,
       "meshes": 2,
-      "bytes": 10952,
-      "printedParts": []
+      "bytes": 7024,
+      "printedParts": [],
+      "compression": "meshopt"
     },
     "camera": {
       "file": "camera.glb",
       "slot": "sensor",
       "triangles": 104,
       "meshes": 2,
-      "bytes": 7204,
-      "printedParts": []
+      "bytes": 5816,
+      "printedParts": [],
+      "compression": "meshopt"
     },
     "offroad_wheels": {
       "file": "offroad_wheels.glb",
       "slot": "locomotion",
       "triangles": 2896,
       "meshes": 16,
-      "bytes": 221264,
+      "bytes": 56928,
       "printedParts": [
         "motor_cap",
         "motor_saddle",
         "offroad_tread_80"
-      ]
+      ],
+      "compression": "meshopt"
     },
     "tracks": {
       "file": "tracks.glb",
       "slot": "locomotion",
       "triangles": 2944,
       "meshes": 1,
-      "bytes": 125028,
-      "printedParts": []
+      "bytes": 34516,
+      "printedParts": [],
+      "compression": "meshopt"
     },
     "controller": {
       "file": "controller.glb",
       "slot": "fixed",
       "triangles": 2160,
       "meshes": 6,
-      "bytes": 153296,
+      "bytes": 50628,
       "printedParts": [
         "controller_carrier",
         "electronics_bridge"
-      ]
+      ],
+      "compression": "meshopt"
     },
     "bumper": {
       "file": "bumper.glb",
       "slot": "extra",
       "triangles": 2198,
       "meshes": 2,
-      "bytes": 166228,
-      "printedParts": []
+      "bytes": 42468,
+      "printedParts": [],
+      "compression": "meshopt"
     }
   },
   "deckOffsetY": {
@@ -140,5 +152,7 @@
   ],
   "scaleMmPerRenderUnit": 100,
   "contractPath": "docs/MK2_ASSET_CONTRACT.md",
-  "manufacturingStatus": "Screen-first demo assembly. Print and physical fit work paused by human. No manufacture certification; track adaptation and controller retention require later fit validation."
+  "manufacturingStatus": "Screen-first demo assembly. Print and physical fit work paused by human. No manufacture certification; track adaptation and controller retention require later fit validation.",
+  "compression": "meshopt",
+  "compressionOverride": "Human instruction: meshopt for all GLBs; supersedes plain module export requirement."
 }

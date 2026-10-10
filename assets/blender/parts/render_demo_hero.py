@@ -1,8 +1,8 @@
 """Default all_rounder hero from the game GLBs. Author: sergio.pulido@alodai.com."""
-import bpy,json,math
+import bpy,json,math,os
 from pathlib import Path
 from mathutils import Vector
-ROOT=Path(__file__).resolve().parents[3];MODELS=ROOT/'apps/web/public/models/mk2'
+ROOT=Path(__file__).resolve().parents[3];MODELS=Path(os.environ.get('MK2_HERO_MODELS',str(ROOT/'apps/web/public/models/mk2')))
 OUT=ROOT/'apps/web/public/renders/mk2';OUT.mkdir(parents=True,exist_ok=True)
 for o in list(bpy.data.objects):bpy.data.objects.remove(o,do_unlink=True)
 scene=bpy.context.scene;scene.unit_settings.scale_length=1

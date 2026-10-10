@@ -18,6 +18,9 @@ def mesh_bounds(j):
   if "mesh" in node:
    for p in j["meshes"][node["mesh"]]["primitives"]:
     bounds=j["accessors"][p["attributes"]["POSITION"]]
+    if bounds.get('normalized'):
+     divisor={5120:127,5121:255,5122:32767,5123:65535}[bounds['componentType']]
+     bounds={**bounds,'min':[max(-1,v/divisor) for v in bounds['min']],'max':[max(-1,v/divisor) for v in bounds['max']]}
     for x in [bounds["min"][0],bounds["max"][0]]:
      for y in [bounds["min"][1],bounds["max"][1]]:
       for z in [bounds["min"][2],bounds["max"][2]]:points.append([sum(world[i][k]*[x,y,z,1][k] for k in range(4)) for i in range(3)])
@@ -29,7 +32,7 @@ for key,entry in m['modules'].items():
  size=struct.unpack_from('<I',b,12)[0];j=json.loads(b[20:20+size]);names=[o['name'] for o in j['nodes']]
  assert all(re.fullmatch('[a-z0-9_]+',s) for s in names)
  roots=j['scenes'][j.get('scene',0)]['nodes'];assert len(roots)==1 and j['nodes'][roots[0]]['name']=='module_'+key
- assert not j.get('extensionsRequired') and not j.get('extensionsUsed')
+ assert set(j.get('extensionsUsed',[]))<={'EXT_meshopt_compression','KHR_mesh_quantization'} and 'EXT_meshopt_compression' in j.get('extensionsUsed',[])
  assert not any(k in j for k in ['cameras','animations'])
  assert not any('uri' in o for k in ['buffers','images'] for o in j.get(k,[]))
  printed={s[6:].split('__')[0] for s in names if s.startswith('print_')};assert printed==set(entry['printedParts']) and printed<=ids

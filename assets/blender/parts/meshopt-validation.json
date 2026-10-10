@@ -1,0 +1,682 @@
+{
+  "author": "sergio.pulido@alodai.com",
+  "decoder": "three.js bundled MeshoptDecoder",
+  "networkRequests": 0,
+  "assets": [
+    {
+      "id": "pi_regulator_s13v30f5",
+      "file": "apps/web/public/models/parts/pi_regulator_s13v30f5.glb",
+      "kind": "part",
+      "limit": 0.5,
+      "bytes": 22740,
+      "triangles": 996,
+      "meshes": 4,
+      "decodedSize": [
+        0.02290000021457672,
+        0.009570451716187228,
+        0.02290000021457672
+      ],
+      "offlineDecoder": true
+    },
+    {
+      "id": "motor_driver_max14870_rpi",
+      "file": "apps/web/public/models/parts/motor_driver_max14870_rpi.glb",
+      "kind": "part",
+      "limit": 0.5,
+      "bytes": 18480,
+      "triangles": 804,
+      "meshes": 3,
+      "decodedSize": [
+        0.04320000112056732,
+        0.01859805625341206,
+        0.016497134739880334
+      ],
+      "offlineDecoder": true
+    },
+    {
+      "id": "wheels_60x8",
+      "file": "apps/web/public/models/parts/wheels_60x8.glb",
+      "kind": "part",
+      "limit": 0.5,
+      "bytes": 35608,
+      "triangles": 2158,
+      "meshes": 2,
+      "decodedSize": [
+        0.05999999865889549,
+        0.011750992036059602,
+        0.05999999865889549
+      ],
+      "offlineDecoder": true
+    },
+    {
+      "id": "wheels_80x10",
+      "file": "apps/web/public/models/parts/wheels_80x10.glb",
+      "kind": "part",
+      "limit": 0.5,
+      "bytes": 41656,
+      "triangles": 2614,
+      "meshes": 2,
+      "decodedSize": [
+        0.07999999821186066,
+        0.013548864876366494,
+        0.07999999821186066
+      ],
+      "offlineDecoder": true
+    },
+    {
+      "id": "wheels_90x10",
+      "file": "apps/web/public/models/parts/wheels_90x10.glb",
+      "kind": "part",
+      "limit": 0.5,
+      "bytes": 41764,
+      "triangles": 2614,
+      "meshes": 2,
+      "decodedSize": [
+        0.09000000357627869,
+        0.013547506517336917,
+        0.09000000357627869
+      ],
+      "offlineDecoder": true
+    },
+    {
+      "id": "battery_4s_small",
+      "file": "apps/web/public/models/parts/battery_4s_small.glb",
+      "kind": "part",
+      "limit": 0.5,
+      "bytes": 7592,
+      "triangles": 216,
+      "meshes": 2,
+      "decodedSize": [
+        0.057999998331069946,
+        0.02900442434928166,
+        0.031001067255786587
+      ],
+      "offlineDecoder": true
+    },
+    {
+      "id": "battery_4s_large",
+      "file": "apps/web/public/models/parts/battery_4s_large.glb",
+      "kind": "part",
+      "limit": 0.5,
+      "bytes": 7488,
+      "triangles": 216,
+      "meshes": 2,
+      "decodedSize": [
+        0.10700000077486038,
+        0.02700236078888587,
+        0.03499615492123718
+      ],
+      "offlineDecoder": true
+    },
+    {
+      "id": "ultrasonic_hc_sr04",
+      "file": "apps/web/public/models/parts/ultrasonic_hc_sr04.glb",
+      "kind": "part",
+      "limit": 0.5,
+      "bytes": 20992,
+      "triangles": 1040,
+      "meshes": 4,
+      "decodedSize": [
+        0.045499999076128006,
+        0.015499797331755728,
+        0.0199971155948155
+      ],
+      "offlineDecoder": true
+    },
+    {
+      "id": "imu_mpu6050",
+      "file": "apps/web/public/models/parts/imu_mpu6050.glb",
+      "kind": "part",
+      "limit": 0.5,
+      "bytes": 18656,
+      "triangles": 612,
+      "meshes": 4,
+      "decodedSize": [
+        0.026000000536441803,
+        0.004600296076872838,
+        0.017800958648473628
+      ],
+      "offlineDecoder": true
+    },
+    {
+      "id": "camera_module_3",
+      "file": "apps/web/public/models/parts/camera_module_3.glb",
+      "kind": "part",
+      "limit": 0.5,
+      "bytes": 15152,
+      "triangles": 588,
+      "meshes": 4,
+      "decodedSize": [
+        0.02500000037252903,
+        0.011499497516132011,
+        0.02400204509779323
+      ],
+      "offlineDecoder": true
+    },
+    {
+      "id": "waterproof_case_hammond_1554j2gy",
+      "file": "apps/web/public/models/parts/waterproof_case_hammond_1554j2gy.glb",
+      "kind": "part",
+      "limit": 0.5,
+      "bytes": 8456,
+      "triangles": 296,
+      "meshes": 1,
+      "decodedSize": [
+        0.1599999964237213,
+        0.06100283685786158,
+        0.0889968546042892
+      ],
+      "offlineDecoder": true
+    },
+    {
+      "id": "raspberry_pi_5_4gb",
+      "file": "apps/web/public/models/parts/raspberry_pi_5_4gb.glb",
+      "kind": "part",
+      "limit": 0.5,
+      "bytes": 44016,
+      "triangles": 3436,
+      "meshes": 5,
+      "decodedSize": [
+        0.0880500040948391,
+        0.01894503275488531,
+        0.05720050534691111
+      ],
+      "offlineDecoder": true
+    },
+    {
+      "id": "motor_50to1_hpcb_12v_ext",
+      "file": "apps/web/public/models/parts/motor_50to1_hpcb_12v_ext.glb",
+      "kind": "part",
+      "limit": 0.5,
+      "bytes": 30468,
+      "triangles": 1412,
+      "meshes": 5,
+      "decodedSize": [
+        0.012000753430324881,
+        0.03909999877214432,
+        0.011599999852478504
+      ],
+      "offlineDecoder": true
+    },
+    {
+      "id": "motor_298to1_hpcb_12v_ext",
+      "file": "apps/web/public/models/parts/motor_298to1_hpcb_12v_ext.glb",
+      "kind": "part",
+      "limit": 0.5,
+      "bytes": 30520,
+      "triangles": 1412,
+      "meshes": 5,
+      "decodedSize": [
+        0.012000753430324881,
+        0.03909999877214432,
+        0.011599999852478504
+      ],
+      "offlineDecoder": true
+    },
+    {
+      "id": "encoder_kit_magnetic_12cpr",
+      "file": "apps/web/public/models/parts/encoder_kit_magnetic_12cpr.glb",
+      "kind": "part",
+      "limit": 0.5,
+      "bytes": 7868,
+      "triangles": 300,
+      "meshes": 2,
+      "decodedSize": [
+        0.01060026232437403,
+        0.0036001893471744708,
+        0.011599999852478504
+      ],
+      "offlineDecoder": true
+    },
+    {
+      "id": "winch_pololu_1000to1",
+      "file": "apps/web/public/models/parts/winch_pololu_1000to1.glb",
+      "kind": "part",
+      "limit": 0.5,
+      "bytes": 31148,
+      "triangles": 1760,
+      "meshes": 4,
+      "decodedSize": [
+        0.030001593096924344,
+        0.050100000051315874,
+        0.030001593096924344
+      ],
+      "offlineDecoder": true
+    },
+    {
+      "id": "bumper_romi_switch_kit",
+      "file": "apps/web/public/models/parts/bumper_romi_switch_kit.glb",
+      "kind": "part",
+      "limit": 0.5,
+      "bytes": 64808,
+      "triangles": 4798,
+      "meshes": 2,
+      "decodedSize": [
+        0.06314520158576692,
+        0.01178613681725108,
+        0.06436605751514435
+      ],
+      "offlineDecoder": true
+    },
+    {
+      "id": "moisture_probe_sen0193",
+      "file": "apps/web/public/models/parts/moisture_probe_sen0193.glb",
+      "kind": "part",
+      "limit": 0.5,
+      "bytes": 21692,
+      "triangles": 720,
+      "meshes": 5,
+      "decodedSize": [
+        0.09799999743700027,
+        0.004596710308140165,
+        0.022993376882096562
+      ],
+      "offlineDecoder": true
+    },
+    {
+      "id": "offroad_tread_tpu",
+      "file": "apps/web/public/models/parts/offroad_tread_tpu.glb",
+      "kind": "part",
+      "limit": 0.5,
+      "bytes": 59244,
+      "triangles": 5018,
+      "meshes": 1,
+      "decodedSize": [
+        0.08800000417977571,
+        0.010398755338727729,
+        0.08800000417977571
+      ],
+      "offlineDecoder": true
+    },
+    {
+      "id": "tracks_pololu_30t",
+      "file": "apps/web/public/models/parts/tracks_pololu_30t.glb",
+      "kind": "part",
+      "limit": 0.5,
+      "bytes": 21132,
+      "triangles": 1472,
+      "meshes": 3,
+      "decodedSize": [
+        0.12400000542402267,
+        0.014592242833186789,
+        0.0389971634844372
+      ],
+      "offlineDecoder": true
+    },
+    {
+      "id": "scout_drone_crazyflie_21_plus",
+      "file": "apps/web/public/models/parts/scout_drone_crazyflie_21_plus.glb",
+      "kind": "part",
+      "limit": 0.5,
+      "bytes": 65176,
+      "triangles": 9790,
+      "meshes": 7,
+      "decodedSize": [
+        0.10819714092095767,
+        0.02717619643302463,
+        0.07641658186912537
+      ],
+      "offlineDecoder": true
+    },
+    {
+      "id": "arduino_uno_r4_wifi",
+      "file": "apps/web/public/models/parts/arduino_uno_r4_wifi.glb",
+      "kind": "part",
+      "limit": 0.5,
+      "bytes": 37992,
+      "triangles": 1972,
+      "meshes": 3,
+      "decodedSize": [
+        0.06885000318288803,
+        0.012495892121763455,
+        0.05334315106063962
+      ],
+      "offlineDecoder": true
+    },
+    {
+      "id": "ir_distance_sharp_gp2y0a21",
+      "file": "apps/web/public/models/parts/ir_distance_sharp_gp2y0a21.glb",
+      "kind": "part",
+      "limit": 0.5,
+      "bytes": 15488,
+      "triangles": 712,
+      "meshes": 3,
+      "decodedSize": [
+        0.04449999891221523,
+        0.013647281993128785,
+        0.019349725797073954
+      ],
+      "offlineDecoder": true
+    },
+    {
+      "id": "thermal_camera_mlx90640",
+      "file": "apps/web/public/models/parts/thermal_camera_mlx90640.glb",
+      "kind": "part",
+      "limit": 0.5,
+      "bytes": 19068,
+      "triangles": 704,
+      "meshes": 4,
+      "decodedSize": [
+        0.025699999183416367,
+        0.016099975946830783,
+        0.017699093037903187
+      ],
+      "offlineDecoder": true
+    },
+    {
+      "id": "stepper_nema17_pololu",
+      "file": "apps/web/public/models/parts/stepper_nema17_pololu.glb",
+      "kind": "part",
+      "limit": 0.5,
+      "bytes": 13544,
+      "triangles": 572,
+      "meshes": 2,
+      "decodedSize": [
+        0.04230451405527689,
+        0.04879999939294066,
+        0.04230451405527689
+      ],
+      "offlineDecoder": true
+    },
+    {
+      "id": "servo_metal_gear_mg92b",
+      "file": "apps/web/public/models/parts/servo_metal_gear_mg92b.glb",
+      "kind": "part",
+      "limit": 0.5,
+      "bytes": 9956,
+      "triangles": 340,
+      "meshes": 2,
+      "decodedSize": [
+        0.035999998450279236,
+        0.031000702114857406,
+        0.011998534595034626
+      ],
+      "offlineDecoder": true
+    },
+    {
+      "id": "battery_holder_4aa",
+      "file": "apps/web/public/models/parts/battery_holder_4aa.glb",
+      "kind": "part",
+      "limit": 0.5,
+      "bytes": 16612,
+      "triangles": 1116,
+      "meshes": 2,
+      "decodedSize": [
+        0.05800106908070884,
+        0.015998504850352313,
+        0.06300000101327896
+      ],
+      "offlineDecoder": true
+    },
+    {
+      "id": "lidar_rplidar_c1",
+      "file": "apps/web/public/models/parts/lidar_rplidar_c1.glb",
+      "kind": "part",
+      "limit": 0.5,
+      "bytes": 10228,
+      "triangles": 340,
+      "meshes": 2,
+      "decodedSize": [
+        0.05559999868273735,
+        0.04129742631124185,
+        0.0558998005776689
+      ],
+      "offlineDecoder": true
+    },
+    {
+      "id": "camera_module_3_noir",
+      "file": "apps/web/public/models/parts/camera_module_3_noir.glb",
+      "kind": "part",
+      "limit": 0.5,
+      "bytes": 15140,
+      "triangles": 588,
+      "meshes": 4,
+      "decodedSize": [
+        0.02500000037252903,
+        0.011499497516132011,
+        0.02400204509779323
+      ],
+      "offlineDecoder": true
+    },
+    {
+      "id": "tof_vl53l1x_pololu",
+      "file": "apps/web/public/models/parts/tof_vl53l1x_pololu.glb",
+      "kind": "part",
+      "limit": 0.5,
+      "bytes": 11144,
+      "triangles": 252,
+      "meshes": 3,
+      "decodedSize": [
+        0.012700542864765265,
+        0.002154239456691899,
+        0.0177800003439188
+      ],
+      "offlineDecoder": true
+    },
+    {
+      "id": "gps_adafruit_ultimate",
+      "file": "apps/web/public/models/parts/gps_adafruit_ultimate.glb",
+      "kind": "part",
+      "limit": 0.5,
+      "bytes": 20824,
+      "triangles": 688,
+      "meshes": 5,
+      "decodedSize": [
+        0.025500961441618192,
+        0.006498047172141186,
+        0.03500000014901161
+      ],
+      "offlineDecoder": true
+    },
+    {
+      "id": "gas_sensor_bme688",
+      "file": "apps/web/public/models/parts/gas_sensor_bme688.glb",
+      "kind": "part",
+      "limit": 0.5,
+      "bytes": 16120,
+      "triangles": 468,
+      "meshes": 4,
+      "decodedSize": [
+        0.025499999523162842,
+        0.004599807687315653,
+        0.017598711789813058
+      ],
+      "offlineDecoder": true
+    },
+    {
+      "id": "microphone_i2s_sph0645",
+      "file": "apps/web/public/models/parts/microphone_i2s_sph0645.glb",
+      "kind": "part",
+      "limit": 0.5,
+      "bytes": 11688,
+      "triangles": 300,
+      "meshes": 3,
+      "decodedSize": [
+        0.016699999570846558,
+        0.0018297871068144818,
+        0.01270019499209343
+      ],
+      "offlineDecoder": true
+    },
+    {
+      "id": "chassis",
+      "file": "apps/web/public/models/mk2/chassis.glb",
+      "kind": "module",
+      "limit": 3,
+      "bytes": 41136,
+      "triangles": 2200,
+      "meshes": 1,
+      "decodedSize": [
+        1.5990124154311616,
+        0.04001556995310995,
+        0.9989252645611706
+      ],
+      "offlineDecoder": true
+    },
+    {
+      "id": "wheels",
+      "file": "apps/web/public/models/mk2/wheels.glb",
+      "kind": "module",
+      "limit": 3,
+      "bytes": 30472,
+      "triangles": 5352,
+      "meshes": 12,
+      "decodedSize": [
+        2.0999999530613422,
+        0.800000103041985,
+        1.2000031459521674
+      ],
+      "offlineDecoder": true
+    },
+    {
+      "id": "motor_light",
+      "file": "apps/web/public/models/mk2/motor_light.glb",
+      "kind": "module",
+      "limit": 3,
+      "bytes": 37196,
+      "triangles": 1698,
+      "meshes": 4,
+      "decodedSize": [
+        1.4160000293850885,
+        0.1202612762854609,
+        1.1359446687466137
+      ],
+      "offlineDecoder": true
+    },
+    {
+      "id": "motor_torque",
+      "file": "apps/web/public/models/mk2/motor_torque.glb",
+      "kind": "module",
+      "limit": 3,
+      "bytes": 37196,
+      "triangles": 1698,
+      "meshes": 4,
+      "decodedSize": [
+        1.4160000293850885,
+        0.1202612762854609,
+        1.1359446687466137
+      ],
+      "offlineDecoder": true
+    },
+    {
+      "id": "battery_small",
+      "file": "apps/web/public/models/mk2/battery_small.glb",
+      "kind": "module",
+      "limit": 3,
+      "bytes": 15868,
+      "triangles": 844,
+      "meshes": 2,
+      "decodedSize": [
+        1.1299999747425318,
+        0.3150257810991321,
+        0.5799841174114169
+      ],
+      "offlineDecoder": true
+    },
+    {
+      "id": "battery_large",
+      "file": "apps/web/public/models/mk2/battery_large.glb",
+      "kind": "module",
+      "limit": 3,
+      "bytes": 15760,
+      "triangles": 844,
+      "meshes": 2,
+      "decodedSize": [
+        1.1299999747425318,
+        0.2950149474755452,
+        0.5799841174114169
+      ],
+      "offlineDecoder": true
+    },
+    {
+      "id": "ultrasonic",
+      "file": "apps/web/public/models/mk2/ultrasonic.glb",
+      "kind": "module",
+      "limit": 3,
+      "bytes": 7024,
+      "triangles": 196,
+      "meshes": 2,
+      "decodedSize": [
+        0.1429938044280632,
+        0.19997115553884148,
+        0.4549999898299575
+      ],
+      "offlineDecoder": true
+    },
+    {
+      "id": "camera",
+      "file": "apps/web/public/models/mk2/camera.glb",
+      "kind": "module",
+      "limit": 3,
+      "bytes": 5816,
+      "triangles": 104,
+      "meshes": 2,
+      "decodedSize": [
+        0.11499695962165679,
+        0.23998992352768006,
+        0.24999999441206455
+      ],
+      "offlineDecoder": true
+    },
+    {
+      "id": "offroad_wheels",
+      "file": "apps/web/public/models/mk2/offroad_wheels.glb",
+      "kind": "module",
+      "limit": 3,
+      "bytes": 56928,
+      "triangles": 2896,
+      "meshes": 16,
+      "decodedSize": [
+        2.177454136815946,
+        0.8775443071675824,
+        1.2512113547436527
+      ],
+      "offlineDecoder": true
+    },
+    {
+      "id": "tracks",
+      "file": "apps/web/public/models/mk2/tracks.glb",
+      "kind": "module",
+      "limit": 3,
+      "bytes": 34516,
+      "triangles": 2944,
+      "meshes": 1,
+      "decodedSize": [
+        1.2399259186793945,
+        0.3900774615203827,
+        1.2520000177919854
+      ],
+      "offlineDecoder": true
+    },
+    {
+      "id": "controller",
+      "file": "apps/web/public/models/mk2/controller.glb",
+      "kind": "module",
+      "limit": 3,
+      "bytes": 50628,
+      "triangles": 2160,
+      "meshes": 6,
+      "decodedSize": [
+        1.1964267463290668,
+        0.824477301226328,
+        0.7363244046288022
+      ],
+      "offlineDecoder": true
+    },
+    {
+      "id": "bumper",
+      "file": "apps/web/public/models/mk2/bumper.glb",
+      "kind": "module",
+      "limit": 3,
+      "bytes": 42468,
+      "triangles": 2198,
+      "meshes": 2,
+      "decodedSize": [
+        0.6436578988211323,
+        0.1177037302693632,
+        0.6324302868390457
+      ],
+      "offlineDecoder": true
+    }
+  ]
+}

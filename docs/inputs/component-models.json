@@ -14,13 +14,13 @@
       "Small IC packages, capacitor diameters and solder details approximated within the documented envelope."
     ],
     "tris": 996,
-    "glbKb": 13.16,
+    "glbKb": 22.74,
     "author": "sergio.pulido@alodai.com",
     "units": "metres",
     "upAxis": "+Y",
     "origin": "mounting-face centre",
-    "renderFrameMm": 220,
-    "compression": "Draco"
+    "compression": "meshopt",
+    "renderFillTarget": 0.75
   },
   {
     "key": "motor_driver_max14870_rpi",
@@ -38,13 +38,13 @@
       "No chassis mount: female 2x17 connector engages Pi GPIO."
     ],
     "tris": 804,
-    "glbKb": 10.42,
+    "glbKb": 18.48,
     "author": "sergio.pulido@alodai.com",
     "units": "metres",
     "upAxis": "+Y",
     "origin": "mounting-face centre",
-    "renderFrameMm": 220,
-    "compression": "Draco"
+    "compression": "meshopt",
+    "renderFillTarget": 0.75
   },
   {
     "key": "wheels_60x8",
@@ -61,13 +61,13 @@
       "Spoke edge radii, slots, tyre grooves and central-web outline are minor visual approximations; documented mounting dimensions are retained."
     ],
     "tris": 2158,
-    "glbKb": 20.376,
+    "glbKb": 35.608,
     "author": "sergio.pulido@alodai.com",
     "units": "metres",
     "upAxis": "+Y",
     "origin": "mounting-face centre",
-    "renderFrameMm": 220,
-    "compression": "Draco"
+    "compression": "meshopt",
+    "renderFillTarget": 0.75
   },
   {
     "key": "wheels_80x10",
@@ -84,13 +84,13 @@
       "Spoke edge radii, slots, tyre grooves and central-web outline are minor visual approximations; documented mounting dimensions are retained."
     ],
     "tris": 2614,
-    "glbKb": 22.552,
+    "glbKb": 41.656,
     "author": "sergio.pulido@alodai.com",
     "units": "metres",
     "upAxis": "+Y",
     "origin": "mounting-face centre",
-    "renderFrameMm": 220,
-    "compression": "Draco"
+    "compression": "meshopt",
+    "renderFillTarget": 0.75
   },
   {
     "key": "wheels_90x10",
@@ -107,13 +107,13 @@
       "Spoke edge radii, slots, tyre grooves and central-web outline are minor visual approximations; documented mounting dimensions are retained."
     ],
     "tris": 2614,
-    "glbKb": 22.44,
+    "glbKb": 41.764,
     "author": "sergio.pulido@alodai.com",
     "units": "metres",
     "upAxis": "+Y",
     "origin": "mounting-face centre",
-    "renderFrameMm": 220,
-    "compression": "Draco"
+    "compression": "meshopt",
+    "renderFillTarget": 0.75
   },
   {
     "key": "battery_4s_small",
@@ -130,13 +130,13 @@
       "Shrink-wrap corner radius and seam approximate small details. Leads/connectors omitted because their envelope is not supplied."
     ],
     "tris": 216,
-    "glbKb": 5.484,
+    "glbKb": 7.592,
     "author": "sergio.pulido@alodai.com",
     "units": "metres",
     "upAxis": "+Y",
     "origin": "mounting-face centre",
-    "renderFrameMm": 220,
-    "compression": "Draco"
+    "compression": "meshopt",
+    "renderFillTarget": 0.75
   },
   {
     "key": "battery_4s_large",
@@ -153,13 +153,13 @@
       "Shrink-wrap corner radius and seam approximate small details. Leads/connectors omitted because their envelope is not supplied."
     ],
     "tris": 216,
-    "glbKb": 5.208,
+    "glbKb": 7.488,
     "author": "sergio.pulido@alodai.com",
     "units": "metres",
     "upAxis": "+Y",
     "origin": "mounting-face centre",
-    "renderFrameMm": 220,
-    "compression": "Draco"
+    "compression": "meshopt",
+    "renderFillTarget": 0.75
   },
   {
     "key": "ultrasonic_hc_sr04",
@@ -176,13 +176,13 @@
       "PCB thickness, transducer radii and header heights approximate small details within the supplied envelope."
     ],
     "tris": 1040,
-    "glbKb": 12.568,
+    "glbKb": 20.992,
     "author": "sergio.pulido@alodai.com",
     "units": "metres",
     "upAxis": "+Y",
     "origin": "mounting-face centre",
-    "renderFrameMm": 220,
-    "compression": "Draco"
+    "compression": "meshopt",
+    "renderFillTarget": 0.75
   },
   {
     "key": "imu_mpu6050",
@@ -199,13 +199,13 @@
       "PCB thickness and small connector/package placements approximate; no unsourced mounting hole pattern modelled."
     ],
     "tris": 612,
-    "glbKb": 11.4,
+    "glbKb": 18.656,
     "author": "sergio.pulido@alodai.com",
     "units": "metres",
     "upAxis": "+Y",
     "origin": "mounting-face centre",
-    "renderFrameMm": 220,
-    "compression": "Draco"
+    "compression": "meshopt",
+    "renderFillTarget": 0.75
   },
   {
     "key": "camera_module_3",
@@ -222,13 +222,13 @@
       "Lens barrel diameter and minor connector detail approximated; overall envelope follows BOM; no invented mounting hole pattern."
     ],
     "tris": 588,
-    "glbKb": 9.8,
+    "glbKb": 15.152,
     "author": "sergio.pulido@alodai.com",
     "units": "metres",
     "upAxis": "+Y",
     "origin": "mounting-face centre",
-    "renderFrameMm": 220,
-    "compression": "Draco"
+    "compression": "meshopt",
+    "renderFillTarget": 0.75
   },
   {
     "key": "waterproof_case_hammond_1554j2gy",
@@ -245,13 +245,13 @@
       "Wall thickness, lid seam and corner radii are small visual approximations, not a new seal or machining specification."
     ],
     "tris": 296,
-    "glbKb": 5.02,
+    "glbKb": 8.456,
     "author": "sergio.pulido@alodai.com",
     "units": "metres",
     "upAxis": "+Y",
     "origin": "mounting-face centre",
-    "renderFrameMm": 220,
-    "compression": "Draco"
+    "compression": "meshopt",
+    "renderFillTarget": 0.75
   },
   {
     "key": "raspberry_pi_5_4gb",
@@ -268,13 +268,13 @@
       "Material colours approximated; minor sub-8mm passives and thin solder/pads omitted; IC/connector packages simplified within their exact CAD bounding boxes; connector cavity/contact contours simplified; hidden internal connector solids omitted; no silkscreen, logos or wordmarks."
     ],
     "tris": 3436,
-    "glbKb": 21.764,
+    "glbKb": 44.016,
     "author": "sergio.pulido@alodai.com",
     "units": "metres",
     "upAxis": "+Y",
     "origin": "mounting-face centre",
-    "renderFrameMm": 220,
-    "compression": "Draco"
+    "compression": "meshopt",
+    "renderFillTarget": 0.75
   },
   {
     "key": "motor_50to1_hpcb_12v_ext",
@@ -292,13 +292,13 @@
       "Encoder disc thickness 1 mm and PCB-to-disc spacing 1 mm are minor visual/assembly approximations."
     ],
     "tris": 1412,
-    "glbKb": 16.712,
+    "glbKb": 30.468,
     "author": "sergio.pulido@alodai.com",
     "units": "metres",
     "upAxis": "+Y",
     "origin": "mounting-face centre",
-    "renderFrameMm": 220,
-    "compression": "Draco"
+    "compression": "meshopt",
+    "renderFillTarget": 0.75
   },
   {
     "key": "motor_298to1_hpcb_12v_ext",
@@ -316,13 +316,13 @@
       "Encoder disc thickness 1 mm and PCB-to-disc spacing 1 mm are minor visual/assembly approximations."
     ],
     "tris": 1412,
-    "glbKb": 16.764,
+    "glbKb": 30.52,
     "author": "sergio.pulido@alodai.com",
     "units": "metres",
     "upAxis": "+Y",
     "origin": "mounting-face centre",
-    "renderFrameMm": 220,
-    "compression": "Draco"
+    "compression": "meshopt",
+    "renderFillTarget": 0.75
   },
   {
     "key": "encoder_kit_magnetic_12cpr",
@@ -339,13 +339,13 @@
       "PCB/disc thicknesses, Hall package contours and assembly gap approximated as minor details. One fitted encoder shown; purchased kit contains two."
     ],
     "tris": 300,
-    "glbKb": 5.4,
+    "glbKb": 7.868,
     "author": "sergio.pulido@alodai.com",
     "units": "metres",
     "upAxis": "+Y",
     "origin": "mounting-face centre",
-    "renderFrameMm": 220,
-    "compression": "Draco"
+    "compression": "meshopt",
+    "renderFillTarget": 0.75
   },
   {
     "key": "winch_pololu_1000to1",
@@ -364,13 +364,13 @@
       "Empty printed spool is a design, not a purchased rope; radial insert pilot requires coupon calibration."
     ],
     "tris": 1760,
-    "glbKb": 17.972,
+    "glbKb": 31.148,
     "author": "sergio.pulido@alodai.com",
     "units": "metres",
     "upAxis": "+Y",
     "origin": "mounting-face centre",
-    "renderFrameMm": 220,
-    "compression": "Draco"
+    "compression": "meshopt",
+    "renderFillTarget": 0.75
   },
   {
     "key": "bumper_romi_switch_kit",
@@ -388,13 +388,13 @@
       "CAD/render tessellation simplified for browser budget; source dimensions retained as references."
     ],
     "tris": 4798,
-    "glbKb": 52.904,
+    "glbKb": 64.808,
     "author": "sergio.pulido@alodai.com",
     "units": "metres",
     "upAxis": "+Y",
     "origin": "mounting-face centre",
-    "renderFrameMm": 220,
-    "compression": "Draco"
+    "compression": "meshopt",
+    "renderFillTarget": 0.75
   },
   {
     "key": "moisture_probe_sen0193",
@@ -411,13 +411,13 @@
       "PCB thickness 1.6 mm, tip rounding, printed capacitive electrode layout and small IC/connector details are visual approximations; outline length and width are sourced."
     ],
     "tris": 720,
-    "glbKb": 12.912,
+    "glbKb": 21.692,
     "author": "sergio.pulido@alodai.com",
     "units": "metres",
     "upAxis": "+Y",
     "origin": "mounting-face centre",
-    "renderFrameMm": 220,
-    "compression": "Draco"
+    "compression": "meshopt",
+    "renderFillTarget": 0.75
   },
   {
     "key": "offroad_tread_tpu",
@@ -434,13 +434,13 @@
       "Designed TPU bore 76.2mm stretch fit and lug geometry require physical validation."
     ],
     "tris": 5018,
-    "glbKb": 37.444,
+    "glbKb": 59.244,
     "author": "sergio.pulido@alodai.com",
     "units": "metres",
     "upAxis": "+Y",
     "origin": "mounting-face centre",
-    "renderFrameMm": 220,
-    "compression": "Draco"
+    "compression": "meshopt",
+    "renderFillTarget": 0.75
   },
   {
     "key": "tracks_pololu_30t",
@@ -457,13 +457,13 @@
       "One track train shown; purchased set supplies two. Minor belt teeth/sprocket recess profiles approximated; 85mm centre spacing, 35mm sprockets, 39mm over-track diameter and 14.6mm belt width sourced."
     ],
     "tris": 1472,
-    "glbKb": 11.912,
+    "glbKb": 21.132,
     "author": "sergio.pulido@alodai.com",
     "units": "metres",
     "upAxis": "+Y",
     "origin": "mounting-face centre",
-    "renderFrameMm": 220,
-    "compression": "Draco"
+    "compression": "meshopt",
+    "renderFillTarget": 0.75
   },
   {
     "key": "scout_drone_crazyflie_21_plus",
@@ -480,14 +480,14 @@
       "Older manufacturer CF2 mechanical family reference: PCB population is approximate for 2.1+. Stock 47mm propeller geometry is official. Nominal envelope is the frame; propeller sweep is larger. No textures or silkscreen.",
       "CAD/render tessellation simplified for browser budget; source dimensions retained as references."
     ],
-    "tris": 9794,
-    "glbKb": 119.868,
+    "tris": 9790,
+    "glbKb": 65.176,
     "author": "sergio.pulido@alodai.com",
     "units": "metres",
     "upAxis": "+Y",
     "origin": "mounting-face centre",
-    "renderFrameMm": 220,
-    "compression": "Draco"
+    "compression": "meshopt",
+    "renderFillTarget": 0.75
   },
   {
     "key": "ambient_light_veml7700",
@@ -502,7 +502,8 @@
     "tris": 564,
     "glbKb": null,
     "author": "sergio.pulido@alodai.com",
-    "approximate": true
+    "approximate": true,
+    "renderFillTarget": 0.75
   },
   {
     "key": "geiger_counter_mightyohm",
@@ -517,7 +518,8 @@
     "tris": 828,
     "glbKb": null,
     "author": "sergio.pulido@alodai.com",
-    "approximate": true
+    "approximate": true,
+    "renderFillTarget": 0.75
   },
   {
     "key": "brushless_motor_dfrobot_fit0441",
@@ -532,6 +534,281 @@
     "tris": 496,
     "glbKb": null,
     "author": "sergio.pulido@alodai.com",
-    "approximate": true
+    "approximate": true,
+    "renderFillTarget": 0.75
+  },
+  {
+    "key": "arduino_uno_r4_wifi",
+    "blend": "assets/blender/parts/arduino_uno_r4_wifi.blend",
+    "glb": "apps/web/public/models/parts/arduino_uno_r4_wifi.glb",
+    "render": "apps/web/public/renders/parts/arduino_uno_r4_wifi.png",
+    "envelopeMm": [
+      68.85,
+      53.34,
+      null
+    ],
+    "dimsSource": "https://store.arduino.cc/products/uno-r4-wifi",
+    "approximations": [
+      "PCB thickness 1.6 mm and minor connector/package contours approximate; published outline retained."
+    ],
+    "tris": 1972,
+    "glbKb": 37.992,
+    "author": "sergio.pulido@alodai.com",
+    "units": "metres",
+    "upAxis": "+Y",
+    "origin": "mounting-face centre",
+    "renderFillTarget": 0.75,
+    "compression": "meshopt"
+  },
+  {
+    "key": "ir_distance_sharp_gp2y0a21",
+    "blend": "assets/blender/parts/ir_distance_sharp_gp2y0a21.blend",
+    "glb": "apps/web/public/models/parts/ir_distance_sharp_gp2y0a21.glb",
+    "render": "apps/web/public/renders/parts/ir_distance_sharp_gp2y0a21.png",
+    "envelopeMm": [
+      44.5,
+      18.9,
+      13.5
+    ],
+    "dimsSource": "docs/inputs/bom-mk2.json: ir_distance_sharp_gp2y0a21",
+    "approximations": [],
+    "tris": 712,
+    "glbKb": 15.488,
+    "author": "sergio.pulido@alodai.com",
+    "units": "metres",
+    "upAxis": "+Y",
+    "origin": "mounting-face centre",
+    "renderFillTarget": 0.75,
+    "compression": "meshopt"
+  },
+  {
+    "key": "thermal_camera_mlx90640",
+    "blend": "assets/blender/parts/thermal_camera_mlx90640.blend",
+    "glb": "apps/web/public/models/parts/thermal_camera_mlx90640.glb",
+    "render": "apps/web/public/renders/parts/thermal_camera_mlx90640.png",
+    "envelopeMm": [
+      25.7,
+      17.7,
+      16
+    ],
+    "dimsSource": "https://www.adafruit.com/product/4407",
+    "approximations": [
+      "Small package placement, connector outlines, solder pads and board thickness simplified for a demo render; no fabrication hole pattern asserted."
+    ],
+    "tris": 704,
+    "glbKb": 19.068,
+    "author": "sergio.pulido@alodai.com",
+    "units": "metres",
+    "upAxis": "+Y",
+    "origin": "mounting-face centre",
+    "renderFillTarget": 0.75,
+    "compression": "meshopt"
+  },
+  {
+    "key": "stepper_nema17_pololu",
+    "blend": "assets/blender/parts/stepper_nema17_pololu.blend",
+    "glb": "apps/web/public/models/parts/stepper_nema17_pololu.glb",
+    "render": "apps/web/public/renders/parts/stepper_nema17_pololu.png",
+    "envelopeMm": [
+      42.3,
+      42.3,
+      48
+    ],
+    "dimsSource": "https://www.pololu.com/product/1200",
+    "approximations": [
+      "Endcap division, recesses and surface details simplified. Shaft length not in BOM; front bearing opening shown without inventing an exposed shaft length. Envelope excludes shaft as manufacturer specifies."
+    ],
+    "tris": 572,
+    "glbKb": 13.544,
+    "author": "sergio.pulido@alodai.com",
+    "units": "metres",
+    "upAxis": "+Y",
+    "origin": "mounting-face centre",
+    "renderFillTarget": 0.75,
+    "compression": "meshopt"
+  },
+  {
+    "key": "servo_metal_gear_mg92b",
+    "blend": "assets/blender/parts/servo_metal_gear_mg92b.blend",
+    "glb": "apps/web/public/models/parts/servo_metal_gear_mg92b.glb",
+    "render": "apps/web/public/renders/parts/servo_metal_gear_mg92b.png",
+    "envelopeMm": [
+      36,
+      12,
+      31
+    ],
+    "dimsSource": "https://www.adafruit.com/product/2307",
+    "approximations": [
+      "Body/endcap split and spline detail approximate within official 36x12x31 mm external envelope; no optional horn or cable shown."
+    ],
+    "tris": 340,
+    "glbKb": 9.956,
+    "author": "sergio.pulido@alodai.com",
+    "units": "metres",
+    "upAxis": "+Y",
+    "origin": "mounting-face centre",
+    "renderFillTarget": 0.75,
+    "compression": "meshopt"
+  },
+  {
+    "key": "battery_holder_4aa",
+    "blend": "assets/blender/parts/battery_holder_4aa.blend",
+    "glb": "apps/web/public/models/parts/battery_holder_4aa.glb",
+    "render": "apps/web/public/renders/parts/battery_holder_4aa.png",
+    "envelopeMm": [
+      58,
+      63,
+      16
+    ],
+    "dimsSource": "docs/inputs/bom-mk2.json: battery_holder_4aa",
+    "approximations": [
+      "Walls, battery channels and spring winding are simplified small details; cells and unsourced lead diameter omitted."
+    ],
+    "tris": 1116,
+    "glbKb": 16.612,
+    "author": "sergio.pulido@alodai.com",
+    "units": "metres",
+    "upAxis": "+Y",
+    "origin": "mounting-face centre",
+    "renderFillTarget": 0.75,
+    "compression": "meshopt"
+  },
+  {
+    "key": "lidar_rplidar_c1",
+    "blend": "assets/blender/parts/lidar_rplidar_c1.blend",
+    "glb": "apps/web/public/models/parts/lidar_rplidar_c1.glb",
+    "render": "apps/web/public/renders/parts/lidar_rplidar_c1.png",
+    "envelopeMm": [
+      55.6,
+      55.6,
+      41.3
+    ],
+    "dimsSource": "docs/inputs/bom-mk2.json: lidar_rplidar_c1",
+    "approximations": [
+      "Rotating head seam, optical window contours and mounting base details simplified within BOM dimensions."
+    ],
+    "tris": 340,
+    "glbKb": 10.228,
+    "author": "sergio.pulido@alodai.com",
+    "units": "metres",
+    "upAxis": "+Y",
+    "origin": "mounting-face centre",
+    "renderFillTarget": 0.75,
+    "compression": "meshopt"
+  },
+  {
+    "key": "camera_module_3_noir",
+    "blend": "assets/blender/parts/camera_module_3.blend",
+    "glb": "apps/web/public/models/parts/camera_module_3_noir.glb",
+    "render": "apps/web/public/renders/parts/camera_module_3_noir.png",
+    "envelopeMm": [
+      25,
+      24,
+      11.5
+    ],
+    "dimsSource": "https://www.raspberrypi.com/products/camera-module-3/",
+    "approximations": [
+      "Shares Camera Module 3 mechanical outline; filter variant has no external branding. Minor socket/lens rim details approximate."
+    ],
+    "tris": 588,
+    "glbKb": 15.14,
+    "author": "sergio.pulido@alodai.com",
+    "units": "metres",
+    "upAxis": "+Y",
+    "origin": "mounting-face centre",
+    "renderFillTarget": 0.75,
+    "compression": "meshopt"
+  },
+  {
+    "key": "tof_vl53l1x_pololu",
+    "blend": "assets/blender/parts/tof_vl53l1x_pololu.blend",
+    "glb": "apps/web/public/models/parts/tof_vl53l1x_pololu.glb",
+    "render": "apps/web/public/renders/parts/tof_vl53l1x_pololu.png",
+    "envelopeMm": [
+      12.7,
+      17.78,
+      2.159
+    ],
+    "dimsSource": "https://www.pololu.com/product/3415",
+    "approximations": [
+      "Small package placement, connector outlines, solder pads and board thickness simplified for a demo render; no fabrication hole pattern asserted."
+    ],
+    "tris": 252,
+    "glbKb": 11.144,
+    "author": "sergio.pulido@alodai.com",
+    "units": "metres",
+    "upAxis": "+Y",
+    "origin": "mounting-face centre",
+    "renderFillTarget": 0.75,
+    "compression": "meshopt"
+  },
+  {
+    "key": "gps_adafruit_ultimate",
+    "blend": "assets/blender/parts/gps_adafruit_ultimate.blend",
+    "glb": "apps/web/public/models/parts/gps_adafruit_ultimate.glb",
+    "render": "apps/web/public/renders/parts/gps_adafruit_ultimate.png",
+    "envelopeMm": [
+      25.5,
+      35,
+      6.5
+    ],
+    "dimsSource": "https://www.adafruit.com/product/746",
+    "approximations": [
+      "Small package placement, connector outlines, solder pads and board thickness simplified for a demo render; no fabrication hole pattern asserted."
+    ],
+    "tris": 688,
+    "glbKb": 20.824,
+    "author": "sergio.pulido@alodai.com",
+    "units": "metres",
+    "upAxis": "+Y",
+    "origin": "mounting-face centre",
+    "renderFillTarget": 0.75,
+    "compression": "meshopt"
+  },
+  {
+    "key": "gas_sensor_bme688",
+    "blend": "assets/blender/parts/gas_sensor_bme688.blend",
+    "glb": "apps/web/public/models/parts/gas_sensor_bme688.glb",
+    "render": "apps/web/public/renders/parts/gas_sensor_bme688.png",
+    "envelopeMm": [
+      25.5,
+      17.6,
+      4.6
+    ],
+    "dimsSource": "https://www.adafruit.com/product/5046",
+    "approximations": [
+      "Small package placement, connector outlines, solder pads and board thickness simplified for a demo render; no fabrication hole pattern asserted."
+    ],
+    "tris": 468,
+    "glbKb": 16.12,
+    "author": "sergio.pulido@alodai.com",
+    "units": "metres",
+    "upAxis": "+Y",
+    "origin": "mounting-face centre",
+    "renderFillTarget": 0.75,
+    "compression": "meshopt"
+  },
+  {
+    "key": "microphone_i2s_sph0645",
+    "blend": "assets/blender/parts/microphone_i2s_sph0645.blend",
+    "glb": "apps/web/public/models/parts/microphone_i2s_sph0645.glb",
+    "render": "apps/web/public/renders/parts/microphone_i2s_sph0645.png",
+    "envelopeMm": [
+      16.7,
+      12.7,
+      1.8
+    ],
+    "dimsSource": "https://www.adafruit.com/product/3421",
+    "approximations": [
+      "Small package placement, connector outlines, solder pads and board thickness simplified for a demo render; no fabrication hole pattern asserted."
+    ],
+    "tris": 300,
+    "glbKb": 11.688,
+    "author": "sergio.pulido@alodai.com",
+    "units": "metres",
+    "upAxis": "+Y",
+    "origin": "mounting-face centre",
+    "renderFillTarget": 0.75,
+    "compression": "meshopt"
   }
 ]

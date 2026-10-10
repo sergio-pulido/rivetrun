@@ -94,4 +94,6 @@ for key in keys:
     elif key=='brushless_motor_dfrobot_fit0441':
         begin(key,None,'not published; proportions from product photos',['Body length not published (L in official drawing); full model is illustrative photo proportion only. No measured envelope or GLB supplied.'])
         cylinder('gearcase',(0,0,-12),12.5,24,steel);cylinder('motor_body',(0,0,-33),12.2,18,steel);cylinder('output_shaft',(0,0,6),2,12,steel);cylinder('shaft_bearing',(0,0,.2),3.5,1,brass)
+    if key=='servo_metal_gear_mg92b':
+        for o in root.children_recursive:o.location.z-=.024
     finish(key,'camera_module_3' if key=='camera_module_3_noir' else None,heavy=key=='lidar_rplidar_c1')
