@@ -244,14 +244,15 @@ export function DriveControls({ drive, feed, build }: DriveControlsProps) {
 
   // Hands off when the run ends or the tab goes away: nothing stays "held".
   useEffect(() => {
-    if (done) drive.release();
+    // The run is over: nothing carries into the next one on the same store (a second race on a race phone).
+    if (done) drive.reset();
     const release = (): void => drive.release();
     window.addEventListener('blur', release);
     document.addEventListener('visibilitychange', release);
     return () => {
       window.removeEventListener('blur', release);
       document.removeEventListener('visibilitychange', release);
-      drive.release();
+      drive.reset();
     };
   }, [drive, done]);
 

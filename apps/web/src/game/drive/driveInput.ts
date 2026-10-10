@@ -40,8 +40,10 @@ export interface DriveInput {
   readonly jump: () => void;
   /** Hold to charge, let go to fire: 0.3–1.0 s of hold gives 40–100 % of the impulse (the sim does the counting). */
   readonly setJumpHeld: (held: boolean) => void;
-  /** Releases everything: call when the run ends or the page loses focus. */
+  /** Lets go of everything held (pedals, winch, a charging jump): the page lost focus. Climb mode stays as it was. */
   readonly release: () => void;
+  /** Back to rest, climb mode off and the jump re-armed: the run is over, the next one starts clean on the same store. */
+  readonly reset: () => void;
 }
 
 const REST: DriveInputState = { throttle: 0, brake: 0, climb: false, winch: false, jumpHeld: false, jumpAt: 0 };
@@ -83,6 +85,10 @@ export function createDriveInput(): DriveInput {
     setJumpHeld: (held) => {
       if (held) set({ jumpHeld: true });
       else if (state.jumpHeld) set({ jumpHeld: false, jumpAt: typeof performance === 'undefined' ? 0 : performance.now() });
+    },
+    reset: () => {
+      jumpQueued = false;
+      set(REST);
     },
     release: () => {
       jumpQueued = false;
