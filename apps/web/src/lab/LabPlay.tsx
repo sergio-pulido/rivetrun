@@ -17,6 +17,17 @@ const PAD: readonly { readonly dir: Dir; readonly id: string; readonly label: st
   { dir: 'S', id: 'pad-down', label: 'Down', place: 'col-start-2 row-start-3', turn: 180 },
 ];
 
+/**
+ * Two columns, the map on the left: on a wide screen and on a phone turned sideways. The values are the same for both
+ * conditions, so it does not matter which of the two rules the browser applies last.
+ */
+const WIDE = {
+  grid: 'lg:grid lg:grid-cols-[minmax(0,1fr)_380px] lg:items-start lg:gap-x-5 landscape:grid landscape:grid-cols-[minmax(0,1fr)_380px] landscape:items-start landscape:gap-x-5',
+  board: 'lg:col-start-1 lg:row-span-6 lg:row-start-1 landscape:col-start-1 landscape:row-span-6 landscape:row-start-1',
+  side: 'lg:col-start-2 landscape:col-start-2',
+  sideFirst: 'lg:order-none lg:col-start-2 landscape:order-none landscape:col-start-2',
+} as const;
+
 function Arrow({ turn }: { readonly turn: number }) {
   return (
     <svg width={22} height={22} viewBox="0 0 24 24" aria-hidden="true" style={{ transform: `rotate(${turn}deg)` }}>
@@ -124,11 +135,11 @@ export function LabPlay({ view, controls, mode, robot, jevLive, jevFacts }: LabP
   }, [driving, press, act, halt, ending, actionId]);
 
   return (
-    <div className="flex flex-col gap-2.5 lg:grid lg:grid-cols-[minmax(0,1fr)_380px] lg:items-start lg:gap-x-5">
-      <div className="lg:col-start-1 lg:row-span-6 lg:row-start-1">
+    <div className={`flex flex-col gap-2.5 ${WIDE.grid}`}>
+      <div className={WIDE.board}>
         <LabBoard state={state} onTile={driving ? controls.goTo : undefined} />
       </div>
-      <ul className="order-first flex flex-col gap-1 lg:order-none lg:col-start-2" data-testid="scenario-objective" aria-label="Objectives">
+      <ul className={`order-first flex flex-col gap-1 ${WIDE.sideFirst}`} data-testid="scenario-objective" aria-label="Objectives">
         {statuses.map((status) => (
           <li key={status.id} className="flex items-center justify-between gap-2 text-[13px] leading-snug">
             <span className={status.done ? 'text-ok' : 'text-text'}>{status.label}</span>
@@ -137,7 +148,7 @@ export function LabPlay({ view, controls, mode, robot, jevLive, jevFacts }: LabP
         ))}
       </ul>
 
-      <div className="order-first flex flex-wrap gap-1.5 lg:order-none lg:col-start-2">
+      <div className={`order-first flex flex-wrap gap-1.5 ${WIDE.sideFirst}`}>
         <span className="rr-chip tabular-nums" data-testid="scenario-time">{state.t.toFixed(1)} s</span>
         <span className={`rr-chip tabular-nums ${me.batteryPct < 20 ? '!border-bad !text-bad' : ''}`}>Battery {Math.round(me.batteryPct)} %</span>
         <span className={`rr-chip tabular-nums ${me.damagePct > 0 ? '!border-warn !text-warn' : ''}`}>Damage {Math.round(me.damagePct)} %</span>
@@ -148,12 +159,12 @@ export function LabPlay({ view, controls, mode, robot, jevLive, jevFacts }: LabP
         <span className="w-full truncate font-mono text-[11px] text-muted" data-testid="scenario-robot">{robot}</span>
       </div>
 
-      <p className="min-h-8 font-mono text-[11px] leading-snug text-text-2 lg:col-start-2" aria-live="polite" data-testid="scenario-noticed">
+      <p className={`min-h-8 font-mono text-[11px] leading-snug text-text-2 ${WIDE.side}`} aria-live="polite" data-testid="scenario-noticed">
         {view.noticed ? view.noticed.label : 'Fog is what no sensor has reported. The tint is what your sensors see now.'}
       </p>
 
       {driving ? (
-        <div className="flex items-center justify-between gap-3 lg:col-start-2">
+        <div className={`flex items-center justify-between gap-3 ${WIDE.side}`}>
           <div className="grid grid-cols-[repeat(3,48px)] grid-rows-[repeat(3,48px)] gap-1.5" role="group" aria-label="Move">
             {PAD.map((button) => (
               <button key={button.id} type="button" className={`rr-iconbtn !h-12 !w-12 bg-panel-2 ${button.place}`} aria-label={button.label} data-testid={button.id} onClick={() => press(button.dir)}>
@@ -180,7 +191,7 @@ export function LabPlay({ view, controls, mode, robot, jevLive, jevFacts }: LabP
       ) : null}
 
       {!driving || rival ? (
-        <div className="lg:col-start-2">
+        <div className={WIDE.side}>
         <DecisionThread
           decisions={thread}
           limit={driving ? 3 : 5}
@@ -190,7 +201,7 @@ export function LabPlay({ view, controls, mode, robot, jevLive, jevFacts }: LabP
         </div>
       ) : null}
 
-      <div className="lg:col-start-2">
+      <div className={WIDE.side}>
         <LabLegend scenario={state.scenario} />
       </div>
     </div>

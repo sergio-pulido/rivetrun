@@ -30,21 +30,32 @@ export interface JevLabOptions {
   readonly now?: () => number;
 }
 
-async function askJev(question: LabQuestion, timeoutMs: number, fetchImpl: typeof fetch, factsOnly: boolean): Promise<LabDecision> {
+/**
+ * The promise's own outcome, or a rejection after `ms`. The abort signal asks the request to stop; this makes sure
+ * the caller moves on even if the request does not listen (a stalled connection, a body that never ends).
+ */
+function within<T>(work: (signal: AbortSignal) => Promise<T>, ms: number, what: string): Promise<T> {
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
-  try {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => { controller.abort(); reject(new Error(`${what}: no answer within ${ms} ms`)); }, ms);
+    work(controller.signal).then(
+      (value) => { clearTimeout(timer); resolve(value); },
+      (error: unknown) => { clearTimeout(timer); reject(error instanceof Error ? error : new Error(String(error))); },
+    );
+  });
+}
+
+function askJev(question: LabQuestion, timeoutMs: number, fetchImpl: typeof fetch, factsOnly: boolean): Promise<LabDecision> {
+  return within(async (signal) => {
     const response = await fetchImpl(factsOnly ? `${LAB_DECIDE_URL}?verdicts=0` : LAB_DECIDE_URL, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(question), signal: controller.signal,
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(question), signal,
     });
     if (!response.ok) throw new Error(`${LAB_DECIDE_URL} responded ${response.status}`);
     const decision = LabDecisionSchema.parse(await response.json());
     if (!question.options.some((option) => option.id === decision.choice)) throw new Error(`"${decision.choice}" is not one of the options`);
     // A cache hit comes back in no time: the thread says "cached" rather than pass that off as Jev's speed.
     return response.headers.get(CACHE_HEADER) === 'hit' ? { ...decision, cached: true } : decision;
-  } finally {
-    clearTimeout(timer);
-  }
+  }, timeoutMs, LAB_DECIDE_URL);
 }
 
 /**
@@ -82,19 +93,18 @@ const NO_JEV: JevSeat = { live: false, factsOnly: false };
  * configured route the page says the fixed rules are in the seat instead of "live".
  */
 export async function jevSeat(fetchImpl: typeof fetch = fetch, timeoutMs: number = PROBE_TIMEOUT_MS): Promise<JevSeat> {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const response = await fetchImpl(LAB_DECIDE_URL, { method: 'GET', signal: controller.signal });
-    if (!response.ok) return NO_JEV;
-    const body: unknown = await response.json();
-    if (typeof body !== 'object' || body === null || (body as { configured?: unknown }).configured !== true) return NO_JEV;
-    const questions = (body as { questions?: unknown }).questions;
-    return { live: true, factsOnly: Array.isArray(questions) && questions.length > 1 };
+    return await within(async (signal) => {
+      const response = await fetchImpl(LAB_DECIDE_URL, { method: 'GET', signal });
+      if (!response.ok) return NO_JEV;
+      const body: unknown = await response.json();
+      if (typeof body !== 'object' || body === null || (body as { configured?: unknown }).configured !== true) return NO_JEV;
+      const questions = (body as { questions?: unknown }).questions;
+      return { live: true, factsOnly: Array.isArray(questions) && questions.length > 1 };
+    }, timeoutMs, LAB_DECIDE_URL);
   } catch {
+    // No route, no network, or no answer in time: the fixed rules take the seat and the page says so.
     return NO_JEV;
-  } finally {
-    clearTimeout(timer);
   }
 }
 

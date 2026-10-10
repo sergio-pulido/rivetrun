@@ -52,6 +52,15 @@ describe('Jev on Lab Missions', () => {
     expect(performance.now() - started).toBeLessThan(600);
   });
 
+  it('moves on even when a request ignores its abort signal and never settles', async () => {
+    const deaf: typeof fetch = () => new Promise(() => {});
+    const started = performance.now();
+    const decision = await jevLabBrain({ fetchImpl: deaf, timeoutMs: 40 }).decide(question);
+    expect(decision).toMatchObject({ choice: rules, fallback: true });
+    expect(await jevSeat(deaf, 40)).toEqual({ live: false, factsOnly: false });
+    expect(performance.now() - started).toBeLessThan(1000);
+  });
+
   it('marks an answer the server took from its cache, so the thread does not pass it off as Jev speed', async () => {
     const answer = { choice: other, latencyMs: 0, policy: 'jev' };
     const hit: typeof fetch = async () => new Response(JSON.stringify(answer), { status: 200, headers: { 'x-rivetrun-cache': 'hit' } });

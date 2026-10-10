@@ -18,8 +18,8 @@ export default async function ScenarioPage({ params }: { params: Promise<{ id: s
   const { id } = await params;
   if (!isScenarioId(id)) notFound();
   return (
-    // A phone column on a phone; on a wide screen the map sits beside the decisions.
-    <Shell back="/scenarios" title="Lab Missions" className="lg:max-w-[1120px]">
+    // A phone column on a phone held upright; on a wide screen, or a phone turned sideways, the map sits beside the controls.
+    <Shell back="/scenarios" title="Lab Missions" className="landscape:max-w-[1120px] lg:max-w-[1120px]">
       <ScenarioScreen id={id} />
     </Shell>
   );

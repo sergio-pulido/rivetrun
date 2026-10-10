@@ -2,15 +2,16 @@
 
 import Link from 'next/link';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { LAB_PLAYER, LAB_SCENARIOS, LAB_SEEDS, deriveRobot, type LabScenarioId } from '@rivetrun/lab';
+import { LAB_PLAYER, LAB_SCENARIOS, LAB_SEEDS, deriveRobot, objectiveStatus, type LabScenarioId } from '@rivetrun/lab';
 import { useBuildStore } from '@/state/build';
 import { saveResult, useLabBests } from './bests';
-import { SCENARIO_BRIEFS, labLoadouts, sensorLine } from './copy';
+import { SCENARIO_BRIEFS, labLoadouts, resultHeading, sensorLine } from './copy';
 import { Simplifications } from './Simplifications';
 import { JEV_FACTS_NOTE, JEV_LIVE_NOTE, JEV_VERDICT_NOTE, STAND_IN_NOTE } from './labBrain';
 import { LabLegend } from './LabLegend';
 import { LabPlay } from './LabPlay';
 import { LabResult } from './LabResult';
+import { forgetRun, lastRunLine, noteRun, useLastRun } from './lastRun';
 import { useJevSeat, useLabRun, type LabMode, type LabRunSetup } from './useLabRun';
 
 /** One Lab Mission from brief to result. */
@@ -34,13 +35,31 @@ export function ScenarioScreen({ id }: { readonly id: LabScenarioId }) {
   const loadout = loadouts.find((l) => l.id === loadoutId) ?? loadouts[0]!;
   const twoRobots = scenario.agents.length > 1;
   const robotLine = `${loadout.name} · ${sensorLine(loadout.build)}`;
+
   const result = view?.result;
 
+  const lastRun = useLastRun(id);
+  const driverLine = setup === null ? '' : setup.mode !== 'jev' ? 'you drove' : setup.jevLive ? 'Jev drove' : 'the fixed rules drove';
+
   useEffect(() => {
-    if (!result) return;
+    if (!result || setup === null) return;
     const outcome = result.outcomes[LAB_PLAYER]!;
     saveResult(id, { score: outcome.score, stars: outcome.stars, timeS: outcome.timeS });
-  }, [result, id]);
+    // The result is also noted for this tab, so a reload of the result screen still says how the run ended.
+    noteRun(id, { status: 'done', robot: robotLine, driver: driverLine, timeS: outcome.timeS, progress: `${outcome.objectivesDone}/${outcome.objectivesTotal} objectives`, heading: resultHeading(outcome, setup.jevLive), score: outcome.score });
+  }, [result, id]); // eslint-disable-line react-hooks/exhaustive-deps -- the labels belong to the run that produced this result
+
+  // While a run is on, note every two seconds of it where it stands: if the page is reloaded or left, the brief
+  // says the run was cut off instead of showing nothing.
+  const running = setup !== null && view !== null && !result;
+  const noteTick = running ? Math.floor(view.state.t / 2) : -1;
+  useEffect(() => {
+    if (noteTick < 0 || view === null) return;
+    const me = view.state.agents.find((agent) => agent.id === LAB_PLAYER);
+    if (!me) return;
+    const progress = objectiveStatus(view.state, me).map((status) => `${status.label} ${status.have}/${status.need}`).join(', ');
+    noteRun(id, { status: 'running', robot: robotLine, driver: driverLine, timeS: Math.round(view.state.t * 10) / 10, progress });
+  }, [noteTick, id]); // eslint-disable-line react-hooks/exhaustive-deps -- one note per two seconds of the run, not per frame
 
   // Counts every start on this page, also across "Change robot": a view from an earlier start never passes for this one.
   const attempts = useRef(0);
@@ -68,6 +87,15 @@ export function ScenarioScreen({ id }: { readonly id: LabScenarioId }) {
         <h2 className="font-display text-xl font-bold uppercase tracking-[1px]">{scenario.name}</h2>
         <p className="text-[13px] leading-snug text-text-2">{scenario.description}</p>
       </section>
+
+      {lastRun ? (
+        <section className={`flex items-start gap-2 rounded-xl border px-3 py-2 ${lastRun.status === 'running' ? 'border-warn' : 'border-line'}`} role="status" data-testid="scenario-last-run">
+          <p className="min-w-0 flex-1 text-xs leading-snug text-text-2">{lastRunLine(lastRun)}</p>
+          <button type="button" className="flex min-h-11 shrink-0 items-center font-mono text-[11px] font-medium tracking-[1px] text-orange-soft underline underline-offset-2" onClick={() => forgetRun(id)}>
+            DISMISS
+          </button>
+        </section>
+      ) : null}
 
       <section className="rr-card flex flex-col gap-2 p-3" aria-label="Objectives">
         <h3 className="rr-label !text-orange-soft">Objective</h3>

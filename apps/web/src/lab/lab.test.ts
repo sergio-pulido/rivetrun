@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { PRESETS } from '@rivetrun/sim';
 import { LAB_DEFAULT_BUILDS, LAB_SCENARIOS, LAB_SCENARIO_IDS, LAB_SEEDS, command, createLab, labHeuristicDecide, runLabSync, stepLab, type LabState } from '@rivetrun/lab';
 import { withResult } from './bests';
+import { lastRunLine, withRun } from './lastRun';
 import { fogReport, inView, knownTiles, legendFor, poseOf, trueTiles } from './boardModel';
 import { LAB_HONESTY, LAB_SIMPLIFICATIONS, SCENARIO_BRIEFS, labLoadouts, resultHeading, sensorLine } from './copy';
 
@@ -132,5 +133,25 @@ describe('bests', () => {
     expect(withResult(first, 'maze', { score: 400, stars: 1, timeS: 30 })).toBe(first);
     expect(withResult(first, 'maze', { score: 700, stars: 3, timeS: 33 }).maze?.score).toBe(700);
     expect(withResult(first, 'ctf', { score: 100, stars: 0, timeS: 9 })).toMatchObject({ maze: { score: 500 }, ctf: { score: 100 } });
+  });
+});
+
+describe('the last run of a scenario in this tab', () => {
+  const cutOff = { status: 'running' as const, robot: 'Recommended · Camera, Ultrasonic', driver: 'you drove', timeS: 12.4, progress: 'Reach the exit 0/1' };
+  const finished = { status: 'done' as const, robot: 'Lidar loaner · RPLIDAR C1, Camera', driver: 'Jev drove', timeS: 33.2, progress: '1/1 objectives', heading: 'Scenario complete', score: 732 };
+
+  it('says a run that was cut off was cut off, and that it was not scored', () => {
+    expect(lastRunLine(cutOff)).toBe('Your last run here stopped at 12.4 s without a result (Reach the exit 0/1): the page was reloaded or left. It was not scored.');
+  });
+
+  it('says how a finished run ended, with what and by whom', () => {
+    expect(lastRunLine(finished)).toBe('Last run here: Scenario complete · score 732 · 33.2 s · Lidar loaner · RPLIDAR C1, Camera · Jev drove.');
+  });
+
+  it('keeps one note per scenario, the latest', () => {
+    const runs = withRun(withRun({}, 'maze', cutOff), 'mars', finished);
+    expect(Object.keys(runs)).toEqual(['maze', 'mars']);
+    expect(withRun(runs, 'maze', finished).maze).toBe(finished);
+    expect(runs.maze).toBe(cutOff);
   });
 });

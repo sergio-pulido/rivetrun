@@ -168,7 +168,7 @@ export function LabBoard({ state, reveal = false, onTile }: LabBoardProps) {
   return (
     <svg
       viewBox={`0 0 ${map.width * T} ${map.height * T}`}
-      className="block h-auto w-full touch-manipulation select-none rounded-xl border border-line bg-slate-deep lg:max-h-[calc(100dvh-150px)]"
+      className="block h-auto w-full touch-manipulation select-none rounded-xl border border-line bg-slate-deep max-lg:landscape:max-h-[calc(100dvh-96px)] lg:max-h-[calc(100dvh-150px)]"
       role="img"
       aria-label={reveal ? 'The whole map, with what the robot never sensed hatched over' : 'Top-down map as your robot knows it'}
       onClick={click}
