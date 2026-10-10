@@ -66,8 +66,9 @@ function watch(page, label) {
     const url = response.url();
     if (!url.startsWith(BASE)) return;
     const status = response.status();
-    // A 404 on /scenarios is the Lab Missions step finding the route missing: that step reports it itself.
-    if (status >= 500 || (status === 404 && !url.endsWith('/scenarios'))) warnings.push(`${label}: HTTP ${status} ${url.slice(BASE.length)}`);
+    // A 404 on /scenarios or on the Brief one past the last mission is a step probing for it, not a broken link.
+    const probe = url.endsWith('/scenarios') || /\/brief\/M\d+$/.test(url);
+    if (status >= 500 || (status === 404 && !probe)) warnings.push(`${label}: HTTP ${status} ${url.slice(BASE.length)}`);
   });
   return seen;
 }
@@ -334,6 +335,21 @@ try {
       if (!drive.sawZone && !drive.sawPad) throw new Error('the HUD never announced the scan zone');
       if (!drive.scanned) throw new Error(`scan not completed (missed=${drive.missed}, braked at ${drive.brakedAtM} m, creeps=${drive.creeps})`);
       return `braked at ${drive.brakedAtM} m from the pad, ${drive.creeps} creep(s), SCANNED${drive.reloads ? ` · ${drive.reloads} dev reload(s) during the run` : ''}`;
+    }, page);
+  }
+
+  if (wants('drive')) {
+    // OVN-UI-4: after a finished run the Brief shows the personal best for this mission and robot.
+    await step('personal best', async () => {
+      await go(page, '/brief/M1');
+      await visibleText(page, 'Garage Test');
+      const best = page.getByText(/your best/i).first();
+      await best.waitFor({ state: 'visible', timeout: 8000 });
+      await best.scrollIntoViewIfNeeded();
+      await sleep(500);
+      await shot(page, 'phone-07b-brief-best');
+      const line = (await page.locator('body').innerText()).match(/your best[^\n]*(\n[^\n]*)?/i)?.[0].replace(/\s+/g, ' ') ?? '';
+      return line.slice(0, 90);
     }, page);
   }
 

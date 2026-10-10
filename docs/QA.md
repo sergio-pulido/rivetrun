@@ -35,6 +35,10 @@ What a `demo-good-*` tag does not prove:
 | Q3 | brain | FIXED (4ae2d81) | `apps/web/app/api/routes.test.ts` used `M9` as the unknown mission; M9 exists since e8e60f5. | Gate at 6ddf495 red on unit tests; that test passes at 4ae2d81. |
 | Q4 | sim | OPEN | `packages/contracts/src/contracts.test.ts:137` expects `LeaderboardQuerySchema` to reject `M9`. The only red at 4ae2d81; no tag until it is fixed. | Gate at 4ae2d81: unit-tests red, everything else green. |
 | Q5 | master (tooling) | FIXED | The e2e Drive run stalled when the dev server reloaded the run page mid-run (sessions saving files it imports): the new page had no key held. The script now lets go, restarts from the start line and reports the reload as a warning. | First gate e2e at 03:59. |
+| Q6 | ui | OPEN | Brief M9: the chip under the title says "COLD · BATTERY ×0.8" and the Weather card on the same screen says "Usable battery capacity ×0.6" (−20 °C). One number, two values. Chips carry the weather word only; the card carries the numbers (same for "RAIN · GRIP ×0.8" on M5). | `e2e/screens/0410/brief-M9.png` |
+| Q7 | ui | OPEN | First-run Drive coach marks teach gameplay v2 ("Hold the right side to go", "Hold the left side to brake"); v3 controls are sliders and there is no mark for scan zones (OVN-UI-6). | `e2e/screens/0410/phone-03b-coach.png` |
+| Q8 | ui | OPEN | Result has no v3 breakdown: no scans done or missed, no time lost to slip, no damage by cause, no "try next" line (OVN-UI-7, needs OVN-SIM-6 fields). | `e2e/screens/0410/phone-07-result-bottom.png` |
+| Q9 | game | OPEN (low) | Run start on M8/M9 at 390×844: the weather chip, senses chip and first decision chip stack over the START sign and the ghost name tags (RANDOM / HEURISTIC / JEV overlap each other). Clears once the robot moves. | `e2e/screens/0410/run-M9.png`, `run-M8.png` |
 
 ## Open regressions
 
