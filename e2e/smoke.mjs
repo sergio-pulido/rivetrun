@@ -527,9 +527,9 @@ try {
       const byRules = fellBack ? Number(fellBack[2]) : 0;
       if (decisions !== null && decisions > 0 && byRules >= decisions) throw new Error(`Jev answered none of the ${decisions} decisions (all by the fixed rules): Jev or the network is down, the Jev path is not proven`);
       const answered = decisions === null ? '' : `, Jev answered ${decisions - byRules} of ${decisions} decisions`;
-      // Back to Drive mode for the steps that follow.
-      await go(page, '/');
-      await page.getByRole('button', { name: 'You drive' }).click();
+      // Back to Drive mode for the steps that follow. The switch lives on the Brief; Home no longer has one.
+      await go(page, '/brief/M1');
+      await page.getByRole('button', { name: 'You drive' }).first().click();
       return `${coached ? 'coach marks shown, ' : ''}Jev finished${time ? ` in ${time} s` : ''}${answered}${fallback ? ', FALLBACK shown' : ', no FALLBACK'}`;
     }, page);
   }
@@ -538,6 +538,8 @@ try {
   if (wants('m5')) {
     await step('drive M5 · stuck prompt', async () => {
       await go(page, '/brief/M5');
+      // This step is a person's thumbs: make sure of the mode here, whatever an earlier step left behind.
+      await page.getByRole('button', { name: 'You drive' }).first().click();
       await page.getByRole('link', { name: /^Drive$/ }).first().click();
       const coachStart = page.locator('button.rr-btn-primary').first();
       if (await coachStart.waitFor({ state: 'visible', timeout: 2500 }).then(() => true, () => false)) await coachStart.click();
@@ -577,6 +579,7 @@ try {
       await assertHealthy(page, seen);
       const seenPrompts = [...prompts].join(', ') || 'none';
       if (!/finished/i.test(headline)) throw new Error(`result headline is "${headline}" (prompts seen: ${seenPrompts}; climb taps: ${taps})`);
+      if (taps === 0) throw new Error(`the run finished without the stuck prompt (prompts seen: ${seenPrompts}): it was not a person holding the throttle on the default robot`);
       const time = (await page.locator('body').innerText()).match(/(\d+\.\d)\s*s/)?.[1];
       return `Finished${time ? ` in ${time} s` : ''} at full throttle; prompts seen: ${seenPrompts}; climb taps: ${taps}`;
     }, page);
@@ -671,8 +674,8 @@ try {
       const bad = [];
       // Jev mode: the robot drives itself, so each scene is seen moving (weather, lights, terrain) with a few live
       // decisions instead of a whole precomputed ghost per mission. M1's scene is covered by the Drive run above.
-      await go(page, '/');
-      await page.getByRole('button', { name: 'Jev drives' }).click();
+      await go(page, '/brief/M1');
+      await page.getByRole('button', { name: 'Jev drives' }).first().click();
       await sleep(400);
       for (const id of missions.slice(1)) {
         const before = seen.pageErrors.length;
