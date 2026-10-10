@@ -60,7 +60,8 @@ function watch(page, label) {
   const seen = { pageErrors: [], consoleErrors: [], checked: 0 };
   page.on('pageerror', (error) => seen.pageErrors.push(String(error.message).slice(0, 240)));
   page.on('console', (message) => {
-    if (message.type() === 'error') seen.consoleErrors.push(message.text().slice(0, 240));
+    // Failed requests are reported with their URL by the response listener below; the browser's own line has none.
+    if (message.type() === 'error' && !/Failed to load resource/.test(message.text())) seen.consoleErrors.push(message.text().slice(0, 240));
   });
   page.on('response', (response) => {
     const url = response.url();
@@ -68,6 +69,8 @@ function watch(page, label) {
     const status = response.status();
     // A 404 on /scenarios or on the Brief one past the last mission is a step probing for it, not a broken link.
     const probe = url.endsWith('/scenarios') || /\/brief\/M\d+$/.test(url);
+    // The Jev-down context fails /api/decide and /api/ghost on purpose.
+    if (label === 'jev-down' && /\/api\/(decide|ghost)/.test(url)) return;
     if (status >= 500 || (status === 404 && !probe)) warnings.push(`${label}: HTTP ${status} ${url.slice(BASE.length)}`);
   });
   return seen;

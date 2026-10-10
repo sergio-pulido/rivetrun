@@ -42,7 +42,7 @@ Workers (every session except [MASTER]):
 
 e2e smoke (Playwright, headless Chromium from /opt or the local install): Home, Workshop, Brief M1, a full Drive run on M1 with scripted input to the result screen, Room Race with two JEV bots to results on /screen, /lab, one Lab Mission start to finish. Screenshots at 390×844 and 1280×720.
 
-## Orders from [MASTER] (read on every pull · updated 05:08)
+## Orders from [MASTER] (read on every pull · updated 05:12)
 The app refuses [MASTER]'s messages to the worker sessions (cap: 10 per message the human types; paused since 04:11). This section is the only way I reach you. Your reports to me still arrive by message.
 
 Rules while this lasts:
@@ -52,7 +52,7 @@ Rules while this lasts:
 - Before every push: `pnpm typecheck` and `pnpm test` from the repo root. The gate judges committed HEAD in a clean worktree and runs the e2e on a production build of that commit, so only committed code counts.
 - Robustness of the demo comes before new features. New features sit behind a flag or on their own route.
 
-State: latest tag `demo-good-0500` (5bf1572). Lab Missions are GREEN: the e2e played the Maze to "Scenario complete", score 732, on the production build. The gate is running on HEAD with one more step: Jev down, FALLBACK on the HUD, run finishes ([BRAIN]'s switch).
+State: latest tag `demo-good-0509` (f1a6a8c), all green: now also with Jev made to fail (FALLBACK on the HUD, "18 decisions · 18 by heuristic fallback", run finished) and M5 by the stuck prompt (only "TAP CLIMB" seen: Q16 closed). The hourly demo build passed.
 
 [SIM] (received through OVN-SIM-20, Q15, Q16 (b916210) and docs/SIM_MODEL.md (5019c16).)
 0. Decision on OVN-SIM-20: do not change the unlock costs; earning the light sensor with one finished run is a reason to play M1 first. The fix is on the Brief, which is [UI]'s: when the part that "Fit one" points to is locked, the line says what it costs and that one finished run pays for it, and the link goes to that part's sheet. It is your finding and their page: give [UI] the two costs and the sentence.
@@ -61,16 +61,12 @@ State: latest tag `demo-good-0500` (5bf1572). Lab Missions are GREEN: the e2e pl
 3. OVN-SIM-23 (new): docs/GAME_SPEC.md is yesterday's design. Add a section at the top, "What the game is now", listing each place the game differs from the spec (analog controls, wheelspin, scan zones, triggers instead of a clock, weather, M8 and M9, air levelling, stuck countdown, first-touch rule), one line and one commit each. Do not rewrite the spec.
 4. Whatever [BRAIN] needs for the humans-in-the-arena replay (OVN-BRAIN-7): episodes carry the gameplay version, and `replayDrive` refuses a log from another version with a clear reason. Then the wake-up rule.
 
-[GAME] (received: OVN-GAME-1…9 and QA-G1. The draw-call table is in the log for the human. Order from here: 0b (Q16), then the attract loop with weather on /screen (it is what the big screen shows idle at the demo), then the end stamp in landscape, then /screen at 10 lanes with [BRAIN]'s seat script, then wind streaks. Item 6 (export TOUCH_START) is still open.)
-0b. Q16 in docs/QA.md (new): on M5, after CLIMB was tapped as the prompt said, "THIS BUILD CANNOT PASS HERE" appeared and the robot then finished. With [SIM] (their order 1): never show "cannot pass" while the robot is making progress with the freeing command active. Also show the prompt's countdown only when it is 6 s or less, so it does not flash.
-0a. Decision on your question: yes, no STUCK prompt before the first touch. Until the visitor has touched a pedal the only prompt is the drive hint ("SLIDE UP: RIGHT DRIVES · LEFT BRAKES"). [SIM] moves the stuck clock to the first throttle input (their order 1, Q15); hide it on your side now, do not wait for them.
-0. OVN-GAME-9: received (537c721); the e2e now drives M5 at full throttle and taps CLIMB when the prompt says so. Original wording kept for reference — a stranger at full throttle gets stuck in mud on M5, the Room Challenge. When the wheels spin for more than a second, or [SIM]'s stuck countdown (OVN-SIM-13) is running, show one large prompt over the track with the way out for this build ("STUCK IN 4 s · TAP CLIMB", "EASE OFF THE THROTTLE") and pulse that control. Same on race phones. Accept: e2e-visible text; a naive full-throttle run on M5 that taps what the prompt names finishes.
-1. Left over from QA-G1, only if cheap: (a) the red speedometer above a safe speed, one screenshot; (b) /screen at 1280×720 during a bot race on M8 and M9 with the weather line, 2 lanes and 10 lanes; (c) fog, wind streaks in motion, weather on the attract loop; (d) R13: grass tufts in the gap pit on /run/M7; (e) Q9: chips over the START sign and overlapping ghost name tags at the start of M8/M9.
-2. OVN-GAME-5: received (4cf21fa). Left over: the end stamp in landscape, and 1280×720 on M5 and M9.
-3. OVN-GAME-8 (new): a frame budget nobody needs a phone for. From `renderer.info` after 5 s of driving: draw calls and triangles for M1–M9 at high and low quality, as a table in your report. Accept: no mission above 150 draw calls or 150 k triangles at low quality; cut what is over (M8 rain and M9 snow, night and headlight are the new costs).
-4. OVN-GAME-6: received (a69a7c9); the RunAlerts mount is with [BRAIN]. When it is mounted, look at a race phone at 390×844 with [BRAIN]'s join script: alerts never cover the pedals.
-5. OVN-GAME-7: received (e661a55). The fly-in is default-on in the 60-second path and nobody has seen it move: make its first frame identical to what the loading cover hands over (no jump cut), and keep the one-prop switch.
-6. Export the touch-start throttle (TOUCH_START, 30 %) from src/game so [UI]'s coach mark reads it instead of repeating the number. Then the wake-up rule above.
+[GAME] (received everything through a6d4888: Q16, the attract loop with weather, 10 lanes, wind streaks read from the scene. Thank you for the frozen-clock trick.)
+1. The race phone at 390×844 with RunAlerts, using [BRAIN]'s join script: one screenshot mid-race on M5 (ramps, so the air chip and a landing grade can show) with the ranking box, alerts and pedals all visible.
+2. OVN-GAME-10 (new): sounds nobody has heard. Render every sound effect offline (OfflineAudioContext or the plain sample math, in a unit test): each one is non-silent, never clips (peak at or below 1.0 after the master gain), is shorter than 2 s, and the loudest is no more than 12 dB above the quietest of the one-shot sounds. Accept: the test is in `pnpm test`; a table of peak and duration per sound in your report.
+3. OVN-GAME-11 (new): the first second of a run at 390×844 (Q9, first half): the weather, senses and first decision chips cover the START sign. Chips appear only once the robot has moved 1 m or the first decision after the start arrives, whichever is first; the drive hint stays.
+4. The attract panel: [BRAIN]'s note "DEMO REPLAY · SCAN THE CODE…" sits on the last line of your legend. Your legend moves up one line; tell [BRAIN] nothing needs to change on their side.
+5. Then the wake-up rule. I am measuring the run page on a 4G-like link (first sample: 8.4 s to the HUD against 0.6 s unthrottled, on a loaded machine); if it holds I will file it here with numbers.
 
 [UI] (received through OVN-UI-7, Q6–Q8, 90d1f73, 23e8b14, fa32b42. Your block is NOT empty: 0 and 1–6 below are open.)
 0b. M9's "Fit one" for a first-timer ([SIM]'s OVN-SIM-20): a visitor with 0 points cannot fit the light sensor (50 points) or the NoIR camera (200). When the part the link points to is locked, say what it costs and that one finished run pays for it, and link to the part's sheet. [SIM] has the numbers.
@@ -84,6 +80,7 @@ State: latest tag `demo-good-0500` (5bf1572). Lab Missions are GREEN: the e2e pl
 
 [BRAIN] (received: OVN-BRAIN-0, 1, 2, 4, QA-T2, QA-T3, OVN-BRAIN-3 so far (133f77c). The Anthropic credit is on the human's list in docs/OVERNIGHT_LOG.md.)
 0d. Q13 in docs/QA.md (new, the first thing a visitor sees): on M1 Jev never scans. Jev mode from Play Now: "Scans: 0 of 1 scanned · 1 missed: +10 s", and "HEURISTIC beat JEV by 46 points"; the same in Drive mode (Jev ghost 33.8 s against a human's 23.8 s) and on /screen ("PLAN · scan zone survivor in 3 m → full throttle (96 %)"). The question tells Jev the zone is ahead; find out whether the options' predicted outcomes price the 10 s penalty and the stop, fix the question (with [SIM] if the prediction is theirs), and show the before and after on M1, M3 and M7 over 3 seeds. Do this before the arena re-run so the table reflects it.
+0j. [LAB] will ask you for a live Jev endpoint for Lab Missions (their OVN-LAB-6): the Lab question through your generic choice call, same cache and fault switch as /api/decide.
 0i. Received OVN-BRAIN-5 (bb08914): the fallback holds. The gate now sets RIVETRUN_JEV_FAULT_SWITCH=1 on its own QA server and runs a Jev-mode M1 with your `rr_jev_fault=fail` cookie every cycle. Keep the 22 s ghost-slow route test as it is. Next for you, in this order: Q17 (0h); re-run the Lab arena on LAB_VERSION 2 ([LAB]'s 9584eb8) and tell [LAB] and [UI] so Warehouse can drop "under tuning"; the arena remainder (item 4); OVN-BRAIN-8 (a phone that drops off) before OVN-BRAIN-7 (humans in the arena), because the demo depends on the first.
 0g. Received Q13 (43a7201: retested by the gate, Jev finishes M1 in 26.9 s where it took 33.4 s), Q14 (f4ad682) and bf0a3ce. Keep bf0a3ce: the race ranks by the sim's time including the 10 s per missed scan, and every screen says so.
 0h. Q17 in docs/QA.md (new): in the gate's Drive run on M5 the rival was "HEURISTIC 2.2 m AHEAD", not Jev: the visitor tapped Drive before the Jev ghost was ready. On M1 it is ready because Home prefetches it. Measure, on the production build, how long the Jev ghost takes from opening /brief/Mx to ready, for M1–M9. If it is more than 3 s anywhere, give [UI] a state to show on the Brief ("Jev is getting ready" → "Jev is ready") and prefetch M5 from /race too. A visitor racing fixed rules while the screen says "You vs Jev" elsewhere is confusing.
@@ -97,10 +94,11 @@ State: latest tag `demo-good-0500` (5bf1572). Lab Missions are GREEN: the e2e pl
 6. OVN-BRAIN-8 (new): a phone that drops off. Mid-race, a phone loses the network for 5 s (and, separately, reloads the page): it rejoins the same seat, its run continues or ends with a stated reason, and the final order on the big screen and on every phone is identical. Accept: headless run for both cases, the two orders in your report.
 7. OVN-BRAIN-6 (stretch, own route `/screen?arena=1`, nothing on the default /screen changes): the live Arena race — up to 4 brain bots on one seed, each lane labelled with its model and latest latency. "DNF · race closed" stays at 45 s; the human decides at rehearsal. Then the wake-up rule above.
 
-[LAB] (received: OVN-LAB-1…4, Q18 (f67f229), Q19 (9584eb8). Lab Missions are green in the gate at demo-good-0500.)
-1. and 2. received.
-3. The two gaps [SIM] found against the rail sim: no cold factor on the battery in Mars or anywhere on the grid, and no night rule for the NoIR camera and light sensor. Either implement them where a scenario has cold or dark, or keep the sentences in SIMPLIFICATIONS and show them on the scenario's brief.
-4. /scenarios at 1280×720 (the big screen may show it) and Mars and House played by hand to the result, with a screenshot each. Then the wake-up rule.
+[LAB] (received: OVN-LAB-1…5 (d996866). Mars and House key sequences noted for the e2e. The map legend is approved.)
+1. The map legend on the brief and the run (your idea).
+2. OVN-LAB-6 (new): the brain in "The brain drives" and Jev in Capture the flag are the lab heuristic at 400 ms, and the page says so. Make it the real Jev, live, the way the rail game does it: [BRAIN] owns the route and already has the Lab question builder and a generic Jev choice call (9e64a85, 133f77c); you own the page. Fallback to the lab heuristic after 1200 ms with FALLBACK shown, latency in the thread, and the honesty line changed to what is true ("Jev answers live; when it is slow the fixed rules decide"). Ask [BRAIN] for the endpoint. Accept: a CTF run where the thread shows Jev's real latencies; with [BRAIN]'s fault cookie the run still finishes and says FALLBACK.
+3. The result view at 1280×720 (laid out, never looked at), and Warehouse played by hand to the result at 390×844 after OVN-LAB-4's change (eight forklifts).
+4. Bests for Lab Missions survive a reload and a "Retry" keeps the chosen robot and mode. Then the wake-up rule.
 
 ## Guardrails
 - The human owns :3001, `pnpm demo:stable` serving and the tunnel. [MASTER] may restart the :3000 dev server only if it is down or reload-looping.
@@ -113,7 +111,7 @@ State: latest tag `demo-good-0500` (5bf1572). Lab Missions are GREEN: the e2e pl
 ## Queues
 Items are in priority order. IDs are OVN-<owner>-<n>.
 
-### Board (kept by [MASTER], updated 05:03)
+### Board (kept by [MASTER], updated 05:12)
 "Reported" is the owner's word; "QA" is what the gate or the e2e screens showed. Workers are ahead of the wave clock: Wave 1 was reported done by 04:03.
 
 | Item | State | Commit | QA |
