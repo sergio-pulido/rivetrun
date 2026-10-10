@@ -25,10 +25,11 @@ describe('facts-only rail question', () => {
       // Same options and the same predicted numbers as the game's wording.
       const game = buildJevRequest(question).questions.action;
       expect(Object.keys(action.criteria)).toEqual(Object.keys(game.criteria));
-      expect(action.criteria).toEqual(game.criteria);
+      // Every option keeps the game's description and numbers, then adds the sim's facts about that option.
+      for (const [id, text] of Object.entries(action.criteria)) expect((text ?? "").startsWith(game.criteria[id] ?? "?"), id).toBe(true);
       expect(VERDICT_WORDS.test(game.instructions)).toBe(true);
     }
-    expect(jevQuestionVersion('facts')).toBe(`${jevQuestionVersion()}-facts`);
+    expect(jevQuestionVersion('facts')).toMatch(new RegExp(`^${jevQuestionVersion()}-facts`));
   });
 
   it('still states what a scan zone costs: the hold time on it and the penalty for driving past', async () => {
@@ -36,5 +37,12 @@ describe('facts-only rail question', () => {
     await runHeadless(MISSIONS.M1, 1001, PRESETS.all_rounder.build, { decide: (question) => (seen.push(buildJevRequest(question, undefined, 'facts').questions.action.instructions), heuristicBrain.decide(question)) }, { priority: 0.5 });
     expect(seen.some((text) => /m ahead and this robot can scan it.*10 s time penalty/.test(text))).toBe(true);
     expect(seen.some((text) => /under the robot right now.*holds the robot on the zone for 1\.5 s/.test(text))).toBe(true);
+  });
+
+  it('puts the cost of passing a scan pad on the options that pass it', async () => {
+    const said: string[] = [];
+    await runHeadless(MISSIONS.M1, 1001, PRESETS.all_rounder.build, { decide: (question) => (said.push(...Object.values(buildJevRequest(question, undefined, "facts").questions.action.criteria).map((text) => text ?? "")), heuristicBrain.decide(question)) }, { priority: 0.5 });
+    expect(said.some((text) => /Scan zone "[^"]+": .*the zone is lost, \+10 s on the clock/.test(text))).toBe(true);
+    expect(said.some((text) => /can still stop on the pad|completes the scan inside the window|scan is in progress/.test(text))).toBe(true);
   });
 });

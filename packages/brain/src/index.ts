@@ -26,7 +26,9 @@ export const JEV_QUESTION_VERSION = 'q9-scan-approach';
  * - 'facts': the same state, options and predicted numbers, with what each thing costs, and no rule or judgement.
  */
 export type QuestionMode = 'verdict' | 'facts';
-export const jevQuestionVersion = (mode: QuestionMode = 'verdict'): string => (mode === 'facts' ? `${JEV_QUESTION_VERSION}-facts` : JEV_QUESTION_VERSION);
+/** Wording version of the facts-only question: 2 = each option carries the sim's scan, contact and end-speed facts. */
+const FACTS_WORDING = 'facts2';
+export const jevQuestionVersion = (mode: QuestionMode = 'verdict'): string => (mode === 'facts' ? `${JEV_QUESTION_VERSION}-${FACTS_WORDING}` : JEV_QUESTION_VERSION);
 /** Words that would tell the reader which option to take; a facts-only question holds none of them (unit-tested). */
 export const VERDICT_WORDS = /\b(correct|must|should|ought|best|prefer|wrong|pick)\b/i;
 const QUESTION_ID = 'action';
@@ -171,12 +173,44 @@ const finishChargeLine = (entry: LookaheadEntry): string =>
     ? ''
     : ` Charge at the finish if this pace holds: ${round(entry.projectedFinishPct, 0)} % (${finishChargeLevel(entry.projectedFinishPct)}).`;
 
+/**
+ * What the sim's rules know about this option, as numbers and outcomes (OVN-SIM-24). Printed in the facts-only
+ * wording, where no sentence says which option to take: the cost of each option has to be on the option itself.
+ */
+function optionFacts(entry: LookaheadEntry): string {
+  const parts: string[] = [];
+  if (entry.endSpeedMps !== undefined) parts.push(`Speed at the end of the window: ${round(entry.endSpeedMps, 1)} m/s.`);
+  const scan = entry.scan;
+  if (scan) {
+    const zone = `Scan zone "${scan.label.replace(/["`]/g, "'")}"`;
+    const room = `the hard brake needs ${round(scan.stopDistanceM, 1)} m and ${round(Math.max(0, scan.padEndInM), 1)} m of pad are left`;
+    const cost = `the zone is lost, +${round(scan.missCostS, 0)} s on the clock`;
+    parts.push(
+      scan.outcome === 'scanned'
+        ? `${zone}: this option completes the scan inside the window.`
+        : scan.outcome === 'holding'
+          ? `${zone}: the robot is stopped on the pad and the scan is in progress.`
+          : scan.outcome === 'can_stop'
+            ? `${zone}: not reached yet; after this window the robot can still stop on the pad (${room}).`
+            : scan.outcome === 'will_pass'
+              ? `${zone}: after this window the robot can no longer stop on the pad (${room}): ${cost}.`
+              : `${zone}: this option drives past the pad inside the window: ${cost}.`,
+    );
+  }
+  const contact = entry.contact;
+  if (contact) {
+    parts.push(`Meets ${contact.kind === 'rough_ground' ? 'rough ground' : `a ${contact.kind}`} at ${round(contact.speedMps, 1)} m/s (no damage up to ${round(contact.safeSpeedMps, 1)} m/s): ${round(contact.damagePct, 1)} % damage.`);
+  }
+  return parts.length > 0 ? ` ${parts.join(' ')}` : '';
+}
+
 const describeOption = (
   action: Action,
   entry: LookaheadEntry | undefined,
   bestProgress: number,
   lookaheadS: number,
   hazard: FarHazard | null,
+  facts = false,
 ): string => {
   if (!entry) return `${ACTION_MEANING[action]} No prediction available.`;
   const progress = round(entry.progressM, 1);
@@ -190,7 +224,8 @@ const describeOption = (
     `energy ${energy} % (${energyBucket(entry.energyPct, scale)}).` +
     finishChargeLine(entry) +
     (entry.assumed ? ' This prediction runs past what the sensors know: it assumes the track continues unchanged.' : '') +
-    farHazardLine(hazard, entry, lookaheadS)
+    farHazardLine(hazard, entry, lookaheadS) +
+    (facts ? optionFacts(entry) : '')
   );
 };
 
@@ -327,7 +362,7 @@ export function buildJevRequest(question: BrainQuestion, model: string = JEV_MOD
     ? `The sensors see ${hazard.kind === 'gap' ? 'a gap' : 'an obstacle'} ${round(hazard.distanceM, 1)} m ahead, further than any option travels in the simulated window, so hitting it is NOT in any predicted damage figure. Each option says how far away it then is and how soon the robot reaches it. Arriving "immediately" or "soon" at speed risks an impact, more so on slippery ground (ice, mud, a high slip reading) where the robot needs longer to slow down; "later" or "far off" leaves room to keep the pace for now. `
     : '';
   const criteria = Object.fromEntries(
-    question.options.map((action) => [action, describeOption(action, byAction.get(action), bestProgress, lookaheadS, hazard)]),
+    question.options.map((action) => [action, describeOption(action, byAction.get(action), bestProgress, lookaheadS, hazard, facts)]),
   );
   const stopped = Math.abs((observation?.speedMps ?? question.status.speedMps)) < STOPPED_SPEED_MPS;
   // Only builds with the piston are offered `jump`; say when it is worth its energy.

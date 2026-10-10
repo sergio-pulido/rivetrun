@@ -3,7 +3,7 @@
 // the state, the instructions and the option descriptions Jev is given, and nothing else.
 import { createHash } from 'node:crypto';
 import type { Action, BrainQuestion } from '@rivetrun/contracts';
-import { buildJevRequest, JEV_QUESTION_VERSION, type QuestionMode } from '../index';
+import { buildJevRequest, jevQuestionVersion, type QuestionMode } from '../index';
 
 export const ARENA_SYSTEM =
   'You are the driver of a small robot in a racing simulation. You are asked one multiple-choice question at a time. ' +
@@ -92,5 +92,5 @@ const HASH_FIXTURE: BrainQuestion = {
 /** Short hash of the prompt template: changes whenever the wording any contestant reads changes. */
 export function arenaPromptHash(mode: QuestionMode = arenaMode): string {
   const prompt = buildArenaPrompt(HASH_FIXTURE, mode);
-  return createHash('sha256').update(`${JEV_QUESTION_VERSION}${mode === 'facts' ? '-facts' : ''}\n${prompt.system}\n${prompt.user}`).digest('hex').slice(0, 10);
+  return createHash('sha256').update(`${jevQuestionVersion(mode)}\n${prompt.system}\n${prompt.user}`).digest('hex').slice(0, 10);
 }
