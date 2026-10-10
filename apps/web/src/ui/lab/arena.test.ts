@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { arenaLine, arenaRows, parseArena, scatter } from './arena';
+import { arenaLine, arenaRows, cleanReason, parseArena, scatter, scenarioTable } from './arena';
 
 const FILE = {
   date: '2026-10-10',
@@ -147,5 +147,37 @@ describe('Lab Missions track', () => {
     const priced = parseArena({ ...FILE, priceSources: { anthropic: 'https://example.com/pricing' }, lab })!;
     expect(priced.priced).toBe(true);
     expect(priced.lab!.priced).toBe(true);
+  });
+});
+
+describe('Lab Missions detail', () => {
+  const brain = (id: string, byScenario: Record<string, { runs: number; completed: number; meanScore: number }>) => ({ id, label: id, kind: 'llm', status: 'ok', runs: 6, meanScore: 300, byScenario });
+  const lab = { date: '2026-10-10', runs: 12, scenarios: ['maze', 'ctf'], notes: ['CTF is a race.'], contestants: [brain('a', { maze: { runs: 3, completed: 3, meanScore: 597.4 }, ctf: { runs: 3, completed: 0, meanScore: 0 } }), brain('b', { maze: { runs: 3, completed: 2, meanScore: 410 } })] };
+
+  it('tabulates the mean score per scenario with the runs completed, flagging a scenario never completed', () => {
+    const table = scenarioTable(parseArena({ ...FILE, lab })!.lab!)!;
+    expect(table.scenarios).toEqual(['maze', 'ctf']);
+    expect(table.rows[0]!.cells).toEqual([{ score: '597', done: '3/3', failed: false }, { score: '0', done: '0/3', failed: true }]);
+    expect(table.rows[1]!.cells).toEqual([{ score: '410', done: '2/3', failed: false }, { score: '—', done: '', failed: false }]);
+  });
+
+  it('has no scenario table for the rail arena, and carries the notes of the runner', () => {
+    const arena = parseArena({ ...FILE, lab })!;
+    expect(scenarioTable(arena)).toBeNull();
+    expect(arena.lab!.notes).toEqual(['CTF is a race.']);
+    expect(arena.notes).toEqual([]);
+  });
+
+  it('marks a row run on another gameplay version', () => {
+    const rows = arenaRows(parseArena({ ...FILE, gameplayVersion: 4, contestants: [{ ...FILE.contestants[0], gameplayVersion: 3 }, FILE.contestants[1]] })!);
+    expect(rows.map((row) => row.carried)).toEqual(['gameplay 3', null]);
+  });
+});
+
+describe('cleanReason', () => {
+  it('keeps the status of a provider error and drops its body', () => {
+    expect(cleanReason('no accepted mode: HTTP 400: {"type":"error","error":{"message":"Your credit balance is too low"}}')).toBe('the provider refused the request (HTTP 400)');
+    expect(cleanReason('held until the cost of the row is approved')).toBe('held until the cost of the row is approved');
+    expect(cleanReason('timeout {"raw":1}')).toBe('timeout');
   });
 });

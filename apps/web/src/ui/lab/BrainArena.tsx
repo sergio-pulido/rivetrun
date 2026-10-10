@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { arenaLine, arenaRows, mostRuns, scatter, type Arena, type ArenaSection, type ContestantKind } from './arena';
+import { arenaLine, arenaRows, mostRuns, scatter, scenarioTable, type Arena, type ArenaSection, type ContestantKind } from './arena';
 
 const PLOT = { width: 334, height: 230, padding: 30 } as const;
 
@@ -43,6 +43,7 @@ function Table({ arena }: { readonly arena: ArenaSection }) {
                 </span>
                 <span className={`block pl-3.5 text-[10px] text-muted ${row.configured ? 'truncate' : 'whitespace-normal leading-tight'}`}>{row.detail}</span>
                 {row.fewer ? <span className="block pl-3.5 text-[10px] font-medium text-warn">{row.fewer} only</span> : null}
+                {row.carried ? <span className="block pl-3.5 text-[10px] font-medium text-warn">run on {row.carried}</span> : null}
               </th>
               {[row.finish, row.score, row.decisions, row.p50, row.p95, row.lateCrashes, row.cost].map((cell, index) => (
                 <td key={COLUMNS[index]} className="whitespace-nowrap px-2 py-2">
@@ -137,8 +138,56 @@ const EMPTY: Readonly<Record<Track, { readonly title: string; readonly text: str
   lab: { title: 'No Lab Missions results yet', text: 'The same brains on the grid scenarios appear here once that track has run. Nothing is shown until there are real runs to show.' },
 };
 
+/** What a reader needs to know about capture the flag when the runner's own notes do not say it. */
+const CTF_NOTE = 'Capture the flag is a race against a rival robot: a brain that answers too slowly loses the flag and scores 0 on it.';
+
+function Scenarios({ section }: { readonly section: ArenaSection }) {
+  const table = scenarioTable(section);
+  if (!table) return null;
+  return (
+    <div className="flex flex-col gap-1.5">
+      <h3 className="rr-label">Score by scenario</h3>
+      <div className="rr-scroll-x -mx-4 px-4">
+        <table className="w-full min-w-[520px] border-collapse text-right font-mono text-xs tabular-nums">
+          <caption className="sr-only">Mean score per scenario, with runs completed</caption>
+          <thead>
+            <tr className="text-[10px] font-medium uppercase tracking-[1px] text-muted">
+              <th scope="col" className="sticky left-0 bg-panel py-2 pr-3 text-left font-medium">
+                Brain
+              </th>
+              {table.scenarios.map((scenario) => (
+                <th key={scenario} scope="col" className="whitespace-nowrap px-2 py-2 font-medium">
+                  {scenario.replaceAll('_', ' ')}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {table.rows.map((row) => (
+              <tr key={row.id} className="border-t border-tag">
+                <th scope="row" className="sticky left-0 max-w-[140px] bg-panel py-2 pr-3 text-left font-display text-[13px] font-semibold leading-tight text-text">
+                  {row.label}
+                </th>
+                {row.cells.map((cell, index) => (
+                  <td key={table.scenarios[index]} className={`whitespace-nowrap px-2 py-2 ${cell.failed ? 'text-warn' : ''}`}>
+                    {cell.score}
+                    {cell.done ? <span className="ml-1 text-[10px] text-muted">{cell.done}</span> : null}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <p className="text-[11px] leading-snug text-muted">Mean score, then runs completed of runs made.</p>
+    </div>
+  );
+}
+
 function Results({ section }: { readonly section: ArenaSection }) {
   const rows = arenaRows(section);
+  // The runner's notes when the file carries them; otherwise the one thing the CTF column cannot be read without.
+  const notes = section.notes.length > 0 ? section.notes : section.scenarios.includes('ctf') ? [CTF_NOTE] : [];
   return (
     <>
       {section.scenarios.length > 0 ? (
@@ -154,7 +203,16 @@ function Results({ section }: { readonly section: ArenaSection }) {
       {rows.some((row) => row.fewer) ? (
         <p className="-mt-1.5 text-[11px] leading-snug text-warn">Rows marked in amber ran fewer runs than the others ({mostRuns(section)}): their figures rest on less and are not directly comparable.</p>
       ) : null}
+      {rows.some((row) => row.carried) ? (
+        <p className="-mt-1.5 text-[11px] leading-snug text-warn">Rows marked with a gameplay version were run on an earlier version of the game than the rest (gameplay {section.gameplayVersion}).</p>
+      ) : null}
       {section.priced ? <p className="-mt-1.5 text-[11px] leading-snug text-muted">Cost per run: each provider&apos;s published price × the tokens it reported. A token count is shown where no price is set.</p> : null}
+      <Scenarios section={section} />
+      {notes.map((note) => (
+        <p key={note} className="-mt-1.5 text-[11px] leading-snug text-text-2">
+          {note}
+        </p>
+      ))}
       <Scatter arena={section} />
       <p className="border-t border-line pt-3 text-xs leading-snug text-text-2">
         {arenaLine(section)}

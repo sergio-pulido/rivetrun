@@ -24,6 +24,10 @@ const ContestantSchema = z.object({
   lateCrashes: z.number().int().min(0).nullish(),
   /** Only when a price is configured: providers report tokens, not money. */
   costPerRunUsd: z.number().min(0).nullish(),
+  /** The gameplay version this row was run on, when it differs from the file's (a row carried over from an earlier run). */
+  gameplayVersion: z.number().nullish(),
+  /** Lab Missions: results per scenario. */
+  byScenario: z.record(z.string(), z.object({ runs: z.number().min(0), completed: z.number().min(0), meanScore: z.number(), meanCompletionPct: z.number().min(0).max(100).nullish() })).nullish(),
   /** The seeds this brain ran on. */
   seeds: z.array(z.number()).nullish(),
   /** Tokens per run, as the provider reported them. */
@@ -38,6 +42,9 @@ const SectionSchema = z.object({
   promptHash: z.string().nullish(),
   /** Lab Missions: the scenarios that were run. */
   scenarios: z.array(z.string()).nullish(),
+  gameplayVersion: z.number().nullish(),
+  /** Things the reader must know to read the table, in the runner's words. */
+  notes: z.array(z.string()).nullish(),
   /** Where the prices behind costPerRunUsd come from, per provider. Present = the costs are computed from published prices. */
   priceSources: z.record(z.string(), z.string()).nullish(),
   contestants: z.array(z.unknown()),
@@ -54,6 +61,8 @@ export interface ArenaSection {
   readonly runs: number;
   readonly promptHash: string | null;
   readonly scenarios: readonly string[];
+  readonly gameplayVersion: number | null;
+  readonly notes: readonly string[];
   /** Costs are computed from the providers' published prices and the tokens they reported. */
   readonly priced: boolean;
   readonly contestants: readonly Contestant[];
@@ -82,6 +91,8 @@ function parseSection(raw: unknown): ArenaSection | null {
     runs: file.data.runs,
     promptHash: file.data.promptHash ?? null,
     scenarios: file.data.scenarios ?? [],
+    gameplayVersion: file.data.gameplayVersion ?? null,
+    notes: file.data.notes ?? [],
     priced: Object.keys(file.data.priceSources ?? {}).length > 0,
     contestants,
     notRun,
@@ -106,6 +117,8 @@ export interface ArenaRow {
   readonly detail: string;
   /** Set when this brain ran fewer runs than the largest row: its figures rest on less, e.g. "7 runs · 1 seed". */
   readonly fewer: string | null;
+  /** Set when the row was run on another gameplay version than the rest of the table, e.g. "gameplay 3". */
+  readonly carried: string | null;
   readonly finish: string;
   readonly score: string;
   readonly decisions: string;
@@ -127,6 +140,41 @@ const thousands = (count: number): string => (count < 1000 ? `${Math.round(count
 
 const NO_FIGURES = { finish: MISSING, score: MISSING, decisions: MISSING, p50: MISSING, p95: MISSING, lateCrashes: MISSING, cost: MISSING } as const;
 
+/**
+ * A "not run" reason fit to show: the runner sometimes records the provider's raw error (a status code and a JSON body).
+ * The status is kept; the body, which can describe the account, is not put on a public page.
+ */
+export function cleanReason(reason: string): string {
+  const status = /HTTP\s+(\d{3})/i.exec(reason);
+  if (status) return `the provider refused the request (HTTP ${status[1]})`;
+  return reason.includes('{') ? reason.slice(0, reason.indexOf('{')).replace(/[:\s]+$/, '') || 'the provider returned an error' : reason;
+}
+
+export interface ScenarioTable {
+  readonly scenarios: readonly string[];
+  readonly rows: readonly { readonly id: string; readonly label: string; readonly kind: ContestantKind; readonly cells: readonly { readonly score: string; readonly done: string; readonly failed: boolean }[] }[];
+}
+
+/** Lab Missions: each brain's mean score per scenario with how many of its runs completed. Null when the section has no such figures. */
+export function scenarioTable(arena: ArenaSection): ScenarioTable | null {
+  const rows = arena.contestants.flatMap((entry) => {
+    const by = entry.byScenario;
+    if (entry.status !== 'ok' || !by) return [];
+    return [
+      {
+        id: entry.id,
+        label: entry.label,
+        kind: entry.kind,
+        cells: arena.scenarios.map((scenario) => {
+          const result = by[scenario];
+          return result ? { score: `${Math.round(result.meanScore)}`, done: `${result.completed}/${result.runs}`, failed: result.completed === 0 } : { score: MISSING, done: '', failed: false };
+        }),
+      },
+    ];
+  });
+  return rows.length > 0 && arena.scenarios.length > 0 ? { scenarios: arena.scenarios, rows } : null;
+}
+
 /** How many runs the largest row has: rows with fewer are marked. */
 export const mostRuns = (arena: ArenaSection): number => Math.max(0, ...arena.contestants.map((entry) => (entry.status === 'ok' ? (entry.runs ?? 0) : 0)));
 
@@ -134,7 +182,7 @@ export const mostRuns = (arena: ArenaSection): number => Math.max(0, ...arena.co
 export function arenaRows(arena: ArenaSection): readonly ArenaRow[] {
   const mostRuns = Math.max(0, ...arena.contestants.map((entry) => (entry.status === 'ok' ? (entry.runs ?? 0) : 0)));
   const measured = arena.contestants.map((entry): ArenaRow => {
-    if (entry.status !== 'ok') return { id: entry.id, label: entry.label, kind: entry.kind, configured: false, detail: 'not configured', fewer: null, ...NO_FIGURES };
+    if (entry.status !== 'ok') return { id: entry.id, label: entry.label, kind: entry.kind, configured: false, detail: 'not configured', fewer: null, carried: null, ...NO_FIGURES };
     const runs = entry.runs ?? null;
     // A model id that only repeats the name adds nothing.
     const model = entry.modelId && entry.modelId.toLowerCase() !== entry.label.toLowerCase() ? entry.modelId : null;
@@ -145,6 +193,7 @@ export function arenaRows(arena: ArenaSection): readonly ArenaRow[] {
       kind: entry.kind,
       configured: true,
       detail: [model, runs === null ? null : `${runs} ${runs === 1 ? 'run' : 'runs'}`].filter(Boolean).join(' · '),
+      carried: typeof entry.gameplayVersion === 'number' && arena.gameplayVersion !== null && entry.gameplayVersion !== arena.gameplayVersion ? `gameplay ${entry.gameplayVersion}` : null,
       fewer: runs !== null && runs < mostRuns ? [`${runs} ${runs === 1 ? 'run' : 'runs'}`, entry.seeds ? `${entry.seeds.length} ${entry.seeds.length === 1 ? 'seed' : 'seeds'}` : null].filter(Boolean).join(' · ') : null,
       finish: shown(entry.finishPct, (value) => `${Math.round(value)}%`),
       score: shown(entry.meanScore, (value) => `${Math.round(value)}`),
@@ -156,7 +205,7 @@ export function arenaRows(arena: ArenaSection): readonly ArenaRow[] {
       cost: typeof entry.costPerRunUsd === 'number' ? dollars(entry.costPerRunUsd) : tokens === null ? MISSING : `${thousands(tokens)} tok`,
     };
   });
-  const held = arena.notRun.filter((entry) => !arena.contestants.some((contestant) => contestant.id === entry.id)).map((entry): ArenaRow => ({ id: entry.id, label: entry.label, kind: 'llm', configured: false, detail: `not run: ${entry.reason}`, fewer: null, ...NO_FIGURES }));
+  const held = arena.notRun.filter((entry) => !arena.contestants.some((contestant) => contestant.id === entry.id)).map((entry): ArenaRow => ({ id: entry.id, label: entry.label, kind: 'llm', configured: false, detail: `not run: ${cleanReason(entry.reason)}`, fewer: null, carried: null, ...NO_FIGURES }));
   return [...measured, ...held];
 }
 
