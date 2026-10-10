@@ -560,7 +560,7 @@ export function advanceBrain(next: RunState): { readonly trigger: Trigger | null
   const jumpReady = next.spec.jumpImpulseMps > 0 && next.sim.t >= next.jumpReadyT;
   if (next.spec.jumpImpulseMps > 0 && jumpReady !== memory.jumpReady) {
     remember({ jumpReady });
-    if (jumpReady && !next.airborne) fired.push(fire('actuator', 'jump_ready', 'PISTON · re-armed', 'core'));
+    if (jumpReady && !next.airborne) fired.push(fire('actuator', 'jump_ready', next.spec.fan ? 'FAN · cooled down' : 'PISTON · re-armed', 'core'));
   }
   if (next.scans.justDone) fired.push(fire('actuator', 'scan_done', `SCAN · "${next.scans.justDone}" done`, 'core'));
   // Encoders: at rest for a second under a command to stand still.

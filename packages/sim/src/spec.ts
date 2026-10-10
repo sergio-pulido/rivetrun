@@ -1,5 +1,5 @@
 import type { Build, ExtraKind, Part, SensorKind, SensorSource, TerrainId } from '@rivetrun/contracts';
-import { PARTS_BY_ID } from './data';
+import { DUCTED_FAN, PARTS_BY_ID } from './data';
 
 export const CHASSIS_MASS_KG = 1;
 export const WHEEL_RADIUS_M = 0.05;
@@ -32,11 +32,13 @@ export interface RobotSpec {
   readonly wheelSizeMm: number;
   /** Multiplier on obstacle and rough-ground impacts from wheel size (bigger wheels roll over more). */
   readonly obstacleImpactFactor: number;
-  /** Vertical launch speed of the piston, m/s (0 = no piston). */
+  /** Vertical launch speed of the jump part, m/s: the piston's kick, or the hop that starts a fan burn (0 = neither). */
   readonly jumpImpulseMps: number;
   readonly jumpCooldownS: number;
   /** Energy of one jump = this power for one second. */
   readonly jumpPowerW: number;
+  /** Ducted fan: thrust while the jump button is held. Absent = no fan (or a piston is fitted: they share the button). */
+  readonly fan?: { readonly liftN: number; readonly pushN: number; readonly burnS: number; readonly powerW: number };
   readonly sensorRangeM: Partial<Record<SensorKind, number>>;
   /** Brain v3: where this build's knowledge can come from. Always starts with 'core'. */
   readonly sources: readonly SensorSource[];
@@ -65,12 +67,15 @@ const sourceOf = (sensor: Part): SensorSource => sensor.effects.source ?? KIND_S
 export function buildIssues(build: Build): string[] {
   const extras = build.extras.map(part);
   const kinds = new Set(extras.map((p) => p.effects.extra));
-  return extras.flatMap((p) => {
+  const missing = extras.flatMap((p) => {
     const needs = p.effects.requiresExtra;
     if (needs === undefined || kinds.has(needs)) return [];
     const needed = [...PARTS_BY_ID.values()].find((candidate) => candidate.effects.extra === needs);
     return [`${p.name} needs the ${needed?.name ?? needs}`];
   });
+  // One jump button: the piston and the fan cannot both be on it. With both fitted the piston works and the fan is dead weight.
+  const jumpers = extras.filter((p) => p.effects.extra === 'piston_jump' || p.effects.extra === 'ducted_fan');
+  return jumpers.length > 1 ? [...missing, `${jumpers[0]!.name} and ${jumpers[1]!.name} share the jump button: fit one`] : missing;
 }
 
 /** Size L: the 90 mm wheel, the largest in the real parts list (docs/MK2_BOM.md). */
@@ -105,6 +110,7 @@ export function deriveSpec(build: Build): RobotSpec {
   const all = [locomotion, motor, battery, ...sensors, ...extras];
   const winch = extras.find((p) => p.effects.extra === 'winch');
   const piston = extras.find((p) => p.effects.extra === 'piston_jump');
+  const fan = piston ? undefined : extras.find((p) => p.effects.extra === 'ducted_fan');
   const kinds = new Set(extras.map((p) => p.effects.extra));
   const thrusters = extras.find((p) => p.effects.maxSwimDepthCm !== undefined && (p.effects.requiresExtra === undefined || kinds.has(p.effects.requiresExtra)));
   const sensorRangeM: Partial<Record<SensorKind, number>> = {};
@@ -146,9 +152,10 @@ export function deriveSpec(build: Build): RobotSpec {
     clearanceCm: (wheelMm / 20) * (locomotion.effects.clearanceFactor ?? 1) * CLEARANCE_BUMP_FACTOR,
     wheelSizeMm: wheelMm,
     obstacleImpactFactor: wheel.impact,
-    jumpImpulseMps: piston?.effects.jumpImpulseMps ?? 0,
-    jumpCooldownS: piston?.effects.cooldownS ?? 0,
+    jumpImpulseMps: piston?.effects.jumpImpulseMps ?? (fan ? DUCTED_FAN.hopMps : 0),
+    jumpCooldownS: (piston ?? fan)?.effects.cooldownS ?? 0,
     jumpPowerW: piston?.powerW ?? 0,
+    ...(fan ? { fan: { liftN: DUCTED_FAN.liftN, pushN: DUCTED_FAN.pushN, burnS: DUCTED_FAN.burnS, powerW: fan.powerW } } : {}),
     sensorRangeM,
     sources: ['core', ...new Set(sensors.filter((p) => p.effects.sensor !== undefined).map(sourceOf)), ...(extras.some((p) => p.effects.extra === 'bumper') ? (['bumper'] as const) : [])],
     rangerSource: rangers[0] ? sourceOf(rangers[0]) : undefined,

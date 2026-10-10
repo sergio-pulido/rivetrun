@@ -25,6 +25,8 @@ export const SIMPLIFICATIONS: readonly Simplification[] = [
   { id: 'core_kit', screen: 'workshop senses', sentence: 'Every robot knows its speed, distance, charge and current draw: the game assumes wheel encoders and a power sensor on the base rover.' },
   { id: 'air_levelling', screen: 'drive coach marks', sentence: 'In the air the robot levels itself, for you and for every brain: a game rule. A real rover has no such control.' },
   { id: 'charged_jump', screen: 'drive coach marks', sentence: 'Holding the jump button 0.3 to 1 second gives 40 to 100 % of the piston\'s push: a game curve, not a measured one.' },
+  { id: 'fan_hop', screen: 'part sheet', partId: 'ducted_fan', sentence: 'The fan starts with a 1.1 m/s hop off the ground: a game rule. Thrust below the robot\'s weight could not lift it by itself.' },
+  { id: 'fan_power', screen: 'part sheet', partId: 'ducted_fan', sentence: 'The fan draws 300 W in the game; a real fan of this size draws about a kilowatt, from a far bigger pack.' },
   // One robot, two simulations: where the grid of the Lab Missions differs from the track.
   { id: 'lab_grid', screen: 'lab', sentence: 'Lab Missions run on a grid of tiles: mass, top speed, battery and sensor ranges come from the same build, the motion does not use the track\'s physics.' },
   { id: 'lab_ultrasonic_adjacent', screen: 'lab', partId: 'ultrasonic', sentence: 'On the grid the ultrasonic senses only the four tiles next to the robot; on the track it ranges 3 m ahead.' },

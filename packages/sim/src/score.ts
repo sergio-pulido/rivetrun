@@ -120,7 +120,7 @@ function dnfAdvice(state: RunState): string | undefined {
   const hasPiston = state.spec.jumpImpulseMps > 0;
   if (/^(Flooded in|Sank in)/.test(line)) return 'Fit the waterproof case and the thruster kit: this water is too deep to drive through';
   if (/^Drowned the electronics/.test(line)) return 'Fit the waterproof case';
-  if (/^Fell into the gap/.test(line)) return hasPiston ? 'Jump later: the piston has to carry the whole gap' : 'Fit the piston: full speed clears the gaps that have a ramp, and one gap here has none';
+  if (/^Fell into the gap/.test(line)) return state.spec.fan ? 'Hold the fan until the far edge: a tap is only a small hop' : hasPiston ? 'Jump later: the piston has to carry the whole gap' : 'Fit the piston: full speed clears the gaps that have a ramp, and one gap here has none';
   if (/^Blocked by/.test(line)) return 'Use climb mode, bigger wheels or a jump to get over it';
   if (/^Stood still/.test(line)) return 'Keep some throttle on: 8 s without progress ends the run';
   if (/^(Spun the wheels|Stuck on a|Bogged down)/.test(line)) return 'Switch to climb mode before soft or steep ground, and ease off when the wheels spin';
@@ -145,7 +145,7 @@ function breakdown(state: RunState, scanPenaltyS: number, scanBonus: number): No
     ['impact', damageByCause.impact * tuning.perDamagePct, spec.sources.length <= 1 || !spec.sources.some((source) => ['ultrasonic', 'tof', 'lidar', 'camera', 'scout_drone'].includes(source))
       ? 'Fit a distance sensor: it hit things it could not see' : 'Ease off before hazards: impact damage grows with the square of the speed over the safe speed'],
     ['landing', damageByCause.landing * tuning.perDamagePct, 'Take ramps and drops slower, or fit the bumper'],
-    ['fall', damageByCause.fall * tuning.perDamagePct, spec.jumpImpulseMps > 0 ? 'Jump later: the piston has to carry the whole gap' : 'Carry more speed onto the ramp, or fit the piston'],
+    ['fall', damageByCause.fall * tuning.perDamagePct, spec.fan ? 'Hold the fan until the far edge: a tap is only a small hop' : spec.jumpImpulseMps > 0 ? 'Jump later: the piston has to carry the whole gap' : 'Carry more speed onto the ramp, or fit the piston'],
     ['water', damageByCause.water * tuning.perDamagePct, 'Fit the waterproof case'],
     ['slip', stats.slipLostS * tuning.perSecond, 'Use less throttle on loose ground: spinning wheels grip 30 % less. Tracks or off-road tyres raise the limit'],
     ['scans', scanPenaltyS * tuning.perSecond, 'Stop on the scan zones (under 0.1 m/s for 1.5 s) with the sensor each one needs'],

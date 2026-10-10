@@ -2,6 +2,7 @@ import type { Action, Environment, Obstacle, SimEffect, SimState, TerrainId } fr
 import { TERRAINS, TUNING } from './data';
 import { mixSeed, nextRandom } from './rng';
 import { WHEEL_RADIUS_M, deriveSpec } from './spec';
+import type { RobotSpec } from './spec';
 import type { AirEvent, RunConfig, RunState, RunStats, StepDamage } from './types';
 import { DROP_APPROACH_M, compileTrack, obstacleHeightAt, segmentIndexAt, waterDepthCmAt } from './world';
 import type { World, WorldFeature } from './world';
@@ -72,6 +73,11 @@ export const PHYSICS = {
   landing: { cleanDeg: 10, hardDeg: 30, hardDamagePct: 5, crashDamagePct: 10, crashStallS: 1 },
   /** Charged jump: holding 0.3–1.0 s gives 40–100 % of the piston's impulse. */
   jumpCharge: { minS: 0.3, maxS: 1, minPower: 0.4 },
+  /**
+   * Ducted fan under a brain: it lights only for a gap, at most `maxLeadM` before it, and holds long enough to land
+   * `landMarginM` past the far edge. Thrust never exceeds `maxLiftShare` of the weight.
+   */
+  fan: { maxLeadM: 0.25, landMarginM: 0.2, maxLiftShare: 0.85 },
   /** Climb mode lifts the nose: this much more clearance over an obstacle. */
   climbClearanceFactor: 1.3,
   swimSpeedMps: 1.5,
@@ -166,6 +172,7 @@ export function createRun(config: RunConfig): RunState {
     airStartT: 0,
     falls: 0,
     jumpReadyT: 0,
+    fanBurnS: 0,
     drawW: 0,
     lastStallT: -1,
     stoppedS: 0,
@@ -330,19 +337,66 @@ export function jumpChargePower(heldS: number): number {
 /** Airtime of a piston jump from flat ground, seconds. */
 export const jumpAirtimeS = (impulseMps: number): number => (2 * impulseMps) / G;
 
+/** Upward acceleration the fan gives this build, m/s²: fixed thrust over the build's mass, and never the whole weight. */
+const fanLiftMps2 = (spec: RobotSpec): number => (spec.fan ? Math.min(spec.fan.liftN / spec.massKg, G * PHYSICS.fan.maxLiftShare) : 0);
+
+/**
+ * A fan hop from flat ground at speed v with the button held for `holdS`: ground covered and time in the air.
+ * Steps exactly as step() does, so a plan made with it lands where the run lands.
+ */
+export function fanHop(spec: RobotSpec, v: number, holdS: number): { readonly reachM: number; readonly airtimeS: number } {
+  const fan = spec.fan;
+  if (!fan) return { reachM: 0, airtimeS: 0 };
+  const lift = fanLiftMps2(spec);
+  const cap = Math.max(v, spec.topSpeedMps * 1.2);
+  const limitS = Math.min(holdS, fan.burnS);
+  // The step that lights the fan is the hop itself; thrust acts from the next one.
+  let burnS = DT_S;
+  let x = 0;
+  let h = 0;
+  let vy = spec.jumpImpulseMps;
+  let vx = v;
+  for (let i = 1; i <= 400; i += 1) {
+    x += vx * DT_S;
+    const on = burnS < limitS - 1e-9;
+    vy += ((on ? lift : 0) - G) * DT_S;
+    if (on) {
+      vx = Math.min(vx + (fan.pushN / spec.massKg) * DT_S, cap);
+      burnS += DT_S;
+    }
+    h += vy * DT_S;
+    if (h <= 0) return { reachM: x, airtimeS: i * DT_S };
+  }
+  return { reachM: x, airtimeS: 400 * DT_S };
+}
+
+/** Shortest hold that carries a fan hop `distanceM` from where it lights, seconds. null = no hold does it. */
+export function fanHoldFor(spec: RobotSpec, v: number, distanceM: number): number | null {
+  if (!spec.fan) return null;
+  for (let holdS = DT_S; holdS <= spec.fan.burnS + 1e-9; holdS += DT_S) {
+    if (fanHop(spec, v, holdS).reachM >= distanceM) return Math.round(holdS * 1000) / 1000;
+  }
+  return null;
+}
+
 /**
  * How far before the next gap (or obstacle) an armed piston should fire so the arc is centred on it.
- * null = nothing worth timing for: fire now.
+ * A fan lights later, close to the edge: every metre in the air is paid for. `farM` is where the far side is.
+ * null = nothing worth timing for: a piston fires now, a fan stays dark (a brain burns it only to cross a gap).
  */
-function jumpLeadM(state: RunState, v: number): { readonly targetM: number; readonly leadM: number } | null {
-  const reach = Math.abs(v) * jumpAirtimeS(state.spec.jumpImpulseMps);
+function jumpLeadM(state: RunState, v: number): { readonly targetM: number; readonly leadM: number; readonly farM: number } | null {
+  const { spec } = state;
+  const reach = spec.fan ? fanHop(spec, Math.abs(v), spec.fan.burnS).reachM : Math.abs(v) * jumpAirtimeS(spec.jumpImpulseMps);
   const x = state.sim.x;
   // A gap comes first: the piston is saved for it if it would not have re-armed in time after a hop over an obstacle.
-  const saveFor = reach + PHYSICS.jumpArmRangeM + Math.abs(v) * state.spec.jumpCooldownS;
+  const saveFor = reach + PHYSICS.jumpArmRangeM + Math.abs(v) * spec.jumpCooldownS;
   const gap = state.world.features.find((f) => f.type === 'gap' && f.endM > x && f.startM - x <= saveFor);
-  if (gap) return { targetM: gap.startM, leadM: Math.max(0.05, (reach - (gap.endM - gap.startM)) / 2) };
-  const obstacle = state.world.obstacles.find((o) => o.xM > x && o.xM - x <= reach + PHYSICS.jumpArmRangeM);
-  if (obstacle) return { targetM: obstacle.xM, leadM: reach / 2 };
+  if (gap) {
+    const centred = Math.max(0.05, (reach - (gap.endM - gap.startM)) / 2);
+    return { targetM: gap.startM, leadM: spec.fan ? Math.min(centred, PHYSICS.fan.maxLeadM) : centred, farM: gap.endM };
+  }
+  const obstacle = spec.fan ? undefined : state.world.obstacles.find((o) => o.xM > x && o.xM - x <= reach + PHYSICS.jumpArmRangeM);
+  if (obstacle) return { targetM: obstacle.xM, leadM: reach / 2, farM: obstacle.endM };
   return null;
 }
 
@@ -378,6 +432,12 @@ export function step(state: RunState, action: Action): RunState {
   let landing: StepDamage | undefined;
   let fell: Extract<WorldFeature, { type: 'gap' }> | undefined;
   let jumpJ = 0;
+  // Ducted fan: thrust while held (a player) or for the hold planned at take-off (a brain), within one burn.
+  const fan = spec.fan;
+  const manual = state.config.manual === true;
+  let fanBurnS = state.fanBurnS;
+  let fanHoldS = state.fanHoldS;
+  let fanJ = 0;
   let airPitchDeg = state.airPitchDeg;
   let airAction = state.airAction;
   let crashed = false;
@@ -393,7 +453,15 @@ export function step(state: RunState, action: Action): RunState {
   };
   const afloat = terrainId === 'water' && waterDepthCmAt(segment, sim.x) > spec.maxWadingDepthCm;
   if (wasAirborne) {
-    vy -= G * DT_S;
+    // A burn already lit goes on; a fresh one in the air (after a ramp) needs a cooled fan. Only a player lights one there.
+    const asked = fan !== undefined && (manual ? action === 'jump' || state.fanHeld === true : fanBurnS < (fanHoldS ?? 0) - 1e-9);
+    const thrusting = fan !== undefined && asked && fanBurnS < fan.burnS - 1e-9 && (fanBurnS > 0 || sim.t >= jumpReadyT);
+    vy += ((thrusting ? fanLiftMps2(spec) : 0) - G) * DT_S;
+    if (fan && thrusting) {
+      v = Math.min(v + (fan.pushN / spec.massKg) * DT_S, Math.max(v, spec.topSpeedMps * 1.2));
+      fanBurnS += DT_S;
+      fanJ = fan.powerW * DT_S;
+    }
     heightM += vy * DT_S;
     // The piston fires on one step only: the pedal held when it fired is the take-off command, as on a ramp.
     if (airAction === 'jump' && action !== 'jump') airAction = action;
@@ -419,13 +487,24 @@ export function step(state: RunState, action: Action): RunState {
     const drop = world.features.find((f) => f.type === 'drop' && sim.x < f.startM && x >= f.startM);
     if (drop && drop.type === 'drop') takeOff('drop', drop.heightM, 0);
   }
-  if (!airborne && action === 'jump' && spec.jumpImpulseMps > 0 && sim.t >= jumpReadyT && !afloat) {
-    const timing = state.config.manual ? null : jumpLeadM(state, v);
-    if (!timing || timing.targetM - x <= timing.leadM) {
-      const power = clamp(state.jumpPower ?? 1, PHYSICS.jumpCharge.minPower, 1);
-      takeOff('jump', ramp ? (x - ramp.startM) * Math.tan(ramp.launchDeg * DEG) : 0, spec.jumpImpulseMps * power);
-      jumpReadyT = sim.t + spec.jumpCooldownS;
-      jumpJ = spec.jumpPowerW * power;
+  const jumpAsked = action === 'jump' || (fan !== undefined && manual && state.fanHeld === true);
+  if (!airborne && jumpAsked && spec.jumpImpulseMps > 0 && sim.t >= jumpReadyT && !afloat) {
+    const timing = manual ? null : jumpLeadM(state, v);
+    if (timing ? timing.targetM - x <= timing.leadM : manual || !fan) {
+      const fromHeightM = ramp ? (x - ramp.startM) * Math.tan(ramp.launchDeg * DEG) : 0;
+      if (fan) {
+        // The fan lights with a small hop and burns from the next step. It cools once the burn is over (below).
+        takeOff('jump', fromHeightM, spec.jumpImpulseMps);
+        fanBurnS = DT_S;
+        fanJ = fan.powerW * DT_S;
+        // A brain's hold is worked out here, from the far edge and the speed. No hold reaches: burn to the limit anyway.
+        if (timing) fanHoldS = fanHoldFor(spec, Math.abs(v), timing.farM - x + PHYSICS.fan.landMarginM) ?? fan.burnS;
+      } else {
+        const power = clamp(state.jumpPower ?? 1, PHYSICS.jumpCharge.minPower, 1);
+        takeOff('jump', fromHeightM, spec.jumpImpulseMps * power);
+        jumpReadyT = sim.t + spec.jumpCooldownS;
+        jumpJ = spec.jumpPowerW * power;
+      }
     }
   }
   if (airborne && wasAirborne && heightM <= 0) {
@@ -534,6 +613,12 @@ export function step(state: RunState, action: Action): RunState {
     airPitchDeg = undefined;
     lastAir = { type: 'fell', falls, respawnX, fromX };
   }
+  // The fan's burn ends on the ground (landed or fell) or at its limit, and then it has to cool.
+  if (fan && fanBurnS > 0 && (!airborne || fanBurnS >= fan.burnS - 1e-9)) {
+    jumpReadyT = sim.t + spec.jumpCooldownS;
+    fanBurnS = 0;
+    fanHoldS = undefined;
+  }
   // A nose-first crash stops the robot dead and costs a second to recover.
   if (crashed) {
     v = 0;
@@ -542,7 +627,7 @@ export function step(state: RunState, action: Action): RunState {
   damage = Math.min(100, damage);
 
   const capacityJ = spec.capacityWh * capacityFactor(state.environment) * 3600;
-  const drawJ = (wasAirborne ? spec.basePowerW : powerW(state, action, motion.load, motion.swimming === true)) * DT_S + jumpJ;
+  const drawJ = (wasAirborne ? spec.basePowerW : powerW(state, action, motion.load, motion.swimming === true)) * DT_S + jumpJ + fanJ;
   const battery = Math.max(0, sim.battery - (drawJ / capacityJ) * 100);
   const touched = world.obstacles.find((o) => hit?.obstacle !== undefined && sim.x < o.xM && o.xM - sim.x < 1);
 
@@ -579,7 +664,7 @@ export function step(state: RunState, action: Action): RunState {
   const bestX = progressed ? x : state.bestX;
   // Stuck means not getting anywhere: a robot climbing back after a slide is moving forward, so it is not stuck.
   // A player's stuck clock starts with the first throttle: before it they are reading the screen.
-  const started = !state.config.manual || state.started === true || profile.speed > 0 || action === 'deploy_winch' || action === 'jump';
+  const started = !state.config.manual || state.started === true || profile.speed > 0 || action === 'deploy_winch' || jumpAsked;
   const neverStarted = !started && t >= PHYSICS.startWaitS;
   const lastProgressT = !started || progressed || fell || airborne || v >= PHYSICS.rollbackMps ? t : state.lastProgressT;
 
@@ -658,6 +743,9 @@ export function step(state: RunState, action: Action): RunState {
     airStartT,
     falls,
     jumpReadyT,
+    fanBurnS,
+    fanHoldS,
+    fanHeld: undefined,
     lastAir,
     started,
     ...(neverStarted ? { neverStarted: true } : {}),

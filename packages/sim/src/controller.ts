@@ -327,8 +327,13 @@ export function replayEpisode(episode: Episode): ReplayResult {
   return { ok: true, ...replayed, matches };
 }
 
-/** One step of a player's run: the input as an action, the piston charging while the button is held and firing on release. */
+/** One step of a player's run: the input as an action, the piston charging while the button is held and firing on release (a fan burns while it is held). */
 function driveStep(state: RunState, input: ControlInput, chargeS: number, build: Build): { state: RunState; action: Action; chargeS: number } {
+  if (state.spec.fan) {
+    // A ducted fan has nothing to charge: it burns while the button is held, and the pedals stay live.
+    const pedals = controlToAction(input, build);
+    return { state: step({ ...state, ...(input.jumpHeld === true ? { fanHeld: true } : {}) }, pedals), action: pedals, chargeS: 0 };
+  }
   const charging = input.jumpHeld === true && state.spec.jumpImpulseMps > 0 && state.sim.t >= state.jumpReadyT && !state.airborne;
   const release = !charging && chargeS > 0;
   const action = release ? 'jump' : controlToAction(input, build);

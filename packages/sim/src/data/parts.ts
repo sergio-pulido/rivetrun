@@ -1,5 +1,11 @@
 import type { Part, PartId, Preset, PresetId } from '@rivetrun/contracts';
 
+/**
+ * RR-THRUST off switch. false hides the ducted fan from the catalog (`comingSoon`) and puts the Speedster back on
+ * its build without it: the four presets are then exactly what they were before the fan.
+ */
+export const DUCTED_FAN_ENABLED: boolean = true;
+
 // v0 values. Tuned later by scripts/balance.ts.
 // The spec lists 14 parts (3 locomotion, 2 motors, 2 batteries, 4 sensors, 3 extras).
 export const PARTS: readonly Part[] = [
@@ -125,7 +131,21 @@ export const PARTS: readonly Part[] = [
     massKg: 0.25, costEur: 35, powerW: 15, unlockPoints: 0,
     effects: { extra: 'piston_jump', jumpImpulseMps: 4, cooldownS: 3 },
   },
+  {
+    // A 70 mm electric ducted fan on a 4S pack, with its speed controller (class figures and assumptions: docs/CHANGES.md).
+    // Same button as the piston, held instead of charged. The thrust and burn numbers are in DUCTED_FAN below.
+    id: 'ducted_fan', name: 'Ducted fan (EDF)', slot: 'extra', blurb: 'Hold to burn: carries most of the robot\'s weight and pushes it forward for up to 2 s. Drinks the battery. 4 s to cool.',
+    massKg: 0.35, costEur: 60, powerW: 300, unlockPoints: 0,
+    ...(DUCTED_FAN_ENABLED ? {} : { comingSoon: true }),
+    effects: { extra: 'ducted_fan', cooldownS: 4 },
+  },
 ];
+
+/**
+ * Ducted fan physics. Thrust is fixed in newtons, so a heavier build gets less out of it.
+ * Lift and push together are about 18 N, pointing some 76° above the horizon; hopMps is the small hop that starts a burn from the ground.
+ */
+export const DUCTED_FAN = { liftN: 17.5, pushN: 4.5, hopMps: 1.1, burnS: 2 } as const;
 
 export const PARTS_BY_ID: ReadonlyMap<PartId, Part> = new Map(PARTS.map((part) => [part.id, part]));
 
@@ -133,7 +153,7 @@ export const PARTS_BY_ID: ReadonlyMap<PartId, Part> = new Map(PARTS.map((part) =
 export const PRESETS: Readonly<Record<PresetId, Preset>> = {
   speedster: {
     id: 'speedster', name: 'Speedster', blurb: 'Light and quick. Hates mud and water.',
-    build: { locomotion: 'wheels', motor: 'motor_light', battery: 'battery_small', sensors: ['camera', 'ultrasonic'], extras: [] },
+    build: { locomotion: 'wheels', motor: 'motor_light', battery: 'battery_small', sensors: ['camera', 'ultrasonic'], extras: DUCTED_FAN_ENABLED ? ['ducted_fan'] : [] },
   },
   mud_crawler: {
     id: 'mud_crawler', name: 'Mud Crawler', blurb: 'Tracks, torque and a sealed case.',

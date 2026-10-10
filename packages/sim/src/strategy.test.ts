@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Build } from '@rivetrun/contracts';
 import {
-  MISSIONS, MISSION_IDS, PARTS_BY_ID, PRESETS, assessBuild, capabilities, capabilityList, compileTrack, createRun, heuristicBrain, missionDemands, partGives, partsProviding, runHeadless, step, driveSeed,
+  DUCTED_FAN_ENABLED, MISSIONS, MISSION_IDS, PARTS_BY_ID, PRESETS, assessBuild, capabilities, capabilityList, compileTrack, createRun, heuristicBrain, missionDemands, partGives, partsProviding, runHeadless, step, driveSeed,
 } from './index';
 
 const allRounder = PRESETS.all_rounder.build;
@@ -46,7 +46,8 @@ describe('capabilities', () => {
     expect(partsProviding('winch')).toEqual(['winch']);
     expect(partsProviding('pull')[0]).toBe('motor_torque');
     expect(partGives(allRounder, 'motor_torque').map((item) => item.id)).toContain('pull');
-    expect(partsProviding('jump')).toEqual(['piston_jump']);
+    // Best first: at cruise speed the held fan carries further than the piston.
+    expect(partsProviding('jump')).toEqual(DUCTED_FAN_ENABLED ? ['ducted_fan', 'piston_jump'] : ['piston_jump']);
     expect(partsProviding('traction:ice')[0]).toBe('tracks');
   });
 });

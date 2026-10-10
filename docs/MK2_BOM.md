@@ -77,6 +77,7 @@ The game's 100 mm wheel maps to the real 90 mm Pololu wheel, the largest in the 
 | `bumper` | Bumper Switch Kit for Romi/TI-RSLK MAX (Not Soldered, Left or Right) | [Pololu #3678](https://www.pololu.com/product/3678) | US$9.95 | verified | One left and one right kit. The rover needs a printed bumper mount. |
 | `thruster_kit` | T200 Thruster | [Blue Robotics T200 (BR-102911-001)](https://bluerobotics.com/store/thrusters/t100-t200-thrusters/t200-thruster-r2-rp/) | From: $230.00 | experimental | Real, but oversized for a 1.5 kg rover (427 g, hundreds of watts) and needs an ESC. No smaller official thruster found. |
 | `piston_jump` | Spring-loaded jump piston (DIY concept) | — | — | experimental | No purchasable part does this. A small solenoid gives about 0.06 J; a 10 cm hop for 1.5 kg needs about 1.5 J. |
+| `ducted_fan` | 70 mm electric ducted fan with speed controller (hobby class, no part chosen) | — | — | experimental | A class of hobby part, not a chosen product: no official product page was verified, so no link and no price. One seller lists a 70 mm 12-blade 4S unit at 1810 g of thrust with an 80 A controller, test conditions not given; no datasheet was checked. Real draw would be near 1 kW, more than the rover's pack and wiring are built for. The game numbers are game values. |
 
 ## Alternatives
 | Part | Qty | Source | Price shown | Status | Notes |
@@ -129,6 +130,6 @@ The game's 100 mm wheel maps to the real 90 mm Pololu wheel, the largest in the 
 - 4S: the 12 V HPCB motors are overvolted by a full pack. Cap PWM at about 70 %.
 - 1S: needs the DRV8835 driver, 6 V MP motors and the LV switch, and there is no official ~2200 mAh 1S pack. 1S is a light build only.
 - The winch needs its own motor-driver channel; the drive driver's two channels are taken by the wheels.
-- `thruster_kit` (Blue Robotics T200) is real but oversized for a 1.5 kg rover. `piston_jump` has no buyable equivalent. Both stay in the game, marked experimental.
+- `thruster_kit` (Blue Robotics T200) is real but oversized for a 1.5 kg rover. `piston_jump` has no buyable equivalent. `ducted_fan` is a class of hobby fan with no product chosen and no page verified. All three stay in the game, marked experimental.
 - Game stats (mass, cost, power) are tuned for play and are not these real specs.
 - Printed parts, grams and print hours come from `docs/inputs/printed-parts.json` (Blender agent). Bambu Studio's CLI writes print time and filament grams to `result.json` when slicing (`--slice`).

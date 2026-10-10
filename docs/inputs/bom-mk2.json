@@ -97,7 +97,8 @@
    "waterproof_case": "waterproof_case_hammond_1554j2gy",
    "bumper": "bumper_romi_switch_kit",
    "thruster_kit": "thruster_blue_robotics_t200",
-   "piston_jump": "piston_jump_spring"
+   "piston_jump": "piston_jump_spring",
+   "ducted_fan": "ducted_fan_edf_70mm"
   }
  },
  "items": [
@@ -1134,6 +1135,31 @@
    "status": "experimental",
    "scenario": null,
    "notes": "No purchasable part does this. A small solenoid gives about 0.06 J; a 10 cm hop for 1.5 kg needs about 1.5 J."
+  },
+  {
+   "key": "ducted_fan_edf_70mm",
+   "gameId": "ducted_fan",
+   "group": "game",
+   "category": "actuator",
+   "name": "70 mm electric ducted fan with speed controller (hobby class, no part chosen)",
+   "manufacturer": null,
+   "model": null,
+   "qty": 1,
+   "unit": "set",
+   "url": null,
+   "pageTitle": null,
+   "priceShown": null,
+   "specs": {
+    "fanDiameterMm": 70,
+    "packCells": "4S",
+    "gameLiftN": 17.5,
+    "gamePushN": 4.5,
+    "gameDrawW": 300,
+    "gameMassG": 350
+   },
+   "status": "experimental",
+   "scenario": null,
+   "notes": "A class of hobby part, not a chosen product: no official product page was verified, so no link and no price. One seller lists a 70 mm 12-blade 4S unit at 1810 g of thrust with an 80 A controller, test conditions not given; no datasheet was checked. Real draw would be near 1 kW, more than the rover's pack and wiring are built for. The game numbers are game values."
   },
   {
    "key": "lidar_rplidar_c1",

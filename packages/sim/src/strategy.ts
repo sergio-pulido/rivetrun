@@ -3,7 +3,7 @@
 import type { Build, DnfReason, Mission, Part, PartId, TerrainId } from '@rivetrun/contracts';
 import { runHeuristicSync } from './controller';
 import { PARTS, TERRAINS, TERRAIN_IDS, TUNING, driveSeed } from './data';
-import { ACTION_PROFILES, PHYSICS, jumpAirtimeS } from './physics';
+import { ACTION_PROFILES, PHYSICS, fanHop, jumpAirtimeS } from './physics';
 import { score } from './score';
 import { deriveSpec } from './spec';
 import { predictStats } from './stats';
@@ -69,7 +69,10 @@ export function capabilities(build: Build): Capabilities {
     waterproof: spec.waterproof,
     swimDepthCm: spec.maxSwimDepthCm,
     underwaterSpeedMps: swims ? PHYSICS.swimSpeedMps : 0,
-    jump: spec.jumpImpulseMps > 0
+    // A fan's jump is the hop with the fan held all the way, at cruise speed.
+    jump: spec.fan
+      ? { airtimeS: round(fanHop(spec, cruiseMps, spec.fan.burnS).airtimeS), reachM: round(fanHop(spec, cruiseMps, spec.fan.burnS).reachM), cooldownS: spec.jumpCooldownS }
+      : spec.jumpImpulseMps > 0
       ? { airtimeS: round(jumpAirtimeS(spec.jumpImpulseMps)), reachM: round(cruiseMps * jumpAirtimeS(spec.jumpImpulseMps)), cooldownS: spec.jumpCooldownS }
       : null,
     impactProtection: round(1 - spec.impactDamageFactor),

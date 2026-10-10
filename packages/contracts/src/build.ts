@@ -7,7 +7,7 @@ export type Slot = z.infer<typeof SlotSchema>;
 export const SensorKindSchema = z.enum(['ultrasonic', 'imu', 'camera', 'moisture', 'scout_drone']);
 export type SensorKind = z.infer<typeof SensorKindSchema>;
 
-export const ExtraKindSchema = z.enum(['winch', 'waterproof_case', 'bumper', 'thruster_kit', 'piston_jump']);
+export const ExtraKindSchema = z.enum(['winch', 'waterproof_case', 'bumper', 'thruster_kit', 'piston_jump', 'ducted_fan']);
 export type ExtraKind = z.infer<typeof ExtraKindSchema>;
 
 export const PartIdSchema = z.string().min(1).max(40);

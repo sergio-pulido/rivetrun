@@ -94,7 +94,7 @@ export const MISSIONS: Readonly<Record<MissionId, Mission>> = {
     },
   },
   M7: {
-    id: 'M7', name: 'Earthquake Rescue', description: 'Broken ground: ramps, gaps and a drop, with two survivors and a cracked structure to scan. Bring a piston for the gap with no ramp.',
+    id: 'M7', name: 'Earthquake Rescue', description: 'Broken ground: ramps, gaps and a drop, with two survivors and a cracked structure to scan. Bring a piston or a ducted fan for the gap with no ramp.',
     weather: 'clear', starThreshold: 650, leaderboard: false,
     scanZones: [
       { id: 'M7-survivor-1', label: 'survivor', atM: 4, halfLengthM: 0.5, needs: ['camera', 'scout_drone'] },

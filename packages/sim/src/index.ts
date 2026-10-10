@@ -10,7 +10,7 @@ export type { RobotSpec } from './spec';
 export { weatherEffects, partWeatherNotes } from './weatherEffects';
 export type { WeatherEffect } from './weatherEffects';
 export { WEATHER, airDragN, canScanZone, cameraFactor, capacityFactor, conditionsOf, gustAt, headwindMps, rangerFactor } from './weather';
-export { createRun, step, withAction, markDecision, jumpAirtimeS, jumpChargePower, safeContactSpeedMps, PHYSICS, ACTION_PROFILES, SCAN_RULES } from './physics';
+export { createRun, step, withAction, markDecision, jumpAirtimeS, jumpChargePower, fanHop, fanHoldFor, safeContactSpeedMps, PHYSICS, ACTION_PROFILES, SCAN_RULES } from './physics';
 export { GAMEPLAY_VERSION } from '@rivetrun/contracts';
 export {
   SCAN, START_TRIGGER, advanceBrain, availableActions, buildQuestion, detectDecisionPoint, lookahead, observe, optionsNow, perceive, safeSpeedMps, scannableZone, senses,
