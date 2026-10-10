@@ -237,7 +237,8 @@ function driveMotion(state: RunState, action: Action, terrain: TerrainId, slopeD
   const mudFactor = state.environment.weather === 'rain' && terrain === 'mud' ? TUNING.weather.rain.mudSinkageFactor : 1;
   const sink = TERRAINS[terrain].sinkage * spec.sinkageFactor * (m / PHYSICS.refMassKg) * mudFactor;
   const resistance = (TERRAINS[terrain].rollingResistance + PHYSICS.sinkageDrag * sink * profile.drag) * normal;
-  const target = profile.speed * spec.topSpeedMps;
+  // A player's reverse is as fast as the brake is held; a brain's is the whole reverse speed.
+  const target = profile.speed * spec.topSpeedMps * (action === 'reverse' ? clamp(state.reverseScale ?? 1, 0, 1) : 1);
   const motorMax = spec.motorForceN * profile.force;
   const direction = target !== 0 ? Math.sign(target) : Math.sign(v);
   // Wind: drag on the air speed over the body. Zero on missions without wind.
@@ -746,6 +747,7 @@ export function step(state: RunState, action: Action): RunState {
     fanBurnS,
     fanHoldS,
     fanHeld: undefined,
+    reverseScale: undefined,
     lastAir,
     started,
     ...(neverStarted ? { neverStarted: true } : {}),

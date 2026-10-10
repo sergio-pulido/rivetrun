@@ -328,7 +328,26 @@ export function replayEpisode(episode: Episode): ReplayResult {
 }
 
 /** One step of a player's run: the input as an action, the piston charging while the button is held and firing on release (a fan burns while it is held). */
-function driveStep(state: RunState, input: ControlInput, chargeS: number, build: Build): { state: RunState; action: Action; chargeS: number } {
+/** Reverse for a player: the brake held at `brake` or more for `holdS` with the robot slower than `restMps` backs it up. */
+export const REVERSE_RULES = { brake: 0.6, holdS: 0.4, restMps: 0.05 } as const;
+
+/**
+ * The held brake as reverse. At rest it first holds the robot for `holdS` (so a stop is a stop), then drives it
+ * backwards at the brake's share of the sim's reverse speed until the brake is let go. Never while a scan is being held.
+ */
+function withReverse(state: RunState, input: ControlInput, pedals: Action): { state: RunState; action: Action } {
+  const brake = level(input.brake);
+  const hard = brake >= REVERSE_RULES.brake && !state.airborne && state.sim.scan === undefined && state.scans.holdS === 0;
+  const atRest = Math.abs(state.sim.v) < REVERSE_RULES.restMps;
+  const reversing = hard && (state.reversing === true || (atRest && (state.brakeHoldS ?? 0) >= REVERSE_RULES.holdS - 1e-9));
+  const brakeHoldS = hard && (atRest || reversing) ? (state.brakeHoldS ?? 0) + TUNING.dtMs / 1000 : 0;
+  return { state: { ...state, brakeHoldS, reversing, ...(reversing ? { reverseScale: brake } : {}) }, action: reversing ? 'reverse' : pedals };
+}
+
+function driveStep(before: RunState, input: ControlInput, chargeS: number, build: Build): { state: RunState; action: Action; chargeS: number } {
+  const backed = withReverse(before, input, controlToAction(input, build));
+  const state = backed.state;
+  if (backed.action === 'reverse') return { state: step(state, 'reverse'), action: 'reverse', chargeS: 0 };
   if (state.spec.fan) {
     // A ducted fan has nothing to charge: it burns while the button is held, and the pedals stay live.
     const pedals = controlToAction(input, build);

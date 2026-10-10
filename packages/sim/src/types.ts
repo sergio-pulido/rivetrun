@@ -129,6 +129,12 @@ export interface RunState {
   readonly jumpChargeS?: number;
   /** Share of the piston's impulse the next jump uses (set by a charged release). Absent = full. */
   readonly jumpPower?: number;
+  /** Drive mode: seconds the brake has been held hard with the robot at rest. At `REVERSE_RULES.holdS` it becomes reverse. */
+  readonly brakeHoldS?: number;
+  /** Drive mode: the held brake is driving the robot backwards. */
+  readonly reversing?: boolean;
+  /** Drive mode: share of the reverse speed asked for (the brake's travel). Absent = all of it, as a brain's reverse. */
+  readonly reverseScale?: number;
   /** Ducted fan: seconds burned since the fan was last lit (0 = not burning). */
   readonly fanBurnS: number;
   /** Ducted fan under a brain: the hold planned at take-off, seconds. Absent = no burn planned. */

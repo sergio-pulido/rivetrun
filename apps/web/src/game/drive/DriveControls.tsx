@@ -351,7 +351,7 @@ export function DriveControls({ drive, feed, build }: DriveControlsProps) {
       {!done && (
         <>
           {/* In the air the pedals are the attitude: throttle lifts the nose, brake drops it (gameplay v3 P2). */}
-          <Pad side="left" value={input.brake} color={UI.bad} title={input.brake > 0 ? `${Math.round(input.brake * 100)} %` : airborne ? 'NOSE' : 'BRAKE'} caption={airborne ? 'NOSE DOWN' : input.brake > 0 ? `BRAKE ${brakeBand(input.brake)}` : 'SLIDE UP'} />
+          <Pad side="left" value={input.brake} color={UI.bad} title={input.brake > 0 ? `${Math.round(input.brake * 100)} %` : airborne ? 'NOSE' : 'BRAKE'} caption={airborne ? 'NOSE DOWN' : input.brake > 0 ? `BRAKE ${brakeBand(input.brake)}` : 'SLIDE UP · HOLD TO REVERSE'} />
           <Pad
             side="right"
             value={input.throttle}
