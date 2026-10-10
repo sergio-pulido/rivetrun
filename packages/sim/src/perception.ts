@@ -1,7 +1,10 @@
-import type { Action, BrainQuestion, Build, DecisionTrigger, LookaheadEntry, Perception } from '@rivetrun/contracts';
+import { GAMEPLAY_VERSION } from '@rivetrun/contracts';
+import type {
+  Action, BrainQuestion, Build, DecisionTrigger, LookaheadEntry, Observation, Obstacle, Perception, SensorSource, TerrainId, Trigger, TriggerCause,
+} from '@rivetrun/contracts';
 import { TUNING } from './data';
 import { mixSeed, mulberry32 } from './rng';
-import { step } from './physics';
+import { ACTION_PROFILES, PHYSICS, step } from './physics';
 import { deriveSpec } from './spec';
 import type { RunState } from './types';
 import { makeObstacle, waterDepthCmAt } from './world';
@@ -15,7 +18,9 @@ const UNDERWATER_ULTRASONIC = { rangeFactor: 0.5, noiseFactor: 3 } as const;
 const STALL_INFERENCE = { afterS: 1, slopeDeg: 8 } as const;
 const MIN_DECISION_GAP_S = 0.5;
 const DAMAGE_DECISION_STEP_PCT = 5;
-const ALL_ACTIONS: readonly Action[] = ['cruise', 'accelerate', 'slow_down', 'brake', 'reverse', 'climb_mode', 'deploy_winch', 'jump'];
+const ALL_ACTIONS: readonly Action[] = ['accelerate', 'cruise', 'slow_down', 'coast', 'brake_soft', 'brake', 'reverse', 'climb_mode', 'deploy_winch', 'jump'];
+/** Scan zones: how close the robot's nose must be to the zone, how slow, and for how long. */
+export const SCAN = { reachM: 0.3, maxSpeedMps: 0.1, holdS: 1.5, missPenaltyS: 10, centredM: 0.25, centredBonus: 15 } as const;
 
 const round = (value: number, digits: number): number => {
   const scale = 10 ** digits;
@@ -98,41 +103,173 @@ export function perceive(state: RunState): Perception {
   return { terrainAhead, terrainAheadDistanceM, ...(terrainAheadSource ? { terrainAheadSource } : {}), ...gap, obstacleAheadM, slipPct, tiltDeg, depthAheadCm };
 }
 
-/** The world as the robot believes it is: only what the sensors reported. */
-function perceivedWorld(state: RunState, perceived: Perception): World {
-  const current = state.world.segments[state.segmentIndex]!;
+const SOURCE_LABEL: Readonly<Record<SensorSource, string>> = {
+  core: 'CORE', imu: 'IMU', ultrasonic: 'ULTRASONIC', tof: 'TOF', lidar: 'LIDAR', camera: 'CAMERA', moisture_probe: 'PROBE', scout_drone: 'DRONE', bumper: 'BUMPER',
+};
+
+/** Speed the core kit projects the rest of the run at: the current pace, or a crawl when standing still. */
+const paceMps = (state: RunState): number => Math.max(Math.abs(state.sim.v), ACTION_PROFILES.slow_down.speed * state.spec.topSpeedMps);
+
+const capacityJoules = (state: RunState): number =>
+  state.spec.capacityWh * (state.environment.weather === 'cold' ? TUNING.weather.cold.batteryCapacityFactor : 1) * 3600;
+
+/** Contact speed at or below which this build takes no damage from an obstacle. */
+export function safeSpeedMps(_state: RunState, _kind: Obstacle): number {
+  return PHYSICS.safeImpactSpeedMps;
+}
+
+/**
+ * Brain v3: everything a brain may use, built only from the sensors the build carries plus the core kit
+ * (encoders, charge, current, mission plan). 'unknown' = no sensor for it; null = fitted, nothing in range.
+ */
+export function observe(state: RunState): Observation {
+  const { spec, sim, world } = state;
+  const perceived = perceive(state);
+  const has = (source: SensorSource): boolean => spec.sources.includes(source);
+  const terrainSource: SensorSource | undefined = has('scout_drone') ? 'scout_drone' : has('camera') ? 'camera' : undefined;
+  const terrainRangeM = Math.max(spec.sensorRangeM.scout_drone ?? 0, cameraRangeM(state) ?? 0);
+  const rangerRangeM = spec.sensorRangeM.ultrasonic ?? 0;
+  const forwardRangeM = Math.max(terrainRangeM, rangerRangeM);
+  const blind = forwardRangeM === 0;
+  const current = world.segments[state.segmentIndex]!;
+
+  // Obstacles: a ranger gives distance only; the camera and the drone also name what they see.
+  const named = terrainSource ? world.obstacles.find((o) => o.xM > sim.x && o.xM - sim.x <= terrainRangeM) : undefined;
+  let hazard: Observation['hazard'] = blind ? 'unknown' : null;
+  if (typeof perceived.obstacleAheadM === 'number' && spec.rangerSource) {
+    const seenToo = named && Math.abs(named.xM - sim.x - perceived.obstacleAheadM) < 0.6;
+    hazard = { source: spec.rangerSource, distanceM: perceived.obstacleAheadM, ...(seenToo ? { kind: named.kind, safeSpeedMps: safeSpeedMps(state, named.kind) } : {}) };
+  } else if (named && terrainSource) {
+    hazard = { source: terrainSource, distanceM: round(named.xM - sim.x, 1), kind: named.kind, safeSpeedMps: safeSpeedMps(state, named.kind) };
+  }
+  const forwardSource: SensorSource | undefined = rangerRangeM >= terrainRangeM ? (spec.rangerSource ?? terrainSource) : terrainSource;
+  const gap: Observation['gap'] = blind || !forwardSource ? 'unknown'
+    : typeof perceived.gapAheadM === 'number' && perceived.gapWidthM !== undefined ? { source: forwardSource, distanceM: perceived.gapAheadM, widthM: perceived.gapWidthM }
+    : null;
+  const terrainAhead: Observation['terrainAhead'] = !terrainSource || perceived.terrainAhead === 'unknown' || perceived.terrainAheadDistanceM === 'unknown' ? 'unknown'
+    : perceived.terrainAhead !== current.terrain ? { source: terrainSource, terrain: perceived.terrainAhead, distanceM: perceived.terrainAheadDistanceM }
+    : null;
+
+  const remainingM = Math.max(0, world.lengthM - sim.x);
+  const projectedFinishPct = round(sim.battery - ((state.drawW * (remainingM / paceMps(state))) / capacityJoules(state)) * 100, 1);
+  const contactSensor: SensorSource | undefined = has('bumper') ? 'bumper' : has('imu') ? 'imu' : undefined;
+  const lastContact: Observation['lastContact'] = !contactSensor ? 'unknown'
+    : state.lastContact ? { source: contactSensor, atM: round(state.lastContact.atM, 1), agoS: round(Math.max(0, sim.t - state.lastContact.t), 1) }
+    : null;
+  const scanZones = (state.config.mission.scanZones ?? []).map((zone) => ({
+    id: zone.id, label: zone.label, distanceM: round(zone.atM - sim.x, 1),
+    canScan: zone.needs.some((kind) => spec.sensorRangeM[kind] !== undefined),
+    done: state.scans.done.includes(zone.id), missed: state.scans.missed.includes(zone.id),
+  }));
+
+  const unknown: string[] = [];
+  if (blind) unknown.push('obstacles and gaps ahead: no forward sensor (learned on contact, or not at all)');
+  if (!terrainSource) unknown.push('terrain type ahead and under the wheels: no camera or drone');
+  if (!has('imu')) unknown.push('slope and slip: no IMU');
+  if (!has('moisture_probe')) unknown.push('water and mud depth: no moisture probe');
+  if (!contactSensor) unknown.push('contact: no bumper or IMU to feel an impact');
+  if (typeof hazard === 'object' && hazard !== null && hazard.kind === undefined) unknown.push('what the obstacle is: a ranger measures distance only');
+
+  const lines: string[] = [
+    `CORE · ${round(Math.abs(sim.v), 1)} m/s · ${round(sim.x, 0)} of ${round(world.lengthM, 0)} m · charge ${Math.round(sim.battery)} % · finish at ${Math.round(projectedFinishPct)} %`,
+  ];
+  if (has('imu')) lines.push(`IMU · tilt ${perceived.tiltDeg}° · slip ${perceived.slipPct} %`);
+  if (typeof hazard === 'object' && hazard !== null) lines.push(`${SOURCE_LABEL[hazard.source]} · ${hazard.kind ?? 'obstacle'} ${hazard.distanceM} m`);
+  else if (!blind) lines.push(`${SOURCE_LABEL[forwardSource ?? 'camera']} · clear for ${round(forwardRangeM, 0)} m`);
+  if (typeof gap === 'object' && gap !== null) lines.push(`${SOURCE_LABEL[gap.source]} · gap ${gap.widthM} m wide in ${gap.distanceM} m`);
+  if (typeof terrainAhead === 'object' && terrainAhead !== null) lines.push(`${SOURCE_LABEL[terrainAhead.source]} · ${terrainAhead.terrain} in ${terrainAhead.distanceM} m`);
+  if (typeof perceived.depthAheadCm === 'number' && perceived.depthAheadCm > 0) lines.push(`PROBE · ${perceived.depthAheadCm} cm deep ahead`);
+  if (typeof lastContact === 'object' && lastContact !== null && lastContact.agoS < 3) lines.push(`${SOURCE_LABEL[lastContact.source]} · contact ${lastContact.agoS} s ago`);
+  for (const zone of scanZones) if (!zone.done && !zone.missed && zone.distanceM > -1 && zone.distanceM < 10) lines.push(`PLAN · scan zone "${zone.label}" in ${zone.distanceM} m${zone.canScan ? '' : ' (no sensor for it)'}`);
+  if (blind) lines.push('BLIND · no forward sensor');
+
+  return {
+    sources: [...spec.sources],
+    speedMps: round(sim.v, 2),
+    odometerM: round(Math.max(0, sim.x), 1),
+    missionLengthM: world.lengthM,
+    remainingM: round(remainingM, 1),
+    batteryPct: round(sim.battery, 1),
+    drawW: round(state.drawW, 1),
+    projectedFinishPct,
+    damagePct: round(sim.damage, 1),
+    scanZones,
+    tiltDeg: perceived.tiltDeg,
+    slipPct: perceived.slipPct,
+    slipping: typeof perceived.slipPct === 'number' ? perceived.slipPct > TUNING.decision.slipThresholdPct : 'unknown',
+    forwardRangeM: round(forwardRangeM, 1),
+    blind,
+    hazard,
+    gap,
+    terrainAhead,
+    waterDepthCm: perceived.depthAheadCm,
+    lastContact,
+    actuators: {
+      jumpReadyInS: spec.jumpImpulseMps > 0 ? round(Math.max(0, state.jumpReadyT - sim.t), 1) : 'unknown',
+      winch: spec.extras.includes('winch'),
+      climbMode: true,
+    },
+    unknown,
+    lines,
+  };
+}
+
+/** What a build can and cannot sense, without a run: the same wording the Observation uses. */
+export function senses(build: Build): { sources: SensorSource[]; forwardRangeM: number; blind: boolean; can: string[]; cannot: string[] } {
+  const spec = deriveSpec(build);
+  const range = spec.sensorRangeM;
+  const forwardRangeM = Math.max(range.scout_drone ?? 0, range.camera ?? 0, range.ultrasonic ?? 0);
+  const can: string[] = ['speed and distance (encoders)', 'battery charge, current draw and the charge it will finish with', 'the mission plan: length and scan-zone positions'];
+  const cannot: string[] = [];
+  if (range.ultrasonic !== undefined) can.push(`obstacles and gap edges up to ${range.ultrasonic} m (${SOURCE_LABEL[spec.rangerSource ?? 'ultrasonic'].toLowerCase()})`);
+  if (range.camera !== undefined) can.push(`terrain type, obstacles and gaps up to ${range.camera} m (camera)`);
+  if (range.scout_drone !== undefined) can.push(`terrain and hazards up to ${range.scout_drone} m (scout drone)`);
+  if (forwardRangeM === 0) cannot.push('obstacles and gaps ahead: no forward sensor (learned on contact, or not at all)');
+  if (range.camera === undefined && range.scout_drone === undefined) cannot.push('terrain type ahead and under the wheels: no camera or drone');
+  if (range.imu !== undefined) can.push('tilt, slope, slip and impacts (IMU)'); else cannot.push('slope and slip: no IMU');
+  if (range.moisture !== undefined) can.push(`water and mud depth up to ${range.moisture} m ahead (moisture probe)`); else cannot.push('water and mud depth: no moisture probe');
+  if (spec.sources.includes('bumper')) can.push('contact, after it happens (bumper)');
+  else if (range.imu === undefined) cannot.push('contact: no bumper or IMU to feel an impact');
+  return { sources: [...spec.sources], forwardRangeM, blind: forwardRangeM === 0, can, cannot };
+}
+
+/**
+ * The world as the robot believes it is, from its Observation only. Beyond what the sensors report,
+ * the track is assumed to continue like the last known ground.
+ */
+function perceivedWorld(state: RunState, seen: Observation): World {
   const x = state.sim.x;
-  const wet = (terrain: string): boolean => terrain === 'water' || terrain === 'mud';
-  const depthFor = (terrain: string): number =>
-    !wet(terrain) ? 0 : perceived.depthAheadCm === 'unknown' ? ASSUMED_DEPTH_CM : perceived.depthAheadCm;
-  const blindSlopeDeg = state.stallS >= STALL_INFERENCE.afterS ? STALL_INFERENCE.slopeDeg : 0;
-  const slopeDeg = perceived.tiltDeg === 'unknown' ? blindSlopeDeg : perceived.tiltDeg;
-  const trueDepthCm = waterDepthCmAt(current, x);
-  const afloat = current.terrain === 'water' && trueDepthCm > state.spec.maxWadingDepthCm;
+  const terrainKnown = seen.terrainAhead !== 'unknown';
+  // Driving and not moving (encoders + current): assume soft ground on a hill.
+  const stalled = state.stallS >= STALL_INFERENCE.afterS;
+  // Its own thrusters running is the one way a build without a probe knows it is in deep water.
+  const swimming = state.sim.thrusting === true;
+  const here = state.world.segments[state.segmentIndex]!;
+  const currentTerrain: TerrainId = swimming ? 'water' : terrainKnown ? here.terrain : stalled ? 'mud' : 'asphalt';
+  const wet = (terrain: TerrainId): boolean => terrain === 'water' || terrain === 'mud';
+  const depthFor = (terrain: TerrainId): number =>
+    !wet(terrain) ? 0 : seen.waterDepthCm !== 'unknown' ? seen.waterDepthCm : ASSUMED_DEPTH_CM;
+  const slopeDeg = seen.tiltDeg !== 'unknown' ? seen.tiltDeg : stalled ? STALL_INFERENCE.slopeDeg : 0;
   const far = x + 1000;
-  const sees = perceived.terrainAhead !== 'unknown' && perceived.terrainAheadDistanceM !== 'unknown' && perceived.terrainAhead !== current.terrain;
-  const boundary = sees ? x + (perceived.terrainAheadDistanceM as number) : far;
+  const ahead = typeof seen.terrainAhead === 'object' && seen.terrainAhead !== null ? seen.terrainAhead : null;
+  const boundary = ahead ? x + ahead.distanceM : far;
   const segments = [
     {
-      index: 0, startM: 0, endM: Math.max(boundary, x + 0.01), terrain: current.terrain, slopeDeg,
-      // A robot that is afloat knows it: the hull it is in is the one thing it does not need a probe for.
-      depthCm: afloat ? trueDepthCm : depthFor(current.terrain),
-      ...(afloat && current.currentMps ? { currentMps: current.currentMps } : {}),
+      index: 0, startM: 0, endM: Math.max(boundary, x + 0.01), terrain: currentTerrain, slopeDeg,
+      depthCm: swimming ? Math.max(depthFor('water'), state.spec.maxWadingDepthCm + 10) : depthFor(currentTerrain),
     },
   ];
-  if (sees && perceived.terrainAhead !== 'unknown') {
-    segments.push({ index: 1, startM: segments[0]!.endM, endM: far, terrain: perceived.terrainAhead, slopeDeg: 0, depthCm: depthFor(perceived.terrainAhead) });
-  }
-  // An unseen obstacle is assumed to be a log; one the robot is pressed against is known for what it is.
-  const touching = state.blockedBy ? state.world.obstacles.find((o) => o.xM > x && o.xM - x < 0.05) : undefined;
-  const obstacles = touching
-    ? [makeObstacle(touching.kind, touching.xM, 0)]
-    : typeof perceived.obstacleAheadM === 'number'
-      ? [makeObstacle('log', x + perceived.obstacleAheadM, 0)]
-      : [];
-  // Ramps, gaps and drops the sensors can make out (and whatever the robot is standing on).
-  const sight = featureSightM(state);
-  const features = state.world.features.filter((feature) => feature.endM >= x - 0.01 && feature.startM - x <= sight);
+  if (ahead) segments.push({ index: 1, startM: segments[0]!.endM, endM: far, terrain: ahead.terrain, slopeDeg: 0, depthCm: depthFor(ahead.terrain) });
+  // A seen obstacle of unknown kind is assumed to be a log. One just felt by the bumper or the IMU is assumed to be
+  // the tallest kind: something stopped the robot.
+  const felt = typeof seen.lastContact === 'object' && seen.lastContact !== null && state.blockedBy !== undefined;
+  const hazard = typeof seen.hazard === 'object' && seen.hazard !== null ? seen.hazard : null;
+  const obstacles = felt ? [makeObstacle('rock', x + 0.01, 0)]
+    : hazard ? [makeObstacle(hazard.kind ?? 'log', x + hazard.distanceM, 0)]
+    : [];
+  // Ramps, gaps and drops within forward sensor range. The ramp under the wheels is known through the IMU.
+  const features = state.world.features.filter((feature) =>
+    feature.startM > x ? feature.startM - x <= seen.forwardRangeM : feature.endM >= x - 0.01 && (seen.forwardRangeM > 0 || seen.tiltDeg !== 'unknown'));
   return { segments, obstacles, features, lengthM: far };
 }
 
@@ -143,30 +280,41 @@ export function lookaheadSeconds(state: RunState): number {
   return TUNING.decision.lookaheadS;
 }
 
-/** Forward-simulates each action for TUNING.decision.lookaheadS on the perceived state. */
-export function lookahead(state: RunState, actions: readonly Action[]): LookaheadEntry[] {
+/** Forward-simulates each action for the lookahead window on what the robot believes, never on the true track. */
+export function lookahead(state: RunState, actions: readonly Action[], seen: Observation = observe(state)): LookaheadEntry[] {
   const steps = Math.round((lookaheadSeconds(state) * 1000) / TUNING.dtMs);
+  const felt = typeof seen.lastContact === 'object' && seen.lastContact !== null;
   const believed: RunState = {
     ...state,
-    world: perceivedWorld(state, perceive(state)),
+    world: perceivedWorld(state, seen),
     environment: { ...state.environment, frictionJitter: 1 },
     segmentIndex: 0,
     done: false,
     lastProgressT: state.sim.t,
+    // Hidden truth does not ride into the simulation: slip needs an IMU, and what blocked it needs a contact sensor.
+    slipPct: 0,
+    blockedBy: felt ? state.blockedBy : undefined,
   };
+  const remainingM = Math.max(0, state.world.lengthM - state.sim.x);
   return actions.map((action) => {
     let future = believed;
     for (let i = 0; i < steps && !future.done; i += 1) future = step(future, action);
+    const progressM = future.sim.x - state.sim.x;
+    const energyPct = Math.max(0, state.sim.battery - future.sim.battery);
+    // Energy line: what is left at the finish if this option's pace and draw held for the rest of the run.
+    const projectedFinishPct = progressM > 0.05 ? future.sim.battery - (energyPct / progressM) * Math.max(0, remainingM - progressM) : -100;
     return {
       action,
-      progressM: round(future.sim.x - state.sim.x, 2),
+      progressM: round(progressM, 2),
       damagePct: round(Math.max(0, future.sim.damage - state.sim.damage), 2),
-      energyPct: round(Math.max(0, state.sim.battery - future.sim.battery), 2),
+      energyPct: round(energyPct, 2),
+      projectedFinishPct: round(Math.max(-100, Math.min(100, projectedFinishPct)), 1),
+      assumed: progressM > seen.forwardRangeM,
     };
   });
 }
 
-/** Returns the trigger when `next` is a decision point, otherwise null. */
+/** v2 detector, kept for callers that still import it. There is no clock tick any more; the controllers use `advanceBrain`. */
 export function detectDecisionPoint(prev: RunState, next: RunState): DecisionTrigger | null {
   if (next.done || next.airborne) return null;
   if (next.lastAir?.type === 'fell' || next.lastAir?.type === 'landed') return 'damage';
@@ -191,7 +339,160 @@ export function detectDecisionPoint(prev: RunState, next: RunState): DecisionTri
   } else if (next.segmentIndex !== prev.segmentIndex && next.sim.terrain !== prev.sim.terrain) {
     return 'terrain_enter';
   }
-  return sinceLast >= TUNING.decision.intervalS ? 'interval' : null;
+  return null;
+}
+
+const HAZARD_REACH_M = 1;
+const ZONE_NOTICE_M = 6;
+const ENERGY = { lowPct: 10, okPct: 30 } as const;
+const SLIP_OFF_PCT = 15;
+const TOLD_AFTER_S = 1;
+const STALL_RETELL_S = 2;
+
+const LEGACY_TRIGGER: Readonly<Record<TriggerCause, DecisionTrigger>> = {
+  start: 'start',
+  hazard_seen: 'obstacle', hazard_reached: 'obstacle', gap_seen: 'obstacle', gap_reached: 'obstacle',
+  terrain_seen: 'terrain_ahead', terrain_reached: 'terrain_enter', zone_seen: 'obstacle', zone_reached: 'obstacle',
+  slip_start: 'slip', slip_stop: 'slip', tilt_10: 'slip', tilt_20: 'slip', tilt_level: 'slip',
+  impact: 'damage', damage: 'damage', landing: 'damage', blocked: 'damage', fell: 'damage',
+  energy_low: 'energy', energy_ok: 'energy',
+  jump_ready: 'actuator', winch_done: 'actuator', scan_done: 'actuator', stopped: 'actuator',
+};
+
+export const START_TRIGGER: Trigger = { kind: 'start', cause: 'start', label: 'START · run begins' };
+
+const fire = (kind: Trigger['kind'], cause: TriggerCause, label: string, source?: SensorSource): Trigger =>
+  ({ kind, cause, label, ...(source ? { source } : {}) });
+
+/**
+ * Brain v3 trigger detector. Call once per step with the new state: it returns the trigger that asks for a
+ * decision, if any, and the state with its memory updated. No trigger, no decision: there is no clock.
+ * Order when several fire at once: body, then perception, then actuator, then energy.
+ */
+export function advanceBrain(next: RunState): { readonly trigger: Trigger | null; readonly state: RunState } {
+  if (next.done) return { trigger: null, state: next };
+  const memory = next.brain;
+  const seen = observe(next);
+  const x = next.sim.x;
+  const fired: Trigger[] = [];
+  let brain = memory;
+  const remember = (patch: Partial<typeof memory>): void => {
+    brain = { ...brain, ...patch };
+  };
+
+  // ---- body
+  if (next.lastAir?.type === 'fell') fired.push(fire('body', 'fell', `CORE · fell into the gap (${next.falls} of ${PHYSICS.maxFalls})`, 'core'));
+  else if (next.lastAir?.type === 'landed') fired.push(fire('body', 'landing', `CORE · landed at ${round(next.lastAir.impactMps, 1)} m/s`, 'core'));
+  const contact = typeof seen.lastContact === 'object' && seen.lastContact !== null && seen.lastContact.agoS === 0 ? seen.lastContact : null;
+  if (contact && next.lastDamage?.cause === 'impact') {
+    fired.push(fire('body', next.blockedBy ? 'blocked' : 'impact', `${SOURCE_LABEL[contact.source]} · ${next.blockedBy ? 'stopped by' : 'hit'} something at ${round(x, 0)} m`, contact.source));
+  }
+  const damageStep = Math.floor(next.sim.damage / DAMAGE_DECISION_STEP_PCT);
+  if (damageStep > memory.damageStep) {
+    remember({ damageStep });
+    if (fired.length === 0) fired.push(fire('body', 'damage', `CORE · damage ${Math.round(next.sim.damage)} %`, 'core'));
+  }
+  if (seen.slipping !== 'unknown' && typeof seen.slipPct === 'number') {
+    if (!memory.slipping && seen.slipping) {
+      remember({ slipping: true });
+      fired.push(fire('body', 'slip_start', `IMU · slipping ${Math.round(seen.slipPct)} %`, 'imu'));
+    } else if (memory.slipping && seen.slipPct < SLIP_OFF_PCT) {
+      remember({ slipping: false });
+      fired.push(fire('body', 'slip_stop', 'IMU · grip is back', 'imu'));
+    }
+  }
+  if (typeof seen.tiltDeg === 'number') {
+    const tilt = Math.abs(seen.tiltDeg);
+    const band = tilt >= 20 ? 2 : tilt >= 10 ? 1 : tilt < 8 ? 0 : memory.tiltBand;
+    if (band !== memory.tiltBand) {
+      remember({ tiltBand: band });
+      fired.push(fire('body', band === 2 ? 'tilt_20' : band === 1 ? 'tilt_10' : 'tilt_level', `IMU · tilt ${seen.tiltDeg}°`, 'imu'));
+    }
+  }
+  // Encoders: driving and not moving for a second.
+  // Told after a second, and again each time the last answer has had two more seconds and still nothing moves.
+  const stallMark = next.stallS < TOLD_AFTER_S ? 0 : 1 + Math.floor((next.stallS - TOLD_AFTER_S) / STALL_RETELL_S);
+  if (stallMark > memory.stallMark && !next.airborne) {
+    remember({ stallMark });
+    const what = next.sim.v < -PHYSICS.rollbackMps ? 'rolling backwards' : 'driving but not moving';
+    fired.push(fire('body', 'blocked', stallMark === 1 ? `CORE · ${what}` : `CORE · still ${what} after ${Math.round(next.stallS)} s`, 'core'));
+  } else if (next.stallS === 0 && memory.stallMark !== 0) {
+    remember({ stallMark: 0 });
+  }
+
+  // ---- perception
+  const hazard = typeof seen.hazard === 'object' && seen.hazard !== null ? seen.hazard : null;
+  if (hazard) {
+    const at = next.world.obstacles.find((o) => o.xM > x)?.xM ?? x + hazard.distanceM;
+    const name = hazard.kind ?? 'obstacle';
+    if (Math.abs(at - memory.hazardSeenX) > 0.5) {
+      remember({ hazardSeenX: at });
+      fired.push(fire('perception', 'hazard_seen', `${SOURCE_LABEL[hazard.source]} · ${name} ${hazard.distanceM} m`, hazard.source));
+    } else if (hazard.distanceM <= HAZARD_REACH_M && Math.abs(at - memory.hazardReachedX) > 0.5) {
+      remember({ hazardReachedX: at });
+      fired.push(fire('perception', 'hazard_reached', `${SOURCE_LABEL[hazard.source]} · ${name} now ${hazard.distanceM} m`, hazard.source));
+    }
+  }
+  const gap = typeof seen.gap === 'object' && seen.gap !== null ? seen.gap : null;
+  if (gap) {
+    const at = next.world.features.find((f) => f.type === 'gap' && f.endM > x)?.startM ?? x + gap.distanceM;
+    if (Math.abs(at - memory.gapSeenX) > 0.5) {
+      remember({ gapSeenX: at });
+      fired.push(fire('perception', 'gap_seen', `${SOURCE_LABEL[gap.source]} · gap ${gap.widthM} m wide in ${gap.distanceM} m`, gap.source));
+    } else if (gap.distanceM <= HAZARD_REACH_M * 2 && Math.abs(at - memory.gapReachedX) > 0.5) {
+      remember({ gapReachedX: at });
+      fired.push(fire('perception', 'gap_reached', `${SOURCE_LABEL[gap.source]} · gap now ${gap.distanceM} m`, gap.source));
+    }
+  }
+  const terrain = typeof seen.terrainAhead === 'object' && seen.terrainAhead !== null ? seen.terrainAhead : null;
+  if (terrain) {
+    const boundary = next.world.segments.find((segment) => segment.startM > x && segment.terrain === terrain.terrain)?.startM ?? x + terrain.distanceM;
+    if (Math.abs(boundary - memory.terrainSeenX) > 0.5) {
+      remember({ terrainSeenX: boundary });
+      fired.push(fire('perception', 'terrain_seen', `${SOURCE_LABEL[terrain.source]} · ${terrain.terrain} in ${terrain.distanceM} m`, terrain.source));
+    }
+  }
+  // Driving onto ground the build had seen coming: it knows the moment it gets there.
+  if (seen.terrainAhead !== 'unknown' && memory.terrainSeenX >= 0 && x >= memory.terrainSeenX && x - next.sim.v * (TUNING.dtMs / 1000) < memory.terrainSeenX) {
+    fired.push(fire('perception', 'terrain_reached', `${SOURCE_LABEL[next.spec.sources.includes('scout_drone') ? 'scout_drone' : 'camera']} · now on ${next.sim.terrain}`, 'core'));
+  }
+  for (const zone of seen.scanZones) {
+    if (zone.done || zone.missed || !zone.canScan) continue;
+    if (zone.distanceM > 0 && zone.distanceM <= ZONE_NOTICE_M && !brain.zonesSeen.includes(zone.id)) {
+      remember({ zonesSeen: [...brain.zonesSeen, zone.id] });
+      fired.push(fire('perception', 'zone_seen', `PLAN · scan zone "${zone.label}" in ${zone.distanceM} m`, 'core'));
+    } else if (Math.abs(zone.distanceM) <= SCAN.reachM && !brain.zonesReached.includes(zone.id)) {
+      remember({ zonesReached: [...brain.zonesReached, zone.id] });
+      fired.push(fire('perception', 'zone_reached', `PLAN · on scan zone "${zone.label}"`, 'core'));
+    }
+  }
+
+  // ---- actuator
+  const jumpReady = next.spec.jumpImpulseMps > 0 && next.sim.t >= next.jumpReadyT;
+  if (next.spec.jumpImpulseMps > 0 && jumpReady !== memory.jumpReady) {
+    remember({ jumpReady });
+    if (jumpReady && !next.airborne) fired.push(fire('actuator', 'jump_ready', 'PISTON · re-armed', 'core'));
+  }
+  if (next.scans.justDone) fired.push(fire('actuator', 'scan_done', `SCAN · "${next.scans.justDone}" done`, 'core'));
+  // Encoders: at rest for a second under a command to stand still.
+  if (next.stoppedS >= TOLD_AFTER_S && !memory.stopTold) {
+    remember({ stopTold: true });
+    fired.push(fire('actuator', 'stopped', 'CORE · stopped', 'core'));
+  } else if (next.stoppedS === 0 && memory.stopTold) {
+    remember({ stopTold: false });
+  }
+
+  // ---- energy, with hysteresis
+  if (!memory.energyLow && seen.projectedFinishPct < ENERGY.lowPct && next.sim.t > 1) {
+    remember({ energyLow: true });
+    fired.push(fire('energy', 'energy_low', `ENERGY · finish at ${Math.round(seen.projectedFinishPct)} % at this pace`, 'core'));
+  } else if (memory.energyLow && seen.projectedFinishPct > ENERGY.okPct) {
+    remember({ energyLow: false });
+    fired.push(fire('energy', 'energy_ok', `ENERGY · finish at ${Math.round(seen.projectedFinishPct)} % again`, 'core'));
+  }
+
+  const trigger = next.airborne ? fired.find((t) => t.cause === 'fell') ?? null : fired[0] ?? null;
+  return { trigger, state: brain === memory ? next : { ...next, brain } };
 }
 
 /** Actions the build can perform (e.g. deploy_winch needs a winch). */
@@ -201,13 +502,33 @@ export function availableActions(build: Build): Action[] {
   return ALL_ACTIONS.filter((action) => (action !== 'deploy_winch' || hasWinch) && (action !== 'jump' || hasPiston));
 }
 
-/** The question any Brain answers at a decision point. Perceived data only. */
-export function buildQuestion(state: RunState, trigger: DecisionTrigger, briefing?: string): BrainQuestion {
-  const options = availableActions(state.config.build);
+/** The actions this build can take right now: its commands, plus `scan` when a zone it can scan is under it. */
+export function optionsNow(state: RunState): Action[] {
+  const actions = availableActions(state.config.build);
+  const zone = scannableZone(state);
+  return zone ? [...actions, 'scan'] : actions;
+}
+
+/** The zone the robot could scan from where it is, if any. */
+export function scannableZone(state: RunState): { readonly id: string; readonly label: string } | undefined {
+  return (state.config.mission.scanZones ?? []).find((zone) =>
+    Math.abs(zone.atM - state.sim.x) <= zone.halfLengthM + SCAN.reachM &&
+    !state.scans.done.includes(zone.id) && !state.scans.missed.includes(zone.id) &&
+    zone.needs.some((kind) => state.spec.sensorRangeM[kind] !== undefined));
+}
+
+/**
+ * The question any Brain answers. Brain v3: `observation` is everything the brain may use, `cause` is why it is
+ * asked. The v2 fields (`trigger`, `perceived`, `status`) stay filled for older readers.
+ */
+export function buildQuestion(state: RunState, trigger: DecisionTrigger | Trigger, briefing?: string): BrainQuestion {
+  const cause: Trigger = typeof trigger === 'string' ? { kind: trigger === 'start' ? 'start' : 'perception', cause: trigger === 'start' ? 'start' : 'hazard_seen', label: trigger } : trigger;
+  const options = optionsNow(state);
+  const observation = observe(state);
   return {
     missionId: state.config.mission.id,
     t: state.sim.t,
-    trigger,
+    trigger: typeof trigger === 'string' ? trigger : LEGACY_TRIGGER[trigger.cause],
     perceived: perceive(state),
     status: {
       speedMps: round(state.sim.v, 2),
@@ -216,7 +537,10 @@ export function buildQuestion(state: RunState, trigger: DecisionTrigger, briefin
     },
     priority: state.config.priority,
     options,
-    lookahead: lookahead(state, options),
+    lookahead: lookahead(state, options, observation),
+    observation,
+    cause,
+    gameplayVersion: GAMEPLAY_VERSION,
     ...(lookaheadSeconds(state) !== TUNING.decision.lookaheadS ? { lookaheadS: lookaheadSeconds(state) } : {}),
     ...(briefing ? { briefing } : {}),
   };

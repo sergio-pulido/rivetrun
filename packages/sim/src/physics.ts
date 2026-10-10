@@ -28,6 +28,8 @@ export const PHYSICS = {
   sparksS: 0.4,
   idleLoad: 0.15,
   stallSpeedMps: 0.15,
+  /** Rolling backwards faster than this without asking to reverse counts as not getting anywhere. */
+  rollbackMps: 0.2,
   // Height (gameplay v2).
   /** Slower than this at a ramp lip and the robot just drops off it. */
   minLaunchMps: 0.3,
@@ -135,6 +137,13 @@ export function createRun(config: RunConfig): RunState {
     airStartT: 0,
     falls: 0,
     jumpReadyT: 0,
+    drawW: 0,
+    stoppedS: 0,
+    scans: { done: [], missed: [], holdS: 0, centred: 0 },
+    brain: {
+      hazardSeenX: -1, hazardReachedX: -1, gapSeenX: -1, gapReachedX: -1, terrainSeenX: -1, zonesSeen: [], zonesReached: [],
+      slipping: false, tiltBand: 0, energyLow: false, stallMark: 0, stopTold: false, jumpReady: true, damageStep: 0,
+    },
     finished: false,
     stats: { slipSByTerrain: {}, damageByCause: {}, lastTerrain: first.terrain },
   };
@@ -441,6 +450,7 @@ export function step(state: RunState, action: Action): RunState {
   const capacityJ = spec.capacityWh * capacityFactor * 3600;
   const drawJ = (wasAirborne ? spec.basePowerW : powerW(state, action, motion.load, motion.swimming === true)) * DT_S + jumpJ;
   const battery = Math.max(0, sim.battery - (drawJ / capacityJ) * 100);
+  const touched = world.obstacles.find((o) => hit?.obstacle !== undefined && sim.x < o.xM && o.xM - sim.x < 1);
 
   const t = Math.round(stepCount * TUNING.dtMs) / 1000;
   if (motion.slipPct > PHYSICS.slipEffectPct) {
@@ -507,7 +517,8 @@ export function step(state: RunState, action: Action): RunState {
     bestX,
     lastProgressT,
     sparksUntilT,
-    stallS: !airborne && profile.speed > 0 && Math.abs(v) < PHYSICS.stallSpeedMps ? state.stallS + DT_S : 0,
+    // Commanded forward and not getting anywhere: standing still or sliding back.
+    stallS: !airborne && ((profile.speed > 0 && v < PHYSICS.stallSpeedMps) || (action !== 'reverse' && v < -PHYSICS.rollbackMps)) ? state.stallS + DT_S : 0,
     heightM: airborne ? heightM : 0,
     vy: airborne ? vy : 0,
     airborne,
@@ -516,6 +527,9 @@ export function step(state: RunState, action: Action): RunState {
     jumpReadyT,
     lastAir,
     blockedBy,
+    drawW: drawJ / DT_S,
+    stoppedS: !airborne && profile.speed === 0 && Math.abs(v) < PHYSICS.stallSpeedMps ? state.stoppedS + DT_S : 0,
+    ...(hit?.obstacle && touched ? { lastContact: { atM: touched.xM, t, kind: hit.obstacle } } : {}),
     finished,
     dnfReason,
     lastDamage,

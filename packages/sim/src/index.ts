@@ -8,9 +8,12 @@ export { predictStats } from './stats';
 export type { PredictedStats } from './stats';
 export type { RobotSpec } from './spec';
 export { createRun, step, withAction, markDecision, jumpAirtimeS, PHYSICS, ACTION_PROFILES } from './physics';
-export { perceive, lookahead, detectDecisionPoint, availableActions, buildQuestion } from './perception';
+export { GAMEPLAY_VERSION } from '@rivetrun/contracts';
+export {
+  SCAN, START_TRIGGER, advanceBrain, availableActions, buildQuestion, detectDecisionPoint, lookahead, observe, optionsNow, perceive, safeSpeedMps, scannableZone, senses,
+} from './perception';
 export { score, why, whyLine } from './score';
 export { heuristicBrain, heuristicDecide, randomBrain, utility } from './brains';
-export { controlToAction, driveController, runController, runHeadless } from './controller';
+export { controlToAction, decisionLog, driveController, runController, runHeadless, runHeuristicSync } from './controller';
 export { assessBuild, capabilities, capabilityList, meetsDemand, missionDemands, partGives, partsProviding } from './strategy';
 export type { BuildAssessment, Capabilities, CapabilityId, CapabilityItem, DemandTest, SegmentAssessment, SegmentDemand, SegmentVerdict } from './strategy';

@@ -1,4 +1,4 @@
-import type { Build, ExtraKind, Part, SensorKind, TerrainId } from '@rivetrun/contracts';
+import type { Build, ExtraKind, Part, SensorKind, SensorSource, TerrainId } from '@rivetrun/contracts';
 import { PARTS_BY_ID } from './data';
 
 export const CHASSIS_MASS_KG = 1;
@@ -38,6 +38,10 @@ export interface RobotSpec {
   /** Energy of one jump = this power for one second. */
   readonly jumpPowerW: number;
   readonly sensorRangeM: Partial<Record<SensorKind, number>>;
+  /** Brain v3: where this build's knowledge can come from. Always starts with 'core'. */
+  readonly sources: readonly SensorSource[];
+  /** The obstacle ranger with the longest reach, if any. */
+  readonly rangerSource?: SensorSource;
   readonly extras: readonly ExtraKind[];
   readonly impactDamageFactor: number;
   readonly waterproof: boolean;
@@ -49,6 +53,9 @@ function part(id: string): Part {
   if (!found) throw new Error(`@rivetrun/sim: unknown part "${id}"`);
   return found;
 }
+
+const KIND_SOURCE: Readonly<Record<SensorKind, SensorSource>> = { ultrasonic: 'ultrasonic', imu: 'imu', camera: 'camera', moisture: 'moisture_probe', scout_drone: 'scout_drone' };
+const sourceOf = (sensor: Part): SensorSource => sensor.effects.source ?? KIND_SOURCE[sensor.effects.sensor ?? 'ultrasonic'];
 
 /** Reasons a build cannot be deployed as intended (empty = fine). For the Workshop. */
 export function buildIssues(build: Build): string[] {
@@ -101,6 +108,7 @@ export function deriveSpec(build: Build): RobotSpec {
     // Two parts of one kind (ultrasonic + lidar are both obstacle rangers): the longer range wins.
     if (sensor.effects.sensor) sensorRangeM[sensor.effects.sensor] = Math.max(sensorRangeM[sensor.effects.sensor] ?? 0, sensor.effects.rangeM ?? 0);
   }
+  const rangers = sensors.filter((p) => p.effects.sensor === 'ultrasonic').sort((a, b) => (b.effects.rangeM ?? 0) - (a.effects.rangeM ?? 0));
   // Cells scale the pack (capacity, mass, cost) and the voltage (speed, power, a little force).
   const cells = (build.batteryCells ?? BUILD_TUNING.stockCells) / BUILD_TUNING.stockCells;
   const cellCount = build.batteryCells ?? BUILD_TUNING.stockCells;
@@ -137,6 +145,8 @@ export function deriveSpec(build: Build): RobotSpec {
     jumpCooldownS: piston?.effects.cooldownS ?? 0,
     jumpPowerW: piston?.powerW ?? 0,
     sensorRangeM,
+    sources: ['core', ...new Set(sensors.map(sourceOf)), ...(extras.some((p) => p.effects.extra === 'bumper') ? (['bumper'] as const) : [])],
+    rangerSource: rangers[0] ? sourceOf(rangers[0]) : undefined,
     extras: extras.flatMap((p) => (p.effects.extra ? [p.effects.extra] : [])),
     impactDamageFactor: extras.reduce((factor, p) => factor * (p.effects.impactDamageFactor ?? 1), 1),
     waterproof: extras.some((p) => p.effects.waterproof === true),

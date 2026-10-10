@@ -97,8 +97,8 @@ export const TriggerCauseSchema = z.enum([
   'slip_start', 'slip_stop', 'tilt_10', 'tilt_20', 'tilt_level', 'impact', 'damage', 'landing', 'blocked', 'fell',
   // energy (hysteresis: low below 10 % projected at the finish, ok again above 30 %)
   'energy_low', 'energy_ok',
-  // actuator
-  'jump_ready', 'winch_done', 'scan_done',
+  // actuator: an action finished or became available ('stopped' = braking finished, the robot is at rest)
+  'jump_ready', 'winch_done', 'scan_done', 'stopped',
 ]);
 export type TriggerCause = z.infer<typeof TriggerCauseSchema>;
 

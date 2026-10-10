@@ -78,13 +78,13 @@ export const PARTS: readonly Part[] = [
     // Slamtec RPLIDAR C1: 12 m range, 110 g (docs/inputs/bom-mk2.json). Same obstacle-ranging mechanic as the ultrasonic.
     id: 'lidar_rplidar_c1', name: 'RPLIDAR C1', slot: 'sensor', blurb: 'Spinning lidar: sees obstacles and gaps 12 m ahead, so the driver can plan the approach.',
     massKg: 0.11, costEur: 70, powerW: 2.5, unlockPoints: 400,
-    effects: { sensor: 'ultrasonic', rangeM: 12 },
+    effects: { sensor: 'ultrasonic', rangeM: 12, source: 'lidar' },
   },
   {
     // Pololu #3415 VL53L1X time-of-flight carrier: 4 m range, 0.5 g (docs/inputs/bom-mk2.json).
     id: 'tof_vl53l1x_pololu', name: 'ToF ranger', slot: 'sensor', blurb: 'Laser time-of-flight: sees obstacles 4 m ahead and weighs half a gram.',
     massKg: 0.0005, costEur: 22, powerW: 0.1, unlockPoints: 100,
-    effects: { sensor: 'ultrasonic', rangeM: 4 },
+    effects: { sensor: 'ultrasonic', rangeM: 4, source: 'tof' },
   },
   // Extras (0–2)
   {

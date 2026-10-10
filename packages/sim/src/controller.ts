@@ -6,8 +6,9 @@ import type {
   BrainQuestion,
   Build,
   DamageCause,
+  DecisionLog,
   DecisionRecord,
-  DecisionTrigger,
+  Trigger,
   Episode,
   Mission,
   Policy,
@@ -17,10 +18,10 @@ import type {
 import { BRIEFING_MAX_CHARS } from '@rivetrun/contracts';
 import { heuristicDecide } from './brains';
 import { TUNING } from './data';
-import { availableActions, buildQuestion, detectDecisionPoint } from './perception';
+import { START_TRIGGER, advanceBrain, availableActions, buildQuestion } from './perception';
 import { createRun, markDecision, step, withAction } from './physics';
 import { score } from './score';
-import type { HeadlessOptions, HeadlessResult, RunConfig, RunController, RunControllerOptions, RunState } from './types';
+import type { HeadlessOptions, HeadlessResult, RunConfig, RunController, RunControllerOptions, RunState, StepDamage } from './types';
 
 // The package compiles without DOM or Node libs; these exist in every runtime we target.
 declare const performance: { now(): number } | undefined;
@@ -33,7 +34,41 @@ const MAX_FRAME_MS = 100;
 /** Continuous damage (water, tip-over) is reported in chunks of this size. */
 const DAMAGE_EVENT_PCT = 1;
 
-function record(question: BrainQuestion, decision: BrainDecision): DecisionRecord {
+const ACTION_WORD: Readonly<Record<Action, string>> = {
+  accelerate: 'full throttle', cruise: 'steady', slow_down: 'ease', coast: 'coast', brake_soft: 'soft brake', brake: 'brake',
+  reverse: 'reverse', climb_mode: 'climb mode', deploy_winch: 'winch', jump: 'jump', scan: 'scan',
+};
+
+/** The decision as the showcase shows it: what fired, what the brain knew, its choice and what the wait cost. */
+export function decisionLog(question: BrainQuestion, decision: BrainDecision, asked: RunState, applied: RunState): DecisionLog {
+  const trigger = question.cause ?? START_TRIGGER;
+  const share = decision.probabilities[decision.selected];
+  const chip = `${trigger.label} → ${ACTION_WORD[decision.selected]}${share !== undefined ? ` (${Math.round(share * 100)} %)` : ''} · ${Math.round(decision.latencyMs)} ms${decision.fallback ? ' · fallback' : ''}`;
+  return {
+    t: question.t,
+    xM: Math.round(asked.sim.x * 10) / 10,
+    trigger,
+    knew: question.observation?.lines ?? [],
+    unknown: question.observation?.unknown ?? [],
+    options: question.lookahead.map((entry) => ({
+      action: entry.action,
+      probability: decision.probabilities[entry.action] ?? 0,
+      progressM: entry.progressM,
+      damagePct: entry.damagePct,
+      energyPct: entry.energyPct,
+      ...(entry.projectedFinishPct !== undefined ? { projectedFinishPct: entry.projectedFinishPct } : {}),
+    })),
+    choice: decision.selected,
+    policy: decision.policy,
+    fallback: decision.fallback,
+    latencyMs: decision.latencyMs,
+    appliedT: applied.sim.t,
+    lostM: Math.round((applied.sim.x - asked.sim.x) * 100) / 100,
+    chip,
+  };
+}
+
+function record(question: BrainQuestion, decision: BrainDecision, log?: DecisionLog): DecisionRecord {
   return {
     t: question.t,
     perceived: question.perceived,
@@ -45,6 +80,7 @@ function record(question: BrainQuestion, decision: BrainDecision): DecisionRecor
     latencyMs: decision.latencyMs,
     trigger: question.trigger,
     ...(decision.model ? { model: decision.model } : {}),
+    ...(log ? { log } : {}),
   };
 }
 
@@ -79,7 +115,11 @@ async function decideSafe(brain: Brain, question: BrainQuestion): Promise<BrainD
   return { ...heuristicDecide(question), fallback: true };
 }
 
-/** No timers: runs to finish/DNF as fast as possible. Ghost frames at TUNING.ghostHz. */
+/**
+ * No timers: runs to finish/DNF as fast as possible. Ghost frames at TUNING.ghostHz.
+ * Brain v3: a decision is requested only when a trigger fires, the last command holds in between, and the
+ * brain's reported latency is applied as sim time, so the same seed and the same latencies give the same run.
+ */
 export async function runHeadless(
   mission: Mission,
   seed: number,
@@ -92,23 +132,64 @@ export async function runHeadless(
   const decisions: DecisionRecord[] = [];
   const frames: SimState[] = [state.sim];
   const frameEvery = Math.max(1, Math.round(1000 / TUNING.ghostHz / TUNING.dtMs));
-  let trigger: DecisionTrigger | null = 'start';
+  let trigger: Trigger | null = START_TRIGGER;
+  let queued: Trigger | null = null;
+  let pending: { question: BrainQuestion; decision: BrainDecision; asked: RunState; applyAtStep: number } | null = null;
   while (!state.done) {
-    if (trigger) {
+    if (trigger && pending) queued = trigger;
+    if (trigger && !pending) {
       const question = buildQuestion(state, trigger, briefing);
-      // Brains may be async (Jev over HTTP on the server): each decision is awaited before the sim moves on.
+      // Brains may be async (Jev over HTTP on the server): each answer is awaited, then delayed by its own latency.
       const decision = await decideSafe(brain, question);
-      decisions.push(record(question, decision));
-      state = withAction(markDecision(state), decision.selected);
+      state = markDecision(state);
+      pending = { question, decision, asked: state, applyAtStep: state.stepCount + Math.round(decision.latencyMs / TUNING.dtMs) };
     }
-    const prev = state;
+    if (pending && state.stepCount >= pending.applyAtStep) {
+      state = withAction(state, pending.decision.selected);
+      decisions.push(record(pending.question, pending.decision, decisionLog(pending.question, pending.decision, pending.asked, state)));
+      pending = null;
+      if (queued) {
+        trigger = queued;
+        queued = null;
+        continue;
+      }
+    }
     state = step(state, state.action);
-    trigger = detectDecisionPoint(prev, state);
+    ({ trigger, state } = advanceBrain(state));
     if (state.stepCount % frameEvery === 0 || state.done) frames.push(state.sim);
   }
   const policy = episodePolicy(decisions, options.policy);
   const episode = toEpisode(state, decisions, policy, `${mission.id}-${state.config.seed}-${policy}-headless`);
   return { episode, ghost: { policy, frames, outcome: episode.outcome } };
+}
+
+/** The same loop without a Brain object, for the synchronous callers (test run): heuristic, zero latency. */
+export function runHeuristicSync(config: RunConfig, onStep?: (prev: RunState, next: RunState) => void): { state: RunState; decisions: DecisionRecord[] } {
+  let state = createRun(config);
+  const decisions: DecisionRecord[] = [];
+  let trigger: Trigger | null = START_TRIGGER;
+  while (!state.done) {
+    if (trigger) {
+      const question = buildQuestion(state, trigger);
+      const decision = heuristicDecide(question);
+      const asked = markDecision(state);
+      state = withAction(asked, decision.selected);
+      decisions.push(record(question, decision, decisionLog(question, decision, asked, state)));
+    }
+    const prev = state;
+    state = step(state, state.action);
+    onStep?.(prev, state);
+    ({ trigger, state } = advanceBrain(state));
+  }
+  return { state, decisions };
+}
+
+/** A hit the build had no forward sensor to see coming: "BLIND · hit rock at 22 m: no distance sensor". */
+function blindNote(state: RunState, damage: StepDamage): { blind?: true; label?: string } {
+  if (damage.cause !== 'impact' || damage.obstacle === undefined) return {};
+  const forward = Math.max(state.spec.sensorRangeM.ultrasonic ?? 0, state.spec.sensorRangeM.camera ?? 0, state.spec.sensorRangeM.scout_drone ?? 0);
+  if (forward > 0) return { label: `${damage.blocked ? 'Stopped by' : 'Hit'} the ${damage.obstacle} at ${Math.round(state.sim.x)} m` };
+  return { blind: true, label: `BLIND · hit ${damage.obstacle} at ${Math.round(state.sim.x)} m: no distance sensor` };
 }
 
 /** Everything one step produces besides decisions: frame, terrain change, damage and air events. */
@@ -136,6 +217,7 @@ function emitStepEvents(
         ...(damage.blocked ? { blocked: true } : {}),
         ...(damage.roughEntry ? { roughEntry: damage.roughEntry } : {}),
         ...(damage.air ? { air: damage.air } : {}),
+        ...blindNote(state, damage),
       });
       pendingDamage[damage.cause] = 0;
     } else {
@@ -144,14 +226,26 @@ function emitStepEvents(
   }
 }
 
-/** Drive mode: the player's thumbs as one of the Actions the Brains use, so the physics is shared. */
+const level = (value: boolean | number): number => (typeof value === 'number' ? Math.min(1, Math.max(0, value)) : value ? 1 : 0);
+
+/**
+ * Drive mode: the player's thumbs as one of the Actions the Brains use, so the physics is shared.
+ * Gameplay v3: throttle and brake are 0..1 (a boolean is 0 or 1). Throttle maps to full / steady / ease / coast,
+ * brake to hard / soft; with nothing held the robot coasts.
+ */
 export function controlToAction(input: ControlInput, build: Build): Action {
   const actions = availableActions(build);
+  const throttle = level(input.throttle);
+  const brake = level(input.brake);
   if (input.special === 'jump' && actions.includes('jump')) return 'jump';
-  if (input.brake) return 'brake';
+  if (brake >= 0.6) return 'brake';
+  if (brake >= 0.1) return 'brake_soft';
   if (input.special === 'winch' && actions.includes('deploy_winch')) return 'deploy_winch';
-  if (input.special === 'climb') return 'climb_mode';
-  return input.throttle ? 'accelerate' : 'cruise';
+  if (input.special === 'climb' && throttle > 0) return 'climb_mode';
+  if (throttle >= 0.85) return 'accelerate';
+  if (throttle >= 0.5) return 'cruise';
+  if (throttle >= 0.15) return 'slow_down';
+  return 'coast';
 }
 
 /**
@@ -187,6 +281,14 @@ export function driveController(config: RunConfig, readInput: () => ControlInput
           const prev = state;
           state = step(state, controlToAction(readInput(), config.build));
           emitStepEvents(emit, prev, state, pendingDamage);
+          // HUD hints: the heuristic's read of each change, from the same Observation. Shown, never applied.
+          const advanced = advanceBrain(state);
+          state = advanced.state;
+          if (advanced.trigger && options.hints !== false) {
+            const question = buildQuestion(state, advanced.trigger);
+            const decision = heuristicDecide(question);
+            emit({ type: 'decision', t: state.sim.t, question, decision, log: decisionLog(question, decision, state, state), advisory: true });
+          }
         }
         if (state.done) {
           const outcome = score(state);
@@ -229,7 +331,8 @@ function newEpisodeId(state: RunState): string {
 export function runController(config: RunConfig, brain: Brain, options: RunControllerOptions): RunController {
   const emit = (event: RunEvent): void => options.onEvent(event);
   const timeScale = options.timeScale ?? 1;
-  const slowMoFactor = options.slowMo === false ? 1 : TUNING.decision.slowMoFactor;
+  // Brain v3: latency is real, so the run does not slow down while the brain thinks unless a caller asks for it.
+  const slowMoFactor = options.slowMo === true ? TUNING.decision.slowMoFactor : 1;
   const briefing = options.briefing?.trim().slice(0, BRIEFING_MAX_CHARS) || undefined;
   let stopped = false;
   let pending = false;
@@ -251,18 +354,27 @@ export function runController(config: RunConfig, brain: Brain, options: RunContr
       };
       finish = complete;
 
-      const ask = (trigger: DecisionTrigger): void => {
+      let queued: Trigger | null = null;
+      const ask = (trigger: Trigger): void => {
         pending = true;
         const question = buildQuestion(state, trigger, briefing);
         state = markDecision(state);
+        const asked = state;
         emit({ type: 'decisionPending', t: question.t, question });
         void decideSafe(brain, question).then((decision) => {
           // A decision that lands after the run ended is dropped: nothing follows finish / dnf.
           if (stopped || state.done) return;
-          decisions.push(record(question, decision));
+          // Latency is real: the old command held while the brain thought, and the choice applies now.
           state = withAction(state, decision.selected);
+          const log = decisionLog(question, decision, asked, state);
+          decisions.push(record(question, decision, log));
           pending = false;
-          emit({ type: 'decision', t: state.sim.t, question, decision });
+          emit({ type: 'decision', t: state.sim.t, question, decision, log });
+          if (queued) {
+            const next = queued;
+            queued = null;
+            ask(next);
+          }
         });
       };
 
@@ -279,10 +391,13 @@ export function runController(config: RunConfig, brain: Brain, options: RunContr
           const prev = state;
           state = step(state, state.action);
           emitStep(prev);
-          if (pending || state.done) continue;
-          const trigger = detectDecisionPoint(prev, state);
-          if (trigger) {
-            ask(trigger);
+          const advanced = advanceBrain(state);
+          state = advanced.state;
+          if (state.done || !advanced.trigger) continue;
+          if (pending) {
+            queued = advanced.trigger;
+          } else {
+            ask(advanced.trigger);
             accumulatedMs *= slowMoFactor;
           }
         }
@@ -300,7 +415,7 @@ export function runController(config: RunConfig, brain: Brain, options: RunContr
       };
 
       emit({ type: 'frame', state: state.sim });
-      ask('start');
+      ask(START_TRIGGER);
       timer = setTimeout(tick, TICK_MS);
     });
 

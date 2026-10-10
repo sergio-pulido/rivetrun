@@ -27,6 +27,26 @@ export interface RunConfig {
   readonly manual?: boolean;
 }
 
+/** What the trigger detector remembers between steps. Positions are identities, never shown to the brain. */
+export interface BrainMemory {
+  readonly hazardSeenX: number;
+  readonly hazardReachedX: number;
+  readonly gapSeenX: number;
+  readonly gapReachedX: number;
+  readonly terrainSeenX: number;
+  readonly zonesSeen: readonly string[];
+  readonly zonesReached: readonly string[];
+  readonly slipping: boolean;
+  /** 0 = under 10°, 1 = 10–20°, 2 = over 20°. */
+  readonly tiltBand: number;
+  readonly energyLow: boolean;
+  /** 0 = moving; 1, 2, … = how many times the stall has been reported. */
+  readonly stallMark: number;
+  readonly stopTold: boolean;
+  readonly jumpReady: boolean;
+  readonly damageStep: number;
+}
+
 /** What happened in the air during the last step, if anything. */
 export type AirEvent =
   | { readonly type: 'airborne'; readonly cause: 'ramp' | 'jump' | 'drop' }
@@ -90,6 +110,16 @@ export interface RunState {
   readonly lastAir?: AirEvent;
   /** The obstacle the robot is stopped against, if any. */
   readonly blockedBy?: Obstacle;
+  /** Electrical draw in the last step, watts (core kit: current sensing). */
+  readonly drawW: number;
+  /** Seconds at rest under a command to stand still. */
+  readonly stoppedS: number;
+  /** The last obstacle touched. A brain learns of it only through a bumper or an IMU. */
+  readonly lastContact?: { readonly atM: number; readonly t: number; readonly kind: Obstacle };
+  /** Gameplay v3 scan zones: done, missed, and the hold on the one under the robot. */
+  readonly scans: { readonly done: readonly string[]; readonly missed: readonly string[]; readonly holdS: number; readonly justDone?: string; readonly centred: number };
+  /** Brain v3: what has already been announced, so each change asks for one decision. */
+  readonly brain: BrainMemory;
   readonly finished: boolean;
   readonly dnfReason?: DnfReason;
   readonly lastDamage?: StepDamage;
@@ -117,8 +147,10 @@ export interface RunControllerOptions {
   readonly policy?: Policy;
   /** The player's instructions to the Brain; put on every BrainQuestion. Only Jev reads it. */
   readonly briefing?: string;
-  /** false = the run never slows down while the Brain decides (a live ghost). Default true. */
+  /** true = slow the run to 0.25× while the Brain decides (v2 behaviour). Default false: latency is real. */
   readonly slowMo?: boolean;
+  /** Drive mode: false turns off the heuristic's advisory decision events. Default true. */
+  readonly hints?: boolean;
   /** Sim seconds per real second when no decision is pending. Default 1. */
   readonly timeScale?: number;
 }

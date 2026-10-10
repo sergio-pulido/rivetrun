@@ -1,10 +1,9 @@
 // Strategy layer: what a build can do, what a mission asks for, and a headless test run.
 // Every number comes from the same data and physics the run uses; nothing here is a separate model.
 import type { Build, DnfReason, Mission, Part, PartId, TerrainId } from '@rivetrun/contracts';
-import { heuristicDecide } from './brains';
+import { runHeuristicSync } from './controller';
 import { PARTS, TERRAINS, TERRAIN_IDS, TUNING, driveSeed } from './data';
-import { buildQuestion, detectDecisionPoint } from './perception';
-import { ACTION_PROFILES, PHYSICS, createRun, jumpAirtimeS, markDecision, step, withAction } from './physics';
+import { ACTION_PROFILES, PHYSICS, jumpAirtimeS } from './physics';
 import { score } from './score';
 import { deriveSpec } from './spec';
 import { predictStats } from './stats';
@@ -355,23 +354,17 @@ function noteFor(state: RunState): { text: string; weight: number } | undefined 
 export function assessBuild(build: Build, mission: Mission, options: { readonly priority?: number } = {}): BuildAssessment {
   const started = now();
   const demands = missionDemands(mission);
-  let state = createRun({ mission, seed: driveSeed(mission), build, priority: options.priority ?? 0.5 });
-  const tallies: Tally[] = state.world.segments.map(() => ({ timeS: 0, damagePct: 0, noteWeight: 0 }));
-  let trigger: ReturnType<typeof detectDecisionPoint> = 'start';
-  while (!state.done) {
-    if (trigger) state = withAction(markDecision(state), heuristicDecide(buildQuestion(state, trigger)).selected);
-    const prev = state;
-    state = step(state, state.action);
-    trigger = detectDecisionPoint(prev, state);
+  const tallies: Tally[] = compileTrack(mission.track).segments.map(() => ({ timeS: 0, damagePct: 0, noteWeight: 0 }));
+  const { state } = runHeuristicSync({ mission, seed: driveSeed(mission), build, priority: options.priority ?? 0.5 }, (prev, next) => {
     const tally = tallies[prev.segmentIndex]!;
-    tally.timeS += state.sim.t - prev.sim.t;
-    tally.damagePct += Math.max(0, state.sim.damage - prev.sim.damage);
-    const note = noteFor(state);
+    tally.timeS += next.sim.t - prev.sim.t;
+    tally.damagePct += Math.max(0, next.sim.damage - prev.sim.damage);
+    const note = noteFor(next);
     if (note && note.weight > tally.noteWeight) {
       tally.note = note.text;
       tally.noteWeight = note.weight;
     }
-  }
+  });
   const outcome = score(state);
   const cruiseMps = ACTION_PROFILES.cruise.speed * state.spec.topSpeedMps;
   const failIndex = state.finished ? -1 : state.world.segments.findIndex((segment) => state.bestX >= segment.startM && state.bestX < segment.endM);
