@@ -50,6 +50,8 @@ export type { SceneLoaderProps } from './SceneLoader';
 export { createDriveInput } from './drive/driveInput';
 export type { DriveInput, DriveInputState } from './drive/driveInput';
 export { DriveControls } from './drive/DriveControls';
+// The slider's numbers, for copy that teaches it: a touch is TOUCH_START (0.3 = 30 %), TRAVEL_PX of finger travel is the whole range.
+export { TOUCH_START, TRAVEL_PX } from './drive/hazard';
 export type { DriveControlsProps } from './drive/DriveControls';
 export { haptic } from './drive/haptics';
 export { createFakeRun, fakeGhostTrace } from './fakeRun';

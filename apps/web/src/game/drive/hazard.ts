@@ -35,6 +35,11 @@ export function hazardWarning(observation: Observation | null, speedMps: number,
   return null;
 }
 
+/** Touching a pedal half sets this much throttle (or brake); sliding up adds, sliding down takes away. */
+export const TOUCH_START = 0.3;
+/** Finger travel for the whole 0–100 % range, px. */
+export const TRAVEL_PX = 200;
+
 /** Throttle bands, as the sim maps them (controlToAction). */
 export function throttleBand(value: number): 'FULL' | 'STEADY' | 'EASE' | 'COAST' {
   return value >= 0.85 ? 'FULL' : value >= 0.5 ? 'STEADY' : value >= 0.15 ? 'EASE' : 'COAST';

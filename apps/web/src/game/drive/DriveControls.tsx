@@ -8,7 +8,7 @@ import { useRunView, type RunFeed } from '../runFeed';
 import type { DriveInput, DriveInputState } from './driveInput';
 import styles from './drive.module.css';
 import { haptic } from './haptics';
-import { BRAKE_MARKS, THROTTLE_MARKS, brakeBand, hazardWarning, throttleBand } from './hazard';
+import { BRAKE_MARKS, THROTTLE_MARKS, TOUCH_START, TRAVEL_PX, brakeBand, hazardWarning, throttleBand } from './hazard';
 
 /** Uphill steeper than this: the action button offers the winch (or climb mode) instead of the jump. */
 const STEEP_DEG = 6;
@@ -16,11 +16,6 @@ const RING_R = 38;
 const RING_LENGTH = 2 * Math.PI * RING_R;
 
 const NO_SELECT: CSSProperties = { touchAction: 'none', userSelect: 'none', WebkitUserSelect: 'none', WebkitTouchCallout: 'none', WebkitTapHighlightColor: 'transparent' };
-
-/** Touch-down is this much throttle (or brake); sliding up adds, sliding down takes away. */
-const TOUCH_START = 0.3;
-/** Finger travel for the whole 0–100 % range, px. */
-const TRAVEL_PX = 200;
 
 interface Thumb {
   readonly id: number;
