@@ -155,3 +155,23 @@
 .rooms:empty {
   display: none;
 }
+.combos {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: calc(var(--u) * 4) calc(var(--u) * 18);
+  font-size: calc(var(--u) * 17);
+  color: var(--muted);
+}
+.combosLabel {
+  font-family: var(--data);
+  font-size: calc(var(--u) * 12);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--orange);
+  flex-basis: 100%;
+}
+.combo strong {
+  color: var(--text);
+  font-family: var(--display);
+}

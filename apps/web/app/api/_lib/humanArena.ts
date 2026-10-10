@@ -50,11 +50,28 @@ export interface HumanRunRow {
 const MAX_HUMAN_RUNS = 500;
 const BOARD_ROWS = 8;
 
+/** A finished lane of an auto room: the vehicle and driver a phone picked, and its race time (RR-PLAN §7). */
+export interface PlayResult {
+  readonly missionId: MissionId;
+  readonly presetId: string;
+  /** An arena brain id, or 'human'. */
+  readonly agent: string;
+  readonly nickname: string;
+  readonly timeS: number;
+}
+export interface BestCombo extends PlayResult {
+  /** Finished picked lanes on this mission today. */
+  readonly runs: number;
+}
+const MAX_PLAY_RESULTS = 2000;
+
 interface HumanArenaState {
   /** Best verified human run per mission. */
   readonly best: Map<MissionId, HumanArenaRow>;
   /** Every verified run since the server started, oldest first. */
   runs?: HumanRunRow[];
+  /** Finished picked lanes of auto rooms since the server started. */
+  play?: PlayResult[];
   verified: number;
   rejected: number;
 }
@@ -131,6 +148,26 @@ export interface HumanArenaBody {
   readonly vsJev: { readonly runs: number; readonly humanWins: number };
   /** Today's board: the best finished run of each nickname, fastest first. */
   readonly board: readonly HumanRunRow[];
+  /** "Best combo today" per mission, from the picked lanes of auto rooms that finished (test rooms excluded). */
+  readonly bestCombo: Readonly<Record<string, BestCombo>>;
+}
+
+/** An auto room finished: its picked lanes that reached the finish count for "Best combo today". */
+export function recordPlayResults(results: readonly PlayResult[]): void {
+  const play = (state.play ??= []);
+  play.push(...results);
+  if (play.length > MAX_PLAY_RESULTS) play.splice(0, play.length - MAX_PLAY_RESULTS);
+}
+
+/** Per mission: the fastest finished pick of the day, and how many picks finished there. */
+function bestCombos(): Record<string, BestCombo> {
+  const best: Record<string, BestCombo> = {};
+  for (const result of state.play ?? []) {
+    const current = best[result.missionId];
+    const runs = (current?.runs ?? 0) + 1;
+    best[result.missionId] = !current || result.timeS < current.timeS ? { ...result, runs } : { ...current, runs };
+  }
+  return best;
 }
 
 function board(): HumanRunRow[] {
@@ -151,6 +188,7 @@ export const humanArena = (): HumanArenaBody => ({
   rejected: state.rejected,
   vsJev: { runs: (state.runs ?? []).filter((run) => run.beatJev !== null).length, humanWins: (state.runs ?? []).filter((run) => run.beatJev === true).length },
   board: board(),
+  bestCombo: bestCombos(),
   humans: MISSION_IDS.flatMap((id) => {
     const row = state.best.get(id);
     return row ? [row] : [];

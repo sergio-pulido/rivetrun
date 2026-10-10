@@ -29,7 +29,7 @@ import {
   type RaceStatus,
 } from '../../race/_lib/protocol';
 import { peekGhost, requestGhost } from './ghostStore';
-import { recordHumanRun } from './humanArena';
+import { recordHumanRun, recordPlayResults } from './humanArena';
 import { PLAY_MISSION, PLAY_MISSIONS } from '@/play/playMission';
 import { resolveStrategy } from './playStrategy';
 import { addRun } from './store';
@@ -143,6 +143,16 @@ function closeRace(room: Room, now: number): void {
   }
   room.status = 'finished';
   room.version += 1;
+  // "Best combo today": the lanes of an auto room that a phone picked and that finished. Test rooms stay off the board.
+  if (room.auto && !room.auto.test) {
+    recordPlayResults(
+      [...room.players.values()].flatMap((player) =>
+        player.pick && player.finished && player.raceMs !== null
+          ? [{ missionId: room.missionId, presetId: player.pick.presetId, agent: player.pick.agent, nickname: player.nickname, timeS: Math.round(player.raceMs / 100) / 10 }]
+          : [],
+      ),
+    );
+  }
 }
 
 /** Time-driven transitions. Called on every read and write, so results never depend on who is watching. */

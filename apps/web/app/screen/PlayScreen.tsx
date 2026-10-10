@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { MISSIONS } from '@rivetrun/sim';
+import { MISSIONS, PRESETS } from '@rivetrun/sim';
 import type { HumanArenaBody } from '../api/_lib/humanArena';
 import type { PublicGuardStatus } from '../api/_lib/publicGuard';
 import { QrCode } from '../leaderboard/_lib/QrCode';
@@ -11,6 +11,8 @@ import styles from './screen.module.css';
 import { useAmbience } from '@/game/audio/samples';
 
 const REFRESH_MS = 3000;
+/** Driver names as the phones show them. */
+const AGENT_NAME: Readonly<Record<string, string>> = { 'jev-1.13.0': 'Jev', 'gpt-6-luna': 'GPT-6 Luna', 'deepseek-flash': 'DeepSeek Flash', 'gpt-6.1-sol': 'GPT-6.1 Sol', heuristic: 'Fixed rules', human: 'You drive' };
 
 /** Today's audience runs, as the server verified them (GET /api/arena/humans); null until the first answer. */
 function useAudience(): HumanArenaBody | null {
@@ -113,6 +115,19 @@ export function PlayScreen({ siteUrl }: { readonly siteUrl: string }) {
               </div>
             ))}
           </div>
+          {/* Best combo today, per mission: the fastest picked lane that finished in an auto room. */}
+          {Object.keys(audience?.bestCombo ?? {}).length > 0 ? (
+            <div className={play.combos} data-testid="best-combos">
+              <span className={play.combosLabel}>Best combo today</span>
+              {Object.values(audience?.bestCombo ?? {})
+                .sort((a, b) => a.missionId.localeCompare(b.missionId))
+                .map((combo) => (
+                  <span key={combo.missionId} className={play.combo}>
+                    <strong>{MISSIONS[combo.missionId].name}</strong> {PRESETS[combo.presetId as keyof typeof PRESETS]?.name ?? combo.presetId} · {AGENT_NAME[combo.agent] ?? combo.agent} · {combo.timeS.toFixed(1)} s
+                  </span>
+                ))}
+            </div>
+          ) : null}
           {/* Presenter only: this request answers on localhost and nowhere else. */}
           {guard ? (
             <span className={play.foot} data-testid="public-ai-status">
