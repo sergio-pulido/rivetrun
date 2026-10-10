@@ -12,7 +12,7 @@ import { fileURLToPath } from 'node:url';
 import { GAMEPLAY_VERSION, type Action, type Brain, type Build, type DecisionLog, type Episode, type MissionId } from '@rivetrun/contracts';
 import { DEFAULT_PRESET_ID, MISSION_IDS, MISSIONS, PRESETS, runHeadless } from '@rivetrun/sim';
 import { arenaPromptHash, buildArenaPrompt } from '../src/arena/prompt';
-import { publicReason, ARENA_TIMEOUT_MS, PRICE_SOURCES, resolveContestants, type Contestant, type Tier } from '../src/arena/providers';
+import { publicReason, VERDICT_NOTE, ARENA_TIMEOUT_MS, PRICE_SOURCES, resolveContestants, type Contestant, type Tier } from '../src/arena/providers';
 
 const SEED_BASE = 1001;
 const OUT_MD = fileURLToPath(new URL('../../../docs/ARENA.md', import.meta.url));
@@ -269,6 +269,7 @@ async function main(): Promise<void> {
   const previousFile = existsSync(OUT_JSON) ? (JSON.parse(readFileSync(OUT_JSON, 'utf8')) as { lab?: unknown }) : {};
   const older = rows.filter((row) => row.gameplayVersion !== undefined && row.gameplayVersion !== GAMEPLAY_VERSION);
   const notes = [
+    VERDICT_NOTE,
     'No fallback for anyone: an answer that is late or missing leaves the robot on its last command.',
     ...(older.length > 0 ? [`${older.map((row) => `${row.label} (gameplay ${row.gameplayVersion}, ${row.runs} runs)`).join(', ')}: carried over from an earlier version of the game because the provider could not be called again; not comparable with the rows run on gameplay ${GAMEPLAY_VERSION}.`] : []),
   ];

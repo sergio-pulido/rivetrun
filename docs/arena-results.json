@@ -502,6 +502,7 @@
   ],
   "notRun": [],
   "notes": [
+    "Each question tells the brain which option the fixed rules rate as correct. These tables measure whether a model follows that under its real latency.",
     "No fallback for anyone: an answer that is late or missing leaves the robot on its last command.",
     "Claude Haiku 5.5 (gameplay 3, 24 runs), Claude Sonnet 5.5 (gameplay 3, 24 runs), Claude Opus 5.5 (reasoning) (gameplay 3, 7 runs): carried over from an earlier version of the game because the provider could not be called again; not comparable with the rows run on gameplay 4."
   ],
@@ -885,6 +886,7 @@
       }
     ],
     "notes": [
+      "Each question tells the brain which option the fixed rules rate as correct. These tables measure whether a model follows that under its real latency.",
       "CTF is a race against a heuristic rival answering in 400 ms, so a slower contestant loses the flag and scores 0.",
       "Seeds move the forklifts and the storm, never the map: maze, house and ctf have the same layout on every seed."
     ]

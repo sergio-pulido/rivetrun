@@ -128,14 +128,21 @@ async function compute(key: string, request: GhostRequest, low = false): Promise
   }
 }
 
+/** The mission the Room Challenge is played on: warmed with whatever a visitor opens first. */
+const ROOM_MISSION: MissionId = 'M5';
+const DEFAULT_PRIORITY = 0.5;
+
 /**
- * The same loadout on every other mission, at the seed Drive mode uses there: a visitor who has opened one Brief
- * will open another, and a ghost takes 4 to 17 s to drive (docs/QA.md Q17). Low priority, skipped when busy.
+ * A ghost takes 4 to 17 s to drive (docs/QA.md Q17), so the two a visitor is most likely to want next are started
+ * ahead: the mission after the one asked for, and the Room Challenge. Only for the default priority with no
+ * briefing, because the Jev quota is shared by every phone in the room; everything else waits for its own Brief.
  */
 function warmSiblings(request: GhostRequest): void {
-  if (request.fault || request.seed !== driveSeed(MISSIONS[request.missionId])) return;
-  for (const missionId of MISSION_IDS) {
-    if (missionId === request.missionId) continue;
+  if (request.fault || request.briefing || request.priority !== DEFAULT_PRIORITY) return;
+  if (request.seed !== driveSeed(MISSIONS[request.missionId])) return;
+  const next = MISSION_IDS[MISSION_IDS.indexOf(request.missionId) + 1];
+  for (const missionId of new Set([next, ROOM_MISSION])) {
+    if (missionId === undefined || missionId === request.missionId) continue;
     if (state.waiting.filter((item) => item.low).length >= MAX_WARM_QUEUE) return;
     const sibling: GhostRequest = { ...request, missionId, seed: driveSeed(MISSIONS[missionId]) };
     const key = keyOf(sibling);

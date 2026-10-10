@@ -287,3 +287,6 @@ export function publicReason(reason: string | undefined): string {
   if (http) return `the provider refused the request (${http})`;
   return reason.split(':')[0]!.slice(0, 80);
 }
+
+/** What both arena tables measure, said above them (docs/QA.md Q20). */
+export const VERDICT_NOTE = 'Each question tells the brain which option the fixed rules rate as correct. These tables measure whether a model follows that under its real latency.';
