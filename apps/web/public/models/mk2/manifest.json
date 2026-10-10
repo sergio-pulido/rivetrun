@@ -25,9 +25,9 @@
     "wheels": {
       "file": "wheels.glb",
       "slot": "locomotion",
-      "triangles": 5352,
+      "triangles": 6964,
       "meshes": 12,
-      "bytes": 30472,
+      "bytes": 41616,
       "printedParts": [
         "motor_cap",
         "motor_saddle"
@@ -95,18 +95,17 @@
     "offroad_wheels": {
       "file": "offroad_wheels.glb",
       "slot": "locomotion",
-      "triangles": 2896,
+      "triangles": 5243,
       "meshes": 16,
-      "bytes": 58612,
+      "bytes": 51768,
       "printedParts": [
         "motor_cap",
         "motor_saddle"
       ],
-      "compression": "meshopt",
       "visualPrototypes": [
         "offroad_tread_tpu"
       ],
-      "notes": "Knobbly tread visual; manufacturing link deferred while print work is paused."
+      "compression": "meshopt"
     },
     "tracks": {
       "file": "tracks.glb",

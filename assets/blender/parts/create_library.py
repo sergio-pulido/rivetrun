@@ -51,6 +51,26 @@ def cylinder(name,p,r,h,mat,axis='Z',n=32):
     for f in o.data.polygons:f.use_smooth=len(f.vertices)==4
     return mesh(o,name,mat)
 
+def annulus(name,p,outer,inner,height,mat,n=32,d_bore=False):
+    # Explicit closed quads avoid unstable boolean caps and preserve the hub.
+    vertices=[]
+    for z in (-height/2,height/2):
+        for radius in (outer,inner):
+            for i in range(n):
+                angle=math.tau*i/n;x=radius*math.cos(angle);y=radius*math.sin(angle)
+                if d_bore and radius==inner:y=min(y,.85)
+                vertices.append(((p[0]+x)*.001,(p[1]+y)*.001,(p[2]+z)*.001))
+    faces=[]
+    for i in range(n):
+        j=(i+1)%n
+        faces.extend([(i,j,2*n+j,2*n+i),(n+j,n+i,3*n+i,3*n+j),
+                      (j,i,n+i,n+j),(2*n+i,2*n+j,3*n+j,3*n+i)])
+    data=bpy.data.meshes.new(name);data.from_pydata(vertices,[],faces);data.update()
+    o=bpy.data.objects.new(name,data);bpy.context.collection.objects.link(o)
+    import bmesh
+    bm=bmesh.new();bm.from_mesh(data);bmesh.ops.recalc_face_normals(bm,faces=list(bm.faces));bm.to_mesh(data);bm.free()
+    return mesh(o,name,mat)
+
 def cut(obj,cutter):
     bpy.context.view_layer.objects.active=obj;m=obj.modifiers.new('Manufacturing aperture','BOOLEAN');m.operation='DIFFERENCE';m.solver='EXACT';m.object=cutter;bpy.ops.object.modifier_apply(modifier=m.name);bpy.data.objects.remove(cutter,do_unlink=True)
 
@@ -254,19 +274,16 @@ def generate(key):
     elif key.startswith('wheels_'):
         d=spec['diameterMm'];w=spec['widthMm'];bare={60:56,80:76.5,90:86.5}[d];collar=11 if d==60 else 11.8
         begin(key,[d,d,collar],'Official Pololu 0J1708 drawing, wheel '+str(d)+' mm page: bare diameter, width, collar and shaft',["Spoke edge radii, slots, tyre grooves and central-web outline are minor visual approximations; documented mounting dimensions are retained."])
-        tyre=cylinder('silicone_tyre',(0,0,w/2-collar-(w-6.5)/2),d/2,w,rubber,n=64);cut(tyre,cylinder('tyre_inner',(0,0,-collar+3.25),bare/2,w+4,black,n=64))
-        rim=cylinder('rim',(0,0,3.25-collar),bare/2,6.5,black,n=64);cut(rim,cylinder('rim_inner',(0,0,3.25-collar),bare/2-2,10,black,n=64))
-        disk=cylinder('hub_web',(0,0,3.25-collar),12,6.5,black)
-        hub=cylinder('shaft_collar',(0,0,-collar/2),3.3,collar,black)
-        for o in (disk,hub):
-            cutter=cylinder('D_shaft',(0,0,-collar/2),1.55,collar+2,black,n=24)
-            cut(cutter,block('D_flat',(0,5.85,-collar/2),(10,10,collar+4),black))
-            cut(o,cutter)
+        z=3.25-collar
+        annulus('silicone_tyre',(0,0,z),d/2,bare/2,w,rubber)
+        annulus('rim',(0,0,z),bare/2,bare/2-2,6.5,black)
+        annulus('hub_web',(0,0,z),10,1.5,6.5,black,n=24,d_bore=True)
+        annulus('shaft_collar',(0,0,-collar/2),3.3,1.5,collar,black,n=24,d_bore=True)
         spoke_count=5 if d==60 else 6
+        inner_radius=9;outer_radius=bare/2-1
         for i in range(spoke_count):
-            a=i*math.tau/spoke_count
-            o=block('spoke_'+str(i),((bare/4+5)*math.cos(a),(bare/4+5)*math.sin(a),3.25-collar),(bare/2-8,5,6.5),black,.4);o.rotation_euler.z=a
-        for x,y in [(-6.35,0),(6.35,0)]+([] if d==60 else [(sign*4.775,other*8.2705) for sign in (-1,1) for other in (-1,1)]):cut(disk,cylinder('mounting_hole',(x,y,3.25-collar),1.55,12,black,n=20))
+            a=i*math.tau/spoke_count;r=(inner_radius+outer_radius)/2
+            o=block('spoke_'+str(i),(r*math.cos(a),r*math.sin(a),z),(outer_radius-inner_radius,5,6.5),black);o.rotation_euler.z=a
         finish(key,'wheels_60x8',True)
     elif key in ('battery_4s_small','battery_4s_large'):
         dims=[float(v) for v in spec['dimsMm'].split('×')];begin(key,dims,None,['Shrink-wrap corner radius and seam approximate small details. Leads/connectors omitted because their envelope is not supplied.'])
@@ -285,8 +302,11 @@ def generate(key):
         board(25,24);cylinder('lens_barrel',(0,0,6.3),5.7,9.9,black);cylinder('lens_rim',(0,0,11.15),5.65,.5,steel);cylinder('lens_glass',(0,0,11.4),4.8,.2,black);block('csi_socket',(0,9,2.1),(16,4,1),white,.1);finish(key,'camera_module_3')
     elif key=='offroad_tread_tpu':
         begin(key,[88,88,10.4],'Printed design assets/print/mk2/offroad_tread_80.stl; Pololu 0J1708 bare 80mm wheel diameter 76.5mm',['Designed TPU bore 76.2mm stretch fit and lug geometry require physical validation.'])
-        bpy.ops.wm.stl_import(filepath=str(ROOT/'assets/print/mk2/offroad_tread_80.stl'),global_scale=.001)
-        o=bpy.context.object;o.location.z-=.01375;mesh(o,'print_offroad_tread_80',rubber)
+        approximations[:]=['Screen-only tread shape: simplified closed TPU band and 24 lugs around the sourced 76.5 mm rim. Manufacturing and fit work remain paused.']
+        annulus('tread_band',(0,0,-8.55),41,38.1,10.4,rubber)
+        for i in range(24):
+            a=i*math.tau/24
+            o=block('tread_lug_'+str(i),(42.5*math.cos(a),42.5*math.sin(a),-8.55),(3,5,10.4),rubber);o.rotation_euler.z=a
         finish(key,heavy=True)
     elif key=='tracks_pololu_30t':
         begin(key,[124,39,14.6],None,['One track train shown; purchased set supplies two. Minor belt teeth/sprocket recess profiles approximated; 85mm centre spacing, 35mm sprockets, 39mm over-track diameter and 14.6mm belt width sourced.'])

@@ -60,14 +60,14 @@
     "approximations": [
       "Spoke edge radii, slots, tyre grooves and central-web outline are minor visual approximations; documented mounting dimensions are retained."
     ],
-    "tris": 2158,
-    "glbKb": 35.608,
+    "tris": 956,
+    "glbKb": 13.636,
     "author": "sergio.pulido@alodai.com",
     "units": "metres",
     "upAxis": "+Y",
     "origin": "mounting-face centre",
-    "compression": "meshopt",
-    "renderFillTarget": 0.75
+    "renderFillTarget": 0.75,
+    "compression": "meshopt"
   },
   {
     "key": "wheels_80x10",
@@ -83,14 +83,14 @@
     "approximations": [
       "Spoke edge radii, slots, tyre grooves and central-web outline are minor visual approximations; documented mounting dimensions are retained."
     ],
-    "tris": 2614,
-    "glbKb": 41.656,
+    "tris": 968,
+    "glbKb": 13.496,
     "author": "sergio.pulido@alodai.com",
     "units": "metres",
     "upAxis": "+Y",
     "origin": "mounting-face centre",
-    "compression": "meshopt",
-    "renderFillTarget": 0.75
+    "renderFillTarget": 0.75,
+    "compression": "meshopt"
   },
   {
     "key": "wheels_90x10",
@@ -106,14 +106,14 @@
     "approximations": [
       "Spoke edge radii, slots, tyre grooves and central-web outline are minor visual approximations; documented mounting dimensions are retained."
     ],
-    "tris": 2614,
-    "glbKb": 41.764,
+    "tris": 968,
+    "glbKb": 13.62,
     "author": "sergio.pulido@alodai.com",
     "units": "metres",
     "upAxis": "+Y",
     "origin": "mounting-face centre",
-    "compression": "meshopt",
-    "renderFillTarget": 0.75
+    "renderFillTarget": 0.75,
+    "compression": "meshopt"
   },
   {
     "key": "battery_4s_small",
@@ -429,19 +429,18 @@
       88,
       10.4
     ],
-    "dimsSource": "Editable visual prototype assets/blender/parts/offroad_tread_tpu.blend; Pololu 0J1708 bare hub diameter 76.5 mm",
+    "dimsSource": "Printed design assets/print/mk2/offroad_tread_80.stl; Pololu 0J1708 bare 80mm wheel diameter 76.5mm",
     "approximations": [
-      "Designed TPU bore 76.2mm stretch fit and lug geometry require physical validation.",
-      "Print publishing paused by human; no uncommitted STL or printed-parts record is required by the demo."
+      "Screen-only tread shape: simplified closed TPU band and 24 lugs around the sourced 76.5 mm rim. Manufacturing and fit work remain paused."
     ],
-    "tris": 5018,
-    "glbKb": 59.244,
+    "tris": 544,
+    "glbKb": 10.436,
     "author": "sergio.pulido@alodai.com",
     "units": "metres",
     "upAxis": "+Y",
     "origin": "mounting-face centre",
-    "compression": "meshopt",
-    "renderFillTarget": 0.75
+    "renderFillTarget": 0.75,
+    "compression": "meshopt"
   },
   {
     "key": "tracks_pololu_30t",
