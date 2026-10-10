@@ -38,6 +38,20 @@ Written by [MASTER] for the human. Newest status first. Program: docs/OVERNIGHT.
 
 ## Status log
 
+### 15:07 · `demo-good-1450`, `demo-good-1505`, the final token count
+`demo-good-1450` → 744e7b0: RR-THRUST, RR-GUARD with the replay of stored runs, /play as vehicle → driver, rooms per mission, Home on /play (RR-HOME, RR-HOME-2), the mission thumbnails, plans for the play missions. Old flows 23 of 23 on the first attempt.
+`demo-good-1505` → d6780f1: adds the mission step as the default (/play is mission → vehicle → driver) and the list M7, M5, M8. Old flows green on the first attempt, and for the first time every new-flow line is green on a production build:
+- the mission tap, then vehicle → driver in 0.2 s, no strategy step;
+- an untouched phone finished M7 without a tap: P3 of 4 in 67.7 s. Its pick (All-rounder, Jev, the plan) was stored first, as the demo's prewarm does; the server moved its lane from that run. Stored without the prewarm, the same phone was closed out in the two gates before (it then drives live, and software rendering runs it behind the room's clock);
+- the driving phone got the room's official result and "Play again" (it did not finish: a scripted thumb on M7 in software rendering, reported as a warning);
+- the mission step offers M7, M5, M8, asks for no room before the tap, and seats the phone in the tapped mission's room;
+- Lab Analyze 4 of 4 with the model stubbed; the match and pick routes; 40 phones: 40 of 40 to the results, every answer 200, poll p95 9 ms.
+What that 67.7 s says: with the vehicle-keeping plans the default pick on M7 is slow (the fill lanes finish in 47.4 s). Sergio's decision on the vehicle rule or the default vehicle is still open.
+
+Final token count at 15:06 (`python3 scripts/tokens.py --write docs/tokens.json --setup docs/SETUP.md`, commit 3304a7d): 2,620,160,182 measured tokens = 2,613,741,145 in eight Claude Code sessions + 6,419,037 in the published arena tables. Of the Claude Code figure 2,590,728,453 are cache reads (99.1 %) and 6,686,270 output. 505 commits since Friday 18:00 when the count was taken. Not measured, and listed as such: the asset agent, the orchestration chat, Claude Design, Jev's tokens, the facts-only arena columns, and the paid calls outside the published tables (live Arena races, the planner, the prewarms). The sessions were still running: the figure keeps growing.
+
+From 15:15 only critical fixes are tagged, each with its reason. The gate on 3304a7d (docs and the token script only) is running so that /lab on the served build shows the final figures.
+
 ### 14:36 · the 14:30 decisions: mission step, RR-THRUST, and the pieces Sergio listed
 Late by six minutes, and the reason is mine: after [UI] flipped Home to /play, my gate went red on three smoke steps that still used the "You drive / Jev drives" switch on Home (I had moved only two of five to the Brief). Fixed in 744e7b0 and validated on the production build of cc44220 before gating again: Jev on M1 27.1 s; Drive on M5 with one CLIMB tap 61.5 s. The M5 step now also fails if the run finishes without the stuck prompt, because a Jev-driven run did exactly that and passed. The gate for the tag (744e7b0) is running as this is written; every "go" below that is not yet in a tag holds only if that gate is green.
 
