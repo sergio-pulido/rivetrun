@@ -30,12 +30,14 @@ interface WorkshopProps {
   readonly makers: Readonly<Record<string, string>>;
   /** Real parts from the bill of materials that the game does not have yet. Shown locked on the shelf they belong to. */
   readonly locked: readonly LockedPart[];
+  /** Ids of the printed parts that have an entry in the real-build view. */
+  readonly printedIds: readonly string[];
 }
 
 /** Which shelf a locked part sits on, by its BOM category. Anything unlisted is a sensor. */
 const LOCKED_SLOT: Readonly<Record<string, Slot>> = { motor: 'motor', battery: 'battery', actuator: 'extra', compute: 'extra' };
 
-export function Workshop({ makers, locked }: WorkshopProps) {
+export function Workshop({ makers, locked, printedIds }: WorkshopProps) {
   const build = useBuildStore((store) => store.build);
   const setBuild = useBuildStore((store) => store.setBuild);
   const missionId = useBuildStore((store) => store.missionId);
@@ -47,12 +49,14 @@ export function Workshop({ makers, locked }: WorkshopProps) {
   const [notice, setNotice] = useState<string | null>(null);
 
   const router = useRouter();
-  // Tapping a part on the 3D rover opens its sheet. Picks this screen has no sheet for (printed parts, empty space) do nothing.
+  // Tapping a part on the 3D rover opens its sheet; a printed part opens its line in the real-build list. Unknown picks do nothing.
   const openPicked = useCallback(
     (pick: RoverPick | null): void => {
-      if (pick && 'partId' in pick && PARTS_BY_ID.has(pick.partId)) router.push(`/workshop/part/${pick.partId}`);
+      if (!pick) return;
+      if ('partId' in pick && PARTS_BY_ID.has(pick.partId)) router.push(`/workshop/part/${pick.partId}`);
+      else if ('printedPartId' in pick && printedIds.includes(pick.printedPartId)) router.push(`/workshop/real#printed-${pick.printedPartId}`);
     },
-    [router],
+    [router, printedIds],
   );
 
   const stats = buildStats(build);

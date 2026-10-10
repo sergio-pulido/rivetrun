@@ -6,8 +6,11 @@ import { useBuildStore } from '@/state/build';
 import { buildName } from '@/ui/buildStats';
 import { Icon } from '@/ui/Icon';
 import { Shell } from '@/ui/Shell';
-import { formatMoney, formatSubtotal, parsePrice, quantity, realPlan, subtotal, type Bom, type RealLine } from './bom';
+import { formatMoney, formatSubtotal, parsePrice, quantity, realPlan, subtotal, type Bom, type BomItem, type RealLine } from './bom';
 import type { PartMedia } from './bomData';
+import { FabLab } from './FabLab';
+import { PrintedParts, type PrinterChoice } from './PrintedParts';
+import type { PrintedPart } from './printedData';
 import { StatusBadge, priceText } from './RealComponent';
 
 interface RowProps {
@@ -58,10 +61,16 @@ interface RealBuildProps {
   /** Core kit, game components and alternatives from the MK-II bill of materials; null when the file could not be read. */
   readonly bom: Bom | null;
   readonly media: Readonly<Record<string, PartMedia>>;
+  /** Parts to 3D-print, from docs/inputs/printed-parts.json. Empty when the file is not there. */
+  readonly printed: readonly PrintedPart[];
+  readonly printedRenders: Readonly<Record<string, string | null>>;
+  /** The bill of materials' tools, for the fab lab strip and the printer picker. */
+  readonly tools: readonly BomItem[];
+  readonly toolRenders: Readonly<Record<string, string | null>>;
 }
 
 /** "Build it for real": the shopping list for the robot on the bench. Only what the bill of materials contains. */
-export function RealBuild({ bom, media }: RealBuildProps) {
+export function RealBuild({ bom, media, printed, printedRenders, tools, toolRenders }: RealBuildProps) {
   const build = useBuildStore((store) => store.build);
 
   if (!bom) {
@@ -76,6 +85,7 @@ export function RealBuild({ bom, media }: RealBuildProps) {
   const all = [...plan.core, ...plan.chosen];
   const sum = subtotal(all);
   const figure = formatSubtotal(sum);
+  const printers: readonly PrinterChoice[] = tools.filter((tool) => tool.category === 'printer').map((tool) => ({ key: tool.key, name: tool.name, usedFor: tool.usedFor }));
 
   return (
     <Shell back="/workshop" title="Build it for real">
@@ -122,6 +132,10 @@ export function RealBuild({ bom, media }: RealBuildProps) {
         ) : null}
         <p className="mt-2 text-xs leading-snug text-[#B8C0C9]">Prices are the ones each maker&apos;s page showed, in its own currency. They are not converted or added across currencies, and exclude shipping.</p>
       </section>
+
+      <PrintedParts parts={printed} printers={printers} renders={printedRenders} />
+
+      <FabLab tools={tools} renders={toolRenders} />
 
       <p className="pb-2 text-center font-mono text-[11px] leading-relaxed text-muted">Designed, not yet built. Links checked {bom.checkedAt}.</p>
     </Shell>
