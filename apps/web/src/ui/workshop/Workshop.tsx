@@ -12,6 +12,8 @@ import { useWorkshopUi } from '@/state/workshop';
 import { SavedBuilds } from '@/ui/builds/SavedBuilds';
 import { BUDGET_EUR, buildStats, sameBuild } from '@/ui/buildStats';
 import { Icon } from '@/ui/Icon';
+import type { Bom } from '@/ui/real/bom';
+import type { PartMedia } from '@/ui/real/bomData';
 import { LockedCard, type LockedPart } from '@/ui/real/LockedCard';
 import { SensePanel } from '@/ui/sensing/SensePanel';
 import { Shell } from '@/ui/Shell';
@@ -19,6 +21,7 @@ import { TestRun } from '@/ui/strategy/TestRun';
 import { useTestRun } from '@/ui/strategy/useTestRun';
 import { Bench3D } from '@/ui/three/Bench3D';
 import { PartCard } from './PartCard';
+import { PartSheet } from './PartSheet';
 import { Predicted } from './Predicted';
 import { SLOTS, fitted, partsIn, withPart } from './slots';
 import { Tuning } from './Tuning';
@@ -38,12 +41,18 @@ interface WorkshopProps {
   readonly locked: readonly LockedPart[];
   /** Ids of the printed parts that have an entry in the real-build view. */
   readonly printedIds: readonly string[];
+  /** The bill of materials and its renders, for the part sheet when it opens as a side panel (desktop). */
+  readonly bom: Bom | null;
+  readonly media: Readonly<Record<string, PartMedia>>;
 }
+
+/** Desktop and projector: the two-column Workshop, where a part's sheet opens beside the rover instead of on its own page. */
+const isWide = (): boolean => typeof window !== 'undefined' && window.matchMedia('(min-width: 1024px)').matches;
 
 /** Which shelf a locked part sits on, by its BOM category. Anything unlisted is a sensor. */
 const LOCKED_SLOT: Readonly<Record<string, Slot>> = { motor: 'motor', battery: 'battery', actuator: 'extra', compute: 'extra' };
 
-export function Workshop({ makers, locked, printedIds }: WorkshopProps) {
+export function Workshop({ makers, locked, printedIds, bom, media }: WorkshopProps) {
   const build = useBuildStore((store) => store.build);
   const setBuild = useBuildStore((store) => store.setBuild);
   const missionId = useBuildStore((store) => store.missionId);
@@ -54,13 +63,29 @@ export function Workshop({ makers, locked, printedIds }: WorkshopProps) {
   const setSlot = useWorkshopUi((store) => store.setSlot);
   const [notice, setNotice] = useState<string | null>(null);
   const shelf = useRef<HTMLElement>(null);
+  // Wide screens: the part whose sheet is open as a side panel. Phones navigate to the sheet's own page instead.
+  const [panelPart, setPanelPart] = useState<Part | null>(null);
+  const openPanel = useCallback((part: Part): boolean => {
+    if (!isWide()) return false;
+    setPanelPart(part);
+    return true;
+  }, []);
+  useEffect(() => {
+    if (!panelPart) return;
+    const onKey = (event: KeyboardEvent): void => {
+      if (event.key === 'Escape') setPanelPart(null);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [panelPart]);
   // The shelf sits under the sticky tab bar and often below the fold: after a tab is tapped (not on first load, and not when
   // another screen changed the slot) its cards are brought into view, once the new shelf has rendered.
   const tapped = useRef(false);
   useEffect(() => {
     if (!tapped.current) return;
     tapped.current = false;
-    shelf.current?.scrollIntoView({ block: 'start' });
+    // On wide screens the shelf is already beside the rover.
+    if (!isWide()) shelf.current?.scrollIntoView({ block: 'start' });
   }, [slot]);
   const setMission = useBuildStore((store) => store.setMission);
   const priority = useBuildStore((store) => store.priority);
@@ -76,10 +101,13 @@ export function Workshop({ makers, locked, printedIds }: WorkshopProps) {
   const openPicked = useCallback(
     (pick: RoverPick | null): void => {
       if (!pick) return;
-      if ('partId' in pick && PARTS_BY_ID.has(pick.partId)) router.push(`/workshop/part/${pick.partId}`);
+      const picked = 'partId' in pick ? PARTS_BY_ID.get(pick.partId) : undefined;
+      if (picked) {
+        if (!openPanel(picked)) router.push(`/workshop/part/${picked.id}`);
+      }
       else if ('printedPartId' in pick && printedIds.includes(pick.printedPartId)) router.push(`/workshop/real#printed-${pick.printedPartId}`);
     },
-    [router, printedIds],
+    [router, printedIds, openPanel],
   );
 
   const stats = buildStats(build);
@@ -97,18 +125,9 @@ export function Workshop({ makers, locked, printedIds }: WorkshopProps) {
     if (!fittedIds.includes(part.id)) setBuild(withPart(build, part));
   };
 
-  return (
-    <Shell
-      back="/"
-      title="Workshop"
-      right={
-        <span className="flex h-9 shrink-0 items-center gap-1 rounded-[10px] border border-line-2 bg-panel-2 px-3 font-mono text-[13px] tabular-nums">
-          <span className={`font-semibold ${over ? 'text-bad' : 'text-orange'}`}>€{stats.costEur}</span>
-          <span className="text-muted">/ €{BUDGET_EUR}</span>
-        </span>
-      }
-      footer={
-        <div className="flex gap-2.5">
+  // Assembly and the way to the Brief: pinned to the foot of the screen on a phone, at the foot of the right column on wide screens.
+  const actions = (
+    <>
           <Link href="/workshop/assembly" className="rr-btn rr-btn-secondary !min-h-[54px] flex-1 !bg-transparent">
             Assembly
           </Link>
@@ -122,12 +141,30 @@ export function Workshop({ makers, locked, printedIds }: WorkshopProps) {
               <Icon name="next" size={18} />
             </Link>
           )}
-        </div>
+        </>
+  );
+
+  return (
+    <Shell
+      back="/"
+      title="Workshop"
+      wide
+      bodyClassName="lg:grid lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] lg:items-start lg:gap-6"
+      footerClassName="lg:hidden"
+      right={
+        <span className="flex h-9 shrink-0 items-center gap-1 rounded-[10px] border border-line-2 bg-panel-2 px-3 font-mono text-[13px] tabular-nums">
+          <span className={`font-semibold ${over ? 'text-bad' : 'text-orange'}`}>€{stats.costEur}</span>
+          <span className="text-muted">/ €{BUDGET_EUR}</span>
+        </span>
       }
+      footer={<div className="flex gap-2.5">{actions}</div>}
     >
+      {/* Wide screens: the left column, about 60 %: the stage at full height with presets and saved builds under it.
+          On a phone this wrapper has no box (display: contents), so the screen is one column in the same order as before. */}
+      <div className="contents lg:sticky lg:top-4 lg:flex lg:flex-col lg:gap-3">
       {/* The Workshop's 3D view is a light studio (the game's backdrop colour): the same light grey sits behind the canvas, so
           nothing dark flashes before its first frame, and the loading label is dark enough to read on it. */}
-      <section className="rr-stage h-[270px] shrink-0 !bg-[#e6e8eb] [background-image:none] [&_.rr-label]:!text-[#3F4854]">
+      <section className="rr-stage h-[270px] shrink-0 !bg-[#e6e8eb] [background-image:none] lg:h-[min(calc(100dvh-200px),700px)] lg:min-h-[360px] [&_.rr-label]:!text-[#3F4854]">
         <Bench3D build={build} onPick={openPicked} className="bottom-[38px]" />
         <button type="button" onClick={() => setSlot('sensor')} className={`${CALLOUT} right-3 top-[18px] text-[#CFE9EE]`}>
           <span className={`${DOT} bg-cyan text-on-cyan`}>1</span>SENSORS
@@ -174,8 +211,11 @@ export function Workshop({ makers, locked, printedIds }: WorkshopProps) {
       </div>
 
       <SavedBuilds manage />
+      </div>
 
-      <Link href="/workshop/real" className="flex h-11 items-center justify-between rounded-[10px] border border-[#3A2A1C] bg-[#17120D] px-3">
+      {/* Wide screens: the right column. Its order there is shelf, Predicted, Test run, Build it for real, then the way on. */}
+      <div className="contents lg:flex lg:flex-col lg:gap-3">
+      <Link href="/workshop/real" className="flex h-11 items-center justify-between rounded-[10px] border border-[#3A2A1C] bg-[#17120D] px-3 lg:order-4">
         <span className="font-mono text-[10px] font-medium tracking-[1.5px] text-orange-soft">FROM GAME TO REALITY</span>
         <span className="flex items-center gap-1.5 font-display text-[13px] font-semibold uppercase tracking-[1px]">
           Build it for real
@@ -183,11 +223,16 @@ export function Workshop({ makers, locked, printedIds }: WorkshopProps) {
         </span>
       </Link>
 
-      <Predicted build={build} />
+      <div className="contents lg:order-2 lg:block">
+        <Predicted build={build} />
+      </div>
 
-      <TestRun mission={mission} result={testRun} onMission={setMission} />
+      <div className="contents lg:order-3 lg:block">
+        <TestRun mission={mission} result={testRun} onMission={setMission} />
+      </div>
 
-      <div className="sticky top-0 z-10 -mx-4 flex gap-1.5 border-b border-[#222831] bg-ground px-4" role="tablist" aria-label="Part slots">
+      <div className="contents lg:order-1 lg:flex lg:flex-col lg:gap-3">
+      <div className="sticky top-0 z-10 -mx-4 flex gap-1.5 border-b border-[#222831] bg-ground px-4 lg:mx-0 lg:px-0" role="tablist" aria-label="Part slots">
         {SLOTS.map((info) => {
           const on = info.slot === slot;
           return (
@@ -226,7 +271,12 @@ export function Workshop({ makers, locked, printedIds }: WorkshopProps) {
       <Tuning slot={slot} build={build} onChange={setBuild} />
 
       {/* On the shelf where it can be changed: what the fitted sensors tell the brain, and what stays unknown. */}
-      {slot === 'sensor' ? <SensePanel build={build} /> : null}
+      {slot === 'sensor' ? (
+        // Wide screens: after the cards, so the shelf starts right under its tabs.
+        <div className="contents lg:order-last lg:block">
+          <SensePanel build={build} />
+        </div>
+      ) : null}
 
       {partsIn(slot).some((part) => !isUnlocked(unlocked, part.id)) ? (
         <p className="flex items-center justify-between font-mono text-[10px] font-medium tracking-[1px] text-muted">
@@ -245,6 +295,7 @@ export function Workshop({ makers, locked, printedIds }: WorkshopProps) {
             locked={!isUnlocked(unlocked, part.id)}
             affordable={points >= part.unlockPoints}
             fixes={fixNames.get(part.id)}
+            onOpen={openPanel}
             onAct={act}
           />
         ))}
@@ -254,6 +305,21 @@ export function Workshop({ makers, locked, printedIds }: WorkshopProps) {
             <LockedCard key={part.key} part={part} />
           ))}
       </section>
+      </div>
+
+      {/* Wide screens: the way on sits at the foot of the right column, where the phone has its pinned bar. */}
+      <div className="hidden gap-2.5 rounded-2xl bg-ground/95 p-2 lg:sticky lg:bottom-3 lg:z-10 lg:order-5 lg:flex">{actions}</div>
+      </div>
+
+      {panelPart ? (
+        <div className="fixed inset-0 z-40 hidden lg:block">
+          {/* Nothing is dimmed: the rover stays in view and changes as parts are fitted. A click beside the panel closes it. */}
+          <button type="button" aria-label="Close the part sheet" tabIndex={-1} onClick={() => setPanelPart(null)} className="absolute inset-0 cursor-default" />
+          <aside aria-label={`${panelPart.name}: details`} className="absolute inset-y-0 right-0 w-[448px] overflow-y-auto border-l border-line-2 bg-ground shadow-[-18px_0_40px_rgb(0_0_0/0.45)]">
+            <PartSheet key={panelPart.id} part={panelPart} bom={bom} media={media} onClose={() => setPanelPart(null)} />
+          </aside>
+        </div>
+      ) : null}
     </Shell>
   );
 }

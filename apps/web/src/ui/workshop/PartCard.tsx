@@ -15,16 +15,25 @@ interface PartCardProps {
   readonly affordable: boolean;
   /** Set when the test run points at this part: the capability it would provide, e.g. "sealed hull". */
   readonly fixes?: string;
+  /** Asked before the card navigates to the part's sheet: return true when the sheet was opened some other way (a side panel). */
+  readonly onOpen?: (part: Part) => boolean;
   /** Swap the part in (or unlock it when locked). */
   readonly onAct: (part: Part) => void;
 }
 
 /** One part on the shelf. The card opens the part sheet; the strip at the bottom acts on the build. */
-export function PartCard({ part, model, equipped, locked, affordable, fixes, onAct }: PartCardProps) {
+export function PartCard({ part, model, equipped, locked, affordable, fixes, onOpen, onAct }: PartCardProps) {
   const frame = equipped ? 'border-cyan bg-[#10181C]' : fixes ? 'border-orange bg-orange-deep' : locked ? 'border-dashed border-line-3 bg-[#111418]' : 'border-line-2 bg-panel-3';
   return (
     <div className={`flex h-[166px] flex-col rounded-[14px] border p-2.5 ${frame}`}>
-      <Link href={`/workshop/part/${part.id}`} className="flex min-h-0 flex-1 flex-col gap-1" aria-label={`${part.name}: details`}>
+      <Link
+        href={`/workshop/part/${part.id}`}
+        onClick={(event) => {
+          if (onOpen?.(part)) event.preventDefault();
+        }}
+        className="flex min-h-0 flex-1 flex-col gap-1"
+        aria-label={`${part.name}: details`}
+      >
         <span className={`flex h-[54px] items-center justify-center ${locked ? 'opacity-75' : ''}`}>
           <PartGlyph id={part.id} width={88} />
         </span>

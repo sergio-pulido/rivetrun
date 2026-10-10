@@ -1,4 +1,4 @@
-import { lockedItems, partMakers, partRender } from '@/ui/real/bomData';
+import { buildBom, lockedItems, mediaFor, partMakers, partRender } from '@/ui/real/bomData';
 import type { LockedPart } from '@/ui/real/LockedCard';
 import { printedParts } from '@/ui/real/printedData';
 import { Workshop } from '@/ui/workshop/Workshop';
@@ -15,5 +15,7 @@ export default function WorkshopPage() {
     category: item.category,
     render: partRender(item.key),
   }));
-  return <Workshop makers={partMakers()} locked={locked} printedIds={printedParts().map((part) => part.id)} />;
+  // The part sheet opens beside the rover on wide screens, so the Workshop carries the bill of materials it reads from.
+  const bom = buildBom();
+  return <Workshop makers={partMakers()} locked={locked} printedIds={printedParts().map((part) => part.id)} bom={bom} media={mediaFor(bom)} />;
 }

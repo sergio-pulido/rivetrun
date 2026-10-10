@@ -31,9 +31,14 @@ interface PartSheetProps {
   readonly bom: Bom | null;
   /** Per BOM key: a render and a GLB model, when those files exist. */
   readonly media: Readonly<Record<string, PartMedia>>;
+  /**
+   * Set when the sheet is a side panel beside the Workshop (desktop): it then has a close button instead of the app
+   * header, and fitting a part leaves the panel open so the rover is seen changing beside it.
+   */
+  readonly onClose?: () => void;
 }
 
-export function PartSheet({ part, bom, media }: PartSheetProps) {
+export function PartSheet({ part, bom, media, onClose }: PartSheetProps) {
   const router = useRouter();
   const build = useBuildStore((store) => store.build);
   const setBuild = useBuildStore((store) => store.setBuild);
@@ -67,12 +72,27 @@ export function PartSheet({ part, bom, media }: PartSheetProps) {
       return;
     }
     if (!equipped) setBuild(withPart(build, part));
-    router.push('/workshop');
+    leave();
   };
+  // As a page, acting on the part goes back to the Workshop; as a panel the Workshop is already beside it.
+  const leave = (): void => {
+    if (!onClose) router.push('/workshop');
+  };
+  const position = `${SLOT_NAME[part.slot]} · ${shelf.findIndex((other) => other.id === part.id) + 1} of ${shelf.length}`;
+  const Frame = onClose ? 'div' : 'main';
 
   return (
-    <main className="mx-auto flex min-h-dvh max-w-[430px] flex-col gap-3 px-4 pt-[max(18px,env(safe-area-inset-top))]">
-      <AppHeader back="/workshop" label={`${SLOT_NAME[part.slot]} · ${shelf.findIndex((other) => other.id === part.id) + 1} of ${shelf.length}`} />
+    <Frame className={onClose ? 'flex min-h-full flex-col gap-3 px-4 pt-4' : 'mx-auto flex min-h-dvh max-w-[430px] flex-col gap-3 px-4 pt-[max(18px,env(safe-area-inset-top))]'}>
+      {onClose ? (
+        <header className="flex h-11 shrink-0 items-center justify-between gap-2">
+          <span className="rr-label">{position}</span>
+          <button type="button" onClick={onClose} aria-label="Close the part sheet" className="rr-iconbtn">
+            <Icon name="close" size={18} />
+          </button>
+        </header>
+      ) : (
+        <AppHeader back="/workshop" label={position} />
+      )}
 
       <section className="rr-stage h-[230px] shrink-0 !bg-stage [background-size:16px_16px]">
         {showRender && picture?.render ? (
@@ -185,7 +205,7 @@ export function PartSheet({ part, bom, media }: PartSheetProps) {
             type="button"
             onClick={() => {
               setBuild(withPart(build, part));
-              router.push('/workshop');
+              leave();
             }}
             className="rr-btn rr-btn-secondary flex-1 !bg-transparent !text-text-2"
           >
@@ -193,10 +213,17 @@ export function PartSheet({ part, bom, media }: PartSheetProps) {
           </button>
         ) : null}
         {equipped ? (
-          <Link href="/workshop" className="rr-btn rr-btn-brain flex-[1.6]">
-            <Icon name="check" size={18} />
-            Equipped
-          </Link>
+          onClose ? (
+            <button type="button" onClick={onClose} className="rr-btn rr-btn-brain flex-[1.6]">
+              <Icon name="check" size={18} />
+              Equipped
+            </button>
+          ) : (
+            <Link href="/workshop" className="rr-btn rr-btn-brain flex-[1.6]">
+              <Icon name="check" size={18} />
+              Equipped
+            </Link>
+          )
         ) : (
           <button type="button" onClick={equip} className="rr-btn rr-btn-primary flex-[1.6]">
             {locked ? (
@@ -212,6 +239,6 @@ export function PartSheet({ part, bom, media }: PartSheetProps) {
           </button>
         )}
       </footer>
-    </main>
+    </Frame>
   );
 }
