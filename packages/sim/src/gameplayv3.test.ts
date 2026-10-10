@@ -85,3 +85,50 @@ describe('gameplay v3: energy makes pace matter', () => {
     }
   });
 });
+
+describe('gameplay v3: traction', () => {
+  /** Crosses M3's flat deep mud (22–32 m) at one pace after a clean climb. Returns the crossing time, or null when it bogs down. */
+  const crossDeepMud = (pace: Action): { timeS: number | null; meanSlipPct: number } => {
+    let state = createRun({ mission: MISSIONS.M3, seed: 1, build: allRounder, priority: 0.5, manual: true });
+    let enteredAt = -1;
+    let slip = 0;
+    let steps = 0;
+    for (let i = 0; i < 4000 && !state.done && state.sim.x < 31.5; i += 1) {
+      state = step(state, state.sim.x < 9.5 ? 'cruise' : state.sim.x < 20.5 ? 'climb_mode' : pace);
+      if (state.sim.x < 21) continue;
+      if (enteredAt < 0) enteredAt = state.sim.t;
+      slip += state.slipPct;
+      steps += 1;
+    }
+    return { timeS: state.sim.x >= 31.5 ? state.sim.t - enteredAt : null, meanSlipPct: slip / Math.max(1, steps) };
+  };
+
+  it('full throttle in deep mud spins the wheels and bogs down; a feathered throttle gets through', () => {
+    const full = crossDeepMud('accelerate');
+    const eased = crossDeepMud('slow_down');
+    expect(full.timeS).toBeNull();
+    expect(full.meanSlipPct).toBeGreaterThan(25);
+    expect(eased.timeS).not.toBeNull();
+    expect(eased.meanSlipPct).toBeLessThan(1);
+    // Traction control (climb mode) is quicker still.
+    expect(crossDeepMud('climb_mode').timeS!).toBeLessThan(eased.timeS!);
+  });
+
+  /** Metres needed to stop from a rolling start on a flat strip of one terrain. */
+  const stoppingDistance = (terrain: 'asphalt' | 'ice', brake: Action): number => {
+    const strip = { ...MISSIONS.M1, scanZones: [], track: { segments: [{ terrain: 'asphalt' as const, lengthM: 10, slopeDeg: 0 }, { terrain, lengthM: 40, slopeDeg: 0 }] } };
+    let state = createRun({ mission: strip, seed: 1, build: allRounder, priority: 0.5, manual: true });
+    for (let i = 0; i < 2000 && state.sim.x < 10.5; i += 1) state = step(state, 'accelerate');
+    const from = state.sim.x;
+    for (let i = 0; i < 2000 && state.sim.v > 1e-3 && !state.done; i += 1) state = step(state, brake);
+    return state.sim.x - from;
+  };
+
+  it('braking is limited by grip: ice takes longer to stop than asphalt, and a soft brake longer than a hard one', () => {
+    const asphalt = stoppingDistance('asphalt', 'brake');
+    const ice = stoppingDistance('ice', 'brake');
+    expect(asphalt).toBeGreaterThan(0);
+    expect(ice).toBeGreaterThan(asphalt * 1.5);
+    expect(stoppingDistance('asphalt', 'brake_soft')).toBeGreaterThan(asphalt);
+  });
+});
