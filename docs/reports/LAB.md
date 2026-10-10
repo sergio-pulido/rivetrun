@@ -16,6 +16,7 @@ real phone, on :3001 or through the tunnel. The way in is "Lab Missions" in the 
 - The brief says what Jev is told, with a switch to the facts-only question (4813b9f). The game's rover and ground colours (6ab4b1d).
 - Review round on the page, 17 of 19 findings fixed (c8c22ae). Sideways phone, reload and back mid-run, Jev never answering (bec0ef2).
 - The board drawn with the Blender agent's sprites: floors, walls, doors, stairs, parcels, bays, forklift, samples, lander, flag, the rover per locomotion; the SVG board is the fallback (88de47c).
+- RR-SOUND: the recorded sound pack's generator (scripts/gen-sound.mjs), player and race cues (apps/web/src/game/audio/samples.ts, sampleCues.ts), mounted on /run, /workshop and /screen; silent until the ElevenLabs files exist (804d2b5).
 
 ## Simplified or assumed
 - The list under "What is simplified" on every brief (the sim's `SIMPLIFICATIONS`, screen 'lab'): tiles instead of the track's physics, a ramp costs both ways, lidar all round, ultrasonic one tile, forklifts turn back, no cold, no night.
@@ -36,6 +37,7 @@ real phone, on :3001 or through the tunnel. The way in is "Lab Missions" in the 
 - The last-run note (bec0ef2) by eye: it was read from the page, not seen.
 - Jev against the fixed rules over many runs: that table is [BRAIN]'s. Mine are single runs on seed 1001 (Maze 729, Warehouse 497 told and 520 facts only, Mars 552, House 759).
 - A real radio drop (I cut fetch inside the page). An hour of retries in one tab. Two tabs at once.
+- RR-SOUND: no call to ElevenLabs was ever made (the key was not in apps/web/.env.local) and nothing was heard. With the pack empty the app sounds as before.
 
 ## If this breaks at the demo
 1. Every chip in the thread says "(FALLBACK)", or the brief says "Jev is not reachable from this page right now".
@@ -54,3 +56,4 @@ Also useful: if the map pictures look wrong or a phone stutters, add `?sprites=0
 goes back to the SVG board (`?sprites=1` brings the pictures back; the board also falls back by itself when a
 sprite file does not load). Esc stops the robot. Best scores live in the browser (localStorage `rivetrun.lab.bests.v1`); clear
 site data for an empty board. A mission ends by itself at its time limit (120 to 240 s) with "Out of time".
+Sound pack: with ELEVENLABS_API_KEY in apps/web/.env.local run `node scripts/gen-sound.mjs`; or drop the mp3s into apps/web/public/sfx and run it with `--index`. Then commit the files and apps/web/src/game/audio/samplePack.json. The HUD mute switch silences it too.
