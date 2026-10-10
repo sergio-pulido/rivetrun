@@ -94,3 +94,20 @@
     animation: none;
   }
 }
+
+/* The HUD's own column when the telemetry panel stands beside the track: same widths as the panel (telemetry.module.css). */
+.beside {
+  right: 0;
+}
+
+@media (orientation: landscape) {
+  .beside {
+    right: min(380px, 44vw);
+  }
+}
+
+@media (orientation: landscape) and (min-width: 1700px) {
+  .beside {
+    right: min(700px, 35vw);
+  }
+}

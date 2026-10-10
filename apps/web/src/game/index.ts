@@ -30,6 +30,12 @@ export { DecisionChips } from './hud/DecisionChips';
 export type { DecisionChipsProps } from './hud/DecisionChips';
 export { DECISION_CHIPS, chipsFromRecords, decisionChipText } from './hud/decisionChip';
 export type { DecisionChip, DecisionChipTone } from './hud/decisionChip';
+// Telemetry console: the HUD button, the drawer, and the thread on its own for the big screen.
+export { BrainThread, TelemetryButton, TelemetryDrawer } from './telemetry/TelemetryDrawer';
+export type { TelemetryDrawerProps } from './telemetry/TelemetryDrawer';
+export { liveThread, threadAt } from './telemetry/thread';
+export type { ThreadEntry } from './telemetry/thread';
+export { telemetry, useTelemetryOpen } from './telemetry/telemetryStore';
 // What a build can sense ahead of its nose (the band on the track, the BLIND marker).
 export { senseLabel, sensesOf } from './sense';
 export type { SenseRange, Senses } from './sense';

@@ -9,6 +9,8 @@ import { useRunHaptics } from '../drive/haptics';
 import { DNF_LABEL, POLICY_LABEL, TERRAIN_LOOK, UI } from '../palette';
 import { useRunView, type RunFeed, type RunView } from '../runFeed';
 import { sensesOf, type Senses } from '../sense';
+import { TelemetryButton, TelemetryDrawer } from '../telemetry/TelemetryDrawer';
+import { telemetry, useTelemetryOpen } from '../telemetry/telemetryStore';
 import { BrainHud } from './BrainHud';
 import { DECISION_CHIPS, type DecisionChip } from './decisionChip';
 import { DecisionChips } from './DecisionChips';
@@ -35,7 +37,7 @@ function MuteButton() {
       onClick={() => setMuted(toggleMute())}
       aria-label={muted ? 'Turn sound on' : 'Mute sound'}
       aria-pressed={muted}
-      className={`${styles.topbar} pointer-events-auto absolute right-0 top-full mt-1.5 flex h-11 w-11 items-center justify-center`}
+      className={`${styles.topbar} pointer-events-auto flex h-11 w-11 shrink-0 items-center justify-center`}
       style={{ borderRadius: 22, color: muted ? UI.dim : UI.cyan }}
     >
       <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
@@ -157,6 +159,11 @@ function FallToast({ fall }: { fall: { readonly falls: number; readonly at: numb
   );
 }
 
+const NO_GHOSTS: readonly GhostTrace[] = [];
+/** Height of the Drive-mode pedals: the telemetry drawer sits above them so the player can keep driving. */
+const PEDALS_PX = 118;
+const closeTelemetry = (): void => telemetry.set(false);
+
 const OBSTACLE_NAME: Readonly<Record<Obstacle, string>> = { rock: 'ROCK', log: 'LOG', step: 'STEP' };
 
 /** What the robot just ran into, in the sim's own words: an obstacle, or rough ground taken too fast. */
@@ -224,13 +231,15 @@ function logChips(chips: readonly DecisionChip[], hit: RunView['lastHit'], sense
 }
 
 /** DOM overlay for the run view: top bar, the decision log, a mark while Jev is thinking, end stamp and the Brain sheet. */
-export function RunHud({ mission, feed, ghosts = [], drive, build }: RunHudProps) {
+export function RunHud({ mission, feed, ghosts = NO_GHOSTS, drive, build }: RunHudProps) {
   const view = useRunView(feed);
   const driving = drive !== undefined;
   // The run keeps its pace while Jev thinks (Brain v3): a small mark says a question is out. Not in Drive mode: the player decides there.
   const thinking = view.pending !== null && !driving;
   useRunHaptics(feed, driving);
   const dnf = view.dnfReason;
+  const telemetryOpen = useTelemetryOpen();
+  const drawerOpen = telemetryOpen && build !== undefined && !view.done;
   const senses = useMemo(() => (build ? sensesOf(build, mission.weather) : null), [build, mission.weather]);
   const chips = useMemo(() => logChips(view.chips, view.lastHit, senses), [view.chips, view.lastHit, senses]);
 
@@ -243,28 +252,33 @@ export function RunHud({ mission, feed, ghosts = [], drive, build }: RunHudProps
         </div>
       ) : null}
 
+      {/* Everything but the pedals keeps clear of the telemetry panel when it stands beside the track (landscape). */}
+      <div className={`absolute inset-y-0 left-0 ${drawerOpen ? styles.beside : 'right-0'}`}>
       <div className="absolute inset-x-0 top-0 mx-auto max-w-[430px] px-3" style={{ paddingTop: 'max(14px, env(safe-area-inset-top))' }}>
-        <div className="relative">
-          <TopBar mission={mission} state={view.state} ghosts={ghosts} />
-          <MuteButton />
-        </div>
+        <TopBar mission={mission} state={view.state} ghosts={ghosts} />
         <div>
           <FpsBadge />
         </div>
-        <div className="mt-2.5 flex justify-center">
-          {driving && ghosts[0] ? (
-            <RivalChip trace={ghosts[0]} state={view.state} />
-          ) : (
-            <span className={`${styles.pill} whitespace-nowrap px-3 py-1.5 font-mono text-[10px] leading-none`} style={{ opacity: thinking ? 1 : 0 }}>
-              JEV IS THINKING
-            </span>
-          )}
+        {/* One row under the top bar: telemetry on the left, the rival or the thinking mark in the middle, sound on the right. */}
+        <div className="mt-1.5 flex items-center gap-2">
+          {build ? <TelemetryButton open={telemetryOpen} onToggle={telemetry.toggle} /> : <span className="w-11" />}
+          <div className="flex min-w-0 flex-1 justify-center">
+            {driving && ghosts[0] ? (
+              <RivalChip trace={ghosts[0]} state={view.state} />
+            ) : (
+              <span className={`${styles.pill} whitespace-nowrap px-3 py-1.5 font-mono text-[10px] leading-none`} style={{ opacity: thinking ? 1 : 0 }}>
+                JEV IS THINKING
+              </span>
+            )}
+          </div>
+          <MuteButton />
         </div>
         {/* The decision log (Brain v3): what the robot senses, then its last three decisions, newest first. */}
         {!view.done && (
-          <div className="mt-3 flex flex-col items-start gap-1">
+          <div className="mt-2 flex flex-col items-start gap-1">
             {senses && <SenseChip senses={senses} />}
-            <DecisionChips chips={chips} />
+            {/* With the drawer open the thread has the detail: one chip keeps the track in view. */}
+            <DecisionChips chips={telemetryOpen ? chips.slice(-1) : chips} />
           </div>
         )}
       </div>
@@ -296,10 +310,16 @@ export function RunHud({ mission, feed, ghosts = [], drive, build }: RunHudProps
       )}
 
       {!driving && (
-        <div className="absolute inset-x-0 bottom-0 mx-auto max-w-[430px]">
+        // With the telemetry drawer open the thread replaces the Brain sheet where the two would cover the robot between them.
+        <div className={`absolute inset-x-0 bottom-0 mx-auto max-w-[430px] ${drawerOpen ? 'portrait:hidden max-[1239px]:hidden' : ''}`}>
           <BrainHud pending={view.pending} last={view.decision} decisionCount={view.decisionCount} />
         </div>
       )}
+      </div>
+
+      {drawerOpen && build ? (
+        <TelemetryDrawer feed={feed} build={build} drive={drive} ghosts={ghosts} onClose={closeTelemetry} bottomPx={driving ? PEDALS_PX : 0} />
+      ) : null}
     </div>
   );
 }

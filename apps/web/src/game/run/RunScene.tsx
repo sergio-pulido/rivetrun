@@ -295,10 +295,12 @@ interface RigProps {
   wide: boolean;
   /** Drive mode: no Brain sheet over the lower screen, and the driver needs to see further ahead. */
   driving: boolean;
+  /** A bottom sheet covers the lower screen in portrait after all (telemetry open while driving). */
+  raise: boolean;
 }
 
 /** Side-on follow camera, framed for portrait, with decision zoom and impact shake. */
-function CameraRig({ pose, light, startX, wide, driving }: RigProps) {
+function CameraRig({ pose, light, startX, wide, driving, raise }: RigProps) {
   const camera = useThree((state) => state.camera) as PerspectiveCamera;
   const size = useThree((state) => state.size);
   const focus = useRef({ x: startX, y: 0, init: false });
@@ -330,8 +332,8 @@ function CameraRig({ pose, light, startX, wide, driving }: RigProps) {
     f.x = Math.abs(leadX - f.x) > 6 ? leadX : damp(f.x, leadX, 6, dt);
     f.y = damp(f.y, leadY, 3.2, dt);
 
-    // In portrait the Brain sheet covers the lower ~42 %: the robot sits in the clear band above it.
-    const lift = distance * Math.tan(halfV) * (portrait ? (driving ? -0.3 : 0.2) : -0.12);
+    // In portrait the Brain sheet (or the telemetry drawer, `raise`) covers the lower ~42 %: the robot sits in the clear band above it.
+    const lift = distance * Math.tan(halfV) * (portrait ? (driving && !raise ? -0.3 : 0.2) : -0.12);
     const shake = performance.now() < p.shakeUntil ? 0.09 : 0;
     target.set(f.x + (Math.random() - 0.5) * shake, f.y + 0.75 - lift + (Math.random() - 0.5) * shake, -1);
     camera.position.set(target.x, target.y + Math.sin(ELEVATION) * distance, target.z + Math.cos(ELEVATION) * distance);
@@ -360,10 +362,12 @@ export interface RunSceneProps {
   hands?: DriveInput;
   /** Running late: skip the reflection environment and draw with plain lights. */
   plain?: boolean;
+  /** A bottom sheet is open over the lower part of a portrait screen (telemetry in Drive mode): frame the robot above it. */
+  raise?: boolean;
 }
 
 /** The 2.5D run view. Mount inside an R3F <Canvas>. Reads sim state only: no physics here. */
-export function RunScene({ mission, build, feed, ghosts = [], particleBudget = 1, hands, plain = false }: RunSceneProps) {
+export function RunScene({ mission, build, feed, ghosts = [], particleBudget = 1, hands, plain = false, raise = false }: RunSceneProps) {
   const layout = useMemo(() => layoutTrack(mission.track), [mission.track]);
   const pose = useRef<Pose>(restPose());
   const hasDrone = build.sensors.includes('scout_drone');
@@ -382,7 +386,7 @@ export function RunScene({ mission, build, feed, ghosts = [], particleBudget = 1
       <SenseBand layout={layout} pose={pose} feed={feed} senses={senses} />
       {hasDrone && <ScoutDroneRig feed={feed} layout={layout} pose={pose} />}
       <Particles ref={particles} timeScale={timeScale} budget={particleBudget} />
-      <CameraRig pose={pose} light={sun} startX={0} wide={hasDrone} driving={hands !== undefined} />
+      <CameraRig pose={pose} light={sun} startX={0} wide={hasDrone} driving={hands !== undefined} raise={raise} />
     </>
   );
 }

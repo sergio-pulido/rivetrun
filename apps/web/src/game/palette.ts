@@ -50,10 +50,11 @@ export const TERRAIN_LOOK: Readonly<Record<TerrainId, TerrainLook>> = {
 };
 
 export const ACTION_LABEL: Readonly<Record<Action, string>> = {
-  cruise: 'Cruise',
-  accelerate: 'Accelerate',
-  slow_down: 'Slow down',
-  brake: 'Brake',
+  // Gameplay v3 names: throttle is full / steady / ease / coast, brakes are hard / soft (the sim's chips say the same).
+  cruise: 'Steady',
+  accelerate: 'Full throttle',
+  slow_down: 'Ease',
+  brake: 'Brake hard',
   reverse: 'Reverse',
   climb_mode: 'Climb mode',
   deploy_winch: 'Deploy winch',

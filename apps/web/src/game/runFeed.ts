@@ -5,8 +5,11 @@ import { DECISION_CHIPS, decisionChipText, type DecisionChip } from './hud/decis
 import type {
   BrainDecision,
   BrainQuestion,
+  Action,
   DamageCause,
+  DecisionLog,
   DnfReason,
+  Observation,
   Obstacle,
   Outcome,
   RunEvent,
@@ -27,6 +30,13 @@ export interface RunView {
     readonly at: number;
   } | null;
   readonly decisionCount: number;
+  /** Every applied decision of this run with the sim's log, oldest first: the brain's thread (telemetry console). */
+  readonly log: readonly DecisionLog[];
+  /**
+   * What the robot's sensors report: per tick when the sim sends it (`live`), otherwise the Observation of
+   * the last question. `control` is the player's pedals in Drive mode.
+   */
+  readonly observation: { readonly value: Observation; readonly t: number; readonly live: boolean; readonly control?: { readonly throttle: number; readonly brake: number; readonly action: Action } } | null;
   /** The decision log as chips, oldest first: the last few decisions, hints and blind hits (Brain v3). */
   readonly chips: readonly DecisionChip[];
   readonly lastDamage: {
@@ -56,6 +66,8 @@ const EMPTY: RunView = {
   decision: null,
   decisionCount: 0,
   chips: [],
+  log: [],
+  observation: null,
   lastDamage: null,
   lastHit: null,
   lastLanding: null,
@@ -77,18 +89,29 @@ const now = (): number => (typeof performance === 'undefined' ? 0 : performance.
 
 const withChip = (chips: readonly DecisionChip[], chip: DecisionChip): readonly DecisionChip[] => [...chips, chip].slice(-DECISION_CHIPS);
 
+const MAX_LOG = 200;
+
+/** Between per-tick samples, a question's Observation is the freshest thing known. A live sample is never replaced by it. */
+function asked(view: RunView, question: BrainQuestion, t: number): RunView['observation'] {
+  if (!question.observation || view.observation?.live) return view.observation;
+  return { value: question.observation, t, live: false };
+}
+
 function reduce(view: RunView, event: RunEvent): RunView {
   switch (event.type) {
     case 'frame':
       return { ...view, state: event.state, stateAt: now() };
     case 'decisionPending':
-      return { ...view, pending: { question: event.question, since: now() } };
+      return { ...view, pending: { question: event.question, since: now() }, observation: asked(view, event.question, event.t) };
     case 'decision':
       return {
         ...view,
         pending: null,
         decision: { question: event.question, decision: event.decision, t: event.t, at: now() },
         decisionCount: view.decisionCount + 1,
+        // A Drive-mode hint is not this robot's decision: it stays out of the thread.
+        log: event.log && !event.advisory ? [...view.log, event.log].slice(-MAX_LOG) : view.log,
+        observation: asked(view, event.question, event.t),
         chips: withChip(view.chips, {
           id: `d${view.decisionCount}`,
           t: event.t,
@@ -116,6 +139,8 @@ function reduce(view: RunView, event: RunEvent): RunView {
       return { ...view, lastLanding: { impactMps: event.impactMps, airtimeS: event.airtimeS, damagePct: event.damagePct, at: now() } };
     case 'fell':
       return { ...view, lastFall: { falls: event.falls, respawnX: event.respawnX, at: now() } };
+    case 'observation':
+      return { ...view, observation: { value: event.observation, t: event.t, live: true, control: event.control } };
     // Height while airborne comes with every frame (SimState.heightM): nothing to keep from these.
     case 'terrainEnter':
     case 'airborne':

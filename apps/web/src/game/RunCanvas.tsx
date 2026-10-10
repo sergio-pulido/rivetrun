@@ -12,6 +12,7 @@ import { quality } from './quality';
 import { SceneFrame } from './SceneFrame';
 import { RunScene } from './run/RunScene';
 import { createRunFeed, type RunFeed } from './runFeed';
+import { useTelemetryOpen } from './telemetry/telemetryStore';
 
 /** Mobile performance budget from the spec. Weak devices drop to 1 (see quality.ts). */
 export const MAX_DPR = 1.5;
@@ -108,6 +109,7 @@ export default function RunCanvas({ mission = MISSIONS.M5, build = PRESETS[DEFAU
   useRunAudio(activeFeed, build);
   const dev = useMemo(() => (process.env.NODE_ENV === 'production' ? null : pinnable(activeFeed)), [activeFeed]);
   const tier = quality();
+  const telemetryOpen = useTelemetryOpen();
 
   return (
     <div className="relative h-full w-full overflow-hidden" style={{ background: UI.ink }}>
@@ -122,7 +124,7 @@ export default function RunCanvas({ mission = MISSIONS.M5, build = PRESETS[DEFAU
           if (dev) (window as unknown as { __rivetrun?: unknown }).__rivetrun = { info: gl.info, scene, state: () => activeFeed.get().state, pin: dev.pin };
         }}
       >
-        {(plain) => <RunScene mission={mission} build={build} feed={dev?.feed ?? activeFeed} ghosts={activeGhosts} particleBudget={tier.particles} hands={drive} plain={plain} />}
+        {(plain) => <RunScene mission={mission} build={build} feed={dev?.feed ?? activeFeed} ghosts={activeGhosts} particleBudget={tier.particles} hands={drive} plain={plain} raise={telemetryOpen && hud} />}
       </SceneFrame>
       {hud && <RunHud mission={mission} feed={activeFeed} ghosts={activeGhosts} drive={drive} build={build} />}
     </div>

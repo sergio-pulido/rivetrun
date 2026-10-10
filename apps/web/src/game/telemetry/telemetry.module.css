@@ -1,0 +1,83 @@
+/* Telemetry drawer: a bottom sheet in portrait (the track stays visible above it), a side panel in
+   landscape, two columns on the big screen. No blur and no shadows that repaint: it sits over a canvas. */
+.drawer {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: var(--telemetry-bottom, 0px);
+  height: min(var(--telemetry-height, 44dvh), 420px);
+  display: flex;
+  flex-direction: column;
+  background: rgb(13 17 22 / 0.94);
+  border-top: 1px solid #1f5a63;
+  border-radius: 16px 16px 0 0;
+  color: #edeff2;
+  contain: content;
+}
+
+.body {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1;
+}
+
+.robot {
+  flex: none;
+  padding: 6px 12px 8px;
+  border-bottom: 1px solid #232932;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  column-gap: 14px;
+  row-gap: 3px;
+}
+
+.thread {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+  padding: 6px 12px max(10px, env(safe-area-inset-bottom));
+}
+
+@media (orientation: landscape) {
+  .drawer {
+    left: auto;
+    top: 0;
+    /* In Drive mode the pedals stay free under the panel. */
+    bottom: var(--telemetry-bottom, 0px);
+    height: auto;
+    width: min(380px, 44vw);
+    border-top: 0;
+    border-left: 1px solid #1f5a63;
+    border-radius: 0;
+  }
+}
+
+/* Big screen: your robot on the left, the thread on the right. */
+@media (orientation: landscape) and (min-width: 1700px) {
+  .drawer {
+    /* Stays clear of the top bar and the Brain sheet in the middle of the screen. */
+    width: min(700px, 35vw);
+  }
+  .body {
+    flex-direction: row;
+  }
+  .robot {
+    width: 44%;
+    border-bottom: 0;
+    border-right: 1px solid #232932;
+    padding: 12px 16px;
+  }
+  .grid {
+    grid-template-columns: 1fr;
+    row-gap: 8px;
+  }
+  .thread {
+    padding: 12px 16px;
+  }
+}
