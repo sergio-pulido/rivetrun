@@ -37,7 +37,7 @@
       "slot": "motor",
       "triangles": 1698,
       "meshes": 4,
-      "bytes": 101992,
+      "bytes": 102120,
       "printedParts": []
     },
     "motor_torque": {
@@ -45,15 +45,15 @@
       "slot": "motor",
       "triangles": 1698,
       "meshes": 4,
-      "bytes": 101992,
+      "bytes": 102120,
       "printedParts": []
     },
     "battery_small": {
       "file": "battery_small.glb",
       "slot": "battery",
-      "triangles": 504,
+      "triangles": 844,
       "meshes": 2,
-      "bytes": 32292,
+      "bytes": 52344,
       "printedParts": [
         "battery_tray"
       ]
@@ -61,9 +61,9 @@
     "battery_large": {
       "file": "battery_large.glb",
       "slot": "battery",
-      "triangles": 504,
+      "triangles": 844,
       "meshes": 2,
-      "bytes": 32312,
+      "bytes": 52348,
       "printedParts": [
         "battery_tray"
       ]
@@ -87,12 +87,13 @@
     "offroad_wheels": {
       "file": "offroad_wheels.glb",
       "slot": "locomotion",
-      "triangles": 3194,
-      "meshes": 12,
-      "bytes": 293448,
+      "triangles": 2896,
+      "meshes": 16,
+      "bytes": 221264,
       "printedParts": [
         "motor_cap",
-        "motor_saddle"
+        "motor_saddle",
+        "offroad_tread_80"
       ]
     },
     "tracks": {
@@ -100,15 +101,15 @@
       "slot": "locomotion",
       "triangles": 2944,
       "meshes": 1,
-      "bytes": 125016,
+      "bytes": 125028,
       "printedParts": []
     },
     "controller": {
       "file": "controller.glb",
       "slot": "fixed",
-      "triangles": 2156,
+      "triangles": 2160,
       "meshes": 6,
-      "bytes": 152564,
+      "bytes": 153296,
       "printedParts": [
         "controller_carrier",
         "electronics_bridge"

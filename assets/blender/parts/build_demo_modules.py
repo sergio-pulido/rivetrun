@@ -25,6 +25,7 @@ def append(key,parent,pos=(0,0,0),rot=None,omit_rubber=False):
     path=ROOT/LIB[key]['blend']
     with bpy.data.libraries.load(str(path),link=False) as (a,b):b.objects=list(a.objects)
     loaded=[o for o in b.objects if o]
+    for o in loaded:bpy.context.scene.collection.objects.link(o)
     src=next(o for o in loaded if o.name.split('.')[0]=='part_'+key)
     bpy.context.view_layer.update()
     children=set(src.children_recursive)
@@ -37,6 +38,8 @@ def append(key,parent,pos=(0,0,0),rot=None,omit_rubber=False):
             p=(transform@v.co)*1000
             v.co=(rot@p if rot else p)+Vector(pos)
         clone=bpy.data.objects.new('component_'+key+'_'+str(len(result)),data);bpy.context.scene.collection.objects.link(clone);clone.parent=parent
+        if key=='offroad_tread_tpu':
+            clone.name='print_offroad_tread_80__'+str(len(bpy.data.objects));clone['printedPartId']='offroad_tread_80'
         for index,slot in enumerate(data.materials):
             if slot:
                 name=re.sub(r'\.\d+$','',slot.name)
@@ -124,9 +127,8 @@ export('offroad_wheels',r,'locomotion')
 
 r=start('tracks')
 # Two sourced 30T track trains; belt is static, pivots are reserved for sprockets.
-rot=Matrix.Rotation(math.pi/2,3,'X')
 for sign in (-1,1):
-    append('tracks_pololu_30t',r,(42.5,sign*48,19.5),rot)
+    append('tracks_pololu_30t',r,(42.5,sign*48,19.5),Matrix.Rotation(-sign*math.pi/2,3,'X'))
 export('tracks',r,'locomotion')
 
 r=start('controller')
@@ -145,6 +147,11 @@ for module_id,key in [('motor_light','motor_50to1_hpcb_12v_ext'),('motor_torque'
         rot=Matrix(((0,sign,0),(0,0,sign),(1,0,0)))
         append(key,r,(x,sign*47.8,40),rot)
     export(module_id,r,'motor')
+for module_id,key in [('battery_small','battery_4s_small'),('battery_large','battery_4s_large')]:
+    r=start(module_id)
+    printcopy('battery_tray',r,(0,0,31))
+    append(key,r,(0,0,33.5))
+    export(module_id,r,'battery')
 manifest['deferred']=[id for id in manifest['deferred'] if id not in manifest['modules']]
 manifest['status']='partial_demo_visual_assets'
 manifest['deckOffsetY']={'wheels':0,'offroad_wheels':.04,'tracks':-.205}
