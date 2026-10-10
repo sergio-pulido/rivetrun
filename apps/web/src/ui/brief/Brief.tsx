@@ -57,8 +57,12 @@ function conditionChips(mission: Mission): readonly string[] {
   ].flatMap((chip) => (chip ? [chip] : []));
 }
 
+/** The sim's sentence for its air rule (OVN-SIM-7): the robot self-levels for everyone; landing off level costs damage. */
+const AIR_RULE = 'In the air the robot levels itself, for you and for every brain. Brake pushes the nose down, extra throttle lifts it; land more than 10° off level and it costs damage.';
+
 export function Brief({ missionId }: { readonly missionId: MissionId }) {
   const mission = MISSIONS[missionId];
+  const airborne = useMemo(() => compileTrack(mission.track).features.length > 0, [mission]);
   const build = useBuildStore((store) => store.build);
   const setMission = useBuildStore((store) => store.setMission);
   const setBuild = useBuildStore((store) => store.setBuild);
@@ -171,6 +175,14 @@ export function Brief({ missionId }: { readonly missionId: MissionId }) {
       <ObjectivesCard mission={mission} build={build} />
 
       <WeatherCard mission={mission} build={build} />
+
+      {/* Missions with a ramp, gap or drop: the one rule of flight, in the sim's words, the same for the player and every brain. */}
+      {airborne ? (
+        <p className="rr-card px-3 py-2.5 text-xs leading-snug text-text-2">
+          <span className="rr-label mr-1.5 !text-orange-soft">In the air</span>
+          {AIR_RULE}
+        </p>
+      ) : null}
 
       {/* Who drives comes before the detail: it is the one choice this screen asks for. */}
       <section className="rr-rise flex flex-col gap-1.5" style={{ ['--i' as string]: 2 }}>
