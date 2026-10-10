@@ -59,5 +59,24 @@ A decision is requested only when a trigger fires:
 - game: decision chips on the run HUD and the big screen; a sensor-range band on the track showing what the robot can sense; BLIND marker.
 - ui: Workshop and Brief "What your robot can sense" (and what it cannot); Test run reasons that cite missing sensors; result decision summary.
 
+## Telemetry console (P1)
+A button on the run HUD ("TELEMETRY") opens a drawer: a bottom sheet on phones that keeps the track visible, a side panel in landscape and on the big screen.
+
+Your robot, live, only the sensors this build carries ("no sensor" for the rest):
+- speed, throttle and brake %, battery % and projected charge at the finish, current draw
+- slip and tilt (IMU), nearest obstacle per ranger (ultrasonic / ToF / lidar), terrain ahead (camera), water depth (moisture probe)
+
+Jev's thread, in sync with the ghost's clock:
+- each sensor event as it arrives ("12.4 s · lidar: rock at 11.8 m")
+- the trigger, the known lines sent, the options with probabilities, the choice and the latency
+- Jev returns a choice with probabilities, not reasoning text. The thread shows its inputs and its probability split, nothing invented.
+
+Reaction duel:
+- For each event your robot detects, your reaction time is the time to your first control change within 3 s (no change = "no reaction").
+- Jev's reaction time is its decision latency for the same kind of event.
+- The result shows "Your reaction 0.82 s · Jev 0.34 s" and a per-event list.
+
+Ownership: sim (per-tick Observation for the human robot, input log, reaction metric), brain (ghost trace carries Jev's decision log with timestamps; /screen shows the JEV bots' thread), game (HUD button and drawer, live values, thread rendering), ui (reaction duel and decision summary on the result).
+
 ## P2, optional
 - Operator view: in Drive mode the human sees the track in full detail only within the robot's sensor range; beyond it is dimmed. Decide after P1 is on a phone.
