@@ -34,6 +34,32 @@ Written by [MASTER] for the human. Newest status first. Program: docs/OVERNIGHT.
 
 ## Status log
 
+### 09:30 · final status of the overnight program (the 09:45 one)
+**Final tag: `demo-good-0928`** (4a8d9e1). Seventeen tags since 04:26; 213 commits since 03:45, 375 in all. The last gate: typecheck, unit tests, determinism, balance and a production build on a clean worktree, 21 e2e steps on that build with no warning, and `pnpm demo:stable -- --build-only`. Build the demo with `pnpm demo:stable -- --ref "$(git tag -l 'demo-good-*' | sort | tail -1)"`.
+
+**What the night produced**
+- The whole program in docs/OVERNIGHT.md, Waves 0 to 3, plus what QA and the review rounds added: 34 findings filed (Q1–Q34), 30 closed or reported fixed, 4 open.
+- Since `demo-good-0754` (07:54) nothing in the product has changed: every worker's block is empty and no finding is open for sim, game, brain or lab. Only documents moved: README and docs/SETUP.md refreshed to the current state, the log corrected against git.
+- What the gate proves every cycle is listed in docs/QA.md; what no tag proves is listed there too.
+
+**Broken or open**
+- Four findings, all [UI]'s, all small, all waiting because the ui session acts only on messages and mine have been capped since 04:11: Q26 (the arena's facts-only column is off the right edge on a phone), Q27 (part names cut on Build it for real), Q28 (Workshop slot tabs), Q34 (old tagline on the share card). [UI] wrote no handover file. Its older block (shopping-list CSV, live Jev stats on /lab, Home rail for nine missions) was never started.
+- R12 from the earlier log (the 3D bench staying on its placeholder after a hard load) still needs one look on a real phone.
+- Never seen by any session: a real phone, touch, frame rate, sound by ear, the camera fly-in in motion, the MK-II kit on a GPU, the served demo with the tunnel, two real people in one race, the phone's own share sheet.
+- Nothing was serving on :3001 at 09:20 and no stranger-test notes reached this session.
+
+**Decisions taken overnight** are listed above under "Decisions taken". The three that depart from what was written: the QA server on 127.0.0.1:3100 (docs/FAST_MODE.md says no other server), orders through docs/OVERNIGHT.md instead of messages (the app's cap), and the ghost warm-up cap (unknown Jev quota).
+
+**For you, in order**
+1. Type one word in [UI] and point it at its block in docs/OVERNIGHT.md ("Orders from [MASTER]"): Q26 first.
+2. Serve the tag and walk docs/DEMO_RUNBOOK.md once on the served build: nobody has.
+3. A real phone: `/run/M1` … `/run/M9` with `?fps=1`, the first touch (the fly-in), sound, and one Room Race with two people.
+4. Read the arena item at the top of "What the human must do" before you present /lab.
+5. Commit the asset files (`apps/web/public/models`, `apps/web/public/renders`, `assets/`) if the demo should ship them; `docs/inputs/printed-parts.json` is also modified and uncommitted.
+6. Top up the Anthropic account if the Claude rows should be current; tell [BRAIN] the Jev quota for the demo window.
+7. From 11:00 fixes and polish only; feature freeze 14:00 (docs/DEMO_PLAN.md). `scripts/qa.sh --tag` gates and tags any commit in about eight minutes; run it before you rebuild the demo.
+
+
 ### 07:54 · sixteenth tag (two-hour mark)
 `demo-good-0754` → 9aa449c, 21 e2e steps. Nothing has changed in the product since the 07:20 status except the one-line M8 note under the arena table. New in the gate: the Episode downloads and parses, and the share card saves as a 1200×630 PNG ("YOU 23.3 s · JEV 26.9 s · You beat the AI by 3.6 s"), so Share and Episode are no longer untested; the card still carries the old tagline "AI drives it" (Q34, low). All five worker sessions are idle on empty blocks or polling; nothing is being served on :3001 yet.
 

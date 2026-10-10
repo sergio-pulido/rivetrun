@@ -2,7 +2,7 @@
 
 Build a small robot from real maker parts, then drive it, or let a decision model called Jev drive it, along rail missions with simplified physics, weather and sensors. The same run can be driven by Jev, by other language models, by fixed rules or by a person, and the results compared. There is a Room Race for phones with a big screen, and a second, top-down grid simulation called Lab Missions. It is a hackathon proof of concept that runs on localhost.
 
-This file describes `main` at `1cd92fe` (Saturday 10 October 2026, 08:21): 374 commits and 16 `demo-good-*` tags. Every number names the file it comes from.
+This file describes `main` at `1cd92fe` (Saturday 10 October 2026, 08:21): 374 commits and 16 `demo-good-*` tags; a seventeenth, `demo-good-0928`, was cut at 09:28 and adds only documentation. Every number names the file it comes from.
 
 ## Try it
 

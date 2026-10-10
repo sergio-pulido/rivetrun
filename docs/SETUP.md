@@ -1,6 +1,6 @@
 # RivetRun — setup and how it was built
 
-Snapshot: `main` at `1cd92fe`, Saturday 10 October 2026, 08:21, 374 commits and 16 `demo-good-*` tags (git log, git tag). The last tag, `demo-good-0754`, is two documentation commits behind this snapshot. Each number is quoted from the file named in parentheses. "Not verified" means no session and no person has checked it.
+Snapshot: `main` at `1cd92fe`, Saturday 10 October 2026, 08:21, 374 commits and 16 `demo-good-*` tags (git log, git tag). A seventeenth tag, `demo-good-0928`, was cut at 09:28 on `4a8d9e1`, which adds only documentation to this snapshot. Each number is quoted from the file named in parentheses. "Not verified" means no session and no person has checked it.
 
 ## 1. What RivetRun is
 
@@ -195,6 +195,7 @@ Tags to date (git tag; contents by git ancestry, wording from docs/OVERNIGHT_LOG
 | `demo-good-0709` | `3313c10` | M8's scan zone moved clear of a rock (Q33); Q31 closed after three gates without FALLBACK. |
 | `demo-good-0718` | `8bdc9b3` | Drive-mode hint wording; Jev ghosts keyed by the mission data. Named by the log as the build for 07:30. |
 | `demo-good-0754` | `9aa449c` | 21 steps: Episode download and share card in the smoke. |
+| `demo-good-0928` | `4a8d9e1` | The final tag of the overnight program: this README and SETUP; no product change since `demo-good-0754`. Hourly demo build passed. |
 
 ## 6. What is implemented and what is simplified
 
