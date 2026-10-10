@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { createJevBrain } from '@rivetrun/brain';
 import type { Brain, Build, GhostTrace, MissionId } from '@rivetrun/contracts';
 import { driveSeed, MISSION_IDS, MISSIONS, runHeadless } from '@rivetrun/sim';
@@ -88,6 +89,16 @@ function pump(): void {
 
 const jev = createJevBrain();
 
+const prints = new Map<MissionId, string>();
+/** A short fingerprint of a mission's data, computed once per mission. */
+function missionPrint(id: MissionId): string {
+  const known = prints.get(id);
+  if (known) return known;
+  const print = createHash('sha256').update(JSON.stringify(MISSIONS[id])).digest('hex').slice(0, 12);
+  prints.set(id, print);
+  return print;
+}
+
 /** Same parts in a different order are the same robot. */
 const keyOf = (request: GhostRequest): string =>
   JSON.stringify([
@@ -95,6 +106,9 @@ const keyOf = (request: GhostRequest): string =>
     // Bumped when the shape of a stored trace changes: v2 = log entries carry the trigger's stable eventId.
     'trace-v2',
     request.missionId,
+    // The mission's own data: a moved scan pad or a changed track makes every stored ghost of it stale, even when
+    // the physics (and so the gameplay version) did not change.
+    missionPrint(request.missionId),
     request.seed,
     { ...request.build, sensors: [...request.build.sensors].sort(), extras: [...request.build.extras].sort() },
     request.priority,
