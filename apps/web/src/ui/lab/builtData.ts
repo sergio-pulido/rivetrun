@@ -1,0 +1,59 @@
+// Server-side sources for /lab "How it was built": the program's sessions table, the git log, the benchmark file and
+// the token counts. Each is read on request and is simply absent when it cannot be read; nothing is made up.
+import { execFileSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
+import { LOG_FORMAT, commitsOverTime, parseGitLog, parseMarkdownTable, parseSessions, parseTokens, type CommitChart, type MarkdownTable, type Session, type TokenRow } from './built';
+
+const REPO = path.join(process.cwd(), '..', '..');
+const doc = (name: string): string | null => {
+  try {
+    return readFileSync(path.join(REPO, 'docs', name), 'utf8');
+  } catch {
+    return null;
+  }
+};
+
+/** The git log is the same for every visitor: asked for at most once a minute. */
+const LOG_TTL_MS = 60_000;
+let cachedLog: { readonly at: number; readonly chart: CommitChart | null } | null = null;
+
+function commitChart(): CommitChart | null {
+  if (cachedLog && Date.now() - cachedLog.at < LOG_TTL_MS) return cachedLog.chart;
+  let chart: CommitChart | null;
+  try {
+    // Fixed arguments, no shell: nothing from a request reaches the command.
+    const log = execFileSync('git', ['log', '--no-merges', '--name-only', `--format=${LOG_FORMAT}`], { cwd: REPO, encoding: 'utf8', timeout: 5000, maxBuffer: 16 * 1024 * 1024, stdio: ['ignore', 'pipe', 'ignore'] });
+    chart = commitsOverTime(parseGitLog(log));
+  } catch {
+    chart = null; // No git here (a deployed bundle), or it took too long: the chart is left out.
+  }
+  cachedLog = { at: Date.now(), chart };
+  return chart;
+}
+
+export interface Built {
+  readonly sessions: readonly Session[];
+  readonly commits: CommitChart | null;
+  /** The benchmark's overall table, and the line that says how it was produced. */
+  readonly benchmark: { readonly table: MarkdownTable; readonly generated: string | null } | null;
+  readonly tokens: readonly TokenRow[];
+}
+
+export function howItWasBuilt(): Built {
+  const benchmarkDoc = doc('BENCHMARK.md');
+  const table = benchmarkDoc ? parseMarkdownTable(benchmarkDoc, 'Overall') : null;
+  const tokensDoc = doc('tokens.json');
+  let tokens: readonly TokenRow[] = [];
+  try {
+    tokens = tokensDoc ? parseTokens(JSON.parse(tokensDoc)) : [];
+  } catch {
+    tokens = []; // Not JSON: shown as not provided.
+  }
+  return {
+    sessions: parseSessions(doc('OVERNIGHT.md') ?? ''),
+    commits: commitChart(),
+    benchmark: table ? { table, generated: benchmarkDoc?.split('\n').find((line) => line.startsWith('Generated ')) ?? null } : null,
+    tokens,
+  };
+}
