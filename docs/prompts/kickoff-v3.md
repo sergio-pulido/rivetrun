@@ -10,7 +10,7 @@ Order: run Prompt 1 (scaffold) alone. Merge it to main. Then launch Prompts 2–
 ```
 # RivetRun — monorepo scaffold + contracts (session: scaffold, branch feat/scaffold)
 
-Hackathon build. Repo: /Users/nectios/workspace-os/hackathons/rivetrun. Spec: docs/GAME_SPEC.md.
+Hackathon build. Repo: the repo root. Spec: docs/GAME_SPEC.md.
 First: grep docs/GAME_SPEC.md for "RR-SPEC-V3". STOP if missing.
 Commit identity: `git config user.email` must end in @alodai.com. STOP if not.
 

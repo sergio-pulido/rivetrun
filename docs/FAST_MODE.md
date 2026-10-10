@@ -4,7 +4,7 @@ Overrides every process rule in docs/prompts/kickoff-v3.md. The game design in d
 
 ## Rules
 - Localhost proof of concept for a hackathon. Speed and visual quality beat everything else.
-- Everyone works directly on `main` in /Users/nectios/workspace-os/hackathons/rivetrun. No branches, no worktrees, no PRs, no deploys.
+- Everyone works directly on `main` in the repo root. No branches, no worktrees, no PRs, no deploys.
 - Commit early and often, only your own paths: `git add <your paths> && git commit -m "..."`. Never `git add -A`. Never reset, rebase, stash or checkout files you do not own.
 - No required tests, lint or typecheck gates. Fix only what breaks `pnpm dev` or the game.
 - No database: runs and leaderboard live in memory in the Next server (module-level arrays/Maps).

@@ -29,9 +29,9 @@ The last check decodes all 45 GLBs with the installed Three.js decoder, verifies
 PNG checks require Pillow. On this workspace the bundled runtime is:
 
 ```sh
-/Users/nectios/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/bin/python3 assets/blender/parts/verify_part_renders.py
-/Users/nectios/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/bin/python3 assets/blender/parts/verify_hero.py
-/Users/nectios/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/bin/python3 assets/blender/lab/verify_lab_sprites.py
+~/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/bin/python3 assets/blender/parts/verify_part_renders.py
+~/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/bin/python3 assets/blender/parts/verify_hero.py
+~/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/bin/python3 assets/blender/lab/verify_lab_sprites.py
 ```
 
 The phone performance gate is still a real-device check: play `/run/M7?robot=mk2&fps=1`, confirm that MK-II loaded, and measure the worst FPS after warm-up. File budgets and desktop decoding do not establish ≥50 FPS on a phone.
