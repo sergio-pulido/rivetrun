@@ -135,7 +135,8 @@ smoke_build() {
   # green. Their lines are reported and never decide the tag.
   if [ "$status" = 0 ] && [ "${QA_PLAN:-1}" = 1 ]; then
     [ -f "$ROOT/e2e/plan.mjs" ] && { QA_BASE_URL="$BASE_URL" QA_SCREENS="$SCREENS-plan" node "$ROOT/e2e/plan.mjs" || true; }
-    if [ -f "$QA_TREE/scripts/loadtest-play.mjs" ]; then
+    # QA_PLAN_ONLY=play narrows this stage to one group of e2e/plan.mjs and leaves the load test out (a short gate).
+    if [ -z "${QA_PLAN_ONLY:-}" ] && [ -f "$QA_TREE/scripts/loadtest-play.mjs" ]; then
       echo "PLAN LOAD 40 simulated phones against $BASE_URL (scripts/loadtest-play.mjs)"
       (cd "$QA_TREE" && node scripts/loadtest-play.mjs --base "$BASE_URL" --clients 40) 2>&1 | sed 's/^/PLAN LOAD   /' || true
     fi

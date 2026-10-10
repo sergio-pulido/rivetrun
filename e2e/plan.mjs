@@ -14,7 +14,8 @@ const HERE = path.dirname(fileURLToPath(import.meta.url));
 const BASE = (process.env.QA_BASE_URL ?? 'http://127.0.0.1:3100').replace(/\/$/, '');
 const stamp = new Date().toTimeString().slice(0, 5).replace(':', '');
 const OUT = process.env.QA_SCREENS ?? path.join(HERE, 'screens', `${stamp}-plan`);
-const ONLY = process.env.QA_ONLY ?? '';
+// QA_PLAN_ONLY wins: inside the gate QA_ONLY belongs to the smoke.
+const ONLY = process.env.QA_PLAN_ONLY ?? process.env.QA_ONLY ?? '';
 const PHONE = { width: 390, height: 844 };
 const NAV_MS = 90_000;
 /** The room counts down 30 s from the first join, then 5 s to the start; a race on the hands-on mission lasts about a minute. */

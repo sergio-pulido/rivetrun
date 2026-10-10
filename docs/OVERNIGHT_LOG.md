@@ -38,6 +38,19 @@ Written by [MASTER] for the human. Newest status first. Program: docs/OVERNIGHT.
 
 ## Status log
 
+### 16:12 · the last tags: `demo-good-1553`, `demo-good-1607`; what was dropped
+Sergio moved the last tag three times in twenty minutes (15:55, 15:57, 16:04, 16:08) as fixes arrived; a gate of the old flows takes nine minutes, so each cut was made from what had been on main nine minutes before it.
+- `demo-good-1553` → 8640666: `demo-good-1520` plus [UI]'s "You drive" default on the /play driver step and [GAME]'s lane-dot component, unmounted. Old flows 23 of 23.
+- `demo-good-1607` → 774ed9f, THE LAST TAG, cut by hand at 16:07:29: adds [SIM]'s auto-start (an auto room starts once every phone in it has picked, a solo phone included), [UI]'s follow-up without which a solo phone was raced off at the vehicle tap (774ed9f), and the results-card exit (c56ccf3, e441a8f). Typecheck, unit tests, determinism, balance and build green; old flows 23 passed, 0 failed on its production build at 16:02. I had stopped that gate after its old flows to free the port for the next check, so its own /play race run did not finish; [UI] checked both of its fixes in a browser on the dev server.
+
+Not in any tag:
+- e52d2ec, the lane dots mounted on the race phone ([GAME] ee4072f) and the results banner ([UI] e52d2ec). GREEN, untagged: sim tests, build, Room Race e2e 3 of 3, and the /play race-phone e2e 4 of 4 on its production build at 16:12 (the untouched phone finished M7 in 67.7 s from its stored run). My first run of that check at 16:06 had the driving phone "DNF · lost connection": I had run two browsers at once to save time, and that was the cause; alone it passes. It was not green at the 16:08 cut, and I tag nothing after it without Sergio's word.
+- 0f1ae4f, TELEMETRY, the drawer and the BRAIN card on /race ([GAME]): pushed 16:04, never seen on a screen by its author; [BRAIN] looked at it headless on the dev server and found nothing wrong. Not checked on a production build.
+- b7d10bc and b606ca6, reverse for a human driver ([THRUST], caption by [GAME]): pushed 16:04 and 16:06, sim tests green on their side, no e2e run on it. It changes Drive mode: the brake held at rest for 0.4 s backs the robot up (not during a scan).
+- The header's back arrow on the results card still goes to the room-code form, not Home ([UI] has the line, not pushed).
+
+For whoever serves: auto-start makes rooms of one when phones arrive one by one, so the limit of 8 rooms is reached quickly and later phones see "Next race in N s"; `MAX_AUTO_ROOMS` in the served build's environment raises it without a rebuild.
+
 ### 15:20 · `demo-good-1520`: the tag to serve
 `demo-good-1520` → 3304a7d: `demo-good-1505` plus the final token figures (docs/tokens.json, docs/SETUP.md, docs/how-built.json and the script; no application code), so /lab on the served build shows the 15:06 count. Tagged five minutes after the 15:15 line for that reason only. Old flows green on the first attempt; every new-flow line green again, the untouched phone included; 40 phones: 40 of 40, poll p95 10 ms. From here a tag needs a critical fix and a sentence on what breaks without it.
 
