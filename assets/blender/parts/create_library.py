@@ -366,7 +366,13 @@ def generate(key):
         block('ph_socket',(-43,0,3.1),(6,7,3),white,.15);finish(key)
     elif key=='waterproof_case_hammond_1554j2gy':
         begin(key,[160,89,61],None,['Wall thickness, lid seam and corner radii are small visual approximations, not a new seal or machining specification.'])
-        body=block('enclosure',(0,0,27),(160,89,54),white,3);cut(body,block('enclosure_cavity',(0,0,30),(154,83,54),black,2));block('lid',(0,0,57.5),(160,89,7),white,3)
+        body=block('enclosure',(0,0,27),(160,89,54),white,3);cut(body,block('enclosure_cavity',(0,0,30),(154,83,54),black,2))
+        clear_lid=material('frosted_polycarbonate',(.18,.32,.34),rough=.12);clear_lid.node_tree.nodes['Principled BSDF'].inputs['Alpha'].default_value=.04;clear_lid.surface_render_method='DITHERED'
+        gasket=material('orange_gasket',(1,.1946,.0103),rough=.72)
+        block('lid',(0,0,57.5),(160,89,7),clear_lid,3)
+        for yy in [-43.9,43.9]:block('lid_gasket_long',(0,yy,54.4),(158,1.2,.8),gasket)
+        for xx in [-79.4,79.4]:block('lid_gasket_end',(xx,0,54.4),(1.2,87.8,.8),gasket)
+        approximations.append('Human-approved clear/frosted polycarbonate lid and orange gasket visual variant; not a claim that the opaque 1554J2GY SKU includes that lid. Alpha-blended PBR, no transmission extension.')
         finish(key,heavy=True)
     else:raise ValueError('No dimensionally sourced generator for '+key)
 

@@ -242,16 +242,17 @@
     ],
     "dimsSource": "docs/inputs/bom-mk2.json: waterproof_case_hammond_1554j2gy",
     "approximations": [
-      "Wall thickness, lid seam and corner radii are small visual approximations, not a new seal or machining specification."
+      "Wall thickness, lid seam and corner radii are small visual approximations, not a new seal or machining specification.",
+      "Human-approved clear/frosted polycarbonate lid and orange gasket visual variant; not a claim that the opaque 1554J2GY SKU includes that lid. Alpha-blended PBR, no transmission extension."
     ],
-    "tris": 296,
-    "glbKb": 8.456,
+    "tris": 344,
+    "glbKb": 12.484,
     "author": "sergio.pulido@alodai.com",
     "units": "metres",
     "upAxis": "+Y",
     "origin": "mounting-face centre",
-    "compression": "meshopt",
-    "renderFillTarget": 0.75
+    "renderFillTarget": 0.75,
+    "compression": "meshopt"
   },
   {
     "key": "raspberry_pi_5_4gb",
