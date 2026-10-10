@@ -142,14 +142,14 @@
       "slot": "extra",
       "triangles": 924,
       "meshes": 4,
-      "bytes": 14660,
+      "bytes": 14672,
       "printedParts": [],
       "compression": "meshopt",
       "diameterMm": 68,
       "depthMm": 42,
       "dimsSource": "Human requested a generic 64\u201370 mm EDF; 68 mm chosen. Visual concept, not a verified SKU.",
       "source": "assets/blender/parts/module_ducted_fan.blend",
-      "notes": "X-forward duct and rotor, rear deck bracket. Common rover-ground origin; native mm with root scale 0.01. No logos or print outputs."
+      "notes": "X-forward duct and rotor, rear deck bracket. Common rover-ground origin; native mm with root scale 0.01. No logos or print outputs. Rearward clearance adjustment: duct lies behind the Pi instead of intersecting its PCB; bracket feet overlap rear deck."
     }
   },
   "deckOffsetY": {

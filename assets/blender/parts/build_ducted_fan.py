@@ -12,7 +12,7 @@ black=mat('rubber_and_chip',(.012,.015,.018));metal=mat('steel',(.4,.43,.47),.75
 def mesh(name,verts,faces,material,parent=root):
  d=bpy.data.meshes.new(name);d.from_pydata(verts,[],faces);d.update();bm=bmesh.new();bm.from_mesh(d);bmesh.ops.recalc_face_normals(bm,faces=list(bm.faces));bm.to_mesh(d);bm.free();o=bpy.data.objects.new(name,d);scene.collection.objects.link(o);o.parent=parent;d.materials.append(material);return o
 # X-forward duct, rear-deck placement; every coordinate is in the rover's shared native-mm frame.
-cx=-47;cz=124;n=64;vertices=[]
+cx=-92;cz=124;n=64;vertices=[]
 for x,r in [(cx-21,34),(cx+21,34),(cx-21,32),(cx+21,32)]:
  for i in range(n):a=i*math.tau/n;vertices.append((x,r*math.sin(a),cz+r*math.cos(a)))
 faces=[]
@@ -31,7 +31,7 @@ def cyl(name,p,r,length,material,parent=root):
 cyl('edf_motor_hub',(0,0,0),8,18,black,rotor);cyl('edf_hub_cap',(10,0,0),7,2,metal,rotor)
 def box(name,p,s,material):
  w,d,h=s;v=[(p[0]+x*w/2,p[1]+y*d/2,p[2]+z*h/2) for x,y,z in [(-1,-1,-1),(1,-1,-1),(1,1,-1),(-1,1,-1),(-1,-1,1),(1,-1,1),(1,1,1),(-1,1,1)]];return mesh(name,v,[(0,3,2,1),(4,5,6,7),(0,1,5,4),(1,2,6,5),(2,3,7,6),(3,0,4,7)],material)
-for y in [-27,27]:box('edf_mount_upright_'+('left' if y<0 else 'right'),(cx,y,71),(8,5,66),orange);box('edf_mount_foot_'+('left' if y<0 else 'right'),(cx,y,42),(24,10,4),orange)
+for y in [-27,27]:box('edf_mount_upright_'+('left' if y<0 else 'right'),(cx,y,71),(8,5,66),orange);box('edf_mount_foot_'+('left' if y<0 else 'right'),(cx+6,y,42),(48,10,4),orange)
 # Three rear stator vanes hold the motor, distinct from the animated rotor.
 for a in [0,math.tau/3,2*math.tau/3]:
  p=(cx-14,20*math.sin(a),cz+20*math.cos(a));o=box('edf_stator_vane',p,(3,3,26),black);
