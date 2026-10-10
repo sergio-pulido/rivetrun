@@ -175,3 +175,6 @@ const PROCEDURAL = 'Engine and event sounds: procedural WebAudio.';
  * without them the game's sound is all procedural, and the line says only that.
  */
 export const soundCredit = (hasSoundPack: boolean): string => (hasSoundPack ? `Ambience, announcer and stingers: ElevenLabs. ${PROCEDURAL}` : PROCEDURAL);
+
+/** Third-party material in the game, each named only while its file is on this server. */
+export const PANORAMA_CREDIT = 'Workshop panorama: Poly Haven, CC0.';

@@ -221,9 +221,9 @@ export function AnalyzePanel({ missions, model, pregenerated }: AnalyzePanelProp
 
           <div className="flex flex-col gap-3">
             <label className="flex flex-col gap-1">
-              <span className="flex items-baseline justify-between">
-                <span className="rr-label">Briefing · every driver gets this text</span>
-                <span className={`font-mono text-[11px] tabular-nums ${briefing.length >= BRIEFING_MAX_CHARS ? 'text-warn' : 'text-muted'}`} data-testid="analyze-briefing-count">
+              <span className="flex items-baseline justify-between gap-3">
+                <span className="rr-label min-w-0">Briefing · every driver gets this text</span>
+                <span className={`shrink-0 whitespace-nowrap font-mono text-[11px] tabular-nums ${briefing.length >= BRIEFING_MAX_CHARS ? 'text-warn' : 'text-muted'}`} data-testid="analyze-briefing-count">
                   {briefing.length} / {BRIEFING_MAX_CHARS}
                 </span>
               </span>

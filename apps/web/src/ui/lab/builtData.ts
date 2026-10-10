@@ -1,10 +1,10 @@
 // Server-side sources for /lab "How it was built": the program's sessions table, the git log, the benchmark file and
 // the token counts. Each is read on request and is simply absent when it cannot be read; nothing is made up.
 import { execFileSync } from 'node:child_process';
-import { readFileSync, readdirSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { parseHowBuilt, parseTokenReport, type HowBuilt, type TokenReport } from './accounting';
-import { LOG_FORMAT, commitsOverTime, parseGitLog, parseMarkdownTable, parseSessions, parseTokens, soundCredit, type CommitChart, type MarkdownTable, type Session, type TokenRow } from './built';
+import { LOG_FORMAT, PANORAMA_CREDIT, commitsOverTime, parseGitLog, parseMarkdownTable, parseSessions, parseTokens, soundCredit, type CommitChart, type MarkdownTable, type Session, type TokenRow } from './built';
 
 const REPO = path.join(process.cwd(), '..', '..');
 const doc = (name: string): string | null => {
@@ -46,6 +46,8 @@ export interface Built {
   readonly facts: HowBuilt | null;
   /** Who made the game's sound, as far as the files on this server bear out. */
   readonly sound: string;
+  /** Other third-party material, each line only while its file is there. */
+  readonly credits: readonly string[];
 }
 
 /** The generated sound pack is there when public/sfx holds at least one .mp3 (docs/SOUND_PACK.md). */
@@ -79,5 +81,7 @@ export function howItWasBuilt(): Built {
     tokenReport,
     facts: parseHowBuilt(json('how-built.json')),
     sound: soundCredit(hasSoundPack()),
+    // The room behind the Workshop turntable (Poly Haven "Carpentry Shop 01").
+    credits: existsSync(path.join(process.cwd(), 'public', 'env', 'workshop.jpg')) ? [PANORAMA_CREDIT] : [],
   };
 }
