@@ -171,7 +171,15 @@ if [ "$RUN_E2E" = 1 ]; then
     E2E_ON="a production build of $SHORT served on 127.0.0.1:$QA_PORT"
     run e2e "$ROOT" smoke_build
   fi
-  grep -E '^(PASS|FAIL|SKIP|WARN) ' "$OUT/e2e.log" | sed 's/^/     /'
+  # One line per kind of warning with its count: a run with Jev unreachable prints the same line sixty times.
+  grep -E '^(PASS|FAIL|SKIP) ' "$OUT/e2e.log" | sed 's/^/     /'
+  grep -E '^WARN ' "$OUT/e2e.log" | sed -E 's/(\/api\/ghost)\?.*/\1?…/' | sort | uniq -c | sed 's/^ *\([0-9]*\) WARN /     WARN ×\1 /'
+  # A tag must mean the Jev path was driven. If the QA server could not reach Jev at all (laptop offline, Jev
+  # down), the smoke still passes on the fallback: say so and do not tag.
+  if [ -f "$OUT/server.log" ] && grep -q "jev network: fetch failed" "$OUT/server.log"; then
+    JEV_UNREACHABLE="$(grep -c "jev network: fetch failed" "$OUT/server.log")"
+    NOTES+=("Jev was unreachable from the QA server for $JEV_UNREACHABLE call(s) (network): those decisions ran on the fallback, so this run does not prove the Jev path")
+  fi
   NOTES+=("e2e ran on $E2E_ON; screens: $SCREENS")
 else
   SKIPPED+=("e2e")
@@ -200,6 +208,10 @@ if [ "$TAG" = 1 ]; then
     echo "not tagging: a gate step was skipped (${SKIPPED[*]})"
     exit 0
   fi
+  if [ "${JEV_UNREACHABLE:-0}" -gt 0 ]; then
+    echo "not tagging: Jev was unreachable during the smoke ($JEV_UNREACHABLE call(s)); run the gate again when the network is back"
+    exit 0
+  fi
   EXISTING="$(git -C "$ROOT" tag --points-at "$SHA" --list 'demo-good-*' | head -n 1)"
   if [ -n "$EXISTING" ]; then
     echo "already tagged: $EXISTING"
@@ -212,6 +224,6 @@ if [ "$TAG" = 1 ]; then
   fi
   NAME="demo-good-$(date +%H%M)"
   git -C "$ROOT" tag -a "$NAME" "$SHA" -m "QA green $(date '+%Y-%m-%d %H:%M'): typecheck, unit tests, sim determinism, balance and production build on a clean worktree of $SHORT; e2e smoke on $E2E_ON." &&
-    git -C "$ROOT" push --quiet origin "$NAME" &&
+    { git -C "$ROOT" push --quiet origin "$NAME" || { echo "TAG $NAME CREATED LOCALLY BUT NOT PUSHED (network?): run git push origin $NAME"; exit 1; }; } &&
     echo "TAGGED $NAME → $SHORT"
 fi
