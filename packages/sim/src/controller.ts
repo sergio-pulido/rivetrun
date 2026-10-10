@@ -24,7 +24,7 @@ import { TUNING } from './data';
 import { START_TRIGGER, advanceBrain, availableActions, buildQuestion, observe } from './perception';
 import { createRun, jumpChargePower, markDecision, step, withAction } from './physics';
 import { score } from './score';
-import { wayOut, type WayOut } from './wayout';
+import { movingOut, wayOut, type WayOut } from './wayout';
 import type { HeadlessOptions, HeadlessResult, RunConfig, RunController, RunControllerOptions, RunState, StepDamage } from './types';
 
 // The package compiles without DOM or Node libs; these exist in every runtime we target.
@@ -347,6 +347,7 @@ export function driveController(config: RunConfig, readInput: () => ControlInput
       // Charged jump: seconds the button has been held; fires when it is let go.
       let chargeS = 0;
       let hint: WayOut | undefined;
+      let recovering = false;
       let accumulatedMs = 0;
       let last = now();
       const complete = (): void => {
@@ -370,9 +371,18 @@ export function driveController(config: RunConfig, readInput: () => ControlInput
           state = driven.state;
           chargeS = driven.chargeS;
           // Getting nowhere: tell the player which command frees this build. Checked twice a second, kept in between.
-          if (state.sim.stuckInS === undefined) hint = undefined;
-          else if (hint === undefined || state.stepCount % WAY_OUT_EVERY_STEPS === 0) hint = wayOut(state);
-          if (hint && state.sim.stuckInS !== undefined) state = { ...state, sim: { ...state.sim, freeWith: hint } };
+          // No countdown while the command in force is already getting the robot out (climb mode just switched on).
+          if (state.sim.stuckInS === undefined) {
+            hint = undefined;
+            recovering = false;
+          } else if (state.action !== prev.action || state.stepCount % WAY_OUT_EVERY_STEPS === 0 || (hint === undefined && !recovering)) {
+            recovering = movingOut(state);
+            hint = recovering ? undefined : wayOut(state);
+          }
+          if (state.sim.stuckInS !== undefined) {
+            const { stuckInS: _countdown, ...calm } = state.sim;
+            state = { ...state, sim: recovering ? calm : hint ? { ...state.sim, freeWith: hint } : state.sim };
+          }
           emitStepEvents(emit, prev, state, pendingDamage);
           if (state.stepCount % OBSERVE_EVERY_STEPS === 0) {
             emit({ type: 'observation', t: state.sim.t, observation: observe(state), control: { throttle: level(input.throttle), brake: level(input.brake), action } });

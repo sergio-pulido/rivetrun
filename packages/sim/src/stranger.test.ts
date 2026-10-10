@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import type { Action } from '@rivetrun/contracts';
-import { MISSIONS, MISSION_IDS, PARTS, PRESETS, STUCK_RULES, carefulDrive, createRun, driveSeed, fullThrottleCheck, naiveDrive, score, step, wayOut } from './index';
+import type { Action, SimState } from '@rivetrun/contracts';
+import { MISSIONS, MISSION_IDS, PARTS, PRESETS, STUCK_RULES, carefulDrive, createRun, driveController, driveSeed, fullThrottleCheck, naiveDrive, score, step, wayOut } from './index';
 import type { WayOut } from './index';
 
 const allRounder = PRESETS.all_rounder.build;
@@ -134,4 +134,34 @@ describe('a visitor reading the screen is not stuck (Q15)', () => {
     expect(brain.sim.t).toBe(STUCK_RULES.afterS);
     expect(score(brain).neverStarted).toBeUndefined();
   });
+});
+
+describe('no false alarm once the way out is taken (Q16)', () => {
+  it('on M5, M3 and M8: full throttle, climb mode tapped when named, and the countdown never shows again before the finish', async () => {
+    for (const id of ['M5', 'M3', 'M8'] as const) {
+      const mission = MISSIONS[id];
+      let climb = false;
+      let tappedAt = -1;
+      const after: SimState[] = [];
+      const prompts: string[] = [];
+      const controller = driveController(
+        { mission, seed: driveSeed(mission), build: allRounder, priority: 0.5 },
+        () => ({ throttle: 1, brake: 0, ...(climb ? { special: 'climb' as const } : {}) }),
+        { hints: false, timeScale: 300, onEvent: (event) => {
+          if (event.type !== 'frame') return;
+          const frame = event.state;
+          if (tappedAt >= 0 && frame.t > tappedAt) after.push(frame);
+          if (frame.stuckInS !== undefined) prompts.push(frame.freeWith ?? 'cannot pass');
+          // The player taps 1.5 s after the prompt names climb mode.
+          if (!climb && frame.freeWith === 'climb' && frame.stuckInS !== undefined && frame.stuckInS <= 5) { climb = true; tappedAt = frame.t; }
+        } },
+      );
+      const episode = await controller.start();
+      expect(tappedAt, id).toBeGreaterThan(0);
+      expect(episode.outcome.finished, id).toBe(true);
+      expect(after.filter((frame) => frame.stuckInS !== undefined), id).toEqual([]);
+      // Every prompt that was shown named climb mode: never "this build cannot pass here".
+      expect([...new Set(prompts)], id).toEqual(['climb']);
+    }
+  }, 30000);
 });
