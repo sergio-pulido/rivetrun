@@ -1,8 +1,8 @@
 # [LAB] handover — Lab Missions: grid scenarios with fog of war (packages/lab, /scenarios)
 
 Written Sat 06:50 for the 16:15 demo. Checked on the dev server (:3000) by unit tests and by reading the page;
-nothing was seen on a real phone, on :3001 or through the tunnel. The way in is the "Lab Missions" card on /lab;
-it is not on Home, on purpose.
+nothing was seen on a real phone, on :3001 or through the tunnel. The way in is "Lab Missions" in the header menu
+(added by [UI] at 10:00, 27de0c8) or the card on /lab; there is no card on Home.
 
 ## Built tonight (commit)
 - `@rivetrun/lab`: a deterministic grid sim, fixed 50 ms step; speed, draw, battery and contact damage come from the same build through the rail's formulas (6d28f70).
