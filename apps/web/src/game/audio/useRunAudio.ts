@@ -1,7 +1,9 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import type { Action, Build } from '@rivetrun/contracts';
+import { deriveSpec, safeContactSpeedMps } from '@rivetrun/sim';
+import { hazardWarning } from '../drive/hazard';
 import { clamp } from '../rng';
 import type { RunFeed } from '../runFeed';
 import { droneHum, initAudio, play, setEngine } from './sfx';
@@ -15,7 +17,8 @@ const SPLASH_COOLDOWN_MS = 1500;
  * Sound for a run, driven only by what the feed already knows: engine hum from speed and load,
  * one-shots on run events, drone hum for scout-drone builds. Audio unlocks on the first user gesture.
  */
-export function useRunAudio(feed: RunFeed, build: Build): void {
+export function useRunAudio(feed: RunFeed, build: Build, driving = false): void {
+  const safeContactMps = useMemo(() => safeContactSpeedMps(deriveSpec(build)), [build]);
   const hasDrone = build.sensors.includes('scout_drone');
 
   useEffect(() => {
@@ -24,6 +27,8 @@ export function useRunAudio(feed: RunFeed, build: Build): void {
     let lastAction: Action | null = null;
     let lastSlipAt = 0;
     let lastSplashAt = 0;
+    let scanStep = 0;
+    let overSafe = false;
     let humming = false;
 
     const onChange = (): void => {
@@ -43,13 +48,32 @@ export function useRunAudio(feed: RunFeed, build: Build): void {
         }
         lastAction = picked;
       }
-      if (view.lastDamage && view.lastDamage !== prev.lastDamage) play('crash');
+      // A landing has its own thump; the crash is for running into things.
+      if (view.lastLanding && view.lastLanding !== prev.lastLanding) play(view.lastLanding.damagePct > 0 || view.lastLanding.impactMps > 2.6 ? 'land_hard' : 'land');
+      else if (view.lastDamage && view.lastDamage !== prev.lastDamage && view.lastDamage.amountPct >= 0.5) play('crash');
       if (view.done && !prev.done) play(view.dnfReason ? 'dnf' : 'finish');
 
       const running = state !== null && !view.done;
       if (running) {
         const before = prev.state?.effects ?? [];
-        if (state.effects.includes('slip') && !before.includes('slip') && now - lastSlipAt > SLIP_COOLDOWN_MS) {
+        const was = prev.state;
+        if (state.airborne && !was?.airborne) play('jump');
+        if (state.blockedBy && !was?.blockedBy) play('blocked');
+        if (state.gust && !was?.gust) play('gust');
+        // Scan: a tick at each quarter of the hold, then the result.
+        const step = state.scan ? Math.floor(state.scan.progress * 4) : -1;
+        if (state.scan && step !== scanStep) play('scan_tick');
+        scanStep = step;
+        if ((state.scansDone ?? 0) > (was?.scansDone ?? 0)) play('scan_done');
+        if ((state.scansMissed ?? 0) > (was?.scansMissed ?? 0)) play('scan_missed');
+        // Driving: two pips the moment the robot is over the safe speed for what its sensors see ahead.
+        if (driving) {
+          const over = hazardWarning(view.observation?.value ?? null, state.v, safeContactMps)?.over === true;
+          if (over && !overSafe) play('warn');
+          overSafe = over;
+        }
+        // Wheelspin keeps squealing for as long as it lasts.
+        if (state.effects.includes('slip') && now - lastSlipAt > SLIP_COOLDOWN_MS) {
           lastSlipAt = now;
           play('slip');
         }
@@ -82,5 +106,5 @@ export function useRunAudio(feed: RunFeed, build: Build): void {
       setEngine(0, 0);
       droneHum(false);
     };
-  }, [feed, hasDrone]);
+  }, [feed, hasDrone, driving, safeContactMps]);
 }

@@ -106,7 +106,7 @@ export default function RunCanvas({ mission = MISSIONS.M5, build = PRESETS[DEFAU
   const demo = useDemoRun(mission, build, feed === undefined);
   const activeFeed = feed ?? demo.feed;
   const activeGhosts = ghosts ?? demo.ghosts;
-  useRunAudio(activeFeed, build);
+  useRunAudio(activeFeed, build, drive !== undefined);
   const dev = useMemo(() => (process.env.NODE_ENV === 'production' ? null : pinnable(activeFeed)), [activeFeed]);
   const tier = quality();
   const telemetryOpen = useTelemetryOpen();

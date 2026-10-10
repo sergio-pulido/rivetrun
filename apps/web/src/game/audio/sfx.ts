@@ -46,7 +46,17 @@ export type SoundName =
   | "dnf"
   | "unlock"
   | "countdown"
-  | "go";
+  | "go"
+  // Gameplay v3 and weather (added in the game layer, same synth).
+  | "land"
+  | "land_hard"
+  | "jump"
+  | "scan_tick"
+  | "scan_done"
+  | "scan_missed"
+  | "blocked"
+  | "warn"
+  | "gust";
 
 const STORAGE_KEY = "rivetrun.audio.muted";
 
@@ -1024,6 +1034,63 @@ export function play(name: SoundName): void {
         delay: 0.055,
       });
 
+      break;
+    }
+
+    // Touchdown: a soft thump, or a heavier one with a rattle when it hurt.
+    case "land": {
+      tone({ frequency: 150, endFrequency: 62, duration: 0.14, volume: 0.3, type: "sine" });
+      noise({ duration: 0.09, volume: 0.1, frequency: 500, endFrequency: 180, filterType: "lowpass" });
+      break;
+    }
+    case "land_hard": {
+      tone({ frequency: 130, endFrequency: 42, duration: 0.24, volume: 0.42, type: "sine" });
+      noise({ duration: 0.2, volume: 0.24, frequency: 900, endFrequency: 160, filterType: "lowpass" });
+      tone({ frequency: 310, endFrequency: 190, duration: 0.07, volume: 0.1, type: "square", delay: 0.05 });
+      break;
+    }
+
+    // Take-off: the piston's pop and a short rising whoosh.
+    case "jump": {
+      tone({ frequency: 210, endFrequency: 520, duration: 0.11, volume: 0.24, type: "triangle" });
+      noise({ duration: 0.16, volume: 0.1, frequency: 700, endFrequency: 2400, filterType: "bandpass" });
+      break;
+    }
+
+    // Scan: a tick per quarter of the hold, a rising triad when it completes, two falling notes when it is missed.
+    case "scan_tick": {
+      tone({ frequency: 1250, duration: 0.035, volume: 0.1, type: "sine" });
+      break;
+    }
+    case "scan_done": {
+      tone({ frequency: 660, duration: 0.09, volume: 0.2, type: "sine" });
+      tone({ frequency: 880, duration: 0.09, volume: 0.2, type: "sine", delay: 0.08 });
+      tone({ frequency: 1320, duration: 0.16, volume: 0.22, type: "sine", delay: 0.16 });
+      break;
+    }
+    case "scan_missed": {
+      tone({ frequency: 420, endFrequency: 360, duration: 0.14, volume: 0.2, type: "square" });
+      tone({ frequency: 300, endFrequency: 230, duration: 0.2, volume: 0.2, type: "square", delay: 0.13 });
+      break;
+    }
+
+    // Stopped against something too tall: a dull knock.
+    case "blocked": {
+      tone({ frequency: 96, endFrequency: 58, duration: 0.16, volume: 0.36, type: "sine" });
+      noise({ duration: 0.06, volume: 0.14, frequency: 320, filterType: "lowpass" });
+      break;
+    }
+
+    // Too fast for what is ahead: two short high pips.
+    case "warn": {
+      tone({ frequency: 1480, duration: 0.05, volume: 0.13, type: "square" });
+      tone({ frequency: 1480, duration: 0.05, volume: 0.13, type: "square", delay: 0.1 });
+      break;
+    }
+
+    // A gust: filtered noise that swells and passes.
+    case "gust": {
+      noise({ duration: 0.9, volume: 0.16, frequency: 320, endFrequency: 1100, filterType: "bandpass" });
       break;
     }
   }

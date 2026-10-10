@@ -21,6 +21,7 @@ import { restRide, rideOver, stanceFor } from './ride';
 import { ScoutDroneRig } from './ScoutDroneRig';
 import { ScanPads } from './ScanPads';
 import { SenseBand } from './SenseBand';
+import { SpeedLines } from './SpeedLines';
 import { EFFECT_PARTICLES, Tag, swimLift } from './shared';
 import { World } from './World';
 
@@ -399,6 +400,7 @@ export function RunScene({ mission, build, feed, ghosts = [], particleBudget = 1
       <SenseBand layout={layout} pose={pose} feed={feed} senses={senses} />
       {mission.scanZones && mission.scanZones.length > 0 ? <ScanPads layout={layout} zones={mission.scanZones} build={build} feed={feed} /> : null}
       {hasDrone && <ScoutDroneRig feed={feed} layout={layout} pose={pose} />}
+      <SpeedLines pose={pose} budget={particleBudget} />
       <Particles ref={particles} timeScale={timeScale} budget={particleBudget} />
       <CameraRig pose={pose} light={sun} startX={0} wide={hasDrone} driving={hands !== undefined} raise={raise} />
     </>
