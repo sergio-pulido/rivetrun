@@ -367,6 +367,33 @@ try {
       return `accepted (${response.status()})`;
     }, page);
 
+    // Episode and Share on the Result: never tested by any session before 07:50 (docs/QA.md "Not covered").
+    await step('result · episode and share', async () => {
+      if (new URL(page.url()).pathname !== '/result') throw new Skip('no Result page');
+      const { readFileSync, statSync } = await import('node:fs');
+      const episodeButton = page.getByRole('button', { name: /EPISODE/ });
+      await episodeButton.scrollIntoViewIfNeeded();
+      const [episodeFile] = await Promise.all([page.waitForEvent('download', { timeout: 15_000 }), episodeButton.click()]);
+      const episodePath = path.join(OUT, 'episode.json');
+      await episodeFile.saveAs(episodePath);
+      const episode = JSON.parse(readFileSync(episodePath, 'utf8'));
+      for (const key of ['id', 'missionId', 'outcome', 'decisions']) if (!(key in episode)) throw new Error(`the downloaded episode has no "${key}"`);
+      await page.getByRole('button', { name: /SHARE/ }).first().click();
+      // Headless Chromium has no share sheet: the page falls back to the clipboard or to plain text, and offers the card.
+      const saveCard = page.getByRole('button', { name: /SAVE THE SHARE CARD/ });
+      const offered = await saveCard.waitFor({ state: 'visible', timeout: 8000 }).then(() => true, () => false);
+      const status = (await page.locator('[role="status"]').allInnerTexts()).join(' ').replace(/\s+/g, ' ').trim();
+      if (!offered) return `episode ${Math.round(statSync(episodePath).size / 1024)} kB (${episode.decisions.length} decisions); Share used the browser's own sheet, no card offered`;
+      const [cardFile] = await Promise.all([page.waitForEvent('download', { timeout: 15_000 }), saveCard.click()]);
+      const cardPath = path.join(OUT, 'share-card.png');
+      await cardFile.saveAs(cardPath);
+      const png = readFileSync(cardPath);
+      if (png.subarray(1, 4).toString('latin1') !== 'PNG') throw new Error('the share card is not a PNG');
+      if (png.length < 8000) throw new Error(`the share card is only ${png.length} bytes`);
+      await shot(page, 'phone-07c-share');
+      return `episode ${Math.round(statSync(episodePath).size / 1024)} kB (${episode.decisions.length} decisions, mission ${episode.missionId}); share card ${Math.round(png.length / 1024)} kB, ${png.readUInt32BE(16)}×${png.readUInt32BE(20)} px; the page said: "${status.slice(0, 70)}"`;
+    }, page);
+
     // OVN-UI-4: after a finished run the Brief shows the personal best for this mission and robot.
     await step('personal best', async () => {
       await go(page, '/brief/M1');
