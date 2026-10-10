@@ -174,3 +174,20 @@ describe('Brain v3: a change of ground seen from far is told again close up', ()
     expect(episode.outcome.damagePct).toBeLessThan(10);
   });
 });
+
+describe('heuristic: more sight must not mean more damage (M4)', () => {
+  const meanDamage = async (mission: typeof MISSIONS.M4, build: typeof PRESETS.all_rounder.build): Promise<number> => {
+    const seeds = [1, 2, 3, 4, 5, 7];
+    const runs = await Promise.all(seeds.map((seed) => runHeadless(mission, seed, build, heuristicBrain)));
+    return runs.reduce((sum, run) => sum + run.episode.outcome.damagePct, 0) / seeds.length;
+  };
+  const foggy = { ...MISSIONS.M4, conditions: { visibility: 'fog' as const } };
+
+  it('the All-rounder and the Speedster take no more damage in clear air than in fog', async () => {
+    for (const build of [PRESETS.all_rounder.build, PRESETS.speedster.build]) {
+      expect(await meanDamage(MISSIONS.M4, build)).toBeLessThanOrEqual(await meanDamage(foggy, build));
+    }
+    // It used to be 44 % for the All-rounder: seen from 6 m, decided once, never asked again.
+    expect(await meanDamage(MISSIONS.M4, PRESETS.all_rounder.build)).toBeLessThan(5);
+  }, 30000);
+});

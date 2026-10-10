@@ -12,6 +12,11 @@ const SAFE_CONTACT_MPS = 0.6;
 const CONTACT_DAMAGE_PER_MPS = 8;
 const MIN_DECEL_MPS2 = 0.05;
 const STOCK_RANGER_M = 3.2;
+// Rough ground: entering it above this speed costs damage that grows with the square of the excess.
+const ROUGH_GROUND: readonly string[] = ['rock'];
+const ROUGH_ENTRY_SAFE_MPS = 1;
+const ROUGH_PLAN_M = 6.5;
+const ROUGH_ENTRY_DAMAGE_PER_MPS2 = 20;
 const RUN_OUT_PENALTY = 12;
 const LAST_RESORT_PENALTY = 10;
 const TIGHT_FINISH_PCT = 10;
@@ -42,6 +47,27 @@ function approachDamagePct(question: BrainQuestion, action: Action): number {
   const decel = Math.max(MIN_DECEL_MPS2, (2 * (speed * windowS - brake.progressM)) / (windowS * windowS));
   const arrival = Math.sqrt(Math.max(0, endSpeed * endSpeed - 2 * decel * remainingM));
   return Math.max(0, arrival - SAFE_CONTACT_MPS) * CONTACT_DAMAGE_PER_MPS;
+}
+
+/**
+ * The same planning for rough ground seen ahead (rock): driving onto it above the safe entry speed costs damage,
+ * and from 6 m out the window does not reach it. Slippery ground in between is what makes the early call matter.
+ */
+function roughApproachDamagePct(question: BrainQuestion, action: Action): number {
+  const ahead = question.observation?.terrainAhead;
+  // Only within camera distance: further out (scout drone) there is room to slow down later, and easing off that early stalls climbs.
+  if (typeof ahead !== 'object' || ahead === null || !ROUGH_GROUND.includes(ahead.terrain) || ahead.distanceM > ROUGH_PLAN_M) return 0;
+  const windowS = question.lookaheadS ?? BASE_LOOKAHEAD_S;
+  const entry = question.lookahead.find((l) => l.action === action);
+  const brake = question.lookahead.find((l) => l.action === 'brake');
+  if (!entry || !brake) return 0;
+  const remainingM = ahead.distanceM - entry.progressM;
+  if (remainingM <= 0) return 0;
+  const speed = Math.max(0, question.status.speedMps);
+  const endSpeed = Math.max(0, (2 * entry.progressM) / windowS - speed);
+  const decel = Math.max(MIN_DECEL_MPS2, (2 * (speed * windowS - brake.progressM)) / (windowS * windowS));
+  const arrival = Math.sqrt(Math.max(0, endSpeed * endSpeed - 2 * decel * remainingM));
+  return Math.max(0, arrival - ROUGH_ENTRY_SAFE_MPS) ** 2 * ROUGH_ENTRY_DAMAGE_PER_MPS2;
 }
 
 /**
@@ -77,7 +103,7 @@ export function utility(question: BrainQuestion, action: Action): number {
   // Progress is compared per standard window, so a longer lookahead (scout drone) is not just more reward.
   // Damage is only partly discounted: a hazard seen 8 s out still counts, unavoidable trickle damage does not stall the robot.
   const window = BASE_LOOKAHEAD_S / (question.lookaheadS ?? BASE_LOOKAHEAD_S);
-  return -stall - energyRisk(question, entry) + entry.progressM * window * (1 - 0.5 * p) - (entry.damagePct * Math.sqrt(window) + approachDamagePct(question, action)) * (0.4 + 2 * p) - entry.energyPct * window * (0.05 + 0.15 * p);
+  return -stall - energyRisk(question, entry) + entry.progressM * window * (1 - 0.5 * p) - (entry.damagePct * Math.sqrt(window) + approachDamagePct(question, action) + roughApproachDamagePct(question, action)) * (0.4 + 2 * p) - entry.energyPct * window * (0.05 + 0.15 * p);
 }
 
 function softmax(options: readonly Action[], utilities: readonly number[]): Probabilities {
