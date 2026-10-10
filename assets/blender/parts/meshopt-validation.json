@@ -23,13 +23,13 @@
       "file": "apps/web/public/models/parts/motor_driver_max14870_rpi.glb",
       "kind": "part",
       "limit": 0.5,
-      "bytes": 18480,
+      "bytes": 17932,
       "triangles": 804,
       "meshes": 3,
       "decodedSize": [
         0.04320000112056732,
-        0.01859805625341206,
-        0.016497134739880334
+        0.01860013168303908,
+        0.01650240833845458
       ],
       "offlineDecoder": true
     },

@@ -135,7 +135,7 @@ r=start('controller')
 printcopy('electronics_bridge',r,(0,0,72),Matrix.Rotation(math.pi,3,'X'))
 printcopy('controller_carrier',r,(0,0,72))
 append('raspberry_pi_5_4gb',r,(-12,0,91))
-append('motor_driver_max14870_rpi',r,(-25.81,19,94.846))
+append('motor_driver_max14870_rpi',r,(-25.81,24.5,94.846))
 append('pi_regulator_s13v30f5',r,(48,0,80))
 export('controller',r,'fixed')
 r=start('bumper')
@@ -152,7 +152,8 @@ for module_id,key in [('battery_small','battery_4s_small'),('battery_large','bat
     printcopy('battery_tray',r,(0,0,31))
     append(key,r,(0,0,33.5))
     export(module_id,r,'battery')
-manifest['deferred']=[id for id in manifest['deferred'] if id not in manifest['modules']]
+catalog=set(re.findall(r"\bid:\s*'([^']+)'",(ROOT/'packages/sim/src/data/parts.ts').read_text().split('];')[0]))|{'chassis','controller'}
+manifest['deferred']=sorted(catalog-set(manifest['modules']))
 manifest['status']='partial_demo_visual_assets'
 manifest['deckOffsetY']={'wheels':0,'offroad_wheels':.04,'tracks':-.205}
 manifest['manufacturingStatus']='Screen-first demo assembly. Print and physical fit work paused by human. No manufacture certification; track adaptation and controller retention require later fit validation.'

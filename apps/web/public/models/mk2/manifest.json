@@ -142,13 +142,18 @@
     "tracks": -0.205
   },
   "deferred": [
+    "ambient_light_veml7700",
+    "brushless_motor_dfrobot_fit0441",
+    "camera_module_3_noir",
     "imu",
+    "lidar_rplidar_c1",
     "moisture_probe",
+    "piston_jump",
     "scout_drone",
-    "winch",
-    "waterproof_case",
     "thruster_kit",
-    "piston_jump"
+    "tof_vl53l1x_pololu",
+    "waterproof_case",
+    "winch"
   ],
   "scaleMmPerRenderUnit": 100,
   "contractPath": "docs/MK2_ASSET_CONTRACT.md",

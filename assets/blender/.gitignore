@@ -1,0 +1,6 @@
+# Local Blender backups and downloaded authoring caches.
+*.blend1
+*.blend2
+*_previous.blend
+*_variants_previous.blend
+parts/sources/

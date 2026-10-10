@@ -3,6 +3,9 @@ import json,struct,re
 from pathlib import Path
 ROOT=Path(__file__).resolve().parents[3];OUT=ROOT/'apps/web/public/models/mk2'
 m=json.loads((OUT/'manifest.json').read_text());ids={p['id'] for p in json.loads((ROOT/'docs/inputs/printed-parts.json').read_text())};materials=set()
+catalog=set(re.findall(r"\bid:\s*'([^']+)'",(ROOT/'packages/sim/src/data/parts.ts').read_text().split('];')[0]))|{'chassis','controller'}
+assert catalog==set(m['modules'])|set(m['deferred'])
+assert not set(m['modules'])&set(m['deferred'])
 def mul(a,b):return [[sum(a[i][k]*b[k][j] for k in range(4)) for j in range(4)] for i in range(4)]
 def matrix(n):
  if "matrix" in n:return [[n["matrix"][j*4+i] for j in range(4)] for i in range(4)]

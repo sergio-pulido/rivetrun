@@ -38,13 +38,13 @@
       "No chassis mount: female 2x17 connector engages Pi GPIO."
     ],
     "tris": 804,
-    "glbKb": 18.48,
+    "glbKb": 17.932,
     "author": "sergio.pulido@alodai.com",
     "units": "metres",
     "upAxis": "+Y",
     "origin": "mounting-face centre",
-    "compression": "meshopt",
-    "renderFillTarget": 0.75
+    "renderFillTarget": 0.75,
+    "compression": "meshopt"
   },
   {
     "key": "wheels_60x8",
