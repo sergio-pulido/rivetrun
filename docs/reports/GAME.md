@@ -16,6 +16,7 @@ rendering unless it says otherwise. Nothing was seen on a real phone or heard th
 - Failure panels with RELOAD and HOME when the 3D view is lost or unavailable (01ee215, a53ec0f).
 - For other pages: RunAlerts for the race phone (a69a7c9), RobotGlyph and colours for Lab Missions (8d924d6), DecisionChips and the attract loop for /screen.
 - "What Jev is told" line on the Brain sheet (a62696a). MK-II loader reads meshopt files (51ff71a).
+- Driver alerts from the first-timer pass: rough ground with its entry speed, water ahead, "cannot scan" with the reason, "not on the pad" (692314b, d2222d4).
 
 ## Simplified or assumed
 - The robot is drawn about 6× its real size on a track drawn 1:1; jump heights are drawn 2×. Obstacles use the 6× scale.
@@ -33,6 +34,7 @@ rendering unless it says otherwise. Nothing was seen on a real phone or heard th
   (no catalog build can be blocked: lowest clearance 6 cm, tallest obstacle 5 cm).
 - The fly-in and wind streaks as motion (stills and numbers only). A lost WebGL context coming back by itself.
 - Result pages for battery and timeout DNFs; /screen with a board of 1–6 real rows above the attract loop.
+- Three driver alerts stacked at once (two were seen); the water alert on a build with a moisture probe.
 
 ## If this breaks at the demo
 1. A phone shows a drafting-sheet background and "3D VIEW UNAVAILABLE" or "3D VIEW PAUSED".
