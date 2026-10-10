@@ -79,6 +79,9 @@ const onGrid = (player: RacePlayer): RacePlayer => ({
   lastAction: null,
   lastActionP: null,
   latencyMs: null,
+  medianLatencyMs: null,
+  lateDecisions: null,
+  missedDecisions: null,
   thinking: false,
   silent: false,
   done: false,
@@ -310,6 +313,9 @@ function report(room: Room, action: Act<'state'>, now: number): RaceResult<null>
     lastAction: action.lastAction,
     lastActionP: action.lastActionP,
     latencyMs: action.latencyMs ?? player.latencyMs,
+    medianLatencyMs: action.medianLatencyMs ?? player.medianLatencyMs,
+    lateDecisions: action.lateDecisions ?? player.lateDecisions,
+    missedDecisions: action.missedDecisions ?? player.missedDecisions,
     thinking: action.thinking && !action.done,
     silent: false,
     done: action.done,
@@ -327,7 +333,9 @@ function report(room: Room, action: Act<'state'>, now: number): RaceResult<null>
     // the server's own clock and stands either way, but an episode whose replay gives a different result is not
     // logged: its score would otherwise reach the leaderboard unchecked.
     const check = player.kind === 'human' ? recordHumanRun(player.nickname, action.episode) : null;
-    if (check?.verdict !== 'mismatch') addRun(player.nickname, action.episode);
+    // A bot's label can hold characters a leaderboard nickname may not ("GPT-6.1 Sol (reasoning)"): logged without them.
+    const boardName = player.kind === 'jev' ? player.nickname.replace(/[^\w .-]/g, '').replace(/\s+/g, ' ').trim().slice(0, 16).trim() || 'AI' : player.nickname;
+    if (check?.verdict !== 'mismatch') addRun(boardName, action.episode);
   }
   return done(null);
 }

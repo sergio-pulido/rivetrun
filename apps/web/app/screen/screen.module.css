@@ -949,3 +949,51 @@
   font-size: calc(var(--u) * 11);
   color: #8b95a3;
 }
+
+/* Live Arena results: one row per brain. */
+.arenaTable {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--u) * 6);
+  margin-top: calc(var(--u) * 6);
+}
+.arenaRow {
+  display: grid;
+  grid-template-columns: calc(var(--u) * 18) minmax(0, 1.5fr) minmax(0, 1.3fr) minmax(0, 1fr) minmax(0, 0.9fr);
+  gap: calc(var(--u) * 8);
+  align-items: baseline;
+  font-family: var(--data);
+  font-size: calc(var(--u) * 13);
+  font-variant-numeric: tabular-nums;
+  padding: calc(var(--u) * 6) 0;
+  border-top: 1px solid #1f2a30;
+}
+.arenaHead {
+  border-top: 0;
+  font-size: calc(var(--u) * 10);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #8b95a3;
+}
+.arenaPlace {
+  color: var(--orange);
+  font-weight: 600;
+}
+.arenaName {
+  font-family: var(--display);
+  font-weight: 600;
+  font-size: calc(var(--u) * 14);
+  color: #3fd0e0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.arenaBad {
+  color: #f5a524;
+  font-weight: 600;
+}
+.arenaMissed {
+  font-style: normal;
+  font-weight: 400;
+  color: #8b95a3;
+}

@@ -10,6 +10,7 @@ import { ARENA_BRAINS, ARENA_MAX_BOTS, duelVerdict, MAX_BOTS, rankPlayers, resul
 import { postRaceAction, useRaceRoom, useServerNow } from '../race/_lib/useRaceRoom';
 import { RaceTrack } from './RaceTrack';
 import { Side, useEpisodeCount } from './Side';
+import { ArenaResults } from './ArenaResults';
 import { ThreadPanel } from './ThreadPanel';
 import { useJevBots, type JevBots } from './useJevBots';
 import styles from './screen.module.css';
@@ -404,7 +405,14 @@ export function RaceScreen({ code, siteUrl, arena = false }: RaceScreenProps) {
           episodes={episodes}
           seats={`${seatsTaken(snapshot)}/${snapshot.seats}`}
           // During and after a race with JEV bots, their live decision thread takes the QR block's place.
-          extra={racing && hasJev && bots.running > 0 ? <ThreadPanel thread={bots.thread} arena={arenaRace} /> : undefined}
+          extra={
+            // Live Arena, finished: what each brain's answering speed cost it. Otherwise the bots' live decisions.
+            status === 'finished' && arenaRace ? (
+              <ArenaResults players={snapshot.players} trackLengthM={compileTrack(mission.track).lengthM} />
+            ) : racing && hasJev && bots.running > 0 ? (
+              <ThreadPanel thread={bots.thread} arena={arenaRace} />
+            ) : undefined
+          }
           stat={`${snapshot.players.length} in the room`}
         >
           <Order snapshot={snapshot} />

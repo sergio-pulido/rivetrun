@@ -23,7 +23,7 @@ const state: LiveArenaState = (holder.__rivetrunLiveArena ??= { contestants: new
 const reasons = new Map<ArenaBrainId, string>();
 
 /** Paid models stop answering once this much has been spent since the server started (their bots drive on the fixed rules). */
-const capUsd = (): number => Number(process.env.ARENA_LIVE_CAP_USD ?? 1);
+const capUsd = (): number => Number(process.env.ARENA_LIVE_CAP_USD ?? 3);
 
 function contestantFor(id: ArenaBrainId): Promise<Contestant | null> {
   const known = state.contestants.get(id);

@@ -54,7 +54,12 @@ const OUT_COLOR = '#5B6470';
 function buildLine(player: RacePlayer): string {
   if (player.kind === 'jev') {
     // Live Arena bot: the lane is named after its brain; this line carries its latest response time.
-    if (player.model) return player.model === 'heuristic' ? 'fixed rules · no model' : `${player.model} · ${player.latencyMs === null ? 'no answer yet' : `${Math.round(player.latencyMs)} ms`}`;
+    if (player.model) {
+      if (player.model === 'heuristic') return 'fixed rules · no model';
+      // While driving: the latest answer. Once done: the race's median and what waiting cost.
+      if (player.done && player.medianLatencyMs !== null) return `median ${Math.round(player.medianLatencyMs)} ms · ${player.lateDecisions ?? 0} late`;
+      return `${player.model} · ${player.latencyMs === null ? 'no answer yet' : `${Math.round(player.latencyMs)} ms`}`;
+    }
     const preset = BRIEFING_PRESETS.find((candidate) => candidate.text === player.briefing);
     return `AI · ${preset ? preset.name : player.briefing ? 'custom brief' : 'no brief'}`;
   }

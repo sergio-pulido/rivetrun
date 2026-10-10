@@ -64,8 +64,8 @@ export const ARENA_BRAINS = [
   { id: 'jev-1.13.0', label: 'Jev' },
   { id: 'gpt-6-luna', label: 'GPT-6 Luna' },
   { id: 'deepseek-flash', label: 'DeepSeek Flash' },
-  { id: 'gpt-5-nano', label: 'GPT-5 nano' },
-  { id: 'claude-haiku-5-5', label: 'Claude Haiku 5.5' },
+  // A model that thinks before it answers: its default reasoning, as in the arena table's reasoning tier.
+  { id: 'gpt-6.1-sol', label: 'GPT-6.1 Sol (reasoning)' },
   { id: 'heuristic', label: 'Fixed rules' },
 ] as const;
 export type ArenaBrainId = (typeof ARENA_BRAINS)[number]['id'];
@@ -77,7 +77,8 @@ export const ARENA_DECIDE_TIMEOUT_MS = 4000;
 
 export const RacePlayerSchema = z.object({
   id: z.string(),
-  nickname: NicknameSchema,
+  /** A human's nickname (NicknameSchema, checked on join) or a bot's label, which may be longer: "GPT-6.1 Sol (reasoning)". */
+  nickname: z.string().min(1).max(40),
   /** human = a phone, driven by its owner. jev = a bot the big screen runs with the Jev brain. */
   kind: z.enum(['human', 'jev']).default('human'),
   build: BuildSchema,
@@ -87,6 +88,12 @@ export const RacePlayerSchema = z.object({
   model: z.string().optional(),
   /** Bots: how long the brain took over its last decision, ms. */
   latencyMs: z.number().min(0).nullable().default(null),
+  /** Bots, this race so far: the median response time of the brain's own answers, ms. */
+  medianLatencyMs: z.number().min(0).nullable().default(null),
+  /** Bots, this race so far: hazards reached (hit, blocked, fell) while the previous answer had not arrived yet. */
+  lateDecisions: z.number().int().min(0).nullable().default(null),
+  /** Bots, this race so far: decisions the fixed rules took because the brain did not answer in time. */
+  missedDecisions: z.number().int().min(0).nullable().default(null),
   /** BUILD phase: the player has locked the build in. */
   ready: z.boolean().default(false),
   /** Join order: picks the lane and the colour. */
@@ -165,6 +172,9 @@ export const RaceActionSchema = z.discriminatedUnion('action', [
     lastActionP: z.number().min(0).max(1).nullable().default(null),
     /** Bots: how long the brain took over its last decision, ms. */
     latencyMs: z.number().min(0).nullable().optional(),
+    medianLatencyMs: z.number().min(0).nullable().optional(),
+    lateDecisions: z.number().int().min(0).nullable().optional(),
+    missedDecisions: z.number().int().min(0).nullable().optional(),
     thinking: z.boolean().default(false),
     done: z.boolean().default(false),
     finished: z.boolean().default(false),

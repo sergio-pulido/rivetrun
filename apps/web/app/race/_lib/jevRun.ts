@@ -1,12 +1,14 @@
 // A Jev-driven run for Room Race: the big screen runs each JEV bot with the client brain (Jev through
 // /api/decide, heuristic fallback) in real time, and posts its state like a phone does.
-import type { Brain, Build, Mission } from '@rivetrun/contracts';
+import type { Brain, Build, DecisionLog, Mission } from '@rivetrun/contracts';
 import { runController } from '@rivetrun/sim';
 import { createClientBrain } from '@/brain/clientBrain';
 import { entryFromDecision, entryFromLog, type ThreadEntry } from '@/brain/thread';
 import { createRunFeed } from '@/game/runFeed';
 import { STATE_POST_MS } from './protocol';
 import { reportFinal, reportState, type RaceSeat, type StateReport } from './report';
+
+const LATE_CAUSES: ReadonlySet<string> = new Set(['impact', 'blocked', 'fell']);
 
 export interface JevRunOptions {
   readonly code: string;
@@ -28,6 +30,17 @@ export interface JevRunOptions {
 export function startJevRun({ code, raceNo, seat, mission, seed, build, briefing, onDecision, who = 'JEV', brain }: JevRunOptions): () => void {
   const feed = createRunFeed();
   let stopped = false;
+  // What the results screen says about this brain: how fast it answered and what its waiting cost.
+  const answered: number[] = [];
+  let late = 0;
+  let missed = 0;
+  let previous: DecisionLog | undefined;
+  const median = (): number | null => {
+    if (answered.length === 0) return null;
+    const sorted = [...answered].sort((a, b) => a - b);
+    const mid = Math.floor(sorted.length / 2);
+    return sorted.length % 2 === 1 ? sorted[mid]! : Math.round((sorted[mid - 1]! + sorted[mid]!) / 2);
+  };
 
   const snapshot = (): StateReport => {
     const view = feed.get();
@@ -40,6 +53,9 @@ export function startJevRun({ code, raceNo, seat, mission, seed, build, briefing
       lastAction: last?.selected ?? null,
       lastActionP: last ? (last.probabilities[last.selected] ?? null) : null,
       latencyMs: last ? last.latencyMs : null,
+      medianLatencyMs: median(),
+      lateDecisions: late,
+      missedDecisions: missed,
       thinking: view.pending !== null,
     };
   };
@@ -49,6 +65,13 @@ export function startJevRun({ code, raceNo, seat, mission, seed, build, briefing
       feed.push(event);
       // Hints (advisory) are not decisions the bot acted on.
       if (event.type === 'decision' && !event.advisory) {
+        if (event.decision.fallback) missed += 1;
+        else if (event.decision.latencyMs > 0) answered.push(event.decision.latencyMs);
+        // Late: the robot hit something, got blocked or fell while its previous answer had not arrived yet
+        // (the same rule as the arena table, packages/brain/scripts/arena.ts).
+        const log = event.log;
+        if (log && previous && LATE_CAUSES.has(log.trigger.cause) && previous.appliedT > previous.t && log.t <= previous.appliedT + 0.05) late += 1;
+        if (log) previous = log;
         onDecision?.(event.log ? entryFromLog(who, event.log) : entryFromDecision(who, event.t, event.question, event.decision));
       }
     },

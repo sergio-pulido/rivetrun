@@ -15,6 +15,9 @@ export interface StateReport {
   readonly lastAction: Action | null;
   readonly lastActionP?: number | null;
   readonly latencyMs?: number | null;
+  readonly medianLatencyMs?: number | null;
+  readonly lateDecisions?: number | null;
+  readonly missedDecisions?: number | null;
   readonly thinking?: boolean;
   readonly done?: boolean;
   readonly finished?: boolean;
