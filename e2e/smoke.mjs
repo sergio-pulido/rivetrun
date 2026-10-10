@@ -299,6 +299,8 @@ try {
   const page = await phone.newPage();
   const seen = watch(page, 'phone');
   const phoneSeen = seen;
+  /** What the scripted M1 Drive run saw; read by later steps. */
+  let drive = null;
 
   if (wants('pages') || wants('drive')) {
     await step('home', async () => {
@@ -353,7 +355,6 @@ try {
   }
 
   if (wants('drive')) {
-    let drive = null;
     await step('drive M1 · start', async () => {
       if (new URL(page.url()).pathname !== '/brief/M1') await go(page, '/brief/M1');
       await page.getByRole('link', { name: /^Drive$/ }).first().click();
@@ -393,8 +394,6 @@ try {
       if (drive.reloads > 0) warnings.push(`run: the dev server reloaded the page ${drive.reloads} time(s) mid-run; the script restarted the run`);
       return `Finished${time ? ` in ${time} s` : ''}`;
     }, page);
-
-    await step('run view · MK-II kit', async () => judgeRobot('Run view', drive?.robot ?? null), page);
 
     await step('drive M1 · scan', async () => {
       if (!drive) throw new Error('no run to judge');
@@ -447,6 +446,20 @@ try {
       if (png.length < 8000) throw new Error(`the share card is only ${png.length} bytes`);
       await shot(page, 'phone-07c-share');
       return `episode ${Math.round(statSync(episodePath).size / 1024)} kB (${episode.decisions.length} decisions, mission ${episode.missionId}); share card ${Math.round(png.length / 1024)} kB, ${png.readUInt32BE(16)}×${png.readUInt32BE(20)} px; the page said: "${status.slice(0, 70)}"`;
+    }, page);
+
+    // After everything that needs the Result page (a full reload empties the in-memory result).
+    await step('run view · MK-II kit', async () => {
+      let seen = drive?.robot ?? null;
+      if (seen?.robot === 'loading') {
+        // Under machine load the kit can take longer than the 25 s the M1 run lasts. A run nobody touches waits 30 s
+        // on the start line: give the kit that long on a fresh run page before calling it missing.
+        await go(page, '/run/M1');
+        seen = await robotOnScreen(page, 27_000);
+        await shot(page, 'phone-05b-run-kit');
+        warnings.push(`run view: the kit was still loading when the M1 run ended (machine load); on a fresh run page it read "${seen?.robot ?? 'no marker'}"`);
+      }
+      return judgeRobot('Run view', seen);
     }, page);
 
     // OVN-UI-4: after a finished run the Brief shows the personal best for this mission and robot.
