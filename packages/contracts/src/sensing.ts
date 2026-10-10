@@ -109,5 +109,11 @@ export const TriggerSchema = z.object({
   source: SensorSourceSchema.optional(),
   /** Display text, e.g. "LIDAR · obstacle 11 m" or "ENERGY · finish at 6 %". */
   label: z.string(),
+  /**
+   * Perception events only: an id that is the same in every run of the same build on the same seed, whoever drives,
+   * e.g. "hazard_seen:2:lidar" (cause : index of the thing on the track : sensor that detected it). Pairs a
+   * player's reaction with the ghost's decision for the same event.
+   */
+  eventId: z.string().optional(),
 });
 export type Trigger = z.infer<typeof TriggerSchema>;

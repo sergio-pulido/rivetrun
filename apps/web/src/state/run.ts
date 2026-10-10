@@ -1,6 +1,6 @@
 'use client';
 
-import type { Build, Episode, MissionId, Outcome, Policy } from '@rivetrun/contracts';
+import type { Build, DecisionLog, Episode, MissionId, Outcome, Policy } from '@rivetrun/contracts';
 import { DEFAULT_PRESET_ID, PRESETS } from '@rivetrun/sim';
 import { create } from 'zustand';
 
@@ -13,6 +13,8 @@ export interface GhostResult {
   readonly decisions?: number;
   /** How many of those the heuristic made because Jev failed or timed out. */
   readonly fallbacks?: number;
+  /** The ghost's decision log on its own clock; entries for perception events carry trigger.eventId for pairing. */
+  readonly log?: readonly DecisionLog[];
   /** Median response time of the ghost's brain over its decisions, ms (from /api/ghost, when it reports one). */
   readonly medianLatencyMs?: number;
 }

@@ -48,7 +48,7 @@ async function prepareJevMode({ mission, build, priority }: RunOptions): Promise
     runHeadless(mission, seed, build, randomBrain(seed), { priority, policy: 'random' }),
   ]);
   const ghosts = traces.map((trace) => trace.ghost);
-  return { seed, ghosts, results: ghosts.map((ghost) => ({ policy: ghost.policy, outcome: ghost.outcome })) };
+  return { seed, ghosts, results: ghosts.map((ghost) => ({ policy: ghost.policy, outcome: ghost.outcome, log: ghost.log })) };
 }
 
 /** Drive mode: one fixed seed per mission and one rival, the precomputed Jev ghost (or the heuristic's). */
@@ -58,7 +58,7 @@ async function prepareDriveMode({ mission, build, priority, briefing }: RunOptio
   return {
     seed,
     ghosts: [rival.ghost],
-    results: [{ policy: rival.ghost.policy, outcome: rival.ghost.outcome, decisions: rival.decisions, fallbacks: rival.fallbacks, medianLatencyMs: rival.medianLatencyMs }],
+    results: [{ policy: rival.ghost.policy, outcome: rival.ghost.outcome, decisions: rival.decisions, fallbacks: rival.fallbacks, medianLatencyMs: rival.medianLatencyMs, log: rival.ghost.log }],
   };
 }
 

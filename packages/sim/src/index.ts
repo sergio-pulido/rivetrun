@@ -7,7 +7,7 @@ export { BUILD_TUNING, buildIssues, deriveSpec } from './spec';
 export { predictStats } from './stats';
 export type { PredictedStats } from './stats';
 export type { RobotSpec } from './spec';
-export { createRun, step, withAction, markDecision, jumpAirtimeS, PHYSICS, ACTION_PROFILES } from './physics';
+export { createRun, step, withAction, markDecision, jumpAirtimeS, safeContactSpeedMps, PHYSICS, ACTION_PROFILES, SCAN_RULES } from './physics';
 export { GAMEPLAY_VERSION } from '@rivetrun/contracts';
 export {
   SCAN, START_TRIGGER, advanceBrain, availableActions, buildQuestion, detectDecisionPoint, lookahead, observe, optionsNow, perceive, safeSpeedMps, scannableZone, senses,

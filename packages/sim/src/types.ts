@@ -136,6 +136,8 @@ export interface RunState {
 export interface HeadlessResult {
   readonly episode: Episode;
   readonly ghost: GhostTrace;
+  /** No-fallback mode: decisions the brain failed to give. Always 0 otherwise. */
+  readonly missedDecisions: number;
 }
 
 export interface HeadlessOptions {
@@ -145,6 +147,11 @@ export interface HeadlessOptions {
   readonly policy?: Policy;
   /** The player's instructions to the Brain; put on every BrainQuestion. Only Jev reads it. */
   readonly briefing?: string;
+  /**
+   * Brain Arena: when the brain throws or answers with an action that is not on offer, do not let the heuristic
+   * step in. No decision is recorded, the command in force holds, and the miss is counted in `missedDecisions`.
+   */
+  readonly noFallback?: boolean;
 }
 
 export interface RunControllerOptions {

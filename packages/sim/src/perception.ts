@@ -361,8 +361,12 @@ const LEGACY_TRIGGER: Readonly<Record<TriggerCause, DecisionTrigger>> = {
 
 export const START_TRIGGER: Trigger = { kind: 'start', cause: 'start', label: 'START · run begins' };
 
-const fire = (kind: Trigger['kind'], cause: TriggerCause, label: string, source?: SensorSource): Trigger =>
-  ({ kind, cause, label, ...(source ? { source } : {}) });
+const fire = (kind: Trigger['kind'], cause: TriggerCause, label: string, source?: SensorSource, thing?: number | string): Trigger =>
+  ({
+    kind, cause, label, ...(source ? { source } : {}),
+    // The thing on the track (its index, or a zone's id) and the sensor: the same in every run of this build and seed.
+    ...(thing !== undefined ? { eventId: `${cause}:${thing}${source && source !== 'core' ? `:${source}` : ''}` } : {}),
+  });
 
 /**
  * Brain v3 trigger detector. Call once per step with the new state: it returns the trigger that asks for a
@@ -423,47 +427,52 @@ export function advanceBrain(next: RunState): { readonly trigger: Trigger | null
   // ---- perception
   const hazard = typeof seen.hazard === 'object' && seen.hazard !== null ? seen.hazard : null;
   if (hazard) {
-    const at = next.world.obstacles.find((o) => o.xM > x)?.xM ?? x + hazard.distanceM;
+    const index = next.world.obstacles.findIndex((o) => o.xM > x);
+    const at = next.world.obstacles[index]?.xM ?? x + hazard.distanceM;
     const name = hazard.kind ?? 'obstacle';
     if (Math.abs(at - memory.hazardSeenX) > 0.5) {
       remember({ hazardSeenX: at });
-      fired.push(fire('perception', 'hazard_seen', `${SOURCE_LABEL[hazard.source]} · ${name} ${hazard.distanceM} m`, hazard.source));
+      fired.push(fire('perception', 'hazard_seen', `${SOURCE_LABEL[hazard.source]} · ${name} ${hazard.distanceM} m`, hazard.source, index));
     } else if (hazard.distanceM <= HAZARD_REACH_M && Math.abs(at - memory.hazardReachedX) > 0.5) {
       remember({ hazardReachedX: at });
-      fired.push(fire('perception', 'hazard_reached', `${SOURCE_LABEL[hazard.source]} · ${name} now ${hazard.distanceM} m`, hazard.source));
+      fired.push(fire('perception', 'hazard_reached', `${SOURCE_LABEL[hazard.source]} · ${name} now ${hazard.distanceM} m`, hazard.source, index));
     }
   }
   const gap = typeof seen.gap === 'object' && seen.gap !== null ? seen.gap : null;
   if (gap) {
-    const at = next.world.features.find((f) => f.type === 'gap' && f.endM > x)?.startM ?? x + gap.distanceM;
+    const gaps = next.world.features.filter((f) => f.type === 'gap');
+    const gapIndex = gaps.findIndex((f) => f.endM > x);
+    const at = gaps[gapIndex]?.startM ?? x + gap.distanceM;
     if (Math.abs(at - memory.gapSeenX) > 0.5) {
       remember({ gapSeenX: at });
-      fired.push(fire('perception', 'gap_seen', `${SOURCE_LABEL[gap.source]} · gap ${gap.widthM} m wide in ${gap.distanceM} m`, gap.source));
+      fired.push(fire('perception', 'gap_seen', `${SOURCE_LABEL[gap.source]} · gap ${gap.widthM} m wide in ${gap.distanceM} m`, gap.source, gapIndex));
     } else if (gap.distanceM <= HAZARD_REACH_M * 2 && Math.abs(at - memory.gapReachedX) > 0.5) {
       remember({ gapReachedX: at });
-      fired.push(fire('perception', 'gap_reached', `${SOURCE_LABEL[gap.source]} · gap now ${gap.distanceM} m`, gap.source));
+      fired.push(fire('perception', 'gap_reached', `${SOURCE_LABEL[gap.source]} · gap now ${gap.distanceM} m`, gap.source, gapIndex));
     }
   }
   const terrain = typeof seen.terrainAhead === 'object' && seen.terrainAhead !== null ? seen.terrainAhead : null;
   if (terrain) {
-    const boundary = next.world.segments.find((segment) => segment.startM > x && segment.terrain === terrain.terrain)?.startM ?? x + terrain.distanceM;
+    const ahead = next.world.segments.find((segment) => segment.startM > x && segment.terrain === terrain.terrain);
+    const boundary = ahead?.startM ?? x + terrain.distanceM;
     if (Math.abs(boundary - memory.terrainSeenX) > 0.5) {
       remember({ terrainSeenX: boundary });
-      fired.push(fire('perception', 'terrain_seen', `${SOURCE_LABEL[terrain.source]} · ${terrain.terrain} in ${terrain.distanceM} m`, terrain.source));
+      fired.push(fire('perception', 'terrain_seen', `${SOURCE_LABEL[terrain.source]} · ${terrain.terrain} in ${terrain.distanceM} m`, terrain.source, ahead?.index ?? next.segmentIndex + 1));
     }
   }
   // Driving onto ground the build had seen coming: it knows the moment it gets there.
   if (seen.terrainAhead !== 'unknown' && memory.terrainSeenX >= 0 && x >= memory.terrainSeenX && x - next.sim.v * (TUNING.dtMs / 1000) < memory.terrainSeenX) {
-    fired.push(fire('perception', 'terrain_reached', `${SOURCE_LABEL[next.spec.sources.includes('scout_drone') ? 'scout_drone' : 'camera']} · now on ${next.sim.terrain}`, 'core'));
+    const eye: SensorSource = next.spec.sources.includes('scout_drone') ? 'scout_drone' : 'camera';
+    fired.push(fire('perception', 'terrain_reached', `${SOURCE_LABEL[eye]} · now on ${next.sim.terrain}`, eye, next.segmentIndex));
   }
   for (const zone of seen.scanZones) {
     if (zone.done || zone.missed || !zone.canScan) continue;
     if (zone.distanceM > 0 && zone.distanceM <= ZONE_NOTICE_M && !brain.zonesSeen.includes(zone.id)) {
       remember({ zonesSeen: [...brain.zonesSeen, zone.id] });
-      fired.push(fire('perception', 'zone_seen', `PLAN · scan zone "${zone.label}" in ${zone.distanceM} m`, 'core'));
+      fired.push(fire('perception', 'zone_seen', `PLAN · scan zone "${zone.label}" in ${zone.distanceM} m`, 'core', zone.id));
     } else if (Math.abs(zone.distanceM) <= SCAN.reachM && !brain.zonesReached.includes(zone.id)) {
       remember({ zonesReached: [...brain.zonesReached, zone.id] });
-      fired.push(fire('perception', 'zone_reached', `PLAN · on scan zone "${zone.label}"`, 'core'));
+      fired.push(fire('perception', 'zone_reached', `PLAN · on scan zone "${zone.label}"`, 'core', zone.id));
     }
   }
 

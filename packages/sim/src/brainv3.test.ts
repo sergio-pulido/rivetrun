@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Brain, Build, Mission, RunEvent } from '@rivetrun/contracts';
-import { MISSIONS, PRESETS, createRun, heuristicBrain, heuristicDecide, observe, runController, runHeadless, senses, step } from './index';
+import { MISSIONS, PRESETS, createRun, driveController, driveSeed, heuristicBrain, heuristicDecide, observe, runController, runHeadless, senses, step } from './index';
 
 const blind: Build = { locomotion: 'offroad_wheels', motor: 'motor_torque', battery: 'battery_large', sensors: [], extras: [] };
 const withImu: Build = { ...blind, sensors: ['imu'] };
@@ -109,5 +109,54 @@ describe('Brain v3: the brain decides when something changes', () => {
       expect(log.chip).toContain(' → ');
     }
     expect(new Set(episode.decisions.map((d) => d.log!.trigger.kind)).size).toBeGreaterThan(1);
+  });
+});
+
+describe('Telemetry console and Brain Arena', () => {
+  it('Drive mode: observations at 5 Hz with the control in force, an input log, and reactions paired by event id with the ghost', async () => {
+    const mission = MISSIONS.M1;
+    const events: RunEvent[] = [];
+    // The player holds full throttle, then lifts off for good at 4 s of sim time.
+    let simT = 0;
+    const controller = driveController(
+      { mission, seed: driveSeed(mission), build: PRESETS.all_rounder.build, priority: 0.5 },
+      () => ({ throttle: simT < 4 ? 1 : 0.6, brake: 0 }),
+      { onEvent: (event) => { if (event.type === 'frame') simT = event.state.t; events.push(event); }, timeScale: 60 },
+    );
+    const episode = await controller.start();
+    const seen = events.filter((e) => e.type === 'observation');
+    expect(seen.length).toBeGreaterThan(20);
+    expect(seen.every((e) => e.type === 'observation' && e.control !== undefined && e.observation.sources.includes('camera'))).toBe(true);
+
+    const breakdown = episode.outcome.breakdown!;
+    expect(breakdown.inputLog!.map((entry) => entry.action).slice(0, 2)).toEqual(['accelerate', 'cruise']);
+    expect(breakdown.inputLog![1]!.t).toBeGreaterThanOrEqual(4);
+    const reactions = breakdown.reactions!;
+    expect(reactions.length).toBeGreaterThan(2);
+    expect(reactions.every((r) => typeof r.id === 'string' && (r.humanS === null || r.humanS <= 3))).toBe(true);
+
+    // The ghost on the same build and seed meets the same events under the same ids.
+    const { ghost } = await runHeadless(mission, driveSeed(mission), PRESETS.all_rounder.build, heuristicBrain);
+    const ghostIds = new Set(ghost.log!.map((entry) => entry.trigger.eventId).filter(Boolean));
+    const seenIds = reactions.filter((r) => r.cause.endsWith('_seen')).map((r) => r.id!);
+    expect(seenIds.length).toBeGreaterThan(1);
+    for (const id of seenIds) expect(ghostIds.has(id), id).toBe(true);
+    expect(seenIds).toContain('hazard_seen:0:camera');
+  }, 20000);
+
+  it('no-fallback mode: a brain that fails gives no decision, the command holds, and the miss is counted', async () => {
+    let calls = 0;
+    // Answers the start, then fails every time.
+    const flaky: Brain = { decide: async (question) => { calls += 1; if (calls > 1) throw new Error('down'); return { ...heuristicDecide(question), selected: 'cruise' }; } };
+    const strict = await runHeadless(MISSIONS.M1, 1, PRESETS.all_rounder.build, flaky, { noFallback: true });
+    expect(strict.episode.decisions).toHaveLength(1);
+    expect(strict.missedDecisions).toBe(calls - 1);
+    expect(strict.missedDecisions).toBeGreaterThan(2);
+    expect(strict.episode.decisions.every((d) => !d.fallback)).toBe(true);
+
+    calls = 0;
+    const lenient = await runHeadless(MISSIONS.M1, 1, PRESETS.all_rounder.build, flaky);
+    expect(lenient.missedDecisions).toBe(0);
+    expect(lenient.episode.decisions.filter((d) => d.fallback).length).toBeGreaterThan(2);
   });
 });

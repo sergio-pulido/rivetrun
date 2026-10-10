@@ -35,6 +35,7 @@ const MAX_DECISIONS = 2000;
 const OBSERVE_EVERY_STEPS = 4;
 /** Drive mode: a control change within this long of a trigger counts as the player's reaction to it. */
 const REACTION_WINDOW_S = 3;
+const MAX_INPUT_LOG = 2000;
 const TICK_MS = 16;
 const MAX_FRAME_MS = 100;
 /** Continuous damage (water, tip-over) is reported in chunks of this size. */
@@ -121,15 +122,18 @@ function toEpisode(state: RunState, decisions: readonly DecisionRecord[], policy
   };
 }
 
-/** The Brain's answer, or the heuristic's with fallback: true when it fails or picks an unavailable action. */
-async function decideSafe(brain: Brain, question: BrainQuestion): Promise<BrainDecision> {
+/**
+ * The Brain's answer, or the heuristic's with fallback: true when it fails or picks an unavailable action.
+ * With `noFallback` a failure returns null instead: no decision, the last command holds.
+ */
+async function decideSafe(brain: Brain, question: BrainQuestion, noFallback = false): Promise<BrainDecision | null> {
   try {
     const decision = await brain.decide(question);
     if (question.options.includes(decision.selected)) return decision;
   } catch {
-    // Reported through fallback: true on the decision, which the HUD shows.
+    // Reported through fallback: true on the decision, which the HUD shows; or as a missed decision with noFallback.
   }
-  return { ...heuristicDecide(question), fallback: true };
+  return noFallback ? null : { ...heuristicDecide(question), fallback: true };
 }
 
 /**
@@ -152,14 +156,17 @@ export async function runHeadless(
   let trigger: Trigger | null = START_TRIGGER;
   let queued: Trigger | null = null;
   let pending: { question: BrainQuestion; decision: BrainDecision; asked: RunState; applyAtStep: number } | null = null;
+  let missed = 0;
   while (!state.done) {
     if (trigger && pending) queued = trigger;
     if (trigger && !pending) {
       const question = buildQuestion(state, trigger, briefing);
       // Brains may be async (Jev over HTTP on the server): each answer is awaited, then delayed by its own latency.
-      const decision = await decideSafe(brain, question);
+      const decision = await decideSafe(brain, question, options.noFallback === true);
       state = markDecision(state);
-      pending = { question, decision, asked: state, applyAtStep: state.stepCount + Math.round(decision.latencyMs / TUNING.dtMs) };
+      // No-fallback mode: a brain that fails gives no decision at all. The command in force simply holds.
+      if (decision) pending = { question, decision, asked: state, applyAtStep: state.stepCount + Math.round(decision.latencyMs / TUNING.dtMs) };
+      else missed += 1;
     }
     if (pending && state.stepCount >= pending.applyAtStep) {
       state = withAction(state, pending.decision.selected);
@@ -179,7 +186,7 @@ export async function runHeadless(
   const episode = toEpisode(state, decisions, policy, `${mission.id}-${state.config.seed}-${policy}-headless`);
   // The ghost carries its driver's decision log on its own clock, so a replay can show the thread in sync with the frames.
   const log = decisions.flatMap((decision) => (decision.log ? [decision.log] : []));
-  return { episode, ghost: { policy, frames, outcome: episode.outcome, log } };
+  return { episode, ghost: { policy, frames, outcome: episode.outcome, log }, missedDecisions: missed };
 }
 
 /** The same loop without a Brain object, for the synchronous callers (test run): heuristic, zero latency. */
@@ -283,7 +290,9 @@ export function driveController(config: RunConfig, readInput: () => ControlInput
     new Promise<Episode>((resolve) => {
       let state = createRun({ ...config, manual: true });
       const pendingDamage: Partial<Record<DamageCause, number>> = {};
-      const reactions: { t: number; xM: number; label: string; cause: TriggerCause; humanS: number | null }[] = [];
+      const reactions: { id?: string; t: number; xM: number; label: string; cause: TriggerCause; humanS: number | null }[] = [];
+      const inputLog: { t: number; throttle: number; brake: number; special?: ControlInput['special']; action: Action }[] = [];
+      let lastInput: { throttle: number; brake: number; special?: ControlInput['special'] } = { throttle: -1, brake: -1 };
       let lastAction: Action | undefined;
       let accumulatedMs = 0;
       let last = now();
@@ -291,7 +300,7 @@ export function driveController(config: RunConfig, readInput: () => ControlInput
         if (timer !== undefined) clearTimeout(timer);
         const episode = toEpisode(state, [], 'human', newEpisodeId(state));
         const breakdown = episode.outcome.breakdown;
-        resolve(breakdown ? { ...episode, outcome: { ...episode.outcome, breakdown: { ...breakdown, reactions: reactions.map((r) => ({ ...r })) } } } : episode);
+        resolve(breakdown ? { ...episode, outcome: { ...episode.outcome, breakdown: { ...breakdown, reactions: reactions.map((r) => ({ ...r })), inputLog: inputLog.map((entry) => ({ ...entry })) } } } : episode);
       };
       finish = complete;
       const tick = (): void => {
@@ -309,6 +318,12 @@ export function driveController(config: RunConfig, readInput: () => ControlInput
           if (state.stepCount % OBSERVE_EVERY_STEPS === 0) {
             emit({ type: 'observation', t: state.sim.t, observation: observe(state), control: { throttle: level(input.throttle), brake: level(input.brake), action } });
           }
+          const throttle = level(input.throttle);
+          const brake = level(input.brake);
+          if (throttle !== lastInput.throttle || brake !== lastInput.brake || input.special !== lastInput.special) {
+            lastInput = { throttle, brake, special: input.special };
+            if (inputLog.length < MAX_INPUT_LOG) inputLog.push({ t: state.sim.t, throttle, brake, ...(input.special ? { special: input.special } : {}), action });
+          }
           // Reaction: the first change of command after something was detected.
           if (lastAction !== undefined && action !== lastAction) {
             for (const reaction of reactions) {
@@ -323,8 +338,12 @@ export function driveController(config: RunConfig, readInput: () => ControlInput
             const question = buildQuestion(state, advanced.trigger);
             const decision = heuristicDecide(question);
             emit({ type: 'decision', t: state.sim.t, question, decision, log: decisionLog(question, decision, state, state), advisory: true });
-            if (advanced.trigger.kind === 'perception' || advanced.trigger.kind === 'body') {
-              reactions.push({ t: state.sim.t, xM: Math.round(state.sim.x * 10) / 10, label: advanced.trigger.label, cause: advanced.trigger.cause, humanS: null });
+            // The reaction duel is about what the robot detected: perception events, each with its pairing id.
+            if (advanced.trigger.kind === 'perception') {
+              reactions.push({
+                ...(advanced.trigger.eventId ? { id: advanced.trigger.eventId } : {}),
+                t: state.sim.t, xM: Math.round(state.sim.x * 10) / 10, label: advanced.trigger.label, cause: advanced.trigger.cause, humanS: null,
+              });
             }
           }
         }
@@ -401,7 +420,7 @@ export function runController(config: RunConfig, brain: Brain, options: RunContr
         emit({ type: 'decisionPending', t: question.t, question });
         void decideSafe(brain, question).then((decision) => {
           // A decision that lands after the run ended is dropped: nothing follows finish / dnf.
-          if (stopped || state.done) return;
+          if (stopped || state.done || !decision) return;
           // Latency is real: the old command held while the brain thought, and the choice applies now.
           state = withAction(state, decision.selected);
           const log = decisionLog(question, decision, asked, state);

@@ -91,7 +91,13 @@ export const OutcomeSchema = z.object({
     scanPenaltyS: z.number().min(0),
     scanBonus: z.number().min(0),
     /** Drive mode: how fast the player's thumbs answered each thing the robot detected. null = no control change within 3 s. */
-    reactions: z.array(z.object({ t: z.number(), xM: z.number(), label: z.string(), cause: TriggerCauseSchema, humanS: z.number().min(0).nullable() })).optional(),
+    reactions: z.array(z.object({
+      /** Same string as the Trigger.eventId a brain gets for this event on the same build and seed. */
+      id: z.string().optional(),
+      t: z.number(), xM: z.number(), label: z.string(), cause: TriggerCauseSchema, humanS: z.number().min(0).nullable(),
+    })).optional(),
+    /** Drive mode: the player's controls, one entry per change, in sim time. */
+    inputLog: z.array(z.object({ t: z.number(), throttle: z.number().min(0).max(1), brake: z.number().min(0).max(1), special: z.enum(['jump', 'winch', 'climb']).optional(), action: ActionSchema })).optional(),
   }).optional(),
   /** One-line explanation derived by the sim from ground truth, e.g. "Slipped 6 s on ice — no IMU". */
   why: z.string().max(200).optional(),
