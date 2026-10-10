@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import type { Build, GhostTrace, Mission, Obstacle, SimState } from '@rivetrun/contracts';
 import { atmosphereOf, weatherOverride, type Atmosphere } from '../atmosphere';
 import { isMuted, toggleMute } from '../audio/sfx';
@@ -162,6 +162,21 @@ function FallToast({ fall }: { fall: { readonly falls: number; readonly at: numb
 }
 
 const NO_GHOSTS: readonly GhostTrace[] = [];
+const SHORT_LANDSCAPE = '(orientation: landscape) and (max-height: 500px)';
+
+/** A phone turned on its side: about 390 px tall. The HUD stacks tighter there and keeps to the right, clear of the robot. */
+function useShortLandscape(): boolean {
+  return useSyncExternalStore(
+    (listener) => {
+      const query = window.matchMedia(SHORT_LANDSCAPE);
+      query.addEventListener('change', listener);
+      return () => query.removeEventListener('change', listener);
+    },
+    () => window.matchMedia(SHORT_LANDSCAPE).matches,
+    () => false,
+  );
+}
+
 /** Height of the Drive-mode pedals: the telemetry drawer sits above them so the player can keep driving. */
 const PEDALS_PX = 118;
 const closeTelemetry = (): void => telemetry.set(false);
@@ -263,6 +278,15 @@ export function RunHud({ mission, feed, ghosts = NO_GHOSTS, drive, build }: RunH
   const dnf = view.dnfReason;
   const telemetryOpen = useTelemetryOpen();
   const drawerOpen = telemetryOpen && build !== undefined && !view.done;
+  const short = useShortLandscape();
+  // What needs the driver's eyes: what just happened, then what is coming.
+  const alerts = view.done ? null : (
+    <>
+      {view.lastFall ? <FallToast fall={view.lastFall} /> : null}
+      {view.state?.blockedBy ? <BlockedChip kind={view.state.blockedBy} /> : view.lastDamage ? <ContactToast hit={view.lastDamage} /> : null}
+      {driving && build ? <DriveAlerts mission={mission} build={build} state={view.state} observation={view.observation?.value ?? null} landing={view.lastLanding} /> : null}
+    </>
+  );
   const senses = useMemo(() => (build ? sensesOf(build, mission.weather) : null), [build, mission.weather]);
   const atmosphere = useMemo(() => atmosphereOf(mission, weatherOverride()), [mission]);
   const chips = useMemo(() => logChips(view.chips, view.lastHit, senses), [view.chips, view.lastHit, senses]);
@@ -278,7 +302,7 @@ export function RunHud({ mission, feed, ghosts = NO_GHOSTS, drive, build }: RunH
 
       {/* Everything but the pedals keeps clear of the telemetry panel when it stands beside the track (landscape). */}
       <div className={`absolute inset-y-0 left-0 ${drawerOpen ? styles.beside : 'right-0'}`}>
-      <div className="absolute inset-x-0 top-0 mx-auto max-w-[430px] px-3" style={{ paddingTop: 'max(14px, env(safe-area-inset-top))' }}>
+      <div className={`absolute inset-x-0 top-0 max-w-[430px] px-3 ${short ? 'ml-auto mr-0' : 'mx-auto'}`} style={{ paddingTop: 'max(14px, env(safe-area-inset-top))' }}>
         <TopBar mission={mission} state={view.state} ghosts={ghosts} />
         <div>
           <FpsBadge />
@@ -300,26 +324,26 @@ export function RunHud({ mission, feed, ghosts = NO_GHOSTS, drive, build }: RunH
         {/* The decision log (Brain v3): what the robot senses, then its last three decisions, newest first. */}
         {!view.done && (
           <div className="mt-2 flex flex-col items-start gap-1">
-            <WeatherChip atmosphere={atmosphere} gust={view.state?.gust === true} />
-            {senses && <SenseChip senses={senses} observedM={view.observation?.value.forwardRangeM} />}
+            {/* On a short screen the standing facts give way: they are in the Brief and in the telemetry drawer. */}
+            {!short && <WeatherChip atmosphere={atmosphere} gust={view.state?.gust === true} />}
+            {!short && senses && <SenseChip senses={senses} observedM={view.observation?.value.forwardRangeM} />}
             {/* With the drawer open the thread has the detail: one chip keeps the track in view. */}
             {/* A driver gets one hint at a time: the alerts below are what to act on. */}
-            <DecisionChips chips={telemetryOpen || driving ? chips.slice(-1) : chips} />
+            <DecisionChips chips={telemetryOpen || driving || short ? chips.slice(-1) : chips} />
           </div>
         )}
+        {/* Short screen: the alerts join the column instead of floating over the middle of the track. */}
+        {short && alerts ? <div className="mt-1.5 flex flex-col items-end gap-1.5">{alerts}</div> : null}
       </div>
 
-      {/* One column for everything that needs the driver's eyes: what just happened, then what is coming. */}
-      {!view.done && (
+      {!short && alerts ? (
         <div className="absolute inset-x-0 flex flex-col items-center gap-1.5 px-3" style={{ top: '33%' }}>
-          {view.lastFall ? <FallToast fall={view.lastFall} /> : null}
-          {view.state?.blockedBy ? <BlockedChip kind={view.state.blockedBy} /> : view.lastDamage ? <ContactToast hit={view.lastDamage} /> : null}
-          {driving && build ? <DriveAlerts mission={mission} build={build} state={view.state} observation={view.observation?.value ?? null} landing={view.lastLanding} /> : null}
+          {alerts}
         </div>
-      )}
+      ) : null}
 
       {view.done && (
-        <div className="absolute inset-x-0 flex justify-center" style={{ top: '24%' }}>
+        <div className="absolute inset-x-0 flex justify-center" style={{ top: short ? 140 : '24%' }}>
           <div
             className={`${styles.stamp} rounded-xl px-5 py-2.5 text-center`}
             style={{ border: `3px solid ${dnf ? UI.bad : UI.ok}`, color: dnf ? UI.bad : UI.ok, background: 'rgb(14 16 19 / 0.88)' }}
@@ -339,8 +363,8 @@ export function RunHud({ mission, feed, ghosts = NO_GHOSTS, drive, build }: RunH
 
       {!driving && (
         // With the telemetry drawer open the thread replaces the Brain sheet where the two would cover the robot between them.
-        <div className={`absolute inset-x-0 bottom-0 mx-auto max-w-[430px] ${drawerOpen ? 'portrait:hidden max-[1239px]:hidden' : ''}`}>
-          <BrainHud pending={view.pending} last={view.decision} decisionCount={view.decisionCount} />
+        <div className={`absolute bottom-0 ${short ? 'right-0 w-[360px]' : 'inset-x-0 mx-auto max-w-[430px]'} ${drawerOpen ? 'portrait:hidden max-[1239px]:hidden' : ''}`}>
+          <BrainHud pending={view.pending} last={view.decision} decisionCount={view.decisionCount} compact={short} />
         </div>
       )}
       </div>

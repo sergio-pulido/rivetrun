@@ -169,13 +169,16 @@ export interface BrainHudProps {
   /** The last answered question and its decision. */
   last?: { readonly question: BrainQuestion; readonly decision: BrainDecision } | null;
   decisionCount?: number;
+  /** A short screen (a phone on its side): the header and the three likeliest options only. */
+  compact?: boolean;
 }
 
 /**
  * The Brain panel (bottom sheet): what the AI perceives, its options with %, the chosen one in cyan,
  * who decided (JEV / FALLBACK), latency, trigger and the active briefing.
  */
-export function BrainHud({ pending = null, last = null, decisionCount = 0 }: BrainHudProps) {
+export function BrainHud({ pending = null, last = null, decisionCount = 0, compact = false }: BrainHudProps) {
+  const maxRows = compact ? 3 : MAX_OPTION_ROWS;
   const question = pending?.question ?? last?.question ?? null;
   const decision = pending ? null : (last?.decision ?? null);
   const thinking = pending !== null;
@@ -184,10 +187,10 @@ export function BrainHud({ pending = null, last = null, decisionCount = 0 }: Bra
   // The sheet keeps its height however many commands a build has (gameplay v3 added three): the chosen
   // option and the likeliest ones get a row, in the question's order; the rest are named in one line.
   const ranked = decision ? [...options].sort((a, b) => (decision.probabilities[b] ?? 0) - (decision.probabilities[a] ?? 0)) : options;
-  const kept = new Set(ranked.slice(0, MAX_OPTION_ROWS));
+  const kept = new Set(ranked.slice(0, maxRows));
   const shown = options.filter((action) => kept.has(action));
   const folded = options.filter((action) => !kept.has(action));
-  const lockedShown = locked.slice(0, Math.max(0, MAX_OPTION_ROWS - shown.length));
+  const lockedShown = locked.slice(0, Math.max(0, maxRows - shown.length));
   const rows = shown.length + lockedShown.length;
   const rowHeight = rows <= 5 ? 32 : 28;
   const brief = briefLabel(question?.briefing);
@@ -228,7 +231,7 @@ export function BrainHud({ pending = null, last = null, decisionCount = 0 }: Bra
         </span>
       </div>
 
-      <Perceived perceived={question?.perceived ?? null} />
+      {!compact && <Perceived perceived={question?.perceived ?? null} />}
 
       <div className="flex flex-col" style={{ gap: rows <= 5 ? 6 : 5 }}>
         {shown.map((action) => {
@@ -256,6 +259,7 @@ export function BrainHud({ pending = null, last = null, decisionCount = 0 }: Bra
         )}
       </div>
 
+      {!compact && (
       <div className="flex items-center justify-between gap-3">
         {brief ? (
           <span className="min-w-0 truncate rounded-lg px-2.5 py-1 text-[12px] leading-[16px]" style={{ border: '1px solid #1f5a63', background: '#0c1a1d', color: UI.cyanText }}>
@@ -270,6 +274,7 @@ export function BrainHud({ pending = null, last = null, decisionCount = 0 }: Bra
           #{decisionCount + (thinking ? 1 : 0)} · LOOKAHEAD {lookaheadS} s
         </span>
       </div>
+      )}
     </div>
   );
 }

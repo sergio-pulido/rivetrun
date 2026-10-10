@@ -330,7 +330,8 @@ function CameraRig({ pose, light, startX, wide, driving, raise }: RigProps) {
     // Landscape (laptop, big screen): the Brain sheet sits bottom-centre, so park the robot left of it.
     const viewWidthM = 2 * distance * Math.tan(halfV) * aspect;
     const sheetLeftPx = (size.width - Math.min(HUD_SHEET_WIDTH_PX, size.width)) / 2;
-    const robotPx = clamp(sheetLeftPx - 130, size.width * 0.12, size.width * 0.36);
+    // Never closer to the edge than a fifth of the width: on a phone on its side the robot was half off the screen.
+    const robotPx = clamp(sheetLeftPx - 130, size.width * 0.2, size.width * 0.36);
     const lead = portrait ? (driving ? 1.7 : wide ? 1.35 : 0.75) : driving ? viewWidthM * 0.2 : (0.5 - robotPx / size.width) * viewWidthM;
     const leadX = (p.ready ? p.x : startX) + lead + clamp(p.v * 0.25, -0.5, 0.9);
     const leadY = p.ready ? p.y : 0;
