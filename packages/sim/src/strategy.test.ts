@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Build } from '@rivetrun/contracts';
 import {
-  MISSIONS, MISSION_IDS, PRESETS, assessBuild, capabilities, capabilityList, compileTrack, createRun, heuristicBrain, missionDemands, partGives, partsProviding, runHeadless, step, driveSeed,
+  MISSIONS, MISSION_IDS, PARTS_BY_ID, PRESETS, assessBuild, capabilities, capabilityList, compileTrack, createRun, heuristicBrain, missionDemands, partGives, partsProviding, runHeadless, step, driveSeed,
 } from './index';
 
 const allRounder = PRESETS.all_rounder.build;
@@ -141,5 +141,37 @@ describe('obstacles are solid', () => {
         if (!state.sim.airborne && !onFeature) expect(state.sim.heightM ?? 0, `${missionId} x=${state.sim.x}`).toBe(0);
       }
     }
+  });
+});
+
+describe('P2 parts', () => {
+  it('lidar and ToF are obstacle rangers with the BOM range and mass', () => {
+    const lidar = PARTS_BY_ID.get('lidar_rplidar_c1')!;
+    const tof = PARTS_BY_ID.get('tof_vl53l1x_pololu')!;
+    expect([lidar.effects.rangeM, lidar.massKg]).toEqual([12, 0.11]);
+    expect([tof.effects.rangeM, tof.massKg]).toEqual([4, 0.0005]);
+    expect(capabilities(with_({ sensors: ['lidar_rplidar_c1'] })).lookahead.obstacleM).toBe(12);
+    expect(capabilities(with_({ sensors: ['tof_vl53l1x_pololu'] })).lookahead.obstacleM).toBe(4);
+    // Two rangers on one build: the longer one counts.
+    expect(capabilities(with_({ sensors: ['ultrasonic', 'lidar_rplidar_c1'] })).lookahead.obstacleM).toBe(12);
+    expect(partsProviding('lookahead_obstacle')[0]).toBe('lidar_rplidar_c1');
+  });
+
+  it('the brushless motor sits between the light and the torque motor', () => {
+    const speed = (motor: string): number => capabilities(with_({ motor })).topSpeedMps;
+    expect(speed('brushless_motor_dfrobot_fit0441')).toBeGreaterThan(speed('motor_torque'));
+    expect(speed('brushless_motor_dfrobot_fit0441')).toBeLessThan(speed('motor_light'));
+    const brushless = PARTS_BY_ID.get('brushless_motor_dfrobot_fit0441')!.effects.torqueNm!;
+    expect(brushless).toBeGreaterThan(PARTS_BY_ID.get('motor_light')!.effects.torqueNm!);
+    expect(brushless).toBeLessThan(PARTS_BY_ID.get('motor_torque')!.effects.torqueNm!);
+  });
+
+  it('builds with the new parts run deterministically and finish M1', async () => {
+    const build = with_({ motor: 'brushless_motor_dfrobot_fit0441', sensors: ['camera', 'lidar_rplidar_c1'] });
+    const a = await runHeadless(MISSIONS.M1, 7, build, heuristicBrain);
+    const b = await runHeadless(MISSIONS.M1, 7, build, heuristicBrain);
+    expect(a.ghost).toEqual(b.ghost);
+    expect(a.episode.outcome.finished).toBe(true);
+    expect(a.episode.decisions.some((d) => typeof d.perceived.obstacleAheadM === 'number' && d.perceived.obstacleAheadM > 3)).toBe(true);
   });
 });

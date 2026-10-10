@@ -30,6 +30,13 @@ export const PARTS: readonly Part[] = [
     massKg: 0.6, costEur: 50, powerW: 30, unlockPoints: 0,
     effects: { topSpeedMps: 2, torqueNm: 2 },
   },
+  {
+    // DFRobot FIT0441: 12 V brushless gearmotor, about 159 rpm at the shaft, 2.4 kg·cm stall, driver and encoder built in.
+    // Game speed and torque sit between the two brushed motors, as its spec does; mass is a game value (the BOM lists none).
+    id: 'brushless_motor_dfrobot_fit0441', name: 'Brushless motor', slot: 'motor', blurb: 'Brushless with its driver built in: quicker than the torque motor, stronger than the light one.',
+    massKg: 0.45, costEur: 40, powerW: 24, unlockPoints: 250,
+    effects: { topSpeedMps: 2.5, torqueNm: 1.4 },
+  },
   // Battery (exactly 1)
   {
     id: 'battery_small', name: 'Small battery', slot: 'battery', blurb: 'Light. Runs out sooner.',
@@ -66,6 +73,18 @@ export const PARTS: readonly Part[] = [
     id: 'scout_drone', name: 'Scout drone', slot: 'sensor', blurb: 'Flies ahead: reads the next terrain change up to 15 m out.',
     massKg: 0.09, costEur: 60, powerW: 6, unlockPoints: 0,
     effects: { sensor: 'scout_drone', rangeM: 15 },
+  },
+  {
+    // Slamtec RPLIDAR C1: 12 m range, 110 g (docs/inputs/bom-mk2.json). Same obstacle-ranging mechanic as the ultrasonic.
+    id: 'lidar_rplidar_c1', name: 'RPLIDAR C1', slot: 'sensor', blurb: 'Spinning lidar: sees obstacles and gaps 12 m ahead, so the driver can plan the approach.',
+    massKg: 0.11, costEur: 70, powerW: 2.5, unlockPoints: 400,
+    effects: { sensor: 'ultrasonic', rangeM: 12 },
+  },
+  {
+    // Pololu #3415 VL53L1X time-of-flight carrier: 4 m range, 0.5 g (docs/inputs/bom-mk2.json).
+    id: 'tof_vl53l1x_pololu', name: 'ToF ranger', slot: 'sensor', blurb: 'Laser time-of-flight: sees obstacles 4 m ahead and weighs half a gram.',
+    massKg: 0.0005, costEur: 22, powerW: 0.1, unlockPoints: 100,
+    effects: { sensor: 'ultrasonic', rangeM: 4 },
   },
   // Extras (0–2)
   {

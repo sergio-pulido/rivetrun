@@ -18,6 +18,11 @@ const CORE_BUILDS: Readonly<Record<string, Build>> = {
   scrap_jumper: { locomotion: 'offroad_wheels', motor: 'motor_torque', battery: 'battery_large', sensors: ['camera', 'ultrasonic'], extras: ['piston_jump', 'bumper'] },
 };
 const EXTRA_BUILDS: Readonly<Record<string, Build>> = {
+  // P2 parts: the same fast robot with each obstacle ranger, and the brushless motor in the All-rounder.
+  sprint_ultra: { locomotion: 'offroad_wheels', motor: 'motor_light', battery: 'battery_large', sensors: ['camera', 'ultrasonic'], extras: ['bumper'] },
+  sprint_tof: { locomotion: 'offroad_wheels', motor: 'motor_light', battery: 'battery_large', sensors: ['camera', 'tof_vl53l1x_pololu'], extras: ['bumper'] },
+  sprint_lidar: { locomotion: 'offroad_wheels', motor: 'motor_light', battery: 'battery_large', sensors: ['camera', 'lidar_rplidar_c1'], extras: ['bumper'] },
+  rounder_brushless: { locomotion: 'offroad_wheels', motor: 'brushless_motor_dfrobot_fit0441', battery: 'battery_large', sensors: ['camera', 'ultrasonic'], extras: ['bumper'] },
   // docs/inputs/m6-deep-water.md's build: the Deep Diver preset without the camera.
   deep_diver_doc: { locomotion: 'wheels', motor: 'motor_torque', battery: 'battery_large', sensors: ['ultrasonic'], extras: ['waterproof_case', 'thruster_kit'] },
   offroad_winch: { locomotion: 'offroad_wheels', motor: 'motor_torque', battery: 'battery_large', sensors: ['imu', 'ultrasonic'], extras: ['winch', 'bumper'] },

@@ -98,7 +98,8 @@ export function deriveSpec(build: Build): RobotSpec {
   const thrusters = extras.find((p) => p.effects.maxSwimDepthCm !== undefined && (p.effects.requiresExtra === undefined || kinds.has(p.effects.requiresExtra)));
   const sensorRangeM: Partial<Record<SensorKind, number>> = {};
   for (const sensor of sensors) {
-    if (sensor.effects.sensor) sensorRangeM[sensor.effects.sensor] = sensor.effects.rangeM ?? 0;
+    // Two parts of one kind (ultrasonic + lidar are both obstacle rangers): the longer range wins.
+    if (sensor.effects.sensor) sensorRangeM[sensor.effects.sensor] = Math.max(sensorRangeM[sensor.effects.sensor] ?? 0, sensor.effects.rangeM ?? 0);
   }
   // Cells scale the pack (capacity, mass, cost) and the voltage (speed, power, a little force).
   const cells = (build.batteryCells ?? BUILD_TUNING.stockCells) / BUILD_TUNING.stockCells;

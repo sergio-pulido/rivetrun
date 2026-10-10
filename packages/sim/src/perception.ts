@@ -138,7 +138,9 @@ function perceivedWorld(state: RunState, perceived: Perception): World {
 
 /** How far ahead the Brain simulates: further when a scout drone is fitted. */
 export function lookaheadSeconds(state: RunState): number {
-  return state.spec.sensorRangeM.scout_drone !== undefined ? TUNING.decision.droneLookaheadS : TUNING.decision.lookaheadS;
+  const { sensorRangeM } = state.spec;
+  if (sensorRangeM.scout_drone !== undefined) return TUNING.decision.droneLookaheadS;
+  return TUNING.decision.lookaheadS;
 }
 
 /** Forward-simulates each action for TUNING.decision.lookaheadS on the perceived state. */
