@@ -27,3 +27,5 @@ export { SIMPLIFICATIONS } from './simplifications';
 export type { Simplification } from './simplifications';
 export { movingOut, wayOut, STUCK_RULES } from './wayout';
 export type { WayOut } from './wayout';
+export { LEAK_BUILDS, LEAK_DIVERGE_M, LEAK_VARIANTS, leakMission, leakSamples } from './leak';
+export type { LeakSample } from './leak';

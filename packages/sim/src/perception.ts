@@ -99,9 +99,10 @@ export function perceive(state: RunState): Perception {
     depthAheadCm = deepest > 0 ? round(Math.max(0, deepest + noise(NOISE.depthCm)), 1) : 0;
   }
 
-  // Gaps only exist on v2 tracks; older tracks keep the exact perception shape they had.
+  // Reported on every track. It used to be present only on tracks that have a gap somewhere, which told a brain
+  // there was one beyond its sensors (found by leak.test.ts).
   let gap: Pick<Perception, 'gapAheadM' | 'gapWidthM'> = {};
-  if (world.features.some((feature) => feature.type === 'gap')) {
+  {
     const sight = featureSightM(state);
     const next = world.features.find((feature) => feature.type === 'gap' && feature.endM > sim.x && feature.startM - sim.x <= sight);
     gap = sight === 0
