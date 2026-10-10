@@ -229,6 +229,7 @@ export const TelemetryDrawer = memo(function TelemetryDrawer({ feed, build, driv
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const thread = useMemo(() => entries, [key, rival]);
   const who = rival ? POLICY_LABEL[rival.policy] : 'JEV';
+  const threadless = driving && rival === undefined;
   const empty = rival && !rival.log ? `This ${who} ghost carries no decision log.` : 'Nothing yet: an entry appears when a sensor reports something new.';
   const stale = view.observation && !view.observation.live ? `sensor values as of the last decision (${view.observation.t.toFixed(1)} s)` : !view.observation ? 'sensor values arrive with the first decision' : null;
 
@@ -275,6 +276,9 @@ export const TelemetryDrawer = memo(function TelemetryDrawer({ feed, build, driv
               )}
             </div>
           )}
+          {/* A player at the controls with no rival's log to show (a room race): sensors and telemetry only. */}
+          {threadless ? null : (
+          <>
           <div className="flex-none px-3 pt-1.5 font-mono text-[0.85em]" style={SECTION}>
             {who}&apos;S THREAD · {rival ? "GHOST'S CLOCK" : 'LIVE'}
           </div>
@@ -287,6 +291,8 @@ export const TelemetryDrawer = memo(function TelemetryDrawer({ feed, build, driv
             </p>
           )}
           <BrainThread entries={thread} empty={empty} />
+          </>
+          )}
         </div>
       </div>
     </aside>

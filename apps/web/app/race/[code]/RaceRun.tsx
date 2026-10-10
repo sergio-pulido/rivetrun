@@ -8,8 +8,12 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { DriveControls } from '@/game/drive/DriveControls';
 import { createDriveInput } from '@/game/drive/driveInput';
 import { useRunHaptics } from '@/game/drive/haptics';
+import { BrainHud, BrainLine } from '@/game/hud/BrainHud';
+import { brainIsOpen, brainPanel, useBrainChoice } from '@/game/hud/brainStore';
 import { LaneProgress } from '@/game/hud/LaneProgress';
-import { RunAlerts } from '@/game/hud/RunHud';
+import { TelemetryButton, TelemetryDrawer } from '@/game/telemetry/TelemetryDrawer';
+import { telemetry, useTelemetryOpen } from '@/game/telemetry/telemetryStore';
+import { RunAlerts, useMedia } from '@/game/hud/RunHud';
 import { replayTrace } from '@/game/replayFeed';
 import RunCanvas from '@/game/RunCanvas';
 import { createClientBrain } from '@/brain/clientBrain';
@@ -237,9 +241,24 @@ export default function RaceRun({ snapshot, seat, me, now, clockOffsetMs }: Race
   const driving = running && !agentDrives;
   useRunHaptics(feed, driving);
 
+  // [GAME] TELEMETRY and BRAIN, as on /run, fed by this phone's own run. Closed by default on a phone (the player's
+  // choice is remembered per device); open by default from 1280 px wide until the player closes it there.
+  const telemetryChosen = useTelemetryOpen();
+  const wide = useMedia('(min-width: 1280px)');
+  const [closedWide, setClosedWide] = useState(false);
+  const telemetryOpen = running && (wide ? !closedWide : telemetryChosen);
+  const toggleTelemetry = (): void => {
+    if (wide) setClosedWide(!closedWide);
+    else telemetry.toggle();
+  };
+  // The Brain card belongs to a robot whose brain decides on this phone. A lane replayed from a stored run has no
+  // decisions to show ("Cached run of your pick" says so).
+  const brainHere = running && agentDrives && !me.serverDriven;
+  const brainOpen = brainIsOpen(useBrainChoice(), false);
+
   return (
     <main className="relative h-dvh w-full select-none overflow-hidden bg-slate-ink">
-      {racing || over ? <RunCanvas mission={mission} build={me.build} feed={feed} ghosts={NO_GHOSTS} hud={false} drive={drive} /> : null}
+      {racing || over ? <RunCanvas mission={mission} build={me.build} feed={feed} ghosts={NO_GHOSTS} hud={false} drive={drive} raise={telemetryOpen || (brainHere && brainOpen)} /> : null}
 
       {/* Race bar: the room's clock and this robot's place and gauges. */}
       {racing ? (
@@ -287,6 +306,11 @@ export default function RaceRun({ snapshot, seat, me, now, clockOffsetMs }: Race
               auto={snapshot.auto ? { test: snapshot.auto.test } : undefined}
             />
           ) : null}
+          {running ? (
+            <div className="float-left mt-2">
+              <TelemetryButton open={telemetryOpen} onToggle={toggleTelemetry} />
+            </div>
+          ) : null}
           <div className="mt-2 ml-auto w-44 rounded-lg border border-slate-line bg-slate-ink/85 p-1.5 backdrop-blur">
             <Ranking players={snapshot.players} trackLengthM={trackLengthM} meId={me.id} limit={3} />
           </div>
@@ -314,6 +338,22 @@ export default function RaceRun({ snapshot, seat, me, now, clockOffsetMs }: Race
           <p className="rr-mono rounded-lg border border-slate-line bg-black/80 px-3 py-2 text-center text-xs uppercase tracking-wider text-led">
             {me.serverDriven ? 'Cached run of your pick' : `${me.nickname} is driving your robot`}{me.plan ? ' · with the plan' : ''}
           </p>
+        </div>
+      ) : null}
+
+      {/* [GAME] The telemetry drawer (a bottom sheet on a phone, a side panel in landscape) and, for an AI driver, the
+          Brain card: one line at the bottom, tapped open into the sheet. Above the pedals, below the race bar and the result. */}
+      {telemetryOpen ? (
+        <div className="pointer-events-none absolute inset-0 z-[16]">
+          <TelemetryDrawer feed={feed} build={me.build} drive={agentDrives ? undefined : drive} ghosts={NO_GHOSTS} onClose={toggleTelemetry} bottomPx={driving ? 118 : 0} brain={brainHere && wide} />
+        </div>
+      ) : brainHere ? (
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[16] mx-auto max-w-[430px]">
+          {brainOpen ? (
+            <BrainHud pending={view.pending} last={view.decision} decisionCount={view.decisionCount} onCollapse={() => brainPanel.set(false)} />
+          ) : (
+            <BrainLine pending={view.pending} last={view.decision} onExpand={() => brainPanel.set(true)} />
+          )}
         </div>
       ) : null}
 

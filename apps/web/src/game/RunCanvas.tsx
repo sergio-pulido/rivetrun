@@ -66,6 +66,11 @@ export interface RunCanvasProps {
   onPauseChange?: (paused: boolean) => void;
   /** Quit to menu from that sheet. Default: go to Home (leaving the page ends the run). */
   onQuit?: () => void;
+  /**
+   * For a page that draws its own HUD (`hud={false}`): something tall of its own covers the lower part of an upright
+   * screen (a telemetry drawer, an open Brain sheet), so the robot is framed in the clear band above it.
+   */
+  raise?: boolean;
 }
 
 const DEMO_RESTART_MS = 4200;
@@ -128,7 +133,7 @@ function pinnable(feed: RunFeed): Pinnable {
 }
 
 /** The run view: R3F canvas with the 2.5D scene plus the HUD overlay. Fills its parent. */
-export default function RunCanvas({ mission = MISSIONS.M5, build = PRESETS[DEFAULT_PRESET_ID].build, feed, ghosts, hud = true, drive, onReady, pilot: givenPilot, onPauseChange, onQuit }: RunCanvasProps) {
+export default function RunCanvas({ mission = MISSIONS.M5, build = PRESETS[DEFAULT_PRESET_ID].build, feed, ghosts, hud = true, drive, onReady, pilot: givenPilot, onPauseChange, onQuit, raise }: RunCanvasProps) {
   const pilot = useMemo(() => givenPilot ?? pilotOverride() ?? undefined, [givenPilot]);
   const demo = useDemoRun(mission, build, feed === undefined);
   const activeFeed = feed ?? demo.feed;
@@ -147,7 +152,7 @@ export default function RunCanvas({ mission = MISSIONS.M5, build = PRESETS[DEFAU
   const cockpit = wideEnough && hud && feed !== undefined;
   const brainWidth = cockpit ? (roomy ? 360 : 300) : 0;
   const robotWidth = cockpit ? (roomy ? 340 : 300) : 0;
-  const covered = cockpit ? false : hud ? telemetryOpen || (drive === undefined && brainChoice === 'open') : drive === undefined;
+  const covered = cockpit ? false : hud ? telemetryOpen || (drive === undefined && brainChoice === 'open') : (raise ?? drive === undefined);
   const robot = useRobotSignal('run');
   // The run starts (onReady) when the scene has drawn AND the robot's kit is in, so the robot is on the start line
   // from the first moment. A kit that fails counts as in (the fallback robot is drawn); so does one that takes too long.
