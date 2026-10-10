@@ -30,8 +30,8 @@ const LANES_HEIGHT = 500;
 const CHIP_FLIP = 0.68;
 
 const laneGap = (count: number): number => (count >= DENSE_FROM ? DENSE_GAP : LANE_GAP);
-const laneHeight = (count: number): number =>
-  Math.max(LANE_MIN, Math.min(LANE_MAX, Math.floor((LANES_HEIGHT - laneGap(count) * (count - 1)) / Math.max(1, count))));
+const laneHeight = (count: number, budget: number): number =>
+  Math.max(LANE_MIN, Math.min(LANE_MAX, Math.floor((budget - laneGap(count) * (count - 1)) / Math.max(1, count))));
 
 function stripGradient(world: World): string {
   const stops = world.segments.map(
@@ -100,14 +100,16 @@ interface RaceTrackProps {
   readonly mission: Mission;
   readonly players: readonly RacePlayer[];
   readonly status: RaceStatus;
+  /** Height the lanes may use, in design px. Smaller when something else shares the column (decision chips). */
+  readonly heightBudget?: number;
 }
 
 /** One lane per pilot: name and build on the left, the robot with its last-action chip on the terrain strip. Humans orange, Jev bots cyan. */
-export function RaceTrack({ mission, players, status }: RaceTrackProps) {
+export function RaceTrack({ mission, players, status, heightBudget = LANES_HEIGHT }: RaceTrackProps) {
   const world = compileTrack(mission.track);
   const terrains = [...new Set(world.segments.map((segment) => segment.terrain))].join(' · ');
   const lanes = [...players].sort((a, b) => a.lane - b.lane);
-  const height = laneHeight(lanes.length);
+  const height = laneHeight(lanes.length, heightBudget);
   const gradient = stripGradient(world);
   const dense = lanes.length >= DENSE_FROM;
 

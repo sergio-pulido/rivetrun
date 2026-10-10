@@ -4,7 +4,7 @@ import type { MissionId } from '@rivetrun/contracts';
 import { compileTrack, MISSION_IDS, MISSIONS, PRESETS } from '@rivetrun/sim';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
-import { AttractCanvas } from '@/game';
+import { AttractCanvas, DecisionChips, type DecisionChip } from '@/game';
 import { AppHeader } from '@/ui/AppHeader';
 import { duelVerdict, MAX_BOTS, rankPlayers, resultText, SEAT_OPTIONS, seatsTaken, type RaceSnapshot } from '../race/_lib/protocol';
 import { postRaceAction, useRaceRoom, useServerNow } from '../race/_lib/useRaceRoom';
@@ -21,6 +21,8 @@ interface RaceScreenProps {
 }
 
 const STATUS_TITLE = { lobby: 'LOBBY', build: 'BUILD', countdown: 'GET READY', racing: 'LIVE', finished: 'FINISH' } as const;
+/** Lane height budget (design px) when the decision chips share the column. */
+const LANES_WITH_CHIPS = 380;
 const ORDER_ROW_MAX = 30;
 const ORDER_ROW_MIN = 20;
 /** A full room does not fit the panel: it lists the front of the field and counts the rest. */
@@ -186,6 +188,12 @@ export function RaceScreen({ code, siteUrl }: RaceScreenProps) {
   const buildLeftS = Math.max(0, Math.ceil(((snapshot.buildEndsAt ?? now) - now) / 1000));
   const closesInS = snapshot.closesAt === null ? null : Math.max(0, Math.ceil((snapshot.closesAt - now) / 1000));
   const verdict = status === 'finished' ? duelVerdict(snapshot.players) : null;
+  // The last three decisions of the JEV bots as chips (docs/BRAIN_V3_SENSING.md); the side panel has the full thread.
+  const showChips = racing && hasJev && bots.thread.length > 0;
+  const chips: DecisionChip[] = bots.thread
+    .slice(0, 3)
+    .reverse()
+    .map((entry) => ({ id: entry.id, t: entry.t, text: `${entry.who} · ${entry.chip}`, tone: entry.fallback || entry.policy !== 'jev' ? 'fallback' : 'decision' }));
   const skipBuild = (): void => {
     postRaceAction(code, { action: 'start' }).catch((cause: unknown) => setError(cause instanceof Error ? cause.message : 'Could not start the race.'));
   };
@@ -267,7 +275,7 @@ export function RaceScreen({ code, siteUrl }: RaceScreenProps) {
               </div>
             ) : (
               <div className={styles.main}>
-                <RaceTrack mission={mission} players={snapshot.players} status={status} />
+                <RaceTrack mission={mission} players={snapshot.players} status={status} heightBudget={showChips ? LANES_WITH_CHIPS : undefined} />
               </div>
             )}
             {status === 'countdown' ? (
@@ -278,6 +286,12 @@ export function RaceScreen({ code, siteUrl }: RaceScreenProps) {
               </div>
             ) : null}
           </div>
+
+          {showChips ? (
+            <div className={styles.chipsRow}>
+              <DecisionChips chips={chips} size="screen" align="start" />
+            </div>
+          ) : null}
 
           {status === 'lobby' ? <HostBar snapshot={snapshot} bots={bots} onError={setError} /> : null}
         </div>

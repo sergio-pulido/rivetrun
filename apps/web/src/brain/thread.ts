@@ -23,6 +23,8 @@ export interface ThreadEntry {
   readonly policy: Policy;
   readonly fallback: boolean;
   readonly latencyMs: number;
+  /** One-line summary for the decision chips, e.g. "LIDAR · obstacle 11 m → ease (71 %) · 340 ms". */
+  readonly chip: string;
 }
 
 // Triggers of questions older than Brain v3, which carry no `cause`.
@@ -80,6 +82,7 @@ export function entryFromLog(who: string, log: DecisionLog): ThreadEntry {
     policy: log.policy,
     fallback: log.fallback,
     latencyMs: log.latencyMs,
+    chip: log.chip,
   };
 }
 
@@ -88,11 +91,12 @@ export function entryFromDecision(who: string, t: number, question: BrainQuestio
   const lines = question.observation
     ? { knew: question.observation.lines, unknown: question.observation.unknown }
     : perceivedLines(question.perceived);
+  const trigger = question.cause?.label ?? LEGACY_TRIGGER[question.trigger];
   return {
     id: `${who}@${t}`,
     who,
     t,
-    trigger: question.cause?.label ?? LEGACY_TRIGGER[question.trigger],
+    trigger,
     knew: lines.knew,
     unknown: lines.unknown,
     options: ranked(question.options.map((action) => ({ action, probability: decision.probabilities[action] ?? 0 }))),
@@ -100,5 +104,6 @@ export function entryFromDecision(who: string, t: number, question: BrainQuestio
     policy: decision.policy,
     fallback: decision.fallback,
     latencyMs: decision.latencyMs,
+    chip: `${trigger} → ${decision.selected} (${Math.round((decision.probabilities[decision.selected] ?? 0) * 100)} %) · ${Math.round(decision.latencyMs)} ms`,
   };
 }

@@ -857,3 +857,10 @@
   font-size: calc(var(--u) * 10.5);
   color: #ffb27a;
 }
+
+/* The JEV bots' last three decisions, under the lanes. */
+.chipsRow {
+  flex-shrink: 0;
+  min-width: 0;
+  overflow: hidden;
+}
