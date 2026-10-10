@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { AttractCanvas, DecisionChips, type DecisionChip } from '@/game';
 import { AppHeader } from '@/ui/AppHeader';
-import { ARENA_BRAINS, ARENA_MAX_BOTS, duelVerdict, MAX_BOTS, rankPlayers, resultText, SEAT_OPTIONS, seatsTaken, type ArenaBrainId, type RaceSnapshot } from '../race/_lib/protocol';
+import { ARENA_BRAINS, ARENA_MAX_BOTS, duelVerdict, isReasoning, penaltyNote, resultShort, shortName, MAX_BOTS, rankPlayers, SEAT_OPTIONS, seatsTaken, type ArenaBrainId, type RaceSnapshot } from '../race/_lib/protocol';
 import { postRaceAction, useRaceRoom, useServerNow } from '../race/_lib/useRaceRoom';
 import { RaceTrack } from './RaceTrack';
 import { Side, useEpisodeCount } from './Side';
@@ -100,10 +100,11 @@ function Order({ snapshot }: { readonly snapshot: RaceSnapshot }) {
           <div key={player.id} className={styles.orderRow} style={{ ['--row' as string]: row }}>
             <span className={`${styles.pos} ${out ? styles.posOut : index < 3 ? styles.posTop : ''}`}>{out ? '—' : index + 1}</span>
             <span className={styles.orderNick} style={player.kind === 'jev' ? { color: '#3FD0E0' } : undefined}>
-              {player.nickname}
+              {shortName(player)}
+              {isReasoning(player) ? <small className={styles.orderTag}> reasoning</small> : null}
             </span>
             <span className={styles.gap}>
-              {before ? (player.kind === 'jev' ? 'AI' : snapshot.status === 'build' ? (player.ready ? 'ready ✓' : 'building') : 'ready') : resultText(player, trackLengthM)}
+              {before ? (player.kind === 'jev' ? 'AI' : snapshot.status === 'build' ? (player.ready ? 'ready ✓' : 'building') : 'ready') : `${resultShort(player, trackLengthM)}${penaltyNote(player) ? ` · +${Math.round(player.penaltyMs / 1000)} s scan` : ''}`}
             </span>
           </div>
         );
@@ -363,7 +364,7 @@ export function RaceScreen({ code, siteUrl, arena = false }: RaceScreenProps) {
           ) : null}
           {verdict ? (
             <p className={`${styles.verdict} ${verdict.winner === 'jev' ? styles.verdictJev : ''}`}>
-              <strong>{verdict.headline}</strong> · {verdict.detail}
+              <strong>{arenaRace ? verdict.headline.replace('JEV WINS', 'AI WINS') : verdict.headline}</strong> · {verdict.detail}
             </p>
           ) : null}
           {status === 'build' ? <p className={styles.alertInfo}>BUILD PHASE · phones are rebuilding for {mission.name}. The race starts when everyone is ready or the timer runs out.</p> : null}

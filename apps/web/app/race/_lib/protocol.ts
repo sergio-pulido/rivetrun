@@ -248,6 +248,10 @@ const OTHER_COLORS = LANE_COLORS.filter((color) => !['#ff6a13', '#5ef2ff', '#38b
 export const playerColor = (player: Pick<RacePlayer, 'id' | 'kind' | 'lane'>, meId?: string): string =>
   player.id === meId ? OWN_COLOR : player.kind === 'jev' ? JEV_COLOR : OTHER_COLORS[player.lane % OTHER_COLORS.length]!;
 
+/** A bot's name without its "(reasoning)" tag, for places too narrow for both; the tag is then shown beside it. */
+export const shortName = (player: Pick<RacePlayer, 'nickname'>): string => player.nickname.replace(/\s*\(reasoning\)\s*$/i, '');
+export const isReasoning = (player: Pick<RacePlayer, 'nickname'>): boolean => /\(reasoning\)\s*$/i.test(player.nickname);
+
 /** A finisher's time without the penalty note, and the note on its own: for rows too narrow for the full sentence. */
 export const penaltyNote = (player: Pick<RacePlayer, 'finished' | 'penaltyMs'>): string | null =>
   player.finished && player.penaltyMs > 0 ? `incl. +${Math.round(player.penaltyMs / 1000)} s missed scan` : null;

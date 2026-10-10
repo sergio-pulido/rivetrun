@@ -1,4 +1,4 @@
-import { rankPlayers, resultText, type RacePlayer } from '../race/_lib/protocol';
+import { isReasoning, penaltyNote, rankPlayers, resultShort, shortName, type RacePlayer } from '../race/_lib/protocol';
 import styles from './screen.module.css';
 
 /**
@@ -11,13 +11,13 @@ export function ArenaResults({ players, trackLengthM }: { readonly players: read
   return (
     <div className={styles.thread}>
       <span className={styles.label}>Brains · this race</span>
-      <span className={styles.threadNote}>Same robot, same seed, same question. Late = the robot hit something, was blocked or fell while the answer was still on its way.</span>
+      <span className={styles.threadNote}>Same robot, seed and question. Late = hit, blocked or fell while its answer was on the way.</span>
       <div className={styles.arenaTable} role="table">
         <div className={`${styles.arenaRow} ${styles.arenaHead}`} role="row">
           <span>#</span>
           <span>Brain</span>
-          <span>Time</span>
-          <span>Median answer</span>
+          <span>Time (+scan)</span>
+          <span>Median</span>
           <span>Late</span>
         </div>
         {brains.map(({ player, place }) => {
@@ -25,8 +25,14 @@ export function ArenaResults({ players, trackLengthM }: { readonly players: read
           return (
             <div key={player.id} className={styles.arenaRow} role="row">
               <span className={styles.arenaPlace}>{out ? '—' : place}</span>
-              <span className={styles.arenaName}>{player.nickname}</span>
-              <span>{resultText(player, trackLengthM).replace(' · incl. ', ' · ')}</span>
+              <span className={styles.arenaName}>
+                {shortName(player)}
+                {isReasoning(player) ? <small className={styles.orderTag}> reasoning</small> : null}
+              </span>
+              <span>
+                {resultShort(player, trackLengthM)}
+                {penaltyNote(player) ? <em className={styles.arenaMissed} title={penaltyNote(player) ?? undefined}> +{Math.round(player.penaltyMs / 1000)}</em> : null}
+              </span>
               <span>{player.model === 'heuristic' ? 'no model' : player.medianLatencyMs === null ? '—' : `${Math.round(player.medianLatencyMs)} ms`}</span>
               <span className={(player.lateDecisions ?? 0) > 0 ? styles.arenaBad : undefined}>
                 {player.lateDecisions ?? 0}

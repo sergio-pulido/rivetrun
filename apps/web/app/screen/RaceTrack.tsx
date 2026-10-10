@@ -1,7 +1,7 @@
 import { BRIEFING_PRESETS, type Mission, type TerrainId } from '@rivetrun/contracts';
 import { compileTrack, type World } from '@rivetrun/sim';
 import { matchPreset } from '@/ui/buildStats';
-import { resultText, type RacePlayer, type RaceStatus } from '../race/_lib/protocol';
+import { isReasoning, resultText, shortName, type RacePlayer, type RaceStatus } from '../race/_lib/protocol';
 import styles from './screen.module.css';
 
 // Swap point: when `RaceCanvas` lands in @/game, render it here from the same props
@@ -57,8 +57,8 @@ function buildLine(player: RacePlayer): string {
     if (player.model) {
       if (player.model === 'heuristic') return 'fixed rules · no model';
       // While driving: the latest answer. Once done: the race's median and what waiting cost.
-      if (player.done && player.medianLatencyMs !== null) return `median ${Math.round(player.medianLatencyMs)} ms · ${player.lateDecisions ?? 0} late`;
-      return `${player.model} · ${player.latencyMs === null ? 'no answer yet' : `${Math.round(player.latencyMs)} ms`}`;
+      if (player.done && player.medianLatencyMs !== null) return `${isReasoning(player) ? 'reasoning · ' : ''}median ${Math.round(player.medianLatencyMs)} ms · ${player.lateDecisions ?? 0} late`;
+      return `${isReasoning(player) ? 'reasoning · ' : `${player.model} · `}${player.latencyMs === null ? 'no answer yet' : `${Math.round(player.latencyMs)} ms`}`;
     }
     const preset = BRIEFING_PRESETS.find((candidate) => candidate.text === player.briefing);
     return `AI · ${preset ? preset.name : player.briefing ? 'custom brief' : 'no brief'}`;
@@ -76,7 +76,7 @@ function chip(player: RacePlayer, status: RaceStatus, trackLengthM: number): { t
   if (status === 'build') return player.ready ? { text: 'ready ✓', tone: styles.actionDone! } : { text: 'building…', tone: '' };
   if (status === 'lobby' || status === 'countdown') return { text: 'on the grid', tone: '' };
   if (player.silent) return { text: 'signal lost', tone: styles.actionOut! };
-  if (player.thinking) return { text: 'jev thinking…', tone: styles.actionThinking! };
+  if (player.thinking) return { text: player.model ? 'thinking…' : 'jev thinking…', tone: styles.actionThinking! };
   if (player.lastAction) {
     const pct = player.lastActionP === null ? '' : ` ${Math.round(player.lastActionP * 100)}%`;
     return { text: `${player.lastAction}${pct}`, tone: '' };
@@ -145,7 +145,7 @@ export function RaceTrack({ mission, players, status, heightBudget = LANES_HEIGH
             <div key={player.id} className={`${styles.lane} ${out ? styles.laneOut : ''}`} style={{ ['--h' as string]: height }}>
               <div className={styles.pilot}>
                 <span className={styles.nick} style={player.kind === 'jev' ? { color: JEV_COLOR } : undefined}>
-                  {player.nickname}
+                  {shortName(player)}
                 </span>
                 {dense ? null : <span className={styles.build}>{buildLine(player)}</span>}
               </div>

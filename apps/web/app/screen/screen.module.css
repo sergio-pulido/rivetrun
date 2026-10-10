@@ -954,8 +954,8 @@
 .arenaTable {
   display: flex;
   flex-direction: column;
-  gap: calc(var(--u) * 6);
-  margin-top: calc(var(--u) * 6);
+  gap: calc(var(--u) * 2);
+  margin-top: calc(var(--u) * 2);
 }
 .arenaRow {
   display: grid;
@@ -963,9 +963,9 @@
   gap: calc(var(--u) * 8);
   align-items: baseline;
   font-family: var(--data);
-  font-size: calc(var(--u) * 13);
+  font-size: calc(var(--u) * 12);
   font-variant-numeric: tabular-nums;
-  padding: calc(var(--u) * 6) 0;
+  padding: calc(var(--u) * 3) 0;
   border-top: 1px solid #1f2a30;
 }
 .arenaHead {
@@ -996,4 +996,17 @@
   font-style: normal;
   font-weight: 400;
   color: #8b95a3;
+}
+.orderTag {
+  font-family: var(--data);
+  font-size: 0.62em;
+  font-weight: 400;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #8b95a3;
+}
+.arenaRow > span {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
