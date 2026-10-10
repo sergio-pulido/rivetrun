@@ -16,6 +16,7 @@ import { RealComponent } from '@/ui/real/RealComponent';
 import { GivesYourRover } from '@/ui/strategy/GivesYourRover';
 import { PartCanvas } from '@/ui/three';
 import { Stage3D } from '@/ui/three/Stage3D';
+import { PartWeather } from '@/ui/weather/PartWeather';
 import { PartGlyph } from './PartGlyph';
 import { brainGets, specTiles } from './partInfo';
 import { SLOTS, fitted, isRemovable, partsIn, withPart } from './slots';
@@ -133,6 +134,8 @@ export function PartSheet({ part, bom, media }: PartSheetProps) {
       </section>
 
       <GivesYourRover part={part} build={build} />
+
+      <PartWeather part={part} />
 
       <section className="flex flex-col gap-1.5">
         <h2 className="rr-label">In the game</h2>

@@ -20,6 +20,7 @@ import { TestRun } from '@/ui/strategy/TestRun';
 import { useTestRun } from '@/ui/strategy/useTestRun';
 import { TrackProfile } from '@/ui/TrackProfile';
 import { useRivalPrefetch } from '@/ui/useRivalPrefetch';
+import { WeatherCard } from '@/ui/weather/WeatherCard';
 import { BriefTheBrain } from './BriefTheBrain';
 import { DriveCard } from './DriveCard';
 import { ObjectivesCard } from './ObjectivesCard';
@@ -165,6 +166,8 @@ export function Brief({ missionId }: { readonly missionId: MissionId }) {
 
       {/* A build that cannot finish goes above the fold, next to its fix; otherwise the robot is a footnote. */}
       {blocked ? robotCard : null}
+
+      <WeatherCard mission={mission} build={build} />
 
       <ObjectivesCard mission={mission} build={build} />
 
