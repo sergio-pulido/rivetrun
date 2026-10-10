@@ -42,7 +42,8 @@ function Row({ line, render, owned, onToggle }: RowProps) {
           )}
         </span>
         <span className="min-w-0 flex-1">
-          <span className="block truncate text-[13px] font-semibold leading-tight">{item.name}</span>
+          {/* The name is the one thing a buyer needs: it wraps to two lines instead of being cut by the price. */}
+          <span className="line-clamp-2 text-[13px] font-semibold leading-tight">{item.name}</span>
           <span className="mt-0.5 block truncate font-mono text-[10px] text-muted">
             {quantity(item)}
             {item.manufacturer ? ` · ${item.manufacturer}` : ''}
@@ -54,8 +55,8 @@ function Row({ line, render, owned, onToggle }: RowProps) {
             </span>
           )}
         </span>
-        <span className="shrink-0 text-right font-mono tabular-nums">
-          <span className="block text-xs font-semibold">{price && qty > 1 ? formatMoney({ ...price, amount: price.amount * qty }) : priceText(item)}</span>
+        <span className="max-w-[78px] shrink-0 text-right font-mono tabular-nums">
+          <span className={`block font-semibold leading-tight ${price ? 'text-xs' : 'text-[10px] text-text-2'}`}>{price && qty > 1 ? formatMoney({ ...price, amount: price.amount * qty }) : priceText(item)}</span>
           {price && qty > 1 ? <span className="block text-[10px] text-muted">{qty} × {item.priceShown}</span> : null}
         </span>
       </Link>
