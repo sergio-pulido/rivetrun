@@ -22,6 +22,7 @@ import { TrackProfile } from '@/ui/TrackProfile';
 import { useRivalPrefetch } from '@/ui/useRivalPrefetch';
 import { BriefTheBrain } from './BriefTheBrain';
 import { DriveCard } from './DriveCard';
+import { ObjectivesCard } from './ObjectivesCard';
 import { PrioritySlider } from './PrioritySlider';
 
 const { rain, cold } = TUNING.weather;
@@ -164,6 +165,8 @@ export function Brief({ missionId }: { readonly missionId: MissionId }) {
 
       {/* A build that cannot finish goes above the fold, next to its fix; otherwise the robot is a footnote. */}
       {blocked ? robotCard : null}
+
+      <ObjectivesCard mission={mission} build={build} />
 
       <div className="rr-rise" style={{ ['--i' as string]: 2 }}>
         <ScenarioStrip segments={scenario} buildName={buildName(build)} />
