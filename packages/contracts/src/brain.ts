@@ -65,6 +65,10 @@ export const LookaheadEntrySchema = z.object({
   assumed: z.boolean().optional(),
   /** Speed at the end of the window, m/s. */
   endSpeedMps: z.number().optional(),
+  /** Seconds the rest of the track takes at this option's pace over the window. Absent when the option does not move forward. */
+  projectedFinishS: z.number().min(0).optional(),
+  /** True when the robot falls into a gap inside the window (a fall costs 5 s and 15 % damage and puts it back before the gap). */
+  fallsIntoGap: z.boolean().optional(),
   /**
    * Facts, no verdict (OVN-SIM-24). The next scan zone this build can scan, and what this option does about it:
    * scanned = the scan completes inside the window · holding = stopped on the pad, scan in progress ·

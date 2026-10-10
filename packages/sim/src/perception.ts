@@ -346,8 +346,10 @@ export function lookahead(state: RunState, actions: readonly Action[], seen: Obs
   return actions.map((action) => {
     let future = believed;
     let contact: LookaheadEntry['contact'];
+    let fell = false;
     for (let i = 0; i < steps && !future.done; i += 1) {
       future = step(future, action);
+      if (future.lastAir?.type === 'fell') fell = true;
       const hit = future.lastDamage;
       if (!contact && hit && hit.cause === 'impact' && (hit.obstacle !== undefined || hit.roughEntry !== undefined)) {
         contact = {
@@ -370,6 +372,9 @@ export function lookahead(state: RunState, actions: readonly Action[], seen: Obs
       projectedFinishPct: round(Math.max(-100, Math.min(100, projectedFinishPct)), 1),
       assumed: progressM > seen.forwardRangeM,
       endSpeedMps: round(future.sim.v, 2),
+      // Time line, the twin of the energy line: how long the rest of the track takes if this pace held.
+      ...(progressM > 0.05 && !fell ? { projectedFinishS: round(Math.max(0, remainingM - progressM) / (progressM / lookaheadSeconds(state)), 1) } : {}),
+      ...(fell ? { fallsIntoGap: true } : {}),
       ...(zone ? { scan: scanFact(believed, future, zone) } : {}),
       ...(contact ? { contact } : {}),
     };

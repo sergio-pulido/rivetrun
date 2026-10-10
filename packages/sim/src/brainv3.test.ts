@@ -249,3 +249,28 @@ describe('facts, no verdict: what each option does about a scan zone and a hazar
     expect(full.endSpeedMps).toBeDefined();
   });
 });
+
+describe('facts, no verdict: the time line and falls (OVN-SIM-24)', () => {
+  it('each option that moves says how long the rest of the track takes at its pace; a faster pace takes less', () => {
+    let state = createRun({ mission: MISSIONS.M1, seed: 7, build: PRESETS.all_rounder.build, priority: 0.5 });
+    for (let i = 0; i < 60; i += 1) state = step(state, 'cruise');
+    const look = buildQuestion(state, START_TRIGGER).lookahead;
+    const of = (action: string) => look.find((l) => l.action === action)!;
+    expect(of('accelerate').projectedFinishS!).toBeLessThan(of('cruise').projectedFinishS!);
+    expect(of('cruise').projectedFinishS!).toBeLessThan(of('slow_down').projectedFinishS!);
+    expect(of('accelerate').projectedFinishS!).toBeGreaterThan(5);
+    expect(of('accelerate').fallsIntoGap).toBeUndefined();
+  });
+
+  it('an option that drives into a gap it can see says so', () => {
+    // M7's second gap has no ramp: without the piston every forward option falls in.
+    const build = { ...PRESETS.all_rounder.build, sensors: ['camera', 'ultrasonic'] };
+    let state = createRun({ mission: MISSIONS.M7, seed: 7, build, priority: 0.5 });
+    const gap = state.world.features.filter((f) => f.type === 'gap')[1]!;
+    state = { ...state, sim: { ...state.sim, x: gap.startM - 1.2, v: 1.6 }, segmentIndex: state.world.segments.findIndex((seg) => seg.endM > gap.startM - 1.2), bestX: gap.startM - 1.2 };
+    const look = buildQuestion(state, START_TRIGGER).lookahead;
+    expect(look.find((l) => l.action === 'accelerate')!.fallsIntoGap).toBe(true);
+    expect(look.find((l) => l.action === 'accelerate')!.projectedFinishS).toBeUndefined();
+    expect(look.find((l) => l.action === 'brake')!.fallsIntoGap).toBeUndefined();
+  });
+});
