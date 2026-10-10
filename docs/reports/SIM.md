@@ -15,6 +15,12 @@ For the human who demos at 16:15 and for the README. Scope: `packages/sim`, `pac
 - Tests that guard the claims: a leak test (nothing beyond sensor range reaches a brain, also in bad weather), a fuzz test (500 random builds and inputs), the stranger drivers, a review round with regression tests. `04f0e02` `35a0092` `a39bea1` `2915915` `9759fe6`
 - Docs: `docs/SIM_MODEL.md`, the "What the game is now" section of `docs/GAME_SPEC.md`, `docs/BENCHMARK.md` re-run. `5019c16` `88f5fca` `c241dc4` `0729fec`
 
+## Added at midday (RR-PLAN, docs/PLAY_AND_PLAN.md)
+- Contracts for plans and picks; auto rooms for /play (`POST /api/race/match`, `POST /api/race/[code]/pick`): 30 s lobby, 8 phones, defaults at 0, filled to four lanes by bots the server moves itself, removed 60 s after the results. `8dfbe42` `a9a95b2` `c1da41c`
+- Phones poll once a second and skip the event stream on a quick tunnel; the rooms grid on /screen?mode=play; `scripts/loadtest-play.mjs`. `fd83634` `3cef04a` `eca9f06`
+- Load test, 40 phones on the dev server: all reached the results, no 429 or 5xx, but p95 poll 1.1–1.5 s against a 500 ms limit on a laptop at load 20+. Not run on the production build or through the tunnel by me.
+- If /play says "Next race in N s": every room is busy (8 rooms × 8 phones); it frees by itself. If the rooms grid stays empty, nobody has scanned yet. Manual room codes on /screen still work as the fallback.
+
 ## Measured
 - 103 sim unit tests green at `d0e8527`; a soak of 10 000 fuzz runs on 20 seeds found no violation.
 - Jev against the fixed rules, default build, 3 seeds: within 40 points on every mission, scans as often; ahead by 82 on Deep Water with the Deep Diver.
