@@ -152,6 +152,9 @@ function Player({ feed, build, layout, pose, timeScale, particles, hands, name, 
 
     const slipping = state.effects.includes('slip') && !airborne;
     const wrecked = view.dnfReason !== null;
+    // Only a destroyed robot (damage 100 %) comes apart and smokes. Stuck, a flat battery or the clock running out
+    // leave it standing, in one piece, with a long face.
+    const destroyed = view.dnfReason === 'damage';
     if (view.lastDamage && view.lastDamage.at !== lastDamageAt.current) {
       lastDamageAt.current = view.lastDamage.at;
       p.shakeUntil = now + 380;
@@ -187,7 +190,7 @@ function Player({ feed, build, layout, pose, timeScale, particles, hands, name, 
     d.speed = state.v;
     d.slip = damp(d.slip, slipping && !view.done ? 1 : 0, 8, dt);
     d.expression = expression;
-    d.dnf = wrecked;
+    d.dnf = destroyed;
     d.winch = state.effects.includes('winch') && !view.done;
     d.thrusting = state.thrusting === true && !view.done;
 
@@ -195,7 +198,7 @@ function Player({ feed, build, layout, pose, timeScale, particles, hands, name, 
     if (!emitter) return;
     const dir = state.v >= 0 ? 1 : -1;
     const simDt = Math.min(dt, 0.05) * (timeScale.current ?? 1);
-    const active: SimEffect[] = wrecked ? ['smoke'] : view.done ? [] : state.effects;
+    const active: SimEffect[] = destroyed ? ['smoke'] : view.done ? [] : state.effects;
     for (const effect of active) {
       const spec = EFFECT_PARTICLES[effect];
       // Nothing is kicked up off the ground while the wheels are in the air.
@@ -296,8 +299,10 @@ function Ghost({ trace, build, layout, pose, timeScale, driving }: GhostProps) {
     d.wheelSpin = ended ? 0 : a.wheelSpin * (timeScale.current ?? 1);
     d.speed = a.v;
     d.slip = slipping && !ended ? 1 : 0;
-    d.dnf = ended && !trace.outcome.finished;
-    d.expression = d.dnf ? 'dnf' : ended ? 'finish' : airborne ? 'jump' : slipping ? 'slip' : 'cruise';
+    const out = ended && !trace.outcome.finished;
+    // As for the player: a ghost falls apart only if it was destroyed.
+    d.dnf = out && trace.outcome.dnfReason === 'damage';
+    d.expression = out ? 'dnf' : ended ? 'finish' : airborne ? 'jump' : slipping ? 'slip' : 'cruise';
     d.winch = false;
     d.thrusting = a.thrusting === true && !ended;
     d.airborne = airborne;

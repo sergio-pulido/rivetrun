@@ -59,6 +59,13 @@ export interface RunCanvasProps {
    * bar and the robot's name tag reads the agent's name. With `hud={false}`, mount `StrategyChip` in your own HUD.
    */
   pilot?: PilotTag;
+  /**
+   * The Menu button (and Esc) opened "Leave the run?" (true), or the player resumed (false). The page that owns the
+   * run pauses and resumes its clock here. Only with the game's own HUD; other pages mount `RunMenu` themselves.
+   */
+  onPauseChange?: (paused: boolean) => void;
+  /** Quit to menu from that sheet. Default: go to Home (leaving the page ends the run). */
+  onQuit?: () => void;
 }
 
 const DEMO_RESTART_MS = 4200;
@@ -121,7 +128,7 @@ function pinnable(feed: RunFeed): Pinnable {
 }
 
 /** The run view: R3F canvas with the 2.5D scene plus the HUD overlay. Fills its parent. */
-export default function RunCanvas({ mission = MISSIONS.M5, build = PRESETS[DEFAULT_PRESET_ID].build, feed, ghosts, hud = true, drive, onReady, pilot: givenPilot }: RunCanvasProps) {
+export default function RunCanvas({ mission = MISSIONS.M5, build = PRESETS[DEFAULT_PRESET_ID].build, feed, ghosts, hud = true, drive, onReady, pilot: givenPilot, onPauseChange, onQuit }: RunCanvasProps) {
   const pilot = useMemo(() => givenPilot ?? pilotOverride() ?? undefined, [givenPilot]);
   const demo = useDemoRun(mission, build, feed === undefined);
   const activeFeed = feed ?? demo.feed;
@@ -190,7 +197,7 @@ export default function RunCanvas({ mission = MISSIONS.M5, build = PRESETS[DEFAU
       >
         {(plain) => <RunScene mission={mission} build={build} feed={dev?.feed ?? activeFeed} ghosts={activeGhosts} particleBudget={tier.particles} hands={drive} plain={plain} raise={covered} playerName={drive ? undefined : pilot?.agent} flyIn={!tier.weak && feed !== undefined} cockpit={cockpit} />}
       </SceneFrame>
-      {hud && <RunHud mission={mission} feed={activeFeed} ghosts={activeGhosts} drive={drive} build={build} pilot={pilot} cockpit={cockpit} />}
+      {hud && <RunHud mission={mission} feed={activeFeed} ghosts={activeGhosts} drive={drive} build={build} pilot={pilot} cockpit={cockpit} onPauseChange={onPauseChange} onQuit={onQuit} />}
       </div>
       {cockpit && <RobotColumn feed={activeFeed} build={build} drive={drive} ghosts={activeGhosts} pilot={pilot} width={robotWidth} />}
     </div>

@@ -123,6 +123,8 @@ const SPECIAL_LABEL: Readonly<Record<ControlSpecial, string>> = { jump: 'JUMP', 
 type Escape = NonNullable<SimState['freeWith']> | 'none';
 /** The countdown starts at 6.5 s: the prompt shows from here down. */
 const PROMPT_FROM_S = 6;
+/** Seconds into a run with the throttle untouched before the coach points at it. */
+const IDLE_COACH_AFTER_S = 3;
 /** "This build cannot pass here" is only said this close to the end. */
 const CANNOT_PASS_FROM_S = 4;
 const ESCAPE_TEXT: Readonly<Record<Escape, string>> = {
@@ -218,6 +220,9 @@ export function DriveControls({ drive, feed, build }: DriveControlsProps) {
       : freeWith ??
         // "Cannot pass" only when it is true: standing still, late in the countdown, with nothing left to try.
         (!moving && stuckInS <= CANNOT_PASS_FROM_S ? 'none' : null);
+  // Idle coach: nobody has touched the throttle a few seconds into the run. The sim does not count an untouched
+  // robot as stuck; this shows where to put the thumb.
+  const idle = !driven && !done && (view.state?.t ?? 0) >= IDLE_COACH_AFTER_S;
   const special = escape === 'climb' || escape === 'winch' ? escape : contextualSpecial(build, slope, input.winch);
   const cooldownMs = (PARTS_BY_ID.get('piston_jump')?.effects.cooldownS ?? 3) * 1000;
   const sinceJump = input.jumpAt > 0 ? performance.now() - input.jumpAt : Infinity;
@@ -319,7 +324,7 @@ export function DriveControls({ drive, feed, build }: DriveControlsProps) {
             caption={airborne ? 'NOSE UP' : slipping ? (escape && escape !== 'ease' ? 'SLIP' : 'SLIP · EASE OFF') : input.throttle > 0 ? `${throttleBand(input.throttle)} ${Math.round(input.throttle * 100)} %` : 'COAST'}
             tone={warning?.over ? UI.bad : undefined}
             alert={slipping}
-            callout={escape === 'ease' || escape === 'throttle'}
+            callout={escape === 'ease' || escape === 'throttle' || idle}
           />
           {brake.thumb && <Gauge thumb={brake.thumb} value={input.brake} side="left" color={UI.bad} band={brakeBand(input.brake)} marks={BRAKE_MARKS} />}
           {throttle.thumb && <Gauge thumb={throttle.thumb} value={input.throttle} side="right" color={UI.safety} band={throttleBand(input.throttle)} marks={THROTTLE_MARKS} />}
@@ -395,7 +400,18 @@ export function DriveControls({ drive, feed, build }: DriveControlsProps) {
             </div>
           )}
 
-          {!driven && (
+          {idle && (
+            // Over the throttle zone, above its pad: the right half of the screen.
+            <div className="pointer-events-none absolute right-0 flex w-1/2 justify-center px-2" style={{ bottom: 'calc(max(18px, env(safe-area-inset-bottom)) + 150px)' }} role="status">
+              <div className={`${styles.callout} rounded-xl px-3 py-2 text-center font-display text-[15px] font-bold leading-tight tracking-[0.5px]`} style={{ border: `2px solid ${UI.warn}`, background: 'rgb(14 16 19 / 0.92)', color: UI.text }}>
+                <div className="font-mono text-[18px] leading-none" style={{ color: UI.warn }} aria-hidden>
+                  ↑
+                </div>
+                Slide up on the right to drive
+              </div>
+            </div>
+          )}
+          {!driven && !idle && (
             <div className="pointer-events-none absolute inset-x-0 flex justify-center" style={{ bottom: 'calc(max(18px, env(safe-area-inset-bottom)) + 104px)' }}>
               <span className="rounded-full px-3 py-1.5 font-mono text-[10px] tracking-[1.5px]" style={{ background: 'rgb(14 16 19 / 0.8)', border: `1px solid ${UI.line}`, color: UI.text }}>
                 SLIDE UP: RIGHT DRIVES · LEFT BRAKES

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState, useSyncExternalStore, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useState, useSyncExternalStore, type ReactNode } from 'react';
 import type { Build, GhostTrace, Mission, Obstacle, SimState } from '@rivetrun/contracts';
 import { atmosphereOf, weatherOverride, type Atmosphere } from '../atmosphere';
 import { isMuted, toggleMute } from '../audio/sfx';
@@ -13,6 +13,7 @@ import { sensesOf, type Senses } from '../sense';
 import { TelemetryButton, TelemetryDrawer } from '../telemetry/TelemetryDrawer';
 import { telemetry, useTelemetryOpen } from '../telemetry/telemetryStore';
 import { BrainHud, BrainLine } from './BrainHud';
+import { RunMenu } from './RunMenu';
 import { StrategyChip } from './StrategyChip';
 import type { PilotTag } from './strategy';
 import { brainIsOpen, brainPanel, useBrainChoice } from './brainStore';
@@ -38,6 +39,10 @@ export interface RunHudProps {
    * overlay keeps only what belongs to the scene: the top bar, the sound button, the alerts, the end stamp and the pedals.
    */
   cockpit?: boolean;
+  /** The Menu button's sheet opened (true) or the player resumed (false): the page pauses its run here. */
+  onPauseChange?: (paused: boolean) => void;
+  /** Quit to menu. Default: Home. */
+  onQuit?: () => void;
 }
 
 /** Sound on / off. The choice persists (sfx.ts keeps it in localStorage). */
@@ -352,7 +357,15 @@ export function RunAlerts({ mission, feed, build }: RunAlertsProps) {
 }
 
 /** DOM overlay for the run view: top bar, the decision log, a mark while Jev is thinking, end stamp and the Brain sheet. */
-export function RunHud({ mission, feed, ghosts = NO_GHOSTS, drive, build, pilot, cockpit = false }: RunHudProps) {
+export function RunHud({ mission, feed, ghosts = NO_GHOSTS, drive, build, pilot, cockpit = false, onPauseChange, onQuit }: RunHudProps) {
+  // While "Leave the run?" is up nobody is at the controls: the pedals are let go.
+  const pauseChange = useCallback(
+    (paused: boolean) => {
+      if (paused) drive?.release();
+      onPauseChange?.(paused);
+    },
+    [drive, onPauseChange],
+  );
   const view = useRunView(feed);
   const driving = drive !== undefined;
   // The run keeps its pace while Jev thinks (Brain v3): a small mark says a question is out. Not in Drive mode: the player decides there.
@@ -395,6 +408,8 @@ export function RunHud({ mission, feed, ghosts = NO_GHOSTS, drive, build, pilot,
         </div>
         {/* One row under the top bar: telemetry on the left, the rival or the thinking mark in the middle, sound on the right. */}
         <div className={`mt-1.5 items-center gap-2 ${cockpit ? 'hidden' : 'flex'}`}>
+          {/* The way out, first in the row (RR-RUN-FIXES). In the cockpit it stands top-left of the track instead. */}
+          {!cockpit && !view.done ? <RunMenu onPauseChange={pauseChange} onQuit={onQuit} /> : null}
           {build ? <TelemetryButton open={telemetryOpen} onToggle={telemetry.toggle} /> : <span className="w-11" />}
           <div className="flex min-w-0 flex-1 justify-center">
             {driving && ghosts[0] ? (
@@ -435,6 +450,11 @@ export function RunHud({ mission, feed, ghosts = NO_GHOSTS, drive, build, pilot,
         {short && alerts ? <div className="mt-1.5 flex flex-col items-end gap-1.5">{alerts}</div> : null}
       </div>
 
+      {cockpit && !view.done ? (
+        <div className="absolute left-3" style={{ top: 'max(14px, env(safe-area-inset-top))' }}>
+          <RunMenu labelled onPauseChange={pauseChange} onQuit={onQuit} />
+        </div>
+      ) : null}
       {/* Cockpit: the sound button alone, top-right of the track. */}
       {cockpit ? (
         <div className="absolute right-3" style={{ top: 'max(14px, env(safe-area-inset-top))' }}>
