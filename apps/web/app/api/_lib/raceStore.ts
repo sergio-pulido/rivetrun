@@ -18,6 +18,7 @@ import {
   type RaceSnapshot,
   type RaceStatus,
 } from '../../race/_lib/protocol';
+import { recordHumanRun } from './humanArena';
 import { addRun } from './store';
 
 const SCAN_MISS_PENALTY_MS = SCAN_RULES.missPenaltyS * 1000;
@@ -312,6 +313,9 @@ function report(room: Room, action: Act<'state'>, now: number): RaceResult<null>
     // Room Race runs count as episodes, like a run submitted from the Result screen.
     room.logged.add(player.id);
     addRun(player.nickname, action.episode);
+    // A race run that replays from its input log also counts for the arena's human row. Nothing is refused here:
+    // the race result is the server's own clock, not the posted episode.
+    if (player.kind === 'human') recordHumanRun(player.nickname, action.episode);
   }
   return done(null);
 }
