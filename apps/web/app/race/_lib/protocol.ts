@@ -230,3 +230,16 @@ export const LANE_COLORS = [
   '#f8514a', '#38bdf8', '#a3e635', '#fb923c', '#e879f9', '#94a3b8',
 ] as const;
 export const laneColor = (lane: number): string => LANE_COLORS[lane % LANE_COLORS.length]!;
+
+/** On a phone: your own robot is orange and Jev is cyan, as everywhere else in the game; other players get the rest. */
+export const OWN_COLOR = '#ff6a13';
+export const JEV_COLOR = '#3fd0e0';
+const OTHER_COLORS = LANE_COLORS.filter((color) => !['#ff6a13', '#5ef2ff', '#38bdf8', '#fb923c'].includes(color));
+export const playerColor = (player: Pick<RacePlayer, 'id' | 'kind' | 'lane'>, meId?: string): string =>
+  player.id === meId ? OWN_COLOR : player.kind === 'jev' ? JEV_COLOR : OTHER_COLORS[player.lane % OTHER_COLORS.length]!;
+
+/** A finisher's time without the penalty note, and the note on its own: for rows too narrow for the full sentence. */
+export const penaltyNote = (player: Pick<RacePlayer, 'finished' | 'penaltyMs'>): string | null =>
+  player.finished && player.penaltyMs > 0 ? `incl. +${Math.round(player.penaltyMs / 1000)} s missed scan` : null;
+export const resultShort = (player: RacePlayer, trackLengthM: number): string =>
+  player.finished && player.raceMs !== null ? formatRaceTime(player.raceMs) : resultText(player, trackLengthM);

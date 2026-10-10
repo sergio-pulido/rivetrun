@@ -9,7 +9,7 @@ import { z } from 'zod';
 import { useRunStore } from '@/state/run';
 import { AppHeader } from '@/ui/AppHeader';
 import { buildName } from '@/ui/buildStats';
-import { JoinResponseSchema, RaceSnapshotSchema, ROOM_FULL_MESSAGE, laneColor, roomFull, type RaceSnapshot } from '../_lib/protocol';
+import { JoinResponseSchema, RaceSnapshotSchema, ROOM_FULL_MESSAGE, OWN_COLOR, playerColor, roomFull, type RaceSnapshot } from '../_lib/protocol';
 import { Ranking } from '../_lib/Ranking';
 import { RobotGlyph } from '../_lib/RobotGlyph';
 import styles from '../_lib/race.module.css';
@@ -253,7 +253,7 @@ export function RaceClient({ code, initial }: RaceClientProps) {
         <p className="rr-label text-blueprint">Room Race · {code}</p>
         <h1 className="font-mono text-3xl font-black text-safety">You are in, {me.nickname}</h1>
         <div className="rr-panel flex items-center gap-3 p-4">
-          <RobotGlyph build={me.build} color={laneColor(me.lane)} className="h-16 w-auto shrink-0" />
+          <RobotGlyph build={me.build} color={OWN_COLOR} className="h-16 w-auto shrink-0" />
           <div className="min-w-0">
             <p className="rr-label">Lane {me.lane + 1}</p>
             <p className="mt-1 text-sm text-slate-200">{buildName(me.build)} · you drive it</p>
@@ -266,7 +266,7 @@ export function RaceClient({ code, initial }: RaceClientProps) {
           <ul className="flex flex-wrap gap-2">
             {snapshot.players.map((player) => (
               <li key={player.id} className="rr-chip">
-                <span className="h-2.5 w-2.5 rounded-full" style={{ background: laneColor(player.lane) }} />
+                <span className="h-2.5 w-2.5 rounded-full" style={{ background: playerColor(player, identity.playerId) }} />
                 {player.nickname}
               </li>
             ))}

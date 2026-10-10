@@ -13,7 +13,7 @@ import RunCanvas from '@/game/RunCanvas';
 import { AppHeader } from '@/ui/AppHeader';
 import { createRunFeed, useRunView } from '@/game/runFeed';
 import { startHumanRun } from '../_lib/humanRun';
-import { duelVerdict, formatRaceTime, rankPlayers, resultText, type RacePlayer, type RaceSnapshot } from '../_lib/protocol';
+import { duelVerdict, formatRaceTime, penaltyNote, rankPlayers, resultShort, type RacePlayer, type RaceSnapshot } from '../_lib/protocol';
 import { Ranking } from '../_lib/Ranking';
 import type { RaceSeat } from '../_lib/report';
 
@@ -203,9 +203,10 @@ export default function RaceRun({ snapshot, seat, me, now, clockOffsetMs }: Race
         </div>
       ) : null}
 
-      {/* Result card: flat, centred, and only ever the server's numbers. */}
+      {/* Result card: flat, centred, and only ever the server's numbers. Above the 3D view's own failure panel
+          (z-40): once the run is over, the result is what matters. */}
       {localDone || official || over ? (
-        <div className={`absolute inset-0 z-20 flex items-center justify-center p-3 ${over ? 'pt-16' : ''}`}>
+        <div className={`absolute inset-0 z-50 flex items-center justify-center p-3 ${over ? 'pt-16' : ''}`}>
           <div className="rr-panel max-h-full w-full max-w-md overflow-y-auto p-4">
             {!official ? (
               <>
@@ -217,13 +218,13 @@ export default function RaceRun({ snapshot, seat, me, now, clockOffsetMs }: Race
               <>
                 <p className="rr-label text-blueprint">{over ? 'Final order' : 'Your result is in. Others are still racing.'}</p>
                 <div className="mt-1 flex items-end justify-between gap-3">
-                  <p className="font-mono text-5xl font-black leading-none text-safety">
+                  <p className="shrink-0 whitespace-nowrap font-mono text-5xl font-black leading-none text-safety">
                     P{place}
                     <span className="ml-2 text-base font-bold text-dim">of {snapshot.players.length}</span>
                   </p>
-                  <p className={`text-right font-mono text-lg font-black ${me.finished ? 'text-ok' : 'text-bad'}`}>
-                    {resultText(me, trackLengthM)}
-                    <span className="block text-[11px] font-normal text-dim">{me.finished ? 'RACE TIME' : 'did not finish'}</span>
+                  <p className={`min-w-0 text-right font-mono text-lg font-black ${me.finished ? 'text-ok' : 'text-bad'}`}>
+                    {resultShort(me, trackLengthM)}
+                    <span className="block text-[11px] font-normal text-dim">{me.finished ? `RACE TIME${penaltyNote(me) ? ` · ${penaltyNote(me)}` : ''}` : 'did not finish'}</span>
                   </p>
                 </div>
               </>
