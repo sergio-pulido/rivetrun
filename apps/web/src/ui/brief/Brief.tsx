@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import type { Mission, MissionId } from '@rivetrun/contracts';
 import { MISSIONS, TUNING, compileTrack } from '@rivetrun/sim';
 import { TERRAIN_LOOK } from '@/game/palette';
@@ -13,6 +13,9 @@ import { PlayLink } from '@/ui/coach/PlayLink';
 import { Icon } from '@/ui/Icon';
 import { MODE_NOTE, ModeSwitch } from '@/ui/ModeSwitch';
 import { Shell } from '@/ui/Shell';
+import { scenarioSegments } from '@/ui/strategy/scenario';
+import { ScenarioStrip } from '@/ui/strategy/ScenarioStrip';
+import { assessBuild } from '@/ui/strategy/sim';
 import { TrackProfile } from '@/ui/TrackProfile';
 import { useRivalPrefetch } from '@/ui/useRivalPrefetch';
 import { BriefTheBrain } from './BriefTheBrain';
@@ -55,6 +58,7 @@ export function Brief({ missionId }: { readonly missionId: MissionId }) {
   const setMission = useBuildStore((store) => store.setMission);
   const setBuild = useBuildStore((store) => store.setBuild);
   const mode = useBuildStore((store) => store.mode);
+  const priority = useBuildStore((store) => store.priority);
   const warnings = missionWarnings(mission, build, { aiSenses: mode === 'jev' });
   const stats = buildStats(build);
   const blockers = missionBlockers(mission, build);
@@ -62,6 +66,8 @@ export function Brief({ missionId }: { readonly missionId: MissionId }) {
   const rescue = blocked ? presetThatFinishes(mission) : null;
   const setSlot = useWorkshopUi((store) => store.setSlot);
   const overBudget = stats.overBudgetEur > 0;
+  // The sim's dry run of this build on this mission: a few ms, so it is simply redone when either changes.
+  const scenario = useMemo(() => scenarioSegments(mission, build, assessBuild(build, mission, priority)), [mission, build, priority]);
 
   useEffect(() => setMission(missionId), [missionId, setMission]);
   useRivalPrefetch(mission);
@@ -155,6 +161,10 @@ export function Brief({ missionId }: { readonly missionId: MissionId }) {
 
       {/* A build that cannot finish goes above the fold, next to its fix; otherwise the robot is a footnote. */}
       {blocked ? robotCard : null}
+
+      <div className="rr-rise" style={{ ['--i' as string]: 2 }}>
+        <ScenarioStrip segments={scenario} buildName={buildName(build)} />
+      </div>
 
       <section className="rr-rise flex flex-col gap-1.5" style={{ ['--i' as string]: 2 }}>
         <ModeSwitch />
