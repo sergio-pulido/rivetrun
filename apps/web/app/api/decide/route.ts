@@ -1,6 +1,7 @@
 import { createJevBrain, JevError } from '@rivetrun/brain';
 import { DecideRequestSchema, type DecideResponse } from '@rivetrun/contracts';
 import { apiError, parseJsonBody } from '@/api/respond';
+import { decideFault, jevFaultOf } from '../_lib/jevFault';
 import { cacheDecision, decisionKey, getCachedDecision } from '../_lib/store';
 
 export const runtime = 'nodejs';
@@ -21,13 +22,16 @@ export async function POST(request: Request): Promise<Response> {
 
   const started = performance.now();
   const key = decisionKey(parsed.data);
-  const cached = getCachedDecision(key);
+  // The test switch (jevFault.ts) comes before the cache: a faulted client must not be served a stored answer.
+  const fault = jevFaultOf(request);
+  const cached = fault ? undefined : getCachedDecision(key);
   if (cached) {
     const hit: DecideResponse = { ...cached, latencyMs: Math.round(performance.now() - started) };
     return Response.json(hit, { headers: { 'x-rivetrun-cache': 'hit' } });
   }
 
   try {
+    if (fault) await decideFault(fault);
     const joined = inFlight.get(key);
     const call =
       joined ??

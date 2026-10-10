@@ -2,6 +2,7 @@ import { BriefingSchema, BuildSchema, MissionIdSchema, PrioritySchema, SeedSchem
 import { z } from 'zod';
 import { apiError, parseWith } from '@/api/respond';
 import { requestGhost } from '../_lib/ghostStore';
+import { jevFaultOf } from '../_lib/jevFault';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -38,7 +39,8 @@ export async function GET(request: Request): Promise<Response> {
   if (!parsed.ok) return parsed.response;
   const { mission, seed, build, priority, briefing } = parsed.data;
 
-  const answer = requestGhost({ missionId: mission, seed, build, priority, briefing });
+  const fault = jevFaultOf(request);
+  const answer = requestGhost({ missionId: mission, seed, build, priority, briefing, ...(fault ? { fault } : {}) });
   if (answer.status === 'ready') return Response.json(answer.body);
   if (answer.status === 'pending') return Response.json({ status: 'computing' }, { status: 202, headers: { 'Retry-After': '2' } });
   return apiError(503, 'upstream_error', `No Jev ghost: ${answer.reason}`);

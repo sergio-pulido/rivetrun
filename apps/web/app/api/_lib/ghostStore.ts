@@ -1,6 +1,7 @@
 import { createJevBrain } from '@rivetrun/brain';
 import type { Build, GhostTrace, MissionId } from '@rivetrun/contracts';
 import { MISSIONS, runHeadless } from '@rivetrun/sim';
+import { faultedJev, type JevFault } from './jevFault';
 import { CACHE_VERSION } from './version';
 
 // Jev ghosts for Drive mode: the server drives the same mission, seed, build and briefing once with Jev and
@@ -11,6 +12,8 @@ export interface GhostRequest {
   readonly build: Build;
   readonly priority: number;
   readonly briefing?: string;
+  /** Test switch (jevFault.ts): drive this ghost with a Jev that fails or never answers in time. */
+  readonly fault?: JevFault;
 }
 
 export interface GhostBody {
@@ -54,6 +57,7 @@ const keyOf = (request: GhostRequest): string =>
     { ...request.build, sensors: [...request.build.sensors].sort(), extras: [...request.build.extras].sort() },
     request.priority,
     request.briefing ?? '',
+    request.fault ?? '',
   ]);
 
 function remember(key: string, entry: Entry): void {
@@ -68,7 +72,7 @@ async function compute(key: string, request: GhostRequest): Promise<void> {
   if (state.active >= MAX_CONCURRENT) await new Promise<void>((resolve) => state.queue.push(resolve));
   state.active += 1;
   try {
-    const { episode, ghost } = await runHeadless(MISSIONS[request.missionId], request.seed, request.build, jev, {
+    const { episode, ghost } = await runHeadless(MISSIONS[request.missionId], request.seed, request.build, request.fault ? faultedJev(request.fault) : jev, {
       priority: request.priority,
       policy: 'jev',
       briefing: request.briefing,
@@ -104,7 +108,7 @@ export function requestGhost(request: GhostRequest): GhostAnswer {
   if (entry?.state === 'ready') return { status: 'ready', body: entry.body };
   if (entry?.state === 'pending') return { status: 'pending' };
   if (entry?.state === 'failed' && Date.now() - entry.at < RETRY_AFTER_FAILURE_MS) return { status: 'unavailable', reason: entry.reason };
-  if (!process.env.JEV_API_KEY) return { status: 'unavailable', reason: 'JEV_API_KEY is not set' };
+  if (!request.fault && !process.env.JEV_API_KEY) return { status: 'unavailable', reason: 'JEV_API_KEY is not set' };
   remember(key, { state: 'pending', since: Date.now() });
   void compute(key, request);
   return { status: 'pending' };
