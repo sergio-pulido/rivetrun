@@ -10,7 +10,7 @@ import {
   ProbabilitiesSchema,
 } from './brain';
 import { BuildSchema } from './build';
-import { TriggerCauseSchema, TriggerKindSchema, TriggerSchema } from './sensing';
+import { ObservationSchema, TriggerCauseSchema, TriggerKindSchema, TriggerSchema } from './sensing';
 import { EnvironmentSchema, MissionIdSchema, ObstacleSchema, SeedSchema, TerrainIdSchema } from './world';
 
 export const SimEffectSchema = z.enum(['dust', 'splash', 'mud_spray', 'sparks', 'slip', 'smoke', 'winch', 'bubbles']);
@@ -218,6 +218,13 @@ export const RunEventSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('airborne'), t: z.number(), x: z.number(), v: z.number(), vy: z.number(), cause: z.enum(['ramp', 'jump', 'drop']) }),
   z.object({ type: z.literal('landed'), t: z.number(), x: z.number(), impactMps: z.number().min(0), airtimeS: z.number().min(0), damagePct: z.number().min(0) }),
   z.object({ type: z.literal('fell'), t: z.number(), x: z.number(), falls: z.number().int().min(1), respawnX: z.number() }),
+  /** Telemetry: what the robot's sensors report right now, about 5 times a second. In Drive mode, also the control in force. */
+  z.object({
+    type: z.literal('observation'),
+    t: z.number(),
+    observation: ObservationSchema,
+    control: z.object({ throttle: z.number().min(0).max(1), brake: z.number().min(0).max(1), action: ActionSchema }).optional(),
+  }),
   z.object({ type: z.literal('finish'), t: z.number(), outcome: OutcomeSchema }),
   z.object({ type: z.literal('dnf'), t: z.number(), reason: DnfReasonSchema, outcome: OutcomeSchema }),
 ]);

@@ -79,7 +79,7 @@ export const MISSIONS: Readonly<Record<MissionId, Mission>> = {
   },
   M6: {
     id: 'M6', name: 'Deep Water', description: 'A flooded passage up to 120 cm deep, with a current and submerged debris. Seal the robot and fit thrusters, or sink.',
-    weather: 'clear', starThreshold: 450, leaderboard: false,
+    weather: 'clear', starThreshold: 400, leaderboard: false,
     track: {
       segments: [
         { terrain: 'asphalt', lengthM: 12, slopeDeg: 0 },

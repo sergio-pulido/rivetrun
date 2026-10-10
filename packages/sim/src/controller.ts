@@ -10,6 +10,7 @@ import type {
   DecisionRecord,
   Outcome,
   Trigger,
+  TriggerCause,
   Episode,
   Mission,
   Policy,
@@ -19,7 +20,7 @@ import type {
 import { BRIEFING_MAX_CHARS } from '@rivetrun/contracts';
 import { heuristicDecide } from './brains';
 import { TUNING } from './data';
-import { START_TRIGGER, advanceBrain, availableActions, buildQuestion } from './perception';
+import { START_TRIGGER, advanceBrain, availableActions, buildQuestion, observe } from './perception';
 import { createRun, markDecision, step, withAction } from './physics';
 import { score } from './score';
 import type { HeadlessOptions, HeadlessResult, RunConfig, RunController, RunControllerOptions, RunState, StepDamage } from './types';
@@ -30,6 +31,10 @@ declare function setTimeout(handler: () => void, ms: number): number;
 declare function clearTimeout(handle: number): void;
 
 const MAX_DECISIONS = 2000;
+/** Telemetry: one 'observation' event every this many steps (4 × 50 ms = 5 Hz). */
+const OBSERVE_EVERY_STEPS = 4;
+/** Drive mode: a control change within this long of a trigger counts as the player's reaction to it. */
+const REACTION_WINDOW_S = 3;
 const TICK_MS = 16;
 const MAX_FRAME_MS = 100;
 /** Continuous damage (water, tip-over) is reported in chunks of this size. */
@@ -276,11 +281,15 @@ export function driveController(config: RunConfig, readInput: () => ControlInput
     new Promise<Episode>((resolve) => {
       let state = createRun({ ...config, manual: true });
       const pendingDamage: Partial<Record<DamageCause, number>> = {};
+      const reactions: { t: number; xM: number; label: string; cause: TriggerCause; humanS: number | null }[] = [];
+      let lastAction: Action | undefined;
       let accumulatedMs = 0;
       let last = now();
       const complete = (): void => {
         if (timer !== undefined) clearTimeout(timer);
-        resolve(toEpisode(state, [], 'human', newEpisodeId(state)));
+        const episode = toEpisode(state, [], 'human', newEpisodeId(state));
+        const breakdown = episode.outcome.breakdown;
+        resolve(breakdown ? { ...episode, outcome: { ...episode.outcome, breakdown: { ...breakdown, reactions: reactions.map((r) => ({ ...r })) } } } : episode);
       };
       finish = complete;
       const tick = (): void => {
@@ -291,8 +300,20 @@ export function driveController(config: RunConfig, readInput: () => ControlInput
         while (accumulatedMs >= TUNING.dtMs && !state.done) {
           accumulatedMs -= TUNING.dtMs;
           const prev = state;
-          state = step(state, controlToAction(readInput(), config.build));
+          const input = readInput();
+          const action = controlToAction(input, config.build);
+          state = step(state, action);
           emitStepEvents(emit, prev, state, pendingDamage);
+          if (state.stepCount % OBSERVE_EVERY_STEPS === 0) {
+            emit({ type: 'observation', t: state.sim.t, observation: observe(state), control: { throttle: level(input.throttle), brake: level(input.brake), action } });
+          }
+          // Reaction: the first change of command after something was detected.
+          if (lastAction !== undefined && action !== lastAction) {
+            for (const reaction of reactions) {
+              if (reaction.humanS === null && state.sim.t - reaction.t <= REACTION_WINDOW_S) reaction.humanS = Math.round((state.sim.t - reaction.t) * 100) / 100;
+            }
+          }
+          lastAction = action;
           // HUD hints: the heuristic's read of each change, from the same Observation. Shown, never applied.
           const advanced = advanceBrain(state);
           state = advanced.state;
@@ -300,6 +321,9 @@ export function driveController(config: RunConfig, readInput: () => ControlInput
             const question = buildQuestion(state, advanced.trigger);
             const decision = heuristicDecide(question);
             emit({ type: 'decision', t: state.sim.t, question, decision, log: decisionLog(question, decision, state, state), advisory: true });
+            if (advanced.trigger.kind === 'perception' || advanced.trigger.kind === 'body') {
+              reactions.push({ t: state.sim.t, xM: Math.round(state.sim.x * 10) / 10, label: advanced.trigger.label, cause: advanced.trigger.cause, humanS: null });
+            }
           }
         }
         if (state.done) {
@@ -403,6 +427,7 @@ export function runController(config: RunConfig, brain: Brain, options: RunContr
           const prev = state;
           state = step(state, state.action);
           emitStep(prev);
+          if (state.stepCount % OBSERVE_EVERY_STEPS === 0) emit({ type: 'observation', t: state.sim.t, observation: observe(state) });
           const advanced = advanceBrain(state);
           state = advanced.state;
           if (state.done || !advanced.trigger) continue;
