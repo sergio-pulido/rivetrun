@@ -115,9 +115,11 @@ function Summary({ result }: { readonly result: RunResult }) {
   }, [recordBest, episode, outcome, result]);
 
   return (
-    <main className="mx-auto flex min-h-dvh max-w-[430px] flex-col gap-3 px-4 pb-[max(18px,env(safe-area-inset-bottom))] pt-[max(18px,env(safe-area-inset-top))]">
-      <AppHeader back="/" label="Result" />
-      <header className="flex flex-col items-center gap-1">
+    // Wide screens (1024 px and up): three columns side by side, the run's breakdown, the reaction duel with the decision
+    // summary, and the duel table. The wrappers below have no box on a phone, so its one column is unchanged.
+    <main className="mx-auto flex min-h-dvh max-w-[430px] flex-col gap-3 px-4 pb-[max(18px,env(safe-area-inset-bottom))] pt-[max(18px,env(safe-area-inset-top))] lg:grid lg:max-w-[1360px] lg:grid-cols-3 lg:content-start lg:items-start lg:gap-x-6 lg:gap-y-4 lg:px-8">
+      <AppHeader back="/" label="Result" className="lg:col-span-3" />
+      <header className="flex flex-col items-center gap-1 lg:col-span-3">
         <span className="font-mono text-[11px] font-medium uppercase tracking-[2px] text-muted">
           Mission 0{mission.id.slice(1)} · {mission.name}
         </span>
@@ -131,6 +133,7 @@ function Summary({ result }: { readonly result: RunResult }) {
         </div>
       </header>
 
+      <div className="contents lg:col-span-3 lg:mx-auto lg:flex lg:w-full lg:max-w-[900px] lg:flex-col lg:gap-3">
       {bestVerdict ? (
         <p
           className={`rr-pop rounded-[14px] border px-3 py-2.5 text-[13px] leading-snug ${bestVerdict.fresh ? 'border-orange bg-orange-deep text-text' : 'border-line bg-panel-2 text-text-2'}`}
@@ -152,6 +155,9 @@ function Summary({ result }: { readonly result: RunResult }) {
         ) : null}
       </p>
 
+      </div>
+
+      <div className="contents lg:col-start-2 lg:row-start-4 lg:flex lg:flex-col lg:gap-3">
       {decisions ? (
         <p className="rr-rise rounded-[14px] border border-cyan-line bg-cyan-deep px-3 py-2.5 text-[13px] leading-snug text-cyan-soft" style={{ ['--i' as string]: 1 }}>
           <span className="font-mono text-[10px] font-medium tracking-[1.5px] text-cyan">BRAIN · </span>
@@ -165,10 +171,13 @@ function Summary({ result }: { readonly result: RunResult }) {
         </div>
       ) : null}
 
-      <div className="rr-rise" style={{ ['--i' as string]: 2 }}>
+      </div>
+
+      <div className="rr-rise lg:col-start-3 lg:row-start-4" style={{ ['--i' as string]: 2 }}>
         <DuelTable episode={episode} ghosts={result.ghosts} briefing={briefing} />
       </div>
 
+      <div className="contents lg:col-start-1 lg:row-start-4 lg:flex lg:flex-col lg:gap-3">
       {breakdown ? (
         <div className="rr-rise" style={{ ['--i' as string]: 3 }}>
           <RunBreakdown view={breakdown} />
@@ -179,6 +188,9 @@ function Summary({ result }: { readonly result: RunResult }) {
         <ScoreBreakdown outcome={outcome} />
       </div>
 
+      </div>
+
+      <div className="contents lg:col-span-3 lg:row-start-5 lg:grid lg:grid-cols-3 lg:items-center lg:gap-6">
       <div className="rr-rise" style={{ ['--i' as string]: 4 }}>
         <PointsRow earned={earned} />
       </div>
@@ -196,7 +208,9 @@ function Summary({ result }: { readonly result: RunResult }) {
         </Link>
       ) : null}
 
-      <nav className="mt-auto grid grid-cols-4 gap-2 pt-1" aria-label="After the run">
+      </div>
+
+      <nav className="mt-auto grid grid-cols-4 gap-2 pt-1 lg:col-span-3 lg:row-start-6 lg:mx-auto lg:mt-2 lg:w-full lg:max-w-[760px]" aria-label="After the run">
         {overBudgetEur > 0 ? (
           <Link href="/workshop" className={`${TILE} !border-bad/60 !text-bad`} title={`The robot on the bench is €${overBudgetEur} over budget`}>
             <Tile icon="retry">OVER €{overBudgetEur}</Tile>
@@ -224,18 +238,18 @@ function Summary({ result }: { readonly result: RunResult }) {
       </nav>
       {shared && shared.outcome !== 'shared' ? (
         // This browser shared no image: the card can still be saved and sent by hand.
-        <button type="button" onClick={() => void downloadShareCard(episode, result.ghosts)} className="flex min-h-11 items-center justify-center gap-2 rounded-xl border border-line-3 font-mono text-[11px] font-medium tracking-[1px] text-text active:bg-panel-2">
+        <button type="button" onClick={() => void downloadShareCard(episode, result.ghosts)} className="lg:col-span-3 lg:mx-auto lg:w-full lg:max-w-[760px] flex min-h-11 items-center justify-center gap-2 rounded-xl border border-line-3 font-mono text-[11px] font-medium tracking-[1px] text-text active:bg-panel-2">
           <Icon name="download" size={16} />
           SAVE THE SHARE CARD (PNG)
         </button>
       ) : null}
       {shared?.outcome === 'copied' ? (
-        <p role="status" className="text-center font-mono text-[11px] text-muted">
+        <p role="status" className="text-center font-mono text-[11px] text-muted lg:col-span-3">
           Copied to the clipboard.
         </p>
       ) : null}
       {shared?.outcome === 'manual' ? (
-        <label className="flex flex-col gap-1.5">
+        <label className="flex flex-col gap-1.5 lg:col-span-3 lg:mx-auto lg:w-full lg:max-w-[760px]">
           <span role="status" className="font-mono text-[11px] text-muted">
             This browser won&apos;t share or copy for you. Select the text and copy it:
           </span>
