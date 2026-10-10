@@ -167,7 +167,7 @@ export function createRun(config: RunConfig): RunState {
     stoppedS: 0,
     scans: { done: [], missed: [], holdS: 0, centred: 0 },
     brain: {
-      hazardSeenX: -1, hazardReachedX: -1, gapSeenX: -1, gapReachedX: -1, terrainSeenX: -1, zonesSeen: [], zonesReached: [],
+      hazardSeenX: -1, hazardReachedX: -1, gapSeenX: -1, gapReachedX: -1, terrainSeenX: -1, terrainNearX: -1, zonesSeen: [], zonesReached: [],
       slipping: false, gusting: false, tiltBand: 0, energyLow: false, stallMark: 0, stopTold: false, jumpReady: true, damageStep: 0,
     },
     finished: false,

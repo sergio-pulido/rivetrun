@@ -34,6 +34,7 @@ export interface BrainMemory {
   readonly gapSeenX: number;
   readonly gapReachedX: number;
   readonly terrainSeenX: number;
+  readonly terrainNearX: number;
   readonly zonesSeen: readonly string[];
   readonly zonesReached: readonly string[];
   readonly slipping: boolean;

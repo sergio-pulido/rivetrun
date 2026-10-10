@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { ConditionsSchema, ObstacleSchema, TerrainIdSchema } from './world';
 
 /** Bumped when the physics or the question change in a way that makes cached answers stale. */
-export const GAMEPLAY_VERSION = 3;
+export const GAMEPLAY_VERSION = 4;
 
 /** Where a piece of knowledge comes from. `core` is the kit every build has: encoders, charge, current, mission plan. */
 export const SensorSourceSchema = z.enum(['core', 'imu', 'ultrasonic', 'tof', 'lidar', 'camera', 'moisture_probe', 'scout_drone', 'bumper']);

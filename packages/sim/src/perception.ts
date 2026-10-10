@@ -374,6 +374,8 @@ const ENERGY = { lowPct: 10, okPct: 30 } as const;
 const SLIP_OFF_PCT = 15;
 const TOLD_AFTER_S = 1;
 const STALL_RETELL_S = 2;
+/** A change of ground first seen from further than this is told again at this distance. */
+const TERRAIN_NEAR_M = 2;
 
 const LEGACY_TRIGGER: Readonly<Record<TriggerCause, DecisionTrigger>> = {
   start: 'start',
@@ -488,8 +490,13 @@ export function advanceBrain(next: RunState): { readonly trigger: Trigger | null
     const ahead = next.world.segments.find((segment) => segment.startM > x && segment.terrain === terrain.terrain);
     const boundary = ahead?.startM ?? x + terrain.distanceM;
     if (Math.abs(boundary - memory.terrainSeenX) > 0.5) {
-      remember({ terrainSeenX: boundary });
+      // Seen from close up, the first telling is also the close one.
+      remember({ terrainSeenX: boundary, terrainNearX: boundary - x <= TERRAIN_NEAR_M ? boundary : memory.terrainNearX });
       fired.push(fire('perception', 'terrain_seen', `${SOURCE_LABEL[terrain.source]} · ${terrain.terrain} in ${terrain.distanceM} m`, terrain.source, ahead?.index ?? next.segmentIndex + 1));
+    } else if (boundary - x <= TERRAIN_NEAR_M && Math.abs(boundary - memory.terrainNearX) > 0.5) {
+      // Seen from far, a change of ground is told again when it is close: what was a plan is now the next second of driving.
+      remember({ terrainNearX: boundary });
+      fired.push(fire('perception', 'terrain_seen', `${SOURCE_LABEL[terrain.source]} · ${terrain.terrain} now ${terrain.distanceM} m`, terrain.source, `${ahead?.index ?? next.segmentIndex + 1}:near`));
     }
   }
   // Driving onto ground the build had seen coming: it knows the moment it gets there.

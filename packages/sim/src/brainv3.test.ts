@@ -160,3 +160,17 @@ describe('Telemetry console and Brain Arena', () => {
     expect(lenient.episode.decisions.filter((d) => d.fallback).length).toBeGreaterThan(2);
   });
 });
+
+describe('Brain v3: a change of ground seen from far is told again close up', () => {
+  it('the camera build is asked again about 2 m before the rock field, and no longer slams onto it on M4', async () => {
+    const { episode } = await runHeadless(MISSIONS.M4, 7, PRESETS.all_rounder.build, heuristicBrain);
+    const told = episode.decisions.map((d) => d.log?.trigger).filter((trigger) => trigger?.cause === 'terrain_seen');
+    const near = told.filter((trigger) => trigger?.eventId?.includes(':near'));
+    expect(near.length).toBeGreaterThan(1);
+    expect(near.every((trigger) => / now \d/.test(trigger!.label))).toBe(true);
+    // Each near telling follows a far one for the same segment.
+    for (const trigger of near) expect(told.some((far) => far!.eventId === trigger!.eventId!.replace(':near', ''))).toBe(true);
+    expect(episode.outcome.finished).toBe(true);
+    expect(episode.outcome.damagePct).toBeLessThan(10);
+  });
+});
