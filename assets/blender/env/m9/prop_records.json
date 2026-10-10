@@ -1,0 +1,78 @@
+[
+  {
+    "id": "snowdrift_01",
+    "file": "props/snowdrift_01.glb",
+    "url": "/env/m9/props/snowdrift_01.glb",
+    "sizeBytes": 24784,
+    "triangles": 958,
+    "suggestedScale": 1,
+    "envelopeM": [
+      2.451,
+      0.345,
+      1.267
+    ],
+    "root": "m9_snowdrift_01",
+    "origin": "base-centre",
+    "upAxis": "+Y",
+    "units": "metres",
+    "compression": "none_intermediate",
+    "notes": "Smooth wind-carved drift. Low versions may sit near the street; keep driving lanes and the M9 scan pad clear."
+  },
+  {
+    "id": "snowdrift_02",
+    "file": "props/snowdrift_02.glb",
+    "url": "/env/m9/props/snowdrift_02.glb",
+    "sizeBytes": 25300,
+    "triangles": 958,
+    "suggestedScale": 1,
+    "envelopeM": [
+      3.81,
+      0.68,
+      1.565
+    ],
+    "root": "m9_snowdrift_02",
+    "origin": "base-centre",
+    "upAxis": "+Y",
+    "units": "metres",
+    "compression": "none_intermediate",
+    "notes": "Smooth wind-carved drift. Low versions may sit near the street; keep driving lanes and the M9 scan pad clear."
+  },
+  {
+    "id": "snowdrift_03",
+    "file": "props/snowdrift_03.glb",
+    "url": "/env/m9/props/snowdrift_03.glb",
+    "sizeBytes": 26324,
+    "triangles": 958,
+    "suggestedScale": 1,
+    "envelopeM": [
+      2.538,
+      1.021,
+      2.056
+    ],
+    "root": "m9_snowdrift_03",
+    "origin": "base-centre",
+    "upAxis": "+Y",
+    "units": "metres",
+    "compression": "none_intermediate",
+    "notes": "Smooth wind-carved drift. Low versions may sit near the street; keep driving lanes and the M9 scan pad clear."
+  },
+  {
+    "id": "antenna_mast",
+    "file": "props/antenna_mast.glb",
+    "url": "/env/m9/props/antenna_mast.glb",
+    "sizeBytes": 34812,
+    "triangles": 456,
+    "suggestedScale": 1,
+    "envelopeM": [
+      1.65,
+      4.3,
+      1.882
+    ],
+    "root": "m9_antenna_mast",
+    "origin": "base-centre",
+    "upAxis": "+Y",
+    "units": "metres",
+    "compression": "none_intermediate",
+    "notes": "Generic guyed radio mast, weatherproof radio and red warning lens. Tall scenery behind the far lane; no exported lights."
+  }
+]

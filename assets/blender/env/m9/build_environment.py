@@ -33,22 +33,24 @@ for key in ['far_ice','mid_station','near_snow']:
  c=bpy.data.collections.new(key);scene.collection.children.link(c);collections[key]=c
 
 def drift(name,p,width,depth,height,mat=snow,variant=0):
- nx,ny=28,14;vertices=[]
- for j in range(ny+1):
-  v=j/ny*2-1
-  for i in range(nx+1):
-   u=i/nx*2-1
-   cross=max(0,1-u*u)*max(0,1-v*v)
-   # Smooth wind-carved dunes with a displaced crest and shallow leeward ripples.
-   shape=cross**.6*(.85+.13*math.sin(u*3+v*2+variant))
-   z=height*shape+height*.028*cross*math.sin(u*22+v*10)
+ # Elliptical closed footprint: no rectangular sheet corners or holes at ground level.
+ na,nr=40,12;vertices=[(0,0,height*(.85+.13*math.sin(variant)))]
+ for ring in range(1,nr+1):
+  r=ring/nr
+  for i in range(na):
+   a=i*math.tau/na;edge=.975+.025*math.sin(a*5+variant)
+   u=r*math.cos(a)*edge;v=r*math.sin(a)*edge
+   body=max(0,1-r*r)**.72*(.85+.13*math.sin(u*3+v*2+variant))
+   z=height*body+height*.02*r*(1-r)*math.sin(u*22+v*10)
    vertices.append((u*width/2,v*depth/2,z))
- faces=[]
- for j in range(ny):
-  for i in range(nx):
-   a=j*(nx+1)+i;faces.append((a,a+1,a+nx+2,a+nx+1))
+ faces=[(0,1+i,1+(i+1)%na) for i in range(na)]
+ for ring in range(nr-1):
+  first=1+ring*na;second=first+na
+  for i in range(na):
+   j=(i+1)%na;faces.append((first+i,second+i,second+j,first+j))
+ last=1+(nr-1)*na;faces.append(tuple(reversed(range(last,last+na))))
  o=mesh(name,vertices,faces,mat,p)
- for polygon in o.data.polygons:polygon.use_smooth=True
+ for polygon in o.data.polygons:polygon.use_smooth=polygon.index<len(faces)-1
  return o
 
 # Far ice ridge and an aurora, baked into one transparent image.
