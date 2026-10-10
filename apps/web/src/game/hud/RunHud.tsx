@@ -13,6 +13,8 @@ import { sensesOf, type Senses } from '../sense';
 import { TelemetryButton, TelemetryDrawer } from '../telemetry/TelemetryDrawer';
 import { telemetry, useTelemetryOpen } from '../telemetry/telemetryStore';
 import { BrainHud, BrainLine } from './BrainHud';
+import { StrategyChip } from './StrategyChip';
+import type { PilotTag } from './strategy';
 import { brainIsOpen, brainPanel, useBrainChoice } from './brainStore';
 import { DECISION_CHIPS, type DecisionChip } from './decisionChip';
 import { DecisionChips } from './DecisionChips';
@@ -29,6 +31,8 @@ export interface RunHudProps {
   drive?: DriveInput;
   /** Needed in Drive mode: which action-button parts the robot has. */
   build?: Build;
+  /** A robot picked on /play (RR-PLAN): its agent and strategy are named on one line under the top bar. */
+  pilot?: PilotTag;
 }
 
 /** Sound on / off. The choice persists (sfx.ts keeps it in localStorage). */
@@ -343,7 +347,7 @@ export function RunAlerts({ mission, feed, build }: RunAlertsProps) {
 }
 
 /** DOM overlay for the run view: top bar, the decision log, a mark while Jev is thinking, end stamp and the Brain sheet. */
-export function RunHud({ mission, feed, ghosts = NO_GHOSTS, drive, build }: RunHudProps) {
+export function RunHud({ mission, feed, ghosts = NO_GHOSTS, drive, build, pilot }: RunHudProps) {
   const view = useRunView(feed);
   const driving = drive !== undefined;
   // The run keeps its pace while Jev thinks (Brain v3): a small mark says a question is out. Not in Drive mode: the player decides there.
@@ -392,18 +396,25 @@ export function RunHud({ mission, feed, ghosts = NO_GHOSTS, drive, build }: RunH
               <RivalChip trace={ghosts[0]} state={view.state} />
             ) : (
               <span className={`${styles.pill} whitespace-nowrap px-3 py-1.5 font-mono text-[10px] leading-none`} style={{ opacity: thinking ? 1 : 0 }}>
-                JEV IS THINKING
+                {pilot ? `${pilot.agent.toUpperCase()} IS THINKING` : 'JEV IS THINKING'}
               </span>
             )}
           </div>
           <MuteButton />
         </div>
+        {/* Who drives and on what orders (RR-PLAN): there from the start line, one line, never wrapped. */}
+        {pilot && !view.done && (
+          <div className="mt-2 flex">
+            <StrategyChip {...pilot} />
+          </div>
+        )}
         {/* The decision log (Brain v3): what the robot senses, then its last three decisions, newest first. */}
         {!view.done && settled && (
-          <div className="mt-2 flex flex-col items-start gap-1">
+          <div className={`${pilot ? 'mt-1' : 'mt-2'} flex flex-col items-start gap-1`}>
             {/* On a short screen the standing facts give way: they are in the Brief and in the telemetry drawer. */}
             {!short && !phone && <WeatherChip atmosphere={atmosphere} gust={view.state?.gust === true} />}
-            {!short && senses && (
+            {/* On a phone the strategy chip takes the sense chip's place: two chips are all there is room for. */}
+            {!short && senses && !(phone && pilot) && (
               <SenseChip
                 senses={senses}
                 observedM={view.observation?.value.forwardRangeM}

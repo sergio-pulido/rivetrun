@@ -7,6 +7,7 @@ import { useRunAudio } from './audio/useRunAudio';
 import type { DriveInput } from './drive/driveInput';
 import { createFakeRun, fakeGhostTrace } from './fakeRun';
 import { useBrainChoice } from './hud/brainStore';
+import { pilotOverride, type PilotTag } from './hud/strategy';
 import { RunHud } from './hud/RunHud';
 import { UI } from './palette';
 import { quality } from './quality';
@@ -47,6 +48,11 @@ export interface RunCanvasProps {
    * Start the run from here if the first seconds must not be missed on a slow phone.
    */
   onReady?: () => void;
+  /**
+   * A robot picked on /play (RR-PLAN): who drives it and on what orders. The HUD shows it as one line under the top
+   * bar and the robot's name tag reads the agent's name. With `hud={false}`, mount `StrategyChip` in your own HUD.
+   */
+  pilot?: PilotTag;
 }
 
 const DEMO_RESTART_MS = 4200;
@@ -109,7 +115,8 @@ function pinnable(feed: RunFeed): Pinnable {
 }
 
 /** The run view: R3F canvas with the 2.5D scene plus the HUD overlay. Fills its parent. */
-export default function RunCanvas({ mission = MISSIONS.M5, build = PRESETS[DEFAULT_PRESET_ID].build, feed, ghosts, hud = true, drive, onReady }: RunCanvasProps) {
+export default function RunCanvas({ mission = MISSIONS.M5, build = PRESETS[DEFAULT_PRESET_ID].build, feed, ghosts, hud = true, drive, onReady, pilot: givenPilot }: RunCanvasProps) {
+  const pilot = useMemo(() => givenPilot ?? pilotOverride() ?? undefined, [givenPilot]);
   const demo = useDemoRun(mission, build, feed === undefined);
   const activeFeed = feed ?? demo.feed;
   const activeGhosts = ghosts ?? demo.ghosts;
@@ -165,9 +172,9 @@ export default function RunCanvas({ mission = MISSIONS.M5, build = PRESETS[DEFAU
           if (dev) (window as unknown as { __rivetrun?: unknown }).__rivetrun = { info: gl.info, scene, camera, state: () => activeFeed.get().state, pin: dev.pin };
         }}
       >
-        {(plain) => <RunScene mission={mission} build={build} feed={dev?.feed ?? activeFeed} ghosts={activeGhosts} particleBudget={tier.particles} hands={drive} plain={plain} raise={covered} flyIn={!tier.weak && feed !== undefined} />}
+        {(plain) => <RunScene mission={mission} build={build} feed={dev?.feed ?? activeFeed} ghosts={activeGhosts} particleBudget={tier.particles} hands={drive} plain={plain} raise={covered} playerName={drive ? undefined : pilot?.agent} flyIn={!tier.weak && feed !== undefined} />}
       </SceneFrame>
-      {hud && <RunHud mission={mission} feed={activeFeed} ghosts={activeGhosts} drive={drive} build={build} />}
+      {hud && <RunHud mission={mission} feed={activeFeed} ghosts={activeGhosts} drive={drive} build={build} pilot={pilot} />}
     </div>
   );
 }

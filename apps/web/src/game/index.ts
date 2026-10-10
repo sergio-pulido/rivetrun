@@ -27,6 +27,10 @@ export type { TopBarProps } from './hud/TopBar';
 export { RunAlerts, RunHud } from './hud/RunHud';
 export type { RunAlertsProps } from './hud/RunHud';
 // Brain v3 decision log: the last three decisions as chips, for the run HUD and the big screen.
+export { StrategyChip } from './hud/StrategyChip';
+export type { StrategyChipProps } from './hud/StrategyChip';
+export { pilotLine, strategyName } from './hud/strategy';
+export type { PilotTag, Strategy } from './hud/strategy';
 export { DecisionChips } from './hud/DecisionChips';
 export type { DecisionChipsProps } from './hud/DecisionChips';
 export { DECISION_CHIPS, chipsFromRecords, decisionChipText } from './hud/decisionChip';

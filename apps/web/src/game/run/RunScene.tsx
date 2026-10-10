@@ -54,6 +54,8 @@ interface PlayerProps {
   particles: RefObject<ParticleEmitter | null>;
   /** Drive mode: the player's controls. The face follows the pedals and the tag reads YOU. */
   hands?: DriveInput;
+  /** The agent driving a robot picked on /play: its name tag reads this instead of JEV. */
+  name?: string;
   /** Night mission and a build whose lights switch themselves on. */
   lights?: boolean;
   /** No shadow pass on this device: a soft blob under the robot stands in for its shadow. */
@@ -63,7 +65,7 @@ interface PlayerProps {
 const BLOB = new CircleGeometry(1, 20).rotateX(-Math.PI / 2);
 const BLOB_MATERIAL = new MeshBasicMaterial({ color: '#000000', transparent: true, opacity: 0.26, depthWrite: false, fog: false });
 
-function Player({ feed, build, layout, pose, timeScale, particles, hands, lights = false, blob = false }: PlayerProps) {
+function Player({ feed, build, layout, pose, timeScale, particles, hands, name, lights = false, blob = false }: PlayerProps) {
   const group = useRef<Group>(null);
   const drive = useRef<RobotDrive>(restDrive());
   const riding = useRef(restRide());
@@ -225,7 +227,7 @@ function Player({ feed, build, layout, pose, timeScale, particles, hands, lights
       <RobotModel build={build} drive={drive} droneAway />
       {lights && <Headlights nose={stance.nose} />}
       {blob && <mesh geometry={BLOB} material={BLOB_MATERIAL} position={[0, 0.03, 0]} scale={[stance.nose * 1.15, 1, 0.62]} renderOrder={1} />}
-      <Tag text={hands ? POLICY_LABEL.human : POLICY_LABEL.jev} color={UI.safety} y={mk2 ? TAG_Y.mk2 : TAG_Y.procedural} />
+      <Tag text={hands ? POLICY_LABEL.human : (name?.toUpperCase() ?? POLICY_LABEL.jev)} color={UI.safety} y={mk2 ? TAG_Y.mk2 : TAG_Y.procedural} />
     </group>
   );
 }
@@ -452,10 +454,12 @@ export interface RunSceneProps {
   raise?: boolean;
   /** Fly the camera in from a workbench-close view when the run starts. */
   flyIn?: boolean;
+  /** The agent driving the watched robot when it was picked on /play (RR-PLAN): shown on its name tag. */
+  playerName?: string;
 }
 
 /** The 2.5D run view. Mount inside an R3F <Canvas>. Reads sim state only: no physics here. */
-export function RunScene({ mission, build, feed, ghosts = [], particleBudget = 1, hands, plain = false, raise = false, flyIn = false }: RunSceneProps) {
+export function RunScene({ mission, build, feed, ghosts = [], particleBudget = 1, hands, plain = false, raise = false, flyIn = false, playerName }: RunSceneProps) {
   const layout = useMemo(() => layoutTrack(mission.track), [mission.track]);
   const pose = useRef<Pose>(restPose());
   const hasDrone = build.sensors.includes('scout_drone');
@@ -480,7 +484,7 @@ export function RunScene({ mission, build, feed, ghosts = [], particleBudget = 1
       {ghosts.map((trace) => (
         <Ghost key={trace.policy} trace={trace} build={build} layout={layout} pose={pose} timeScale={timeScale} driving={hands !== undefined} />
       ))}
-      <Player feed={feed} build={build} layout={layout} pose={pose} timeScale={timeScale} particles={particles} hands={hands} lights={atmosphere.night && autoLights} blob={particleBudget < 1} />
+      <Player feed={feed} build={build} layout={layout} pose={pose} timeScale={timeScale} particles={particles} hands={hands} name={playerName} lights={atmosphere.night && autoLights} blob={particleBudget < 1} />
       <SenseBand layout={layout} pose={pose} feed={feed} senses={senses} />
       {mission.scanZones && mission.scanZones.length > 0 ? <ScanPads layout={layout} zones={mission.scanZones} build={build} feed={feed} /> : null}
       {hasDrone && <ScoutDroneRig feed={feed} layout={layout} pose={pose} />}
