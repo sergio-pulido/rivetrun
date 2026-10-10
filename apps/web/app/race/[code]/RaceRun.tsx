@@ -1,6 +1,6 @@
 'use client';
 
-import type { GhostTrace } from '@rivetrun/contracts';
+import { GhostTraceSchema, type GhostTrace } from '@rivetrun/contracts';
 import { compileTrack, heuristicBrain, MISSIONS } from '@rivetrun/sim';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -9,6 +9,7 @@ import { DriveControls } from '@/game/drive/DriveControls';
 import { createDriveInput } from '@/game/drive/driveInput';
 import { useRunHaptics } from '@/game/drive/haptics';
 import { RunAlerts } from '@/game/hud/RunHud';
+import { replayTrace } from '@/game/replayFeed';
 import RunCanvas from '@/game/RunCanvas';
 import { createClientBrain } from '@/brain/clientBrain';
 import { AppHeader } from '@/ui/AppHeader';
@@ -38,6 +39,20 @@ const RESTART_NOTE_M = 6;
 /** The arena id of Jev: a picked Jev drives through /api/decide like every JEV bot. */
 const JEV_AGENT = 'jev-1.13.0';
 
+/** The recorded run the server plays for a picked agent: the same stored ghost, asked for by the pick. Null when it cannot be had. */
+async function loadStoredRun(missionId: string, seed: number, pick: RacePlayer['pick']): Promise<GhostTrace | null> {
+  if (!pick || pick.agent === 'human') return null;
+  try {
+    const query = new URLSearchParams({ mission: missionId, seed: String(seed), preset: pick.presetId, agent: pick.agent, strategy: pick.strategy });
+    const response = await fetch(`/api/play/ghost?${query.toString()}`, { cache: 'no-store' });
+    if (response.status !== 200) return null;
+    const parsed = GhostTraceSchema.safeParse(((await response.json()) as { ghost?: unknown }).ghost);
+    return parsed.success ? parsed.data : null;
+  } catch {
+    return null;
+  }
+}
+
 /** Drives this phone's run: starts driveController on the start signal and reports at 5 Hz. */
 function useDrive(snapshot: RaceSnapshot, seat: RaceSeat, me: RacePlayer, clockOffsetMs: number) {
   const feed = useMemo(() => createRunFeed(), []);
@@ -57,8 +72,19 @@ function useDrive(snapshot: RaceSnapshot, seat: RaceSeat, me: RacePlayer, clockO
     if (!live || startAt === null) return undefined;
     // The page was reloaded after this robot's result was final: there is nothing left to drive.
     if (doneRef.current) return undefined;
-    // The server moves this lane itself from a recorded run of the same pick (RR-GUARD, cache first): the phone watches.
-    if (me.serverDriven) return undefined;
+    // The server moves this lane itself from a recorded run of the same pick (RR-GUARD, cache first). The phone
+    // plays the same recording in its own view, on the room's clock, so the robot it shows is where the lane is.
+    if (me.serverDriven) {
+      let alive = true;
+      let stopReplay: (() => void) | undefined;
+      void loadStoredRun(missionId, seed, me.pick).then((trace) => {
+        if (alive && trace) stopReplay = replayTrace(trace, feed, { elapsedMs: Date.now() + clockOffsetMs - startAt });
+      });
+      return () => {
+        alive = false;
+        stopReplay?.();
+      };
+    }
     drive.release();
     let stop: (() => void) | undefined;
     const waitMs = startAt - (Date.now() + clockOffsetMs);
