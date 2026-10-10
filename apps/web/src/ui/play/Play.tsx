@@ -10,6 +10,7 @@ import { TERRAIN_LOOK } from '@/game/palette';
 import { RobotGlyph } from '../../../app/race/_lib/RobotGlyph';
 import { AppHeader } from '@/ui/AppHeader';
 import { Icon } from '@/ui/Icon';
+import { MissionArt } from '@/ui/MissionArt';
 import { MISSION_AUTO_MS, after, planTitle, readMatch, ringLeft, secondsLeft, stepsOf, type Seat, type Stage, type Step } from './match';
 
 export interface PlayAgent {
@@ -318,8 +319,14 @@ export function Play({ agents, plans, missions, defaultMission, missionStep }: P
                       <span className="rounded border border-line-3 px-1.5 py-0.5 text-[10px] text-muted">{option.weather}</span>
                     </span>
                   </span>
-                  <span className="font-display text-xl font-bold leading-tight">{option.name}</span>
-                  <span className="line-clamp-2 text-[13px] leading-snug text-text-2">{option.description}</span>
+                  <span className="flex items-center gap-3">
+                    {/* The mission's thumbnail; without it the card is its text alone. */}
+                    <MissionArt id={id} className="h-[68px] w-[120px] shrink-0 rounded-lg object-cover" />
+                    <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                      <span className="font-display text-xl font-bold leading-tight">{option.name}</span>
+                      <span className="line-clamp-2 text-[13px] leading-snug text-text-2">{option.description}</span>
+                    </span>
+                  </span>
                   <span className="flex h-1.5 overflow-hidden rounded-sm">
                     {option.track.segments.map((segment, index) => (
                       <span key={index} style={{ width: `${(segment.lengthM / length) * 100}%`, background: TERRAIN_LOOK[segment.terrain].hud }} />

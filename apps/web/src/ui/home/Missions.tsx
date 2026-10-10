@@ -6,6 +6,7 @@ import type { MissionId } from '@rivetrun/contracts';
 import { MISSION_IDS, MISSIONS } from '@rivetrun/sim';
 import { TERRAIN_LOOK } from '@/game/palette';
 import { useProgressStore } from '@/state/progress';
+import { MissionArt } from '@/ui/MissionArt';
 import { Stars } from '@/ui/Stars';
 import { pageCount, pageOf, playFirst, step } from './carousel';
 
@@ -48,20 +49,22 @@ export function Missions({ playMission, className = '' }: { readonly playMission
           const play = id === playMission;
           return (
             <li key={id} className={`w-[156px] shrink-0 snap-start lg:w-auto ${pageOf(at, PER_PAGE) === page ? '' : 'lg:hidden'}`}>
-              <Link href={`/brief/${id}`} data-play={play ? 'true' : undefined} className={`flex h-full flex-col gap-1.5 rounded-[12px] border p-2.5 active:bg-panel-2 lg:gap-1 lg:p-2 ${play ? 'border-orange bg-[#1F150C]' : 'border-line bg-panel'}`}>
-                <span className="flex items-center justify-between gap-1.5 font-mono text-[10px] font-medium tracking-[1px]">
+              <Link href={`/brief/${id}`} data-play={play ? 'true' : undefined} className={`relative flex h-full flex-col gap-1.5 overflow-hidden rounded-[12px] border p-2.5 active:bg-panel-2 lg:gap-1 lg:p-2 ${play ? 'border-orange bg-[#1F150C]' : 'border-line bg-panel'}`}>
+                {/* The thumbnail fades in from the right, behind the text; without it this is the text card. */}
+                <MissionArt id={id} className="pointer-events-none absolute inset-y-0 right-0 h-full w-[58%] object-cover opacity-75 [mask-image:linear-gradient(to_right,transparent,black_60%)]" />
+                <span className="relative flex items-center justify-between gap-1.5 font-mono text-[10px] font-medium tracking-[1px]">
                   <span className="whitespace-nowrap text-orange-soft">{play ? '' : <span className="lg:hidden">MISSION </span>}0{id.slice(1)}</span>
-                  {play ? <span className="whitespace-nowrap rounded bg-orange px-1 py-px text-[9px] font-semibold uppercase text-on-orange">Play mission</span> : <span className="rounded border border-line-3 px-1 py-px uppercase text-muted">{mission.weather}</span>}
+                  {play ? <span className="whitespace-nowrap rounded bg-orange px-1 py-px text-[9px] font-semibold uppercase text-on-orange">Play mission</span> : <span className="rounded border border-line-3 bg-ground/75 px-1 py-px uppercase text-text-2">{mission.weather}</span>}
                 </span>
-                <span className="truncate font-display text-[14px] font-semibold leading-tight">{mission.name}</span>
-                <span className="flex h-[5px] overflow-hidden rounded-[3px]">
+                <span className="relative truncate font-display text-[14px] font-semibold leading-tight [text-shadow:0_1px_3px_rgb(0_0_0/0.9)]">{mission.name}</span>
+                <span className="relative flex h-[5px] overflow-hidden rounded-[3px]">
                   {mission.track.segments.map((segment, index) => (
                     <span key={index} style={{ width: `${(segment.lengthM / length) * 100}%`, background: TERRAIN_LOOK[segment.terrain].hud }} />
                   ))}
                 </span>
-                <span className="flex items-center justify-between">
+                <span className="relative flex items-center justify-between">
                   <Stars count={best[id]?.stars ?? 0} size={12} />
-                  <span className="font-mono text-[10px] text-muted">
+                  <span className="rounded bg-ground/75 px-1 font-mono text-[10px] text-text-2">
                     {play ? `${mission.weather} · ` : ''}
                     {length} m
                   </span>
