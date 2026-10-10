@@ -230,7 +230,14 @@ export const MatchResponseSchema = z.object({
 export type MatchResponse = z.infer<typeof MatchResponseSchema>;
 /** POST /api/race/match when every auto room is busy: HTTP 503 with this body. */
 export const MatchBusySchema = z.object({ error: z.string(), retryInS: z.number().int().min(1) });
-export const MatchRequestSchema = z.object({ nickname: NicknameSchema.optional(), test: z.boolean().optional() });
+/** `missionId` must be one of PLAY_MISSIONS; absent = PLAY_MISSION. */
+export const MatchRequestSchema = z.object({
+  nickname: NicknameSchema.optional(),
+  test: z.boolean().optional(),
+  missionId: MissionIdSchema.optional(),
+  /** The seat this phone already holds in another auto room's lobby: it is given up as part of the match (a mission tap moves the phone). */
+  leave: z.object({ code: RaceCodeSchema, playerId: z.string(), token: z.string() }).optional(),
+});
 /** POST /api/race/[code]/pick. `agent` must be one of ARENA_BRAINS or 'human'. */
 export const PickRequestSchema = z.object({ playerId: z.string(), token: z.string(), pick: PlayerPickSchema });
 

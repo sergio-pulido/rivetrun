@@ -48,7 +48,9 @@ function Tile({ snapshot, index, now }: { readonly snapshot: RaceSnapshot; reado
   return (
     <section data-testid="auto-room" style={{ background: COLORS.panel, border: `1px solid ${COLORS.line}`, borderRadius: 8, padding: 10, minWidth: 0 }}>
       <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 6 }}>
-        <strong style={{ color: COLORS.text, fontSize: 13, letterSpacing: 1 }}>ROOM {index + 1}</strong>
+        <strong style={{ color: COLORS.text, fontSize: 13, letterSpacing: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          ROOM {index + 1} <span data-testid="auto-room-mission" style={{ color: COLORS.accent, fontWeight: 400 }}>· {snapshot.missionId} {MISSIONS[snapshot.missionId].name}</span>
+        </strong>
         <span data-testid="auto-room-state" style={{ color: snapshot.status === 'lobby' ? COLORS.accent : COLORS.dim, fontSize: 13, fontVariantNumeric: 'tabular-nums' }}>
           {headline(snapshot, now)}
         </span>

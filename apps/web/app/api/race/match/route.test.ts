@@ -19,6 +19,17 @@ describe('POST /api/race/match and /api/race/[code]/pick', () => {
       { params: Promise.resolve({ code: seat.code }) },
     );
     expect(bad.status).toBe(400);
+    const notOpen = await POST(new Request('http://localhost/api/race/match', { method: 'POST', body: JSON.stringify({ test: true, missionId: 'M1' }) }));
+    expect(notOpen.status).toBe(400);
+    const notAMission = await POST(new Request('http://localhost/api/race/match', { method: 'POST', body: JSON.stringify({ test: true, missionId: 'M99' }) }));
+    expect(notAMission.status).toBe(400);
+    const onM9 = await POST(new Request('http://localhost/api/race/match', { method: 'POST', body: JSON.stringify({ test: true, missionId: 'M8' }) }));
+    expect(onM9.status).toBe(200);
+    const noStrategy = await PICK(
+      new Request(`http://localhost/api/race/${seat.code}/pick`, { method: 'POST', body: JSON.stringify({ playerId: seat.playerId, token: seat.token, pick: { presetId: 'speedster', agent: 'human' } }) }),
+      { params: Promise.resolve({ code: seat.code }) },
+    );
+    expect(noStrategy.status).toBe(200);
     const listed = (await (await GET(new Request('http://localhost/api/race/match?test=1'))).json()) as { rooms: { code: string }[] };
     expect(listed.rooms.some((room) => room.code === seat.code)).toBe(true);
     const real = (await (await GET(new Request('http://localhost/api/race/match'))).json()) as { rooms: { code: string }[] };

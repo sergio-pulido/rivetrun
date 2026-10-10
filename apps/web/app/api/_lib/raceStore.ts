@@ -30,7 +30,7 @@ import {
 } from '../../race/_lib/protocol';
 import { peekGhost, requestGhost } from './ghostStore';
 import { recordHumanRun } from './humanArena';
-import { PLAY_MISSION } from '@/play/playMission';
+import { PLAY_MISSION, PLAY_MISSIONS } from '@/play/playMission';
 import { resolveStrategy } from './playStrategy';
 import { addRun } from './store';
 
@@ -282,6 +282,7 @@ function remove(room: Room, action: Act<'remove'>): RaceResult<null> {
   if (room.status !== 'lobby' && room.status !== 'build') return fail(409, 'Players can only be removed before the race.');
   room.players.delete(action.playerId);
   room.tokens.delete(action.playerId);
+  room.auto?.phones.delete(action.playerId);
   return done(null);
 }
 
@@ -543,31 +544,51 @@ function replayServerBots(room: Room, auto: AutoRoom, now: number): void {
   }
 }
 
-export type MatchResult = { ok: true; data: MatchResponse } | { ok: false; status: 503; error: string; retryInS: number };
+export type MatchResult =
+  | { ok: true; data: MatchResponse }
+  | { ok: false; status: 503; error: string; retryInS: number }
+  | { ok: false; status: 400; error: string };
 
 /**
  * /play: seats the phone in the oldest auto room that is still in its lobby with a free slot and more than
  * AUTO_MIN_LEFT_MS on the clock, or opens a new one. With MAX_AUTO_ROOMS busy it answers "next race in N s".
  */
-export function matchRoom(options: { nickname?: string; test?: boolean } = {}): MatchResult {
+export function matchRoom(options: { nickname?: string; test?: boolean; missionId?: MissionId; leave?: { code: string; playerId: string; token: string } } = {}): MatchResult {
   const now = Date.now();
   const test = options.test === true;
+  // One queue of rooms per mission, each on that mission's fixed seed, so every board compares like with like.
+  const missionId = options.missionId ?? playMission();
+  if (!PLAY_MISSIONS.includes(missionId)) return { ok: false, status: 400, error: `Mission ${missionId} is not open for /play. Open: ${PLAY_MISSIONS.join(', ')}.` };
   for (const [code, room] of rooms) {
     advance(room, now);
     if (expired(room, now) || now - room.createdAt > ROOM_TTL_MS) rooms.delete(code);
   }
+  // A phone that tapped another mission gives up the seat it was holding, if that room has not started.
+  const left = options.leave ? rooms.get(options.leave.code) : undefined;
+  if (left?.auto && options.leave && left.status === 'lobby' && left.tokens.get(options.leave.playerId) === options.leave.token) {
+    if (left.missionId === missionId) {
+      // Same mission: it keeps its seat.
+      const player = left.players.get(options.leave.playerId)!;
+      return { ok: true, data: { code: left.code, endsAt: left.auto.endsAt, playerId: player.id, token: options.leave.token, nickname: player.nickname, serverNow: now } };
+    }
+    left.players.delete(options.leave.playerId);
+    left.tokens.delete(options.leave.playerId);
+    left.auto.phones.delete(options.leave.playerId);
+    left.version += 1;
+    if (left.auto.phones.size === 0) rooms.delete(left.code); // nobody is waiting in it any more
+  }
   const autos = [...rooms.values()].filter((room) => room.auto !== undefined && room.auto.test === test);
   let room = autos
-    .filter((candidate) => candidate.status === 'lobby' && candidate.auto!.phones.size < AUTO_ROOM_CAP && candidate.auto!.endsAt - now > AUTO_MIN_LEFT_MS)
+    .filter((candidate) => candidate.missionId === missionId && candidate.status === 'lobby' && candidate.auto!.phones.size < AUTO_ROOM_CAP && candidate.auto!.endsAt - now > AUTO_MIN_LEFT_MS)
     .sort((a, b) => a.createdAt - b.createdAt)[0];
   if (!room) {
+    // MAX_AUTO_ROOMS is for all missions together.
     const active = autos.filter(busy);
     if (active.length >= maxAutoRooms()) {
       // The next slot opens when the first of the busy rooms ends: its lobby, then the race at its longest.
       const soonest = Math.min(...active.map((candidate) => (candidate.closesAt ?? (candidate.startAt ?? candidate.auto!.endsAt + COUNTDOWN_MS) + RACE_TIMEOUT_MS) - now));
       return { ok: false, status: 503, error: 'Every room is racing. The next race opens shortly.', retryInS: Math.max(1, Math.min(60, Math.ceil(soonest / 1000))) };
     }
-    const missionId = playMission();
     room = {
       code: newCode(), missionId, seed: driveSeed(MISSIONS[missionId]), status: 'lobby', buildEndsAt: null, startAt: null, closesAt: null, raceNo: 0,
       seats: AUTO_ROOM_CAP, version: 0, players: new Map(), tokens: new Map(), lastSeen: new Map(), logged: new Set(), createdAt: now,

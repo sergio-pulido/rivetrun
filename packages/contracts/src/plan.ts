@@ -41,7 +41,8 @@ export type PlayStrategy = z.infer<typeof PlayStrategySchema>;
 export const PlayerPickSchema = z.object({
   presetId: PresetIdSchema,
   agent: z.string().min(1).max(64),
-  strategy: PlayStrategySchema,
+  /** Optional on the wire: a phone that sends none gets the plan. */
+  strategy: PlayStrategySchema.default('plan'),
 });
 export type PlayerPick = z.infer<typeof PlayerPickSchema>;
 

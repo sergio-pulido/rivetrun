@@ -131,7 +131,7 @@ describe('auto rooms', () => {
     vi.advanceTimersByTime(AUTO_LOBBY_MS - 5_000); // too late to join room b; a is racing
     const refused = matchRoom();
     expect(refused).toMatchObject({ ok: false, status: 503 });
-    expect(!refused.ok && refused.retryInS).toBeGreaterThanOrEqual(1);
+    expect(!refused.ok && refused.status === 503 && refused.retryInS).toBeGreaterThanOrEqual(1);
     // Both rooms run out; then there is room again.
     vi.advanceTimersByTime(COUNTDOWN_MS + RACE_TIMEOUT_MS + 10_000);
     expect(matchRoom().ok).toBe(true);
@@ -173,5 +173,89 @@ describe('auto rooms', () => {
     expect(bot(false).ok).toBe(false);
     const planned = readRoom(code)!.snapshot.players.find((p) => p.plan)!;
     expect(planned).toMatchObject({ nickname: 'Jev + plan', briefing: 'Climb mode on the mud.', priority: 0.4, model: 'jev-1.13.0' });
+  });
+});
+
+describe('auto rooms per mission (RR-PLAN amendment)', () => {
+  beforeEach(() => {
+    clock += 10_000_000;
+    vi.useFakeTimers({ now: clock });
+    delete process.env.MAX_AUTO_ROOMS;
+  });
+  afterEach(() => {
+    drain();
+    vi.useRealTimers();
+  });
+  const match = (missionId?: 'M5' | 'M6' | 'M7' | 'M8' | 'M1') => matchRoom(missionId ? { missionId } : {});
+  const seated = (missionId?: 'M5' | 'M6' | 'M7' | 'M8') => {
+    const result = match(missionId);
+    if (!result.ok) throw new Error(result.error);
+    return result.data;
+  };
+
+  it('a phone joins the oldest open room of its mission; another mission opens its own room on its own fixed seed', () => {
+    const a = seated('M5');
+    const b = seated('M8');
+    const c = seated('M5');
+    const d = seated('M8');
+    expect(c.code).toBe(a.code);
+    expect(d.code).toBe(b.code);
+    expect(b.code).not.toBe(a.code);
+    const mA = readRoom(a.code)!.snapshot;
+    const mB = readRoom(b.code)!.snapshot;
+    expect([mA.missionId, mB.missionId]).toEqual(['M5', 'M8']);
+    expect(mA.seed).not.toBe(mB.seed);
+    // A later M5 room, after the first one's lobby has too little left, runs the same seed as the first.
+    vi.advanceTimersByTime(AUTO_LOBBY_MS - 5_000);
+    const later = seated('M5');
+    expect(later.code).not.toBe(a.code);
+    expect(readRoom(later.code)!.snapshot.seed).toBe(mA.seed);
+  });
+
+  it('no mission asked: the play mission; a mission that is not open is rejected', () => {
+    const byDefault = readRoom(seated().code)!.snapshot;
+    const named = readRoom(seated(byDefault.missionId as 'M7').code)!.snapshot;
+    expect(named.code).toBe(byDefault.code);
+    expect(match('M1')).toMatchObject({ ok: false, status: 400 });
+    expect(autoRooms().every((room) => room.missionId !== 'M1')).toBe(true);
+  });
+
+  it('MAX_AUTO_ROOMS counts every mission together', () => {
+    process.env.MAX_AUTO_ROOMS = '2';
+    seated('M5');
+    seated('M6');
+    const third = match('M8');
+    expect(third).toMatchObject({ ok: false, status: 503 });
+    // A phone for a mission that already has an open room still gets in.
+    expect(match('M5').ok).toBe(true);
+  });
+
+  it('a mission tap moves the phone: it gives up its lobby seat and is seated in the other mission\'s room', () => {
+    const first = seated('M7');
+    const friend = seated('M7');
+    const moved = matchRoom({ missionId: 'M5', leave: { code: first.code, playerId: first.playerId, token: first.token } });
+    if (!moved.ok) throw new Error(moved.error);
+    expect(moved.data.code).not.toBe(first.code);
+    expect(readRoom(moved.data.code)!.snapshot.missionId).toBe('M5');
+    const old = readRoom(first.code)!.snapshot;
+    expect(old.players.map((p) => p.id)).toEqual([friend.playerId]);
+    // Tapping the mission it is already in keeps the seat; a wrong token moves nobody.
+    const same = matchRoom({ missionId: 'M5', leave: { code: moved.data.code, playerId: moved.data.playerId, token: moved.data.token } });
+    expect(same.ok && same.data.playerId).toBe(moved.data.playerId);
+    matchRoom({ missionId: 'M5', leave: { code: first.code, playerId: friend.playerId, token: 'wrong' } });
+    expect(readRoom(first.code)!.snapshot.players.map((p) => p.id)).toEqual([friend.playerId]);
+    // The last phone leaving an auto room removes it, so it does not hold one of the MAX_AUTO_ROOMS.
+    const gone = matchRoom({ missionId: 'M5', leave: { code: first.code, playerId: friend.playerId, token: friend.token } });
+    expect(gone.ok).toBe(true);
+    expect(readRoom(first.code)).toBeNull();
+  });
+
+  it('a pick without a strategy gets the plan', async () => {
+    const { PlayerPickSchema } = await import('@rivetrun/contracts');
+    expect(PlayerPickSchema.parse({ presetId: 'speedster', agent: 'human' })).toEqual({ presetId: 'speedster', agent: 'human', strategy: 'plan' });
+    const phone = seated('M7');
+    const pick = PlayerPickSchema.parse({ presetId: 'speedster', agent: 'jev-1.13.0' });
+    expect(pickInRoom(phone.code, phone.playerId, phone.token, pick).ok).toBe(true);
+    expect(readRoom(phone.code)!.snapshot.players.find((p) => p.id === phone.playerId)!.pick).toEqual({ presetId: 'speedster', agent: 'jev-1.13.0', strategy: 'plan' });
   });
 });
