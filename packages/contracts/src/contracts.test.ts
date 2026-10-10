@@ -134,7 +134,7 @@ describe('contracts', () => {
 
   it('validates API payloads', () => {
     expect(LeaderboardQuerySchema.parse({})).toEqual({ mission: 'M5' });
-    expect(LeaderboardQuerySchema.safeParse({ mission: 'M9' }).success).toBe(false);
+    expect(LeaderboardQuerySchema.safeParse({ mission: 'M0' }).success).toBe(false);
     expect(SubmitRunRequestSchema.safeParse({ nickname: '<script>', episode: {} }).success).toBe(false);
   });
 });
