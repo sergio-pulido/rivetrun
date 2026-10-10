@@ -1,0 +1,21 @@
+/* The control that gets a bogged-down robot out: a ring that keeps spreading from it until it is used. */
+@keyframes callout {
+  0% {
+    box-shadow: 0 0 0 0 rgb(251 191 36 / 0.85);
+  }
+  100% {
+    box-shadow: 0 0 0 18px rgb(251 191 36 / 0);
+  }
+}
+
+.callout {
+  animation: callout 0.8s ease-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .callout {
+    animation: none;
+    outline: 3px solid #fbbf24;
+    outline-offset: 3px;
+  }
+}

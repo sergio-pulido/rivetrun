@@ -1,11 +1,12 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react';
-import type { Build, ControlSpecial } from '@rivetrun/contracts';
+import type { Build, ControlSpecial, SimState } from '@rivetrun/contracts';
 import { PARTS_BY_ID, deriveSpec, safeContactSpeedMps } from '@rivetrun/sim';
 import { UI } from '../palette';
 import { useRunView, type RunFeed } from '../runFeed';
 import type { DriveInput, DriveInputState } from './driveInput';
+import styles from './drive.module.css';
 import { haptic } from './haptics';
 import { BRAKE_MARKS, THROTTLE_MARKS, brakeBand, hazardWarning, throttleBand } from './hazard';
 
@@ -123,6 +124,16 @@ function contextualSpecial(build: Build, slopeDeg: number, winchHeld: boolean): 
 
 const SPECIAL_LABEL: Readonly<Record<ControlSpecial, string>> = { jump: 'JUMP', winch: 'WINCH', climb: 'CLIMB' };
 
+/** What gets a bogged-down robot moving again (the sim's `freeWith`), or `none` when nothing this build has will. */
+type Escape = NonNullable<SimState['freeWith']> | 'none';
+const ESCAPE_TEXT: Readonly<Record<Escape, string>> = {
+  climb: 'TAP CLIMB',
+  winch: 'HOLD WINCH',
+  ease: 'EASE OFF THE THROTTLE',
+  throttle: 'GIVE IT THROTTLE',
+  none: 'THIS BUILD CANNOT PASS HERE',
+};
+
 interface PadProps {
   side: 'left' | 'right';
   /** 0–1: how far the pedal is down. */
@@ -136,14 +147,16 @@ interface PadProps {
   tone?: string;
   /** Amber frame: the wheels are spinning. */
   alert?: boolean;
+  /** Ring that calls for this pedal. */
+  callout?: boolean;
 }
 
 /** The resting pedals in the bottom corners. The right one is the speedometer; both fill with the pedal's value. */
-function Pad({ side, value, color, title, unit, caption, tone, alert = false }: PadProps) {
+function Pad({ side, value, color, title, unit, caption, tone, alert = false, callout = false }: PadProps) {
   const down = value > 0;
   return (
     <div
-      className="pointer-events-none absolute flex h-[84px] w-[112px] flex-col items-center justify-center gap-1 overflow-hidden rounded-2xl font-display"
+      className={`pointer-events-none absolute flex h-[84px] w-[112px] flex-col items-center justify-center gap-1 overflow-hidden rounded-2xl font-display ${callout ? styles.callout : ''}`}
       style={{
         [side]: 14,
         bottom: 'max(18px, env(safe-area-inset-bottom))',
@@ -188,7 +201,15 @@ export function DriveControls({ drive, feed, build }: DriveControlsProps) {
   const [driven, setDriven] = useState(false);
   const done = view.done;
   const airborne = view.state?.airborne === true;
-  const special = contextualSpecial(build, view.state?.slopeDeg ?? 0, input.winch);
+  // Bogged down: the sim says the robot is getting nowhere, how long until the run ends as "stuck", and which
+  // command frees THIS build here (it tried each on the real ground). The prompt names it and the button offers it,
+  // whatever it would offer otherwise. No `freeWith` while the countdown runs = nothing this build has gets it out.
+  const slipping = view.state?.effects.includes('slip') === true && !airborne;
+  const slope = view.state?.slopeDeg ?? 0;
+  // Holding still on a scan pad is not being stuck: no prompt while the scan runs.
+  const stuckInS = done || view.state?.scan ? undefined : view.state?.stuckInS;
+  const escape: Escape | null = stuckInS === undefined ? null : (view.state?.freeWith ?? 'none');
+  const special = escape === 'climb' || escape === 'winch' ? escape : contextualSpecial(build, slope, input.winch);
   const cooldownMs = (PARTS_BY_ID.get('piston_jump')?.effects.cooldownS ?? 3) * 1000;
   const sinceJump = input.jumpAt > 0 ? performance.now() - input.jumpAt : Infinity;
   const cooling = special === 'jump' && sinceJump < cooldownMs;
@@ -211,7 +232,6 @@ export function DriveControls({ drive, feed, build }: DriveControlsProps) {
   const safeContactMps = useMemo(() => safeContactSpeedMps(deriveSpec(build)), [build]);
   const speed = view.state?.v ?? 0;
   const warning = hazardWarning(view.observation?.value ?? null, speed, safeContactMps);
-  const slipping = view.state?.effects.includes('slip') === true && !airborne;
 
   // Hands off when the run ends or the tab goes away: nothing stays "held".
   useEffect(() => {
@@ -286,9 +306,10 @@ export function DriveControls({ drive, feed, build }: DriveControlsProps) {
             color={UI.safety}
             title={Math.abs(speed).toFixed(1)}
             unit="m/s"
-            caption={airborne ? 'NOSE UP' : slipping ? 'SLIP · EASE OFF' : input.throttle > 0 ? `${throttleBand(input.throttle)} ${Math.round(input.throttle * 100)} %` : 'COAST'}
+            caption={airborne ? 'NOSE UP' : slipping ? (escape && escape !== 'ease' ? 'SLIP' : 'SLIP · EASE OFF') : input.throttle > 0 ? `${throttleBand(input.throttle)} ${Math.round(input.throttle * 100)} %` : 'COAST'}
             tone={warning?.over ? UI.bad : undefined}
             alert={slipping}
+            callout={escape === 'ease' || escape === 'throttle'}
           />
           {brake.thumb && <Gauge thumb={brake.thumb} value={input.brake} side="left" color={UI.bad} band={brakeBand(input.brake)} marks={BRAKE_MARKS} />}
           {throttle.thumb && <Gauge thumb={throttle.thumb} value={input.throttle} side="right" color={UI.safety} band={throttleBand(input.throttle)} marks={THROTTLE_MARKS} />}
@@ -307,7 +328,7 @@ export function DriveControls({ drive, feed, build }: DriveControlsProps) {
             onPointerUp={press.letGo}
             onPointerCancel={press.letGo}
             onLostPointerCapture={press.letGo}
-            className="absolute left-1/2 flex h-[88px] w-[88px] -translate-x-1/2 items-center justify-center rounded-full font-display"
+            className={`absolute left-1/2 flex h-[88px] w-[88px] -translate-x-1/2 items-center justify-center rounded-full font-display ${escape === 'climb' || escape === 'winch' ? styles.callout : ''}`}
             style={{
               ...NO_SELECT,
               bottom: 'max(16px, env(safe-area-inset-bottom))',
@@ -352,6 +373,17 @@ export function DriveControls({ drive, feed, build }: DriveControlsProps) {
               </span>
             )}
           </button>
+
+          {escape && (
+            <div className="pointer-events-none absolute inset-x-0 flex justify-center px-4" style={{ top: '42%' }} role="alert">
+              <div className="rounded-xl px-5 py-3 text-center" style={{ border: `3px solid ${escape === 'none' ? UI.bad : UI.warn}`, background: 'rgb(14 16 19 / 0.9)', color: escape === 'none' ? UI.bad : UI.warn }}>
+                <div className="font-mono text-[11px] font-semibold tracking-[2px] tabular-nums">STUCK IN {Math.ceil(stuckInS ?? 0)} s</div>
+                <div className="mt-1 font-display text-[24px] font-bold leading-none tracking-[2px]" style={{ color: UI.text }}>
+                  {ESCAPE_TEXT[escape]}
+                </div>
+              </div>
+            </div>
+          )}
 
           {!driven && (
             <div className="pointer-events-none absolute inset-x-0 flex justify-center" style={{ bottom: 'calc(max(18px, env(safe-area-inset-bottom)) + 104px)' }}>
