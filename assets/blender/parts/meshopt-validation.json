@@ -623,7 +623,7 @@
       "file": "apps/web/public/models/mk2/offroad_wheels.glb",
       "kind": "module",
       "limit": 3,
-      "bytes": 56928,
+      "bytes": 58612,
       "triangles": 2896,
       "meshes": 16,
       "decodedSize": [

@@ -39,7 +39,7 @@ def append(key,parent,pos=(0,0,0),rot=None,omit_rubber=False):
             v.co=(rot@p if rot else p)+Vector(pos)
         clone=bpy.data.objects.new('component_'+key+'_'+str(len(result)),data);bpy.context.scene.collection.objects.link(clone);clone.parent=parent
         if key=='offroad_tread_tpu':
-            clone.name='print_offroad_tread_80__'+str(len(bpy.data.objects));clone['printedPartId']='offroad_tread_80'
+            clone.name='tire_tread_visual__'+str(len(bpy.data.objects));clone['visualPrototype']=True;clone['catalogKey']='offroad_tread_tpu'
         for index,slot in enumerate(data.materials):
             if slot:
                 name=re.sub(r'\.\d+$','',slot.name)
@@ -69,7 +69,7 @@ def printcopy(id,parent,p,rotation=None,index=None):
 def compact(root):
     groups={}
     for o in root.children_recursive:
-        if o.type=='MESH' and not o.name.startswith('print_'):
+        if o.type=='MESH' and not o.name.startswith(('print_','tire_tread_visual__')):
             # Keep pivots intact; combine geometry only within each pivot.
             groups.setdefault((o.parent,o.data.materials[0].name.split('.')[0]),[]).append(o)
     for (parent,name),objs in groups.items():

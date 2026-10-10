@@ -429,9 +429,10 @@
       88,
       10.4
     ],
-    "dimsSource": "Printed design assets/print/mk2/offroad_tread_80.stl; Pololu 0J1708 bare 80mm wheel diameter 76.5mm",
+    "dimsSource": "Editable visual prototype assets/blender/parts/offroad_tread_tpu.blend; Pololu 0J1708 bare hub diameter 76.5 mm",
     "approximations": [
-      "Designed TPU bore 76.2mm stretch fit and lug geometry require physical validation."
+      "Designed TPU bore 76.2mm stretch fit and lug geometry require physical validation.",
+      "Print publishing paused by human; no uncommitted STL or printed-parts record is required by the demo."
     ],
     "tris": 5018,
     "glbKb": 59.244,

@@ -7,7 +7,7 @@ The screen-first demo queue is complete: 12 rover modules, 33 component GLBs, 36
 ## Game assets
 
 - Rover: `apps/web/public/models/mk2/manifest.json`. Includes chassis, controller, three locomotion options, both HPCB motor ratios, both 4S batteries, camera, ultrasonic and bumper. Other catalog ids are explicitly deferred and use the game's per-module fallback.
-- Default `all_rounder`: 12,296 triangles, 35 primitives, 256,956 bytes across its modules. Largest single module: 56,928 bytes. Module roots, wheel pivots and printed-part ids survive compression.
+- Default `all_rounder`: 12,296 triangles, 35 primitives, 258,640 bytes across its modules. Largest single module: 58,612 bytes. Module roots, wheel pivots and printed-part ids survive compression.
 - Component library: `docs/inputs/component-models.json`. Sources refer to the BOM or official product documentation; small simplifications are listed. Wheel sizes, LiPo sizes, camera filter variants and gear ratios share their source blend.
 - All published GLBs use meshopt. This human instruction supersedes the earlier plain-GLB rover contract. The decoder is bundled with Three.js; each loader must call `setMeshoptDecoder(MeshoptDecoder)`.
 - VEML7700, MightyOhm Geiger and FIT0441 are explicitly approximate, proportioned from official photos, without a measured envelope or GLB.
@@ -54,3 +54,5 @@ MK2_LAB_MODELS=/tmp/mk2-blender-decoded /Applications/Blender.app/Contents/MacOS
 ```
 
 The `.blend` files retain editable geometry. Optional manufacturer CAD caches used during initial authoring are local source caches, not app dependencies; their license notices are retained in `LICENSE_PI5.txt` and `LICENSE_CF2.txt`. Source images and brand markings are not embedded in the assets.
+
+The tread remains a catalog visual prototype. Its rover nodes do not advertise an unpublished printed-part id. Every active print link is checked against the committed printed-parts manifest.

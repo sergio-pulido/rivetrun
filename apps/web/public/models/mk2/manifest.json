@@ -97,13 +97,16 @@
       "slot": "locomotion",
       "triangles": 2896,
       "meshes": 16,
-      "bytes": 56928,
+      "bytes": 58612,
       "printedParts": [
         "motor_cap",
-        "motor_saddle",
-        "offroad_tread_80"
+        "motor_saddle"
       ],
-      "compression": "meshopt"
+      "compression": "meshopt",
+      "visualPrototypes": [
+        "offroad_tread_tpu"
+      ],
+      "notes": "Knobbly tread visual; manufacturing link deferred while print work is paused."
     },
     "tracks": {
       "file": "tracks.glb",
