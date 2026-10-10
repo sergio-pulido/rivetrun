@@ -1,0 +1,319 @@
+{
+  "version": 1,
+  "mission": "M7",
+  "name": "Earthquake Rescue",
+  "author": "sergio.pulido@alodai.com",
+  "layers": [
+    {
+      "id": "far_skyline",
+      "file": "far_skyline.webp",
+      "url": "/env/m7/far_skyline.webp",
+      "sizeBytes": 210562,
+      "resolutionPx": [
+        4096,
+        1024
+      ],
+      "suggestedScale": 1,
+      "suggestedWorldSizeM": [
+        160,
+        40
+      ],
+      "parallaxFactor": 0.12,
+      "suggestedZ": -140,
+      "alpha": true,
+      "cameraDepressionDegrees": 15,
+      "horizonFromTop": 0.4,
+      "repeatX": false,
+      "source": "assets/blender/env/m7/m7_city_layers.blend",
+      "materialHint": "Unlit transparent plane; depthWrite false. Use alpha blending and retain the game sky.",
+      "parallaxMeaning": "Relative screen displacement fraction for camera travel: far moves least."
+    },
+    {
+      "id": "mid_ruins",
+      "file": "mid_ruins.webp",
+      "url": "/env/m7/mid_ruins.webp",
+      "sizeBytes": 167140,
+      "resolutionPx": [
+        4096,
+        1024
+      ],
+      "suggestedScale": 1,
+      "suggestedWorldSizeM": [
+        160,
+        40
+      ],
+      "parallaxFactor": 0.35,
+      "suggestedZ": -95,
+      "alpha": true,
+      "cameraDepressionDegrees": 15,
+      "horizonFromTop": 0.4,
+      "repeatX": false,
+      "source": "assets/blender/env/m7/m7_city_layers.blend",
+      "materialHint": "Unlit transparent plane; depthWrite false. Use alpha blending and retain the game sky.",
+      "parallaxMeaning": "Relative screen displacement fraction for camera travel: far moves least."
+    },
+    {
+      "id": "near_rubble",
+      "file": "near_rubble.webp",
+      "url": "/env/m7/near_rubble.webp",
+      "sizeBytes": 72120,
+      "resolutionPx": [
+        4096,
+        1024
+      ],
+      "suggestedScale": 1,
+      "suggestedWorldSizeM": [
+        160,
+        40
+      ],
+      "parallaxFactor": 0.65,
+      "suggestedZ": -60,
+      "alpha": true,
+      "cameraDepressionDegrees": 15,
+      "horizonFromTop": 0.4,
+      "repeatX": false,
+      "source": "assets/blender/env/m7/m7_city_layers.blend",
+      "materialHint": "Unlit transparent plane; depthWrite false. Use alpha blending and retain the game sky.",
+      "parallaxMeaning": "Relative screen displacement fraction for camera travel: far moves least."
+    }
+  ],
+  "props": [
+    {
+      "id": "cracked_slab_01",
+      "file": "props/cracked_slab_01.glb",
+      "url": "/env/m7/props/cracked_slab_01.glb",
+      "sizeBytes": 116284,
+      "triangles": 668,
+      "suggestedScale": 1,
+      "envelopeM": [
+        1.499,
+        0.175,
+        0.969
+      ],
+      "root": "m7_cracked_slab_01",
+      "origin": "base-centre",
+      "upAxis": "+Y",
+      "units": "metres",
+      "compression": "meshopt",
+      "notes": "Broken concrete with chipped outline and branching surface fractures. Low prop for track edges; keep clear of drive lanes.",
+      "source": "assets/blender/env/m7/m7_props.blend"
+    },
+    {
+      "id": "cracked_slab_02",
+      "file": "props/cracked_slab_02.glb",
+      "url": "/env/m7/props/cracked_slab_02.glb",
+      "sizeBytes": 116604,
+      "triangles": 668,
+      "suggestedScale": 1,
+      "envelopeM": [
+        1.167,
+        0.305,
+        0.836
+      ],
+      "root": "m7_cracked_slab_02",
+      "origin": "base-centre",
+      "upAxis": "+Y",
+      "units": "metres",
+      "compression": "meshopt",
+      "notes": "Broken concrete with chipped outline and branching surface fractures. Low prop for track edges; keep clear of drive lanes.",
+      "source": "assets/blender/env/m7/m7_props.blend"
+    },
+    {
+      "id": "cracked_slab_03",
+      "file": "props/cracked_slab_03.glb",
+      "url": "/env/m7/props/cracked_slab_03.glb",
+      "sizeBytes": 116140,
+      "triangles": 664,
+      "suggestedScale": 1,
+      "envelopeM": [
+        1.826,
+        0.402,
+        0.772
+      ],
+      "root": "m7_cracked_slab_03",
+      "origin": "base-centre",
+      "upAxis": "+Y",
+      "units": "metres",
+      "compression": "meshopt",
+      "notes": "Broken concrete with chipped outline and branching surface fractures. Low prop for track edges; keep clear of drive lanes.",
+      "source": "assets/blender/env/m7/m7_props.blend"
+    },
+    {
+      "id": "slab_rebar",
+      "file": "props/slab_rebar.glb",
+      "url": "/env/m7/props/slab_rebar.glb",
+      "sizeBytes": 112268,
+      "triangles": 468,
+      "suggestedScale": 1,
+      "envelopeM": [
+        2.188,
+        0.729,
+        1.122
+      ],
+      "root": "m7_slab_rebar",
+      "origin": "base-centre",
+      "upAxis": "+Y",
+      "units": "metres",
+      "compression": "meshopt",
+      "notes": "Rusty reinforcement emerges through the broken slab edge. Place at the back of the street, away from scan pads.",
+      "source": "assets/blender/env/m7/m7_props.blend"
+    },
+    {
+      "id": "rubble_pile_01",
+      "file": "props/rubble_pile_01.glb",
+      "url": "/env/m7/props/rubble_pile_01.glb",
+      "sizeBytes": 191616,
+      "triangles": 3400,
+      "suggestedScale": 1,
+      "envelopeM": [
+        2.447,
+        0.8,
+        1.446
+      ],
+      "root": "m7_rubble_pile_01",
+      "origin": "base-centre",
+      "upAxis": "+Y",
+      "units": "metres",
+      "compression": "meshopt",
+      "notes": "Concrete rubble, brick and bent reinforcement. Use variant rotation about +Y for less repeated silhouettes.",
+      "source": "assets/blender/env/m7/m7_props.blend"
+    },
+    {
+      "id": "rubble_pile_02",
+      "file": "props/rubble_pile_02.glb",
+      "url": "/env/m7/props/rubble_pile_02.glb",
+      "sizeBytes": 176728,
+      "triangles": 2808,
+      "suggestedScale": 1,
+      "envelopeM": [
+        2.105,
+        0.747,
+        1.539
+      ],
+      "root": "m7_rubble_pile_02",
+      "origin": "base-centre",
+      "upAxis": "+Y",
+      "units": "metres",
+      "compression": "meshopt",
+      "notes": "Concrete rubble, brick and bent reinforcement. Use variant rotation about +Y for less repeated silhouettes.",
+      "source": "assets/blender/env/m7/m7_props.blend"
+    },
+    {
+      "id": "collapsed_wall",
+      "file": "props/collapsed_wall.glb",
+      "url": "/env/m7/props/collapsed_wall.glb",
+      "sizeBytes": 160472,
+      "triangles": 2420,
+      "suggestedScale": 1,
+      "envelopeM": [
+        2.758,
+        2.65,
+        0.577
+      ],
+      "root": "m7_collapsed_wall",
+      "origin": "base-centre",
+      "upAxis": "+Y",
+      "units": "metres",
+      "compression": "meshopt",
+      "notes": "Partly collapsed reinforced masonry around an empty window opening. Tall scenery behind the far lane only.",
+      "source": "assets/blender/env/m7/m7_props.blend"
+    },
+    {
+      "id": "crash_barrier",
+      "file": "props/crash_barrier.glb",
+      "url": "/env/m7/props/crash_barrier.glb",
+      "sizeBytes": 12992,
+      "triangles": 480,
+      "suggestedScale": 1,
+      "envelopeM": [
+        2.9,
+        0.903,
+        0.335
+      ],
+      "root": "m7_crash_barrier",
+      "origin": "base-centre",
+      "upAxis": "+Y",
+      "units": "metres",
+      "compression": "meshopt",
+      "notes": "Bent galvanised W-beam rail with posts and base bolts. Align long axis +X along the street.",
+      "source": "assets/blender/env/m7/m7_props.blend"
+    },
+    {
+      "id": "warning_tape_posts",
+      "file": "props/warning_tape_posts.glb",
+      "url": "/env/m7/props/warning_tape_posts.glb",
+      "sizeBytes": 13428,
+      "triangles": 374,
+      "suggestedScale": 1,
+      "envelopeM": [
+        2.92,
+        1.163,
+        0.32
+      ],
+      "root": "m7_warning_tape_posts",
+      "origin": "base-centre",
+      "upAxis": "+Y",
+      "units": "metres",
+      "compression": "meshopt",
+      "notes": "Portable cordon with sagging yellow/black tape. Place behind hazards; it is decorative and must not change collision geometry.",
+      "source": "assets/blender/env/m7/m7_props.blend"
+    },
+    {
+      "id": "emergency_tripod_light",
+      "file": "props/emergency_tripod_light.glb",
+      "url": "/env/m7/props/emergency_tripod_light.glb",
+      "sizeBytes": 28804,
+      "triangles": 940,
+      "suggestedScale": 1,
+      "envelopeM": [
+        0.88,
+        2.252,
+        1.001
+      ],
+      "root": "m7_emergency_tripod_light",
+      "origin": "base-centre",
+      "upAxis": "+Y",
+      "units": "metres",
+      "compression": "meshopt",
+      "notes": "Portable warm LED work light. Emissive surface only: no exported light or extra shadow pass.",
+      "source": "assets/blender/env/m7/m7_props.blend"
+    },
+    {
+      "id": "rescue_beacon",
+      "file": "props/rescue_beacon.glb",
+      "url": "/env/m7/props/rescue_beacon.glb",
+      "sizeBytes": 16464,
+      "triangles": 412,
+      "suggestedScale": 1,
+      "envelopeM": [
+        0.34,
+        0.57,
+        0.309
+      ],
+      "root": "m7_rescue_beacon",
+      "origin": "base-centre",
+      "upAxis": "+Y",
+      "units": "metres",
+      "compression": "meshopt",
+      "notes": "Cyan scan-zone marker, distinct from amber hazard lighting. Optional pulse by varying m7_rescue_cyan emissiveIntensity in the game; no animation or people.",
+      "source": "assets/blender/env/m7/m7_props.blend"
+    }
+  ],
+  "backdropNotes": "Irregular damaged skyline, leaning high-rise, bent tower crane and fractured overpass. Cool desaturated far haze, concrete/ochre middle distance, darker clustered foreground debris with abandoned car and fallen lamp. One restrained warm fire glow; no saturated orange.",
+  "propTotals": {
+    "files": 11,
+    "triangles": 13302,
+    "sizeBytes": 1061800,
+    "triangleBudget": 15000,
+    "byteBudget": 1200000
+  },
+  "placementNotes": "Scenery only. Keep the three driving lanes, gaps, ramps, obstacle geometry and scan-zone spans clear. Tall walls, rebar and tripod lights belong behind the far lane; only low slabs and grit belong near the foreground. Native size is in metres; suggestedScale=1.",
+  "status": "assets_ready",
+  "integrationStatus": "Assets delivered; this session does not modify game loaders, placement or simulation.",
+  "layerTotals": {
+    "files": 3,
+    "sizeBytes": 449822,
+    "perFileByteBudget": 600000,
+    "totalByteBudget": 600000
+  }
+}
