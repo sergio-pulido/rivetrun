@@ -17,7 +17,7 @@ Status: **OPEN** = reproduces now · **FIXED** = fix retested in the browser · 
 
 - Reported by game (clean headless Chromium): every page on `:3000` navigated to itself every 1–3 s and never mounted a canvas; the HMR socket sent `{"type":"restart"}` on every connect. Possible trigger, not proven: a missing public file (`/renders/parts/pi_regulator_s13v30f5.png`) being compiled as a page. Owner: human (restart `pnpm dev`).
 - Seen by sim shortly after: `/run/M1` showed "3D VIEW UNAVAILABLE ON THIS DEVICE", then requests returned empty responses, then nothing was listening on port 3000. Browser QA is not possible until the server is back.
-- Still owed once it is back: the in-browser timing of `assessBuild` (target < 200 ms). Measured in Node only so far: 8–35 ms warm, up to ~120 ms on a first call (M6). A dev-only handle is on the run page for the browser measurement: `window.__rivetrunSim.assessBuild(build, mission).computeMs`.
+- The server came back. `assessBuild` measured in the browser (run page, dev build, `window.__rivetrunSim`): first call per mission 5.5–13 ms, worst of 84 further calls (every preset × every mission × 3) 19.7 ms on M6 with Deep Diver. Target was under 200 ms.
 
 ## Strategy layer and physical plausibility — 10 Oct
 
