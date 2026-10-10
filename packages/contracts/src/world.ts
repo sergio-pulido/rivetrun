@@ -71,7 +71,7 @@ export const ConditionsSchema = z.object({
 });
 export type Conditions = z.infer<typeof ConditionsSchema>;
 
-export const MissionIdSchema = z.enum(['M1', 'M2', 'M3', 'M4', 'M5', 'M6', 'M7']);
+export const MissionIdSchema = z.enum(['M1', 'M2', 'M3', 'M4', 'M5', 'M6', 'M7', 'M8', 'M9']);
 export type MissionId = z.infer<typeof MissionIdSchema>;
 
 export const SeedSchema = z.number().int().min(0).max(0xffffffff);

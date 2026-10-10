@@ -53,6 +53,8 @@ export const PartEffectsSchema = z.object({
   maxSwimDepthCm: z.number().positive().optional(),
   /** A camera that keeps its range in the dark (no IR filter, with IR lamps). */
   nightVision: z.boolean().optional(),
+  /** A light sensor that switches the robot's headlights on in the dark, so an ordinary camera sees further at night. */
+  autoLights: z.boolean().optional(),
 });
 export type PartEffects = z.infer<typeof PartEffectsSchema>;
 

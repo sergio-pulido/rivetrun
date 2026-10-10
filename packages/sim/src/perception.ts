@@ -3,7 +3,7 @@ import type {
   Action, BrainQuestion, Build, DecisionTrigger, LookaheadEntry, Observation, Obstacle, Perception, SensorSource, TerrainId, Trigger, TriggerCause,
 } from '@rivetrun/contracts';
 import { TUNING } from './data';
-import { cameraFactor, capacityFactor, gustAt, headwindMps, rangerFactor } from './weather';
+import { canScan, cameraFactor, capacityFactor, gustAt, headwindMps, rangerFactor } from './weather';
 import { mixSeed, mulberry32 } from './rng';
 import { ACTION_PROFILES, PHYSICS, SCAN_RULES, safeContactSpeedMps, step } from './physics';
 import { deriveSpec } from './spec';
@@ -30,7 +30,7 @@ const round = (value: number, digits: number): number => {
 function cameraRangeM(state: RunState): number | undefined {
   const range = state.spec.sensorRangeM.camera;
   if (range === undefined) return undefined;
-  return range * cameraFactor(state.environment, { nightVision: state.spec.nightVision === true });
+  return range * cameraFactor(state.environment, { nightVision: state.spec.nightVision === true, lights: state.spec.autoLights === true });
 }
 
 /** The drone flies above the rain; fog, snow and darkness still shorten what its camera sees. */
@@ -169,7 +169,7 @@ export function observe(state: RunState): Observation {
     : null;
   const scanZones = (state.config.mission.scanZones ?? []).map((zone) => ({
     id: zone.id, label: zone.label, distanceM: round(zone.atM - sim.x, 1),
-    canScan: zone.needs.some((kind) => spec.sensorRangeM[kind] !== undefined),
+    canScan: canScan(spec, state.environment, zone),
     done: state.scans.done.includes(zone.id), missed: state.scans.missed.includes(zone.id),
   }));
 
@@ -555,7 +555,7 @@ export function scannableZone(state: RunState): { readonly id: string; readonly 
   return (state.config.mission.scanZones ?? []).find((zone) =>
     Math.abs(zone.atM - state.sim.x) <= zone.halfLengthM + SCAN.reachM &&
     !state.scans.done.includes(zone.id) && !state.scans.missed.includes(zone.id) &&
-    zone.needs.some((kind) => state.spec.sensorRangeM[kind] !== undefined));
+    canScan(state.spec, state.environment, zone));
 }
 
 /**

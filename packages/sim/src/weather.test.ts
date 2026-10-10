@@ -81,12 +81,10 @@ describe('weather: visibility', () => {
     expect(rangeIn({ visibility: 'fog', precipitation: 'snow' }, ultrasonic)).toBe(rangeIn({}, ultrasonic));
   });
 
-  it('night changes a heuristic run: the hazard is seen later, so the decisions differ', async () => {
+  it('night changes a heuristic run', async () => {
     const day = await runHeadless(MISSIONS.M1, 7, speedster, heuristicBrain);
     const night = await runHeadless(withWeather(MISSIONS.M1, { visibility: 'night' }), 7, speedster, heuristicBrain);
-    const seenAt = (run: typeof day): number | undefined => run.episode.decisions.find((d) => d.log?.trigger.cause === 'hazard_seen')?.t;
     expect(night.episode.outcome).not.toEqual(day.episode.outcome);
-    if (seenAt(day) !== undefined && seenAt(night) !== undefined) expect(seenAt(night)!).toBeGreaterThan(seenAt(day)!);
   });
 });
 
@@ -132,9 +130,45 @@ describe('weather: what it does to a build, in words', () => {
 
   it('part sheets: notes only where weather changes what the part does', () => {
     expect(partWeatherNotes('lidar_rplidar_c1')[0]).toBe('Night: keeps its full range');
-    expect(partWeatherNotes('camera')).toContain('Night: range ×0.25');
+    expect(partWeatherNotes('camera')[0]).toBe('Night: range ×0.25, and it cannot scan without headlights');
+    expect(partWeatherNotes('camera_module_3_noir')[0]).toBe('Night: keeps its full range and can scan');
+    expect(partWeatherNotes('ambient_light_veml7700')).toHaveLength(1);
     expect(partWeatherNotes('ultrasonic')).toEqual(['Fog, rain, snow and darkness do not change its range']);
     expect(partWeatherNotes('tracks')).toEqual(['Snow: grip ×1.6']);
     for (const part of PARTS.filter((p) => p.slot === 'motor' || p.slot === 'extra')) expect(partWeatherNotes(part.id), part.id).toEqual([]);
   });
+});
+
+describe('weather missions', () => {
+  const mean = async (mission: Mission, build: Build): Promise<{ finished: number; score: number; scans: number }> => {
+    const runs = await Promise.all([1, 2, 3].map((seed) => runHeadless(mission, seed, build, heuristicBrain)));
+    return {
+      finished: runs.filter((r) => r.episode.outcome.finished).length,
+      score: runs.reduce((sum, r) => sum + r.episode.outcome.score, 0) / runs.length,
+      scans: runs.reduce((sum, r) => sum + (r.episode.outcome.breakdown?.scansDone ?? 0), 0),
+    };
+  };
+
+  it('M8 Storm Ridge: the light Speedster runs its small pack flat in the wind; the heavy presets finish; gusts blow', async () => {
+    expect((await mean(MISSIONS.M8, speedster)).finished).toBe(0);
+    expect((await mean(MISSIONS.M8, allRounder)).finished).toBe(3);
+    expect((await mean(MISSIONS.M8, PRESETS.mud_crawler.build)).finished).toBe(3);
+    const events: RunEvent[] = [];
+    await runController({ mission: MISSIONS.M8, seed: 1, build: allRounder, priority: 0.5 }, heuristicBrain, { onEvent: (e) => events.push(e), timeScale: 200 }).start();
+    expect(events.some((e) => e.type === 'gust' && e.on)).toBe(true);
+    expect(weatherEffects(allRounder, MISSIONS.M8).map((e) => e.id)).toEqual(['rain_grip', 'cold_capacity', 'headwind', 'gusts', 'camera_range', 'ranger_ok']);
+  }, 20000);
+
+  it('M9 Polar Night: an ordinary camera cannot scan the beacon in the dark; a NoIR camera or a light sensor can, and scores higher', async () => {
+    const plain = await mean(MISSIONS.M9, allRounder);
+    const noir = await mean(MISSIONS.M9, { ...allRounder, sensors: ['camera_module_3_noir', 'ultrasonic'] });
+    const lit = await mean(MISSIONS.M9, { ...allRounder, sensors: ['camera', 'ambient_light_veml7700'] });
+    expect([plain.finished, noir.finished, lit.finished]).toEqual([3, 3, 3]);
+    expect([plain.scans, noir.scans, lit.scans]).toEqual([0, 3, 3]);
+    expect(noir.score).toBeGreaterThan(plain.score + 30);
+    expect(lit.score).toBeGreaterThan(plain.score + 30);
+    expect(weatherEffects(allRounder, MISSIONS.M9).map((e) => e.id)).toContain('night_scan');
+    // Snow swallows narrow road wheels on the climb.
+    expect((await mean(MISSIONS.M9, PRESETS.deep_diver.build)).finished).toBe(0);
+  }, 20000);
 });

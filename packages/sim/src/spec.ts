@@ -44,6 +44,8 @@ export interface RobotSpec {
   readonly rangerSource?: SensorSource;
   /** The longest-range camera on the build sees in the dark. */
   readonly nightVision?: boolean;
+  /** A light sensor turns the headlights on in the dark. */
+  readonly autoLights?: boolean;
   readonly extras: readonly ExtraKind[];
   readonly impactDamageFactor: number;
   readonly waterproof: boolean;
@@ -148,9 +150,10 @@ export function deriveSpec(build: Build): RobotSpec {
     jumpCooldownS: piston?.effects.cooldownS ?? 0,
     jumpPowerW: piston?.powerW ?? 0,
     sensorRangeM,
-    sources: ['core', ...new Set(sensors.map(sourceOf)), ...(extras.some((p) => p.effects.extra === 'bumper') ? (['bumper'] as const) : [])],
+    sources: ['core', ...new Set(sensors.filter((p) => p.effects.sensor !== undefined).map(sourceOf)), ...(extras.some((p) => p.effects.extra === 'bumper') ? (['bumper'] as const) : [])],
     rangerSource: rangers[0] ? sourceOf(rangers[0]) : undefined,
     ...(cameras[0]?.effects.nightVision ? { nightVision: true } : {}),
+    ...(sensors.some((p) => p.effects.autoLights) ? { autoLights: true } : {}),
     extras: extras.flatMap((p) => (p.effects.extra ? [p.effects.extra] : [])),
     impactDamageFactor: extras.reduce((factor, p) => factor * (p.effects.impactDamageFactor ?? 1), 1),
     waterproof: extras.some((p) => p.effects.waterproof === true),

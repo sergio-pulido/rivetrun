@@ -115,6 +115,45 @@ export const MISSIONS: Readonly<Record<MissionId, Mission>> = {
       ],
     },
   },
+  M8: {
+    id: 'M8', name: 'Storm Ridge', description: 'Heavy rain and a headwind over an exposed ridge. Gusts hit on the crest: light robots get pushed back, and every metre costs more battery.',
+    weather: 'rain', starThreshold: 520, leaderboard: false,
+    conditions: { windMps: 5, gustMps: 9, precipitation: 'heavy_rain', temperatureC: 8 },
+    scanZones: [{ id: 'M8-mast', label: 'weather mast', atM: 26, halfLengthM: 0.5, needs: ['camera', 'ultrasonic'] }],
+    track: {
+      segments: [
+        { terrain: 'asphalt', lengthM: 8, slopeDeg: 0 },
+        { terrain: 'grass', lengthM: 10, slopeDeg: 8 },
+        { terrain: 'rock', lengthM: 12, slopeDeg: 3, obstacle: 'rock' },
+        // A puddle on the crest: shallow standing water.
+        { terrain: 'water', lengthM: 4, slopeDeg: 0, depthCm: 4 },
+        { terrain: 'rock', lengthM: 10, slopeDeg: 0, obstacle: 'log' },
+        { terrain: 'grass', lengthM: 10, slopeDeg: -8 },
+        { terrain: 'mud', lengthM: 8, slopeDeg: 0, depthCm: 6 },
+        { terrain: 'asphalt', lengthM: 6, slopeDeg: 0 },
+      ],
+    },
+  },
+  M9: {
+    id: 'M9', name: 'Polar Night', description: 'Snow, −20 °C and darkness. An ordinary camera sees a quarter of its range, the pack holds 60 % of its charge, and the snow swallows narrow wheels.',
+    weather: 'cold', starThreshold: 480, leaderboard: false,
+    conditions: { visibility: 'night', precipitation: 'snow', temperatureC: -20, windMps: 3 },
+    scanZones: [{ id: 'M9-beacon', label: 'beacon', atM: 29, halfLengthM: 0.5, needs: ['camera', 'scout_drone'] }],
+    track: {
+      segments: [
+        { terrain: 'asphalt', lengthM: 6, slopeDeg: 0 },
+        { terrain: 'snow', lengthM: 10, slopeDeg: 0 },
+        { terrain: 'snow', lengthM: 10, slopeDeg: 7 },
+        { terrain: 'ice', lengthM: 6, slopeDeg: 0 },
+        { terrain: 'snow', lengthM: 10, slopeDeg: -6 },
+        // Ice after a descent: stopping takes metres here, so the rock has to be seen early.
+        { terrain: 'ice', lengthM: 14, slopeDeg: 0, obstacle: 'rock' },
+        { terrain: 'snow', lengthM: 8, slopeDeg: 0 },
+        { terrain: 'ice', lengthM: 12, slopeDeg: -3, obstacle: 'log' },
+        { terrain: 'asphalt', lengthM: 4, slopeDeg: 0 },
+      ],
+    },
+  },
 };
 
 /** Drive mode: one seed per mission, so every player races the same Jev ghost and times compare. */

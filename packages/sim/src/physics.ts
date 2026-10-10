@@ -5,7 +5,7 @@ import { WHEEL_RADIUS_M, deriveSpec } from './spec';
 import type { AirEvent, RunConfig, RunState, RunStats, StepDamage } from './types';
 import { DROP_APPROACH_M, compileTrack, obstacleHeightAt, segmentIndexAt, waterDepthCmAt } from './world';
 import type { World, WorldFeature } from './world';
-import { airDragN, capacityFactor, gustAt, hasWind, headwindMps } from './weather';
+import { airDragN, canScan, capacityFactor, gustAt, hasWind, headwindMps } from './weather';
 
 const G = 9.81;
 const DT_S = TUNING.dtMs / 1000;
@@ -498,7 +498,7 @@ export function step(state: RunState, action: Action): RunState {
   for (const zone of state.config.mission.scanZones ?? []) {
     if (scans.done.includes(zone.id) || scans.missed.includes(zone.id)) continue;
     const offset = x - zone.atM;
-    const able = zone.needs.some((kind) => spec.sensorRangeM[kind] !== undefined);
+    const able = canScan(spec, state.environment, zone);
     if (offset > zone.halfLengthM + SCAN_RULES.reachM) {
       scans = { ...scans, missed: [...scans.missed, zone.id], holdS: 0 };
     } else if (able && !airborne && Math.abs(offset) <= zone.halfLengthM + SCAN_RULES.reachM && Math.abs(v) < SCAN_RULES.maxSpeedMps) {

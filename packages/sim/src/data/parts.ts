@@ -86,6 +86,19 @@ export const PARTS: readonly Part[] = [
     massKg: 0.0005, costEur: 22, powerW: 0.1, unlockPoints: 100,
     effects: { sensor: 'ultrasonic', rangeM: 4, source: 'tof' },
   },
+  {
+    // Raspberry Pi Camera Module 3 NoIR (docs/inputs/bom-mk2.json): Sony IMX708, no IR filter. The BoM gives no range:
+    // the 6 m is the game camera's. Assumed fitted with IR lamps, which is what lets it keep that range at night.
+    id: 'camera_module_3_noir', name: 'NoIR camera', slot: 'sensor', blurb: 'No infrared filter and IR lamps: reads the terrain 6 m ahead, day or night.',
+    massKg: 0.02, costEur: 30, powerW: 2.5, unlockPoints: 200,
+    effects: { sensor: 'camera', rangeM: 6, nightVision: true },
+  },
+  {
+    // Adafruit VEML7700 lux sensor (docs/inputs/bom-mk2.json): 0–120 klux. In the game it switches the headlights on in the dark.
+    id: 'ambient_light_veml7700', name: 'Light sensor', slot: 'sensor', blurb: 'Measures daylight and switches the headlights on at night: an ordinary camera sees twice as far in the dark.',
+    massKg: 0.002, costEur: 6, powerW: 0.8, unlockPoints: 50,
+    effects: { autoLights: true },
+  },
   // Extras (0–2)
   {
     id: 'winch', name: 'Winch', slot: 'extra', blurb: 'Hauls the robot over slopes and obstacles.',

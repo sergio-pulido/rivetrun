@@ -1,7 +1,7 @@
 import type { Build, Mission, PartId } from '@rivetrun/contracts';
 import { PARTS_BY_ID, TERRAINS, TUNING } from './data';
 import { deriveSpec } from './spec';
-import { WEATHER, cameraFactor, capacityFactor, rangerFactor } from './weather';
+import { WEATHER, cameraFactor, canScan, capacityFactor, rangerFactor } from './weather';
 
 export interface WeatherEffect {
   readonly id: string;
@@ -68,10 +68,10 @@ export function weatherEffects(build: Build, mission: Mission): WeatherEffect[] 
   }
 
   const cameraRange = spec.sensorRangeM.camera;
-  const seeing = cameraFactor(environment, { nightVision: spec.nightVision === true });
+  const seeing = cameraFactor(environment, { nightVision: spec.nightVision === true, lights: spec.autoLights === true });
   const why = [mission.weather === 'rain' ? 'rain' : '', conditions.precipitation === 'snow' ? 'snowfall' : '', conditions.visibility === 'fog' ? 'fog' : '', conditions.visibility === 'night' ? 'night' : ''].filter(Boolean).join(' + ');
   if (cameraRange !== undefined && seeing < 1) {
-    effects.push({ id: 'camera_range', label: why[0]!.toUpperCase() + why.slice(1), detail: `Camera range ${one(cameraRange * seeing)} m instead of ${one(cameraRange)} m`, affects: 'sensing', severity: seeing <= 0.4 ? 'bad' : 'warn' });
+    effects.push({ id: 'camera_range', label: why[0]!.toUpperCase() + why.slice(1), detail: `Camera range ${one(cameraRange * seeing)} m instead of ${one(cameraRange)} m${conditions.visibility === 'night' && spec.autoLights ? ' with the headlights on' : ''}`, affects: 'sensing', severity: seeing <= 0.4 ? 'bad' : 'warn' });
   } else if (cameraRange !== undefined && conditions.visibility === 'night') {
     effects.push({ id: 'camera_night_ok', label: 'Night', detail: `This camera sees in the dark: full ${one(cameraRange)} m range`, affects: 'sensing', severity: 'info' });
   }
@@ -88,6 +88,13 @@ export function weatherEffects(build: Build, mission: Mission): WeatherEffect[] 
     else if (seeing < 1 || conditions.visibility === 'night' || conditions.visibility === 'fog') effects.push({ id: 'ranger_ok', label: RANGER_NAME[source], detail: `Keeps its full ${one(rangerRange)} m in this weather`, affects: 'sensing', severity: 'info' });
   }
 
+  if (conditions.visibility === 'night') {
+    const cameraZones = (mission.scanZones ?? []).filter((zone) => zone.needs.includes('camera') || zone.needs.includes('scout_drone'));
+    const lost = cameraZones.filter((zone) => !canScan(spec, environment, zone));
+    if (lost.length > 0 && (cameraRange !== undefined || droneRange !== undefined)) {
+      effects.push({ id: 'night_scan', label: 'Night', detail: `Too dark to scan the ${lost.map((zone) => zone.label).join(', ')}: a camera scan at night needs a NoIR camera or a light sensor for the headlights`, affects: 'sensing', severity: 'bad' });
+    }
+  }
   if (terrains.has('snow')) {
     const mu = TERRAINS.snow.baseFriction * (spec.grip.snow ?? 1);
     effects.push({ id: 'snow_ground', label: 'Snow on the ground', detail: `Grip ${one(mu * 100) }% of the robot's weight with this locomotion (ice: ${one(TERRAINS.ice.baseFriction * (spec.grip.ice ?? 1) * 100)} %), and it sinks in`, affects: 'traction', severity: mu < 0.25 ? 'bad' : mu < 0.4 ? 'warn' : 'info' });
@@ -102,13 +109,14 @@ export function partWeatherNotes(partId: PartId): string[] {
   const { effects } = part;
   const notes: string[] = [];
   if (effects.sensor === 'camera') {
-    if (effects.nightVision) notes.push('Night: keeps its full range');
-    else notes.push(`Night: range ×${WEATHER.camera.night}`);
+    if (effects.nightVision) notes.push('Night: keeps its full range and can scan');
+    else notes.push(`Night: range ×${WEATHER.camera.night}, and it cannot scan without headlights`);
     notes.push(`Fog: range ×${WEATHER.camera.fog}`, `Rain: range ×${TUNING.weather.rain.cameraRangeFactor}`, `Snowfall: range ×${WEATHER.camera.snow}`);
   }
   if (effects.sensor === 'scout_drone') notes.push('Rain: flies above it, full range', `Fog: range ×${WEATHER.camera.fog}`, `Night: range ×${WEATHER.camera.night}`, `Snowfall: range ×${WEATHER.camera.snow}`);
   if (effects.sensor === 'ultrasonic' && (effects.source === 'lidar' || effects.source === 'tof')) notes.push('Night: keeps its full range', `Fog: range ×${WEATHER.light.fog}`, `Heavy rain or snowfall: range ×${WEATHER.light.heavyRain}`);
   else if (effects.sensor === 'ultrasonic') notes.push('Fog, rain, snow and darkness do not change its range');
+  if (effects.autoLights) notes.push(`Night: headlights on, an ordinary camera keeps ×${WEATHER.camera.nightWithLights} of its range instead of ×${WEATHER.camera.night} and can scan`);
   if (effects.sensor === 'imu') notes.push('Wind: feels gusts as they hit, so the driver can react');
   if (part.slot === 'battery') notes.push(`Cold: about ${WEATHER.capacityLossPerC * 100} % less usable capacity per °C below 20 °C`);
   if (part.slot === 'locomotion' && effects.grip?.snow !== undefined) notes.push(`Snow: grip ×${effects.grip.snow}`);

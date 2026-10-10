@@ -1,4 +1,6 @@
-import type { Conditions, Environment, SensorSource } from '@rivetrun/contracts';
+import type { Build, Conditions, Environment, Mission, ScanZone, SensorSource } from '@rivetrun/contracts';
+import { deriveSpec } from './spec';
+import type { RobotSpec } from './spec';
 import { TUNING } from './data';
 import { mixSeed, nextRandom } from './rng';
 
@@ -17,7 +19,7 @@ export const WEATHER = {
   capacityLossPerC: 0.01,
   capacityFloor: 0.5,
   /** Camera range by visibility. A NoIR camera with IR lamps keeps its range at night. */
-  camera: { fog: 0.35, night: 0.25, snow: 0.7 },
+  camera: { fog: 0.35, night: 0.25, nightWithLights: 0.5, snow: 0.7 },
   /** Lidar and ToF are light: darkness does not matter, droplets and flakes scatter the beam. Ultrasonic is unaffected. */
   light: { fog: 0.7, heavyRain: 0.6, snow: 0.6 },
 } as const;
@@ -66,12 +68,12 @@ export function capacityFactor(environment: Environment): number {
 }
 
 /** Range multiplier for a camera (or the scout drone's camera when `aboveRain`). `nightVision` = NoIR with IR lamps. */
-export function cameraFactor(environment: Environment, options: { aboveRain?: boolean; nightVision?: boolean } = {}): number {
+export function cameraFactor(environment: Environment, options: { aboveRain?: boolean; nightVision?: boolean; lights?: boolean } = {}): number {
   const c = conditionsOf(environment);
   let factor = environment.weather === 'rain' && !options.aboveRain ? TUNING.weather.rain.cameraRangeFactor : 1;
   if (c.precipitation === 'snow') factor *= WEATHER.camera.snow;
   if (c.visibility === 'fog') factor *= WEATHER.camera.fog;
-  if (c.visibility === 'night' && !options.nightVision) factor *= WEATHER.camera.night;
+  if (c.visibility === 'night' && !options.nightVision) factor *= options.lights ? WEATHER.camera.nightWithLights : WEATHER.camera.night;
   return factor;
 }
 
@@ -84,4 +86,23 @@ export function rangerFactor(environment: Environment, source: SensorSource | un
   if (c.precipitation === 'heavy_rain') factor *= WEATHER.light.heavyRain;
   if (c.precipitation === 'snow') factor *= WEATHER.light.snow;
   return factor;
+}
+
+/**
+ * Can this build scan the zone in this weather? It needs one of the zone's sensors, and at night a camera scan
+ * needs light: a NoIR camera or headlights (light sensor). The scout drone's camera has neither.
+ */
+export function canScan(spec: RobotSpec, environment: Environment, zone: ScanZone): boolean {
+  const dark = conditionsOf(environment).visibility === 'night';
+  return zone.needs.some((kind) => {
+    if (spec.sensorRangeM[kind] === undefined) return false;
+    if (!dark) return true;
+    if (kind === 'camera') return spec.nightVision === true || spec.autoLights === true;
+    return kind !== 'scout_drone';
+  });
+}
+
+/** The same check without a run, for the Brief. */
+export function canScanZone(build: Build, mission: Mission, zone: ScanZone): boolean {
+  return canScan(deriveSpec(build), { weather: mission.weather, frictionJitter: 1, sensorNoiseSeed: 0, ...(mission.conditions ? { conditions: mission.conditions } : {}) }, zone);
 }
