@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import { resolveSiteUrl } from '../leaderboard/_lib/siteUrl';
 import { RaceCodeSchema } from '../race/_lib/protocol';
 import { MissionIdSchema, PresetIdSchema, PrioritySchema } from '@rivetrun/contracts';
-import { PLAY_MISSION } from '@/play/playMission';
+import { ARENA_DEMO_MISSION } from '@/play/playMission';
 import { ArenaPlanLauncher } from './ArenaPlanLauncher';
 import { PlayScreen } from './PlayScreen';
 import { RaceScreen } from './RaceScreen';
@@ -28,7 +28,7 @@ export default async function ScreenPage({ searchParams }: ScreenPageProps) {
     const priority = PrioritySchema.safeParse(typeof params.priority === 'string' ? Number(params.priority) : undefined);
     return (
       <ArenaPlanLauncher
-        missionId={mission.success ? mission.data : PLAY_MISSION}
+        missionId={mission.success ? mission.data : ARENA_DEMO_MISSION}
         presetId={preset.success ? preset.data : 'all_rounder'}
         briefing={typeof params.briefing === 'string' && params.briefing.trim() ? params.briefing.trim().slice(0, 140) : undefined}
         priority={priority.success ? priority.data : undefined}

@@ -92,9 +92,20 @@ function useDrive(snapshot: RaceSnapshot, seat: RaceSeat, me: RacePlayer, clockO
  * What next, under the final result. The seat survives the race, so "Race again" needs no rejoin: this page
  * switches to the lobby by itself when the host reopens the room. If the room is gone, it goes to the code form.
  */
-function AfterRace({ code }: { readonly code: string }) {
+function AfterRace({ code, auto }: { readonly code: string; /** An auto room of /play: no host, it closes by itself. */ readonly auto?: { readonly test: boolean } }) {
   const router = useRouter();
   const [waiting, setWaiting] = useState(false);
+  // An auto room has no host to reopen it: "Play again" goes back to /play, which matches into the next room.
+  if (auto) {
+    return (
+      <div className="mt-3 flex flex-col gap-2">
+        <Link href={auto.test ? '/play?test=1' : '/play'} className="rr-btn rr-btn-primary">
+          Play again
+        </Link>
+        <p className="text-center font-mono text-[11px] text-dim">A new room starts every 30 s. Change your vehicle, agent or strategy on the way in.</p>
+      </div>
+    );
+  }
   const raceAgain = (): void => {
     setWaiting(true);
     fetch(`/api/race/${code}`, { cache: 'no-store' })
@@ -145,6 +156,9 @@ export default function RaceRun({ snapshot, seat, me, now, clockOffsetMs }: Race
   const official = me.done;
 
   const verdict = over ? duelVerdict(snapshot.players) : null;
+  // "JEV WINS" only when the winning bot is Jev; another model or the fixed rules winning is "AI WINS", as on /screen.
+  const topBot = rankPlayers(snapshot.players).find((player) => player.kind === 'jev');
+  const winnerIsOtherAi = topBot !== undefined && topBot.model !== undefined && topBot.model !== JEV_AGENT;
   const elapsedMs = snapshot.startAt === null ? 0 : Math.max(0, now - snapshot.startAt);
   const closesInS = snapshot.closesAt === null ? null : Math.max(0, Math.ceil((snapshot.closesAt - now) / 1000));
   const state = view.state;
@@ -261,12 +275,12 @@ export default function RaceRun({ snapshot, seat, me, now, clockOffsetMs }: Race
             </div>
             {verdict ? (
               <p className={`mt-3 rounded-lg border px-3 py-2 text-sm ${verdict.winner === 'jev' ? 'border-led/60 bg-led/10' : 'border-safety/60 bg-safety/10'}`}>
-                <strong className={`font-mono tracking-wider ${verdict.winner === 'jev' ? 'text-led' : 'text-safety'}`}>{verdict.headline}</strong>
+                <strong className={`font-mono tracking-wider ${verdict.winner === 'jev' ? 'text-led' : 'text-safety'}`}>{winnerIsOtherAi ? verdict.headline.replace('JEV WINS', 'AI WINS') : verdict.headline}</strong>
                 <span className="text-slate-200"> · {verdict.detail}</span>
               </p>
             ) : null}
             {over ? (
-              <AfterRace code={snapshot.code} />
+              <AfterRace code={snapshot.code} auto={snapshot.auto ? { test: snapshot.auto.test } : undefined} />
             ) : (
               <p className="mt-3 text-center font-mono text-[11px] text-dim">Race time is wall-clock from the start signal, the same on every screen.</p>
             )}

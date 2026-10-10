@@ -1,4 +1,4 @@
-import type { GhostTrace, MissionId, PlayerPick } from '@rivetrun/contracts';
+import type { Build, GhostTrace, MissionId, PlayerPick } from '@rivetrun/contracts';
 import { MISSIONS, PRESETS, SCAN_RULES, driveSeed, runHeuristicSync, score, TUNING } from '@rivetrun/sim';
 import {
   ARENA_BRAINS,
@@ -447,11 +447,11 @@ function applyPick(room: Room, player: RacePlayer, pick: PlayerPick): void {
 }
 
 /** The fixed rules' own run of this room's track, as a trace the server can replay for a bot. */
-function heuristicTrace(room: Room): GhostTrace {
+function heuristicTrace(room: Room, build: Build): GhostTrace {
   const mission = MISSIONS[room.missionId];
   const frames: GhostTrace['frames'] = [];
   const every = Math.max(1, Math.round(1000 / TUNING.ghostHz / TUNING.dtMs));
-  const run = runHeuristicSync({ mission, seed: room.seed, build: PRESETS.all_rounder.build, priority: 0.5 }, (_prev, next) => {
+  const run = runHeuristicSync({ mission, seed: room.seed, build, priority: 0.5 }, (_prev, next) => {
     if (next.stepCount % every === 0 || next.done) frames.push(next.sim);
   });
   return { policy: 'heuristic', frames, outcome: score(run.state) };
@@ -475,7 +475,9 @@ function fillWithBots(room: Room, auto: AutoRoom): void {
       nickname, kind: 'jev', build, model: jev ? JEV_AGENT : 'heuristic', serverDriven: true,
       ...(jev ? { priority: strategy.priority, briefing: strategy.briefing, ...(strategy.plan ? { plan: true } : {}) } : {}),
     });
-    auto.replays.set(seat.playerId, jev ? ready.ghost : heuristicTrace(room));
+    auto.replays.set(seat.playerId, // The fixed rules drive the build their lane shows (the plan's, when there is one): on a mission the plain
+    // preset cannot finish, a fill lane that never finishes would only say the room is broken.
+    jev ? ready.ghost : heuristicTrace(room, build));
   }
 }
 

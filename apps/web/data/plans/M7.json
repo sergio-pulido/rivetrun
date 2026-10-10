@@ -1,0 +1,179 @@
+{
+  "missionId": "M7",
+  "generatedAt": "2026-10-10T11:30:25.231Z",
+  "generatedWith": "scripts/pregen-plans.mjs",
+  "plans": {
+    "speedster": {
+      "build": {
+        "locomotion": "wheels",
+        "motor": "motor_light",
+        "battery": "battery_large",
+        "sensors": [
+          "camera",
+          "ultrasonic"
+        ],
+        "extras": [
+          "piston_jump",
+          "bumper"
+        ]
+      },
+      "presetId": "speedster",
+      "priority": 0.4,
+      "briefing": "Full speed into ramps (need 1.9 m/s). Fire piston at 30-38m gap. Ease for log at 22-30m. Camera scans survivors at 4, 19m;",
+      "rationale": "Camera covers both survivors and ultrasonic covers the structure, so both stay. The 0.9 m gap has no ramp, so a piston is needed. The small battery is risky with the piston and sensors drawing power, so I swapped to the large one. A bumper halves the log damage.",
+      "partsWhy": [
+        {
+          "partId": "piston_jump",
+          "why": "Only way across the 0.9 m gap with no ramp."
+        },
+        {
+          "partId": "battery_large",
+          "why": "Small pack could run dry; a DNF scores nothing."
+        },
+        {
+          "partId": "bumper",
+          "why": "Halves damage from the log impact and any rough landing."
+        },
+        {
+          "partId": "ultrasonic",
+          "why": "Only sensor that scans the structure at 42 m; also spots the log."
+        }
+      ],
+      "generatedBy": {
+        "provider": "anthropic",
+        "model": "claude-sonnet-5-5",
+        "ms": 12422,
+        "at": "2026-10-10T11:29:55.203Z"
+      }
+    },
+    "mud_crawler": {
+      "build": {
+        "locomotion": "tracks",
+        "motor": "brushless_motor_dfrobot_fit0441",
+        "battery": "battery_large",
+        "sensors": [
+          "camera",
+          "ultrasonic"
+        ],
+        "extras": [
+          "piston_jump",
+          "bumper"
+        ]
+      },
+      "presetId": "mud_crawler",
+      "priority": 0.5,
+      "briefing": "Full speed on ramps (14-22m, 50-58m). Fire piston at 0.9m gap (30-38m). Slow past survivors at 4m, 19m and structure at 42m.",
+      "rationale": "No water, so the case is dropped. The camera scans survivors and the ultrasonic scans the structure at 42 m. The piston clears the 0.9 m gap and the bumper cushions the log. The brushless motor tops 2.5 m/s, enough for the 1.9 m/s ramp. The large battery is kept.",
+      "partsWhy": [
+        {
+          "partId": "piston_jump",
+          "why": "Only way over the 0.9 m gap with no ramp."
+        },
+        {
+          "partId": "camera",
+          "why": "Scans both survivors, at 4 m and 19 m."
+        },
+        {
+          "partId": "ultrasonic",
+          "why": "Only sensor that scans the cracked structure at 42 m."
+        },
+        {
+          "partId": "brushless_motor_dfrobot_fit0441",
+          "why": "2.5 m/s top speed clears the 1.9 m/s ramp requirement."
+        }
+      ],
+      "generatedBy": {
+        "provider": "anthropic",
+        "model": "claude-sonnet-5-5",
+        "ms": 10927,
+        "at": "2026-10-10T11:30:06.248Z"
+      }
+    },
+    "all_rounder": {
+      "build": {
+        "locomotion": "offroad_wheels",
+        "motor": "brushless_motor_dfrobot_fit0441",
+        "battery": "battery_large",
+        "sensors": [
+          "camera",
+          "ultrasonic"
+        ],
+        "extras": [
+          "bumper",
+          "piston_jump"
+        ]
+      },
+      "presetId": "all_rounder",
+      "priority": 0.4,
+      "briefing": "Full speed into both ramps (need 1.7 and 1.9 m/s). Slow for the 4 cm log at 22-30m. Fire piston at the 0.9m gap at 30m. Scan at 4, 19, 42m.",
+      "rationale": "All-rounder plus a piston for the 0.9 m gap with no ramp. The motor is swapped for the brushless one because the torque motor tops out at 2 m/s, too close to the 1.9 m/s ramp need. Camera and ultrasonic cover all three scan zones. The bumper limits log damage.",
+      "partsWhy": [
+        {
+          "partId": "piston_jump",
+          "why": "Clears the 0.9 m gap at 30-38 m, which has no ramp."
+        },
+        {
+          "partId": "brushless_motor_dfrobot_fit0441",
+          "why": "2.5 m/s top speed gives margin for the 1.7 and 1.9 m/s ramps."
+        },
+        {
+          "partId": "camera",
+          "why": "Scans both survivors at 4 m and 19 m."
+        },
+        {
+          "partId": "ultrasonic",
+          "why": "The only sensor that scans the cracked structure at 42 m."
+        }
+      ],
+      "generatedBy": {
+        "provider": "anthropic",
+        "model": "claude-sonnet-5-5",
+        "ms": 8625,
+        "at": "2026-10-10T11:30:14.998Z"
+      }
+    },
+    "deep_diver": {
+      "build": {
+        "locomotion": "offroad_wheels",
+        "motor": "brushless_motor_dfrobot_fit0441",
+        "battery": "battery_large",
+        "sensors": [
+          "camera",
+          "ultrasonic"
+        ],
+        "extras": [
+          "piston_jump",
+          "bumper"
+        ]
+      },
+      "presetId": "deep_diver",
+      "priority": 0.5,
+      "briefing": "Full speed on ramps (need 1.9 m/s). Fire piston at the 30 m gap edge. Slow for log at 22-30 m.",
+      "rationale": "There is no water, so the case and thrusters are dead weight. The piston is for the 0.9 m gap at 30 m. The bumper covers the log. Off-road wheels suit the grass and clear the log. The faster motor helps with the 1.9 m/s ramp. Camera and ultrasonic cover all scans.",
+      "partsWhy": [
+        {
+          "partId": "piston_jump",
+          "why": "Jumps the 0.9 m gap that has no ramp."
+        },
+        {
+          "partId": "offroad_wheels",
+          "why": "Grip on the grass stretches and more clearance for the 4 cm log."
+        },
+        {
+          "partId": "brushless_motor_dfrobot_fit0441",
+          "why": "2.5 m/s top speed gives margin for the 1.9 m/s ramp."
+        },
+        {
+          "partId": "bumper",
+          "why": "Halves the damage from the log impact."
+        }
+      ],
+      "generatedBy": {
+        "provider": "anthropic",
+        "model": "claude-sonnet-5-5",
+        "ms": 10039,
+        "at": "2026-10-10T11:30:25.218Z"
+      }
+    }
+  }
+}
