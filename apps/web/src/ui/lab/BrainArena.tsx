@@ -16,25 +16,31 @@ const DOT: Readonly<Record<ContestantKind, string>> = {
 };
 
 const COLUMNS = ['Finish', 'Score', 'Dec. / run', 'p50', 'p95', 'Late crashes', 'Cost / run'] as const;
-/** With a facts-only run in the file the one score column becomes two, titled as the QA lead asked. */
-const COLUMNS_WITH_FACTS = ['Finish', "Score · with the rules' verdict", 'Score · facts only', 'Dec. / run', 'p50', 'p95', 'Late crashes', 'Cost / run'] as const;
 const FACTS_TONE = { up: 'text-ok', down: 'text-warn' } as const;
 
 function Table({ arena }: { readonly arena: ArenaSection }) {
+  // With a facts-only run in the file, the score cell carries both numbers, one above the other: on a phone the
+  // second one must not be a column that scrolls out of view.
   const facts = hasFacts(arena);
-  const columns: readonly string[] = facts ? COLUMNS_WITH_FACTS : COLUMNS;
   return (
     <div className="rr-scroll-x -mx-4 px-4">
-      <table className={`w-full border-collapse text-right font-mono text-xs tabular-nums ${facts ? 'min-w-[720px]' : 'min-w-[620px]'}`}>
+      <table className="w-full min-w-[620px] border-collapse text-right font-mono text-xs tabular-nums">
         <caption className="sr-only">Brain Arena results per contestant</caption>
         <thead>
           <tr className="text-[10px] font-medium uppercase tracking-[1px] text-muted">
             <th scope="col" className="sticky left-0 bg-panel py-2 pr-3 text-left font-medium">
               Brain
             </th>
-            {columns.map((column) => (
-              <th key={column} scope="col" className={`px-2 py-2 font-medium ${column.startsWith('Score ·') ? 'min-w-[86px] whitespace-normal leading-tight' : 'whitespace-nowrap'}`}>
-                {column}
+            {COLUMNS.map((column) => (
+              <th key={column} scope="col" className="whitespace-nowrap px-2 py-2 align-bottom font-medium">
+                {column === 'Score' && facts ? (
+                  <>
+                    <span className="block">Score · verdict</span>
+                    <span className="block text-faint">facts only</span>
+                  </>
+                ) : (
+                  column
+                )}
               </th>
             ))}
           </tr>
@@ -52,12 +58,14 @@ function Table({ arena }: { readonly arena: ArenaSection }) {
                 {row.carried ? <span className="block pl-3.5 text-[10px] font-medium text-warn">run on {row.carried}</span> : null}
               </th>
               <td className="whitespace-nowrap px-2 py-2">{row.finish}</td>
-              <td className="whitespace-nowrap px-2 py-2">{row.score}</td>
-              {facts ? (
-                <td className={`whitespace-nowrap px-2 py-2 ${row.factsMove ? FACTS_TONE[row.factsMove] : /^\d/.test(row.factsScore) ? '' : 'text-faint'}`} data-testid="facts-score">
-                  {row.factsScore}
-                </td>
-              ) : null}
+              <td className="whitespace-nowrap px-2 py-2">
+                <span className="block">{row.score}</span>
+                {facts && row.configured ? (
+                  <span className={`block text-[11px] ${row.factsMove ? FACTS_TONE[row.factsMove] : /^\d/.test(row.factsScore) ? 'text-text-2' : 'text-faint'}`} data-testid="facts-score">
+                    {/^\d/.test(row.factsScore) ? `facts ${row.factsScore}` : row.factsScore}
+                  </span>
+                ) : null}
+              </td>
               {[row.decisions, row.p50, row.p95, row.lateCrashes, row.cost].map((cell, index) => (
                 <td key={index} className="whitespace-nowrap px-2 py-2">
                   {cell}
@@ -209,7 +217,10 @@ function Results({ section, ctfRivalMs, after }: ResultsProps) {
   const rows = arenaRows(section);
   // The runner's notes when the file carries them; otherwise the one thing the CTF column cannot be read without.
   // The runner's first note is what the tables measure: it goes above them, not in a footnote.
-  const [lead, ...fileNotes] = section.notes;
+  const [lead, ...rest] = section.notes;
+  // With a facts-only score in the table, the runner's sentence on what "facts" means sits above it too.
+  const factsNote = hasFacts(section) ? (rest[0] ?? null) : null;
+  const fileNotes = factsNote ? rest.slice(1) : rest;
   const notes = section.notes.length > 0 ? fileNotes : section.scenarios.includes('ctf') ? [ctfNote(ctfRivalMs)] : [];
   return (
     <>
@@ -226,6 +237,7 @@ function Results({ section, ctfRivalMs, after }: ResultsProps) {
         <p className="rounded-[10px] border border-cyan-line bg-cyan-deep px-3 py-2.5 text-[13px] leading-snug text-cyan-soft" data-testid="arena-lead-note">
           <span className="font-mono text-[10px] font-medium tracking-[1.5px] text-cyan">WHAT THIS MEASURES · </span>
           {lead}
+          {factsNote ? <span className="mt-1.5 block text-xs text-cyan-muted">{factsNote}</span> : null}
         </p>
       ) : null}
       <Table arena={section} />
