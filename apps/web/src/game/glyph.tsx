@@ -1,3 +1,5 @@
+// Light entry: imported directly ('@/game/glyph') by pages that must not pull in three.js, such as /scenarios.
+// Keep this file to React, the contracts and palette.ts. Do not move or rename it without telling [LAB].
 import type { TerrainId } from '@rivetrun/contracts';
 import { TERRAIN_LOOK, UI } from './palette';
 
