@@ -27,8 +27,8 @@ export function LabResult({ result, mode, newBest, onRetry, onChangeBuild }: Lab
   const good = outcome.status === 'complete';
 
   return (
-    <div className="flex flex-col gap-3" data-testid="scenario-result">
-      <section className="rr-card rr-rise flex flex-col items-center gap-2 px-3 py-4 text-center">
+    <div className="flex flex-col gap-3 lg:grid lg:grid-cols-[380px_minmax(0,1fr)] lg:items-start lg:gap-x-5" data-testid="scenario-result">
+      <section className="rr-card rr-rise flex flex-col items-center gap-2 px-3 py-4 text-center lg:col-start-1">
         <h2 className={`font-display text-2xl font-bold uppercase tracking-[1px] ${good ? 'text-ok' : outcome.status === 'partial' ? 'text-warn' : 'text-bad'}`} data-testid="scenario-result-heading">
           {resultHeading(outcome)}
         </h2>
@@ -38,7 +38,7 @@ export function LabResult({ result, mode, newBest, onRetry, onChangeBuild }: Lab
         <p className="text-[13px] leading-snug text-text-2">{outcome.why}</p>
       </section>
 
-      <div className="flex flex-wrap justify-center gap-1.5">
+      <div className="flex flex-wrap justify-center gap-1.5 lg:col-start-1">
         <span className="rr-chip tabular-nums">{outcome.timeS} s</span>
         <span className="rr-chip tabular-nums">Damage {Math.round(outcome.damagePct)} %</span>
         <span className="rr-chip tabular-nums">Energy {Math.round(outcome.energyUsedPct)} %</span>
@@ -46,7 +46,7 @@ export function LabResult({ result, mode, newBest, onRetry, onChangeBuild }: Lab
         <span className="rr-chip tabular-nums">{outcome.stats.tiles} tiles</span>
       </div>
 
-      <section className="rr-card flex flex-col gap-2 p-3" aria-label="What your sensors could not see">
+      <section className="rr-card flex flex-col gap-2 p-3 lg:col-start-2 lg:row-span-6 lg:row-start-1" aria-label="What your sensors could not see">
         <h3 className="rr-label !text-orange-soft">What your sensors could not see</h3>
         <p className="text-[13px] leading-snug text-text-2" data-testid="scenario-fog">
           Your robot sensed {fog.sensedPct} % of the map.
@@ -56,14 +56,14 @@ export function LabResult({ result, mode, newBest, onRetry, onChangeBuild }: Lab
         <p className="text-[11px] leading-snug text-faint">The whole map. Hatched tiles were never reported by a sensor.</p>
       </section>
 
-      {mode === 'jev' ? <DecisionThread decisions={mine} limit={40} title={`Your robot · ${mine.length} decisions`} /> : null}
-      {theirs.length > 0 ? <DecisionThread decisions={theirs} limit={40} title={`Jev · ${theirs.length} decisions`} /> : null}
+      {mode === 'jev' ? <div className="lg:col-start-1"><DecisionThread decisions={mine} limit={40} title={`Your robot · ${mine.length} decisions`} /></div> : null}
+      {theirs.length > 0 ? <div className="lg:col-start-1"><DecisionThread decisions={theirs} limit={40} title={`Jev · ${theirs.length} decisions`} /></div> : null}
 
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-2 gap-2 lg:col-start-1">
         <button type="button" className="rr-btn rr-btn-secondary" onClick={onChangeBuild} data-testid="scenario-change">Change robot</button>
         <button type="button" className="rr-btn rr-btn-primary" onClick={onRetry} data-testid="scenario-retry">Run it again</button>
       </div>
-      <Link href="/scenarios" className="rr-btn rr-btn-secondary">All scenarios</Link>
+      <Link href="/scenarios" className="rr-btn rr-btn-secondary lg:col-start-1">All scenarios</Link>
     </div>
   );
 }

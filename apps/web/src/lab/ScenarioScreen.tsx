@@ -5,7 +5,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { LAB_PLAYER, LAB_SCENARIOS, LAB_SEEDS, deriveRobot, type LabScenarioId } from '@rivetrun/lab';
 import { useBuildStore } from '@/state/build';
 import { saveResult, useLabBests } from './bests';
-import { LAB_HONESTY, SCENARIO_BRIEFS, labLoadouts, sensorLine } from './copy';
+import { SCENARIO_BRIEFS, labLoadouts, sensorLine } from './copy';
+import { Simplifications } from './Simplifications';
 import { STAND_IN_NOTE } from './labBrain';
 import { LabPlay } from './LabPlay';
 import { LabResult } from './LabResult';
@@ -47,7 +48,7 @@ export function ScenarioScreen({ id }: { readonly id: LabScenarioId }) {
   if (setup !== null && view !== null) return <LabPlay view={view} controls={controls} mode={setup.mode} />;
 
   return (
-    <div className="flex flex-col gap-3">
+    <div className="mx-auto flex w-full max-w-[430px] flex-col gap-3">
       <section className="rr-rise flex flex-col gap-1.5">
         <h2 className="font-display text-xl font-bold uppercase tracking-[1px]">{scenario.name}</h2>
         <p className="text-[13px] leading-snug text-text-2">{scenario.description}</p>
@@ -103,7 +104,7 @@ export function ScenarioScreen({ id }: { readonly id: LabScenarioId }) {
         {mode === 'jev' || twoRobots ? <p className="text-xs leading-snug text-cyan-muted">{STAND_IN_NOTE}</p> : null}
       </section>
 
-      <p className="rounded-xl border border-dashed border-line-3 px-3 py-2 text-xs leading-snug text-text-2" data-testid="scenario-honesty">{LAB_HONESTY}</p>
+      <Simplifications />
 
       <button type="button" className="rr-btn rr-btn-primary !min-h-[60px] !rounded-2xl !text-xl !tracking-[2px]" onClick={start} data-testid="scenario-start">Start</button>
     </div>

@@ -136,9 +136,12 @@ export function LabBoard({ state, reveal = false, onTile }: LabBoardProps) {
   const view = useMemo(() => (reveal ? [] : inView(state, me)), [reveal, me.cell, me.heading, me.known, state.weatherActive, state.doorsOpen]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const click = (event: MouseEvent<SVGSVGElement>): void => {
-    if (!onTile) return;
-    const box = event.currentTarget.getBoundingClientRect();
-    const cell = { x: Math.floor(((event.clientX - box.left) / box.width) * map.width), y: Math.floor(((event.clientY - box.top) / box.height) * map.height) };
+    const svg = event.currentTarget;
+    const toScreen = svg.getScreenCTM();
+    if (!onTile || toScreen === null) return;
+    // Through the drawing's own transform, so a letterboxed map still maps taps to the right tile.
+    const point = new DOMPoint(event.clientX, event.clientY).matrixTransform(toScreen.inverse());
+    const cell = { x: Math.floor(point.x / T), y: Math.floor(point.y / T) };
     if (cell.x >= 0 && cell.y >= 0 && cell.x < map.width && cell.y < map.height) onTile(cell);
   };
 
@@ -161,7 +164,7 @@ export function LabBoard({ state, reveal = false, onTile }: LabBoardProps) {
   return (
     <svg
       viewBox={`0 0 ${map.width * T} ${map.height * T}`}
-      className="block h-auto w-full touch-manipulation select-none rounded-xl border border-line"
+      className="block h-auto w-full touch-manipulation select-none rounded-xl border border-line bg-slate-deep lg:max-h-[calc(100dvh-150px)]"
       role="img"
       aria-label={reveal ? 'The whole map, with what the robot never sensed hatched over' : 'Top-down map as your robot knows it'}
       onClick={click}

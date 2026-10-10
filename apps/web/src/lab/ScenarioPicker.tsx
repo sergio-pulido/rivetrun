@@ -4,7 +4,8 @@ import Link from 'next/link';
 import { LAB_SCENARIOS, LAB_SCENARIO_IDS } from '@rivetrun/lab';
 import { Stars } from '@/ui/Stars';
 import { useLabBests } from './bests';
-import { LAB_HONESTY, LAB_SIMPLIFICATIONS, SCENARIO_BRIEFS } from './copy';
+import { SCENARIO_BRIEFS } from './copy';
+import { Simplifications } from './Simplifications';
 
 /** The five Lab Missions, each with what decides it and the best score on this device. */
 export function ScenarioPicker() {
@@ -17,15 +18,7 @@ export function ScenarioPicker() {
         <p className="text-[13px] leading-snug text-text-2">
           Tasks a race track cannot ask: mazes, deliveries, sample returns. Same parts, same sensors, same battery, and the robot knows only what its sensors report.
         </p>
-        <div className="rounded-xl border border-dashed border-line-3 px-3 py-2 text-xs leading-snug text-text-2">
-          <p data-testid="scenario-honesty">{LAB_HONESTY}</p>
-          <details className="mt-1.5">
-            <summary className="flex min-h-9 cursor-pointer items-center font-mono text-[11px] font-medium tracking-[1px] text-orange-soft">HOW IT DIFFERS FROM THE TRACK</summary>
-            <ul className="flex list-disc flex-col gap-1 pb-1 pl-4" data-testid="scenario-simplifications">
-              {LAB_SIMPLIFICATIONS.map((sentence) => <li key={sentence}>{sentence}</li>)}
-            </ul>
-          </details>
-        </div>
+        <Simplifications />
       </section>
 
       <ul className="flex flex-col gap-2.5">

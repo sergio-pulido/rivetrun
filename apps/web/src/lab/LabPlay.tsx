@@ -85,8 +85,11 @@ export function LabPlay({ view, controls, mode }: LabPlayProps) {
   }, [driving, press, act, halt]);
 
   return (
-    <div className="flex flex-col gap-2.5">
-      <ul className="flex flex-col gap-1" data-testid="scenario-objective" aria-label="Objectives">
+    <div className="flex flex-col gap-2.5 lg:grid lg:grid-cols-[minmax(0,1fr)_380px] lg:items-start lg:gap-x-5">
+      <div className="lg:col-start-1 lg:row-span-6 lg:row-start-1">
+        <LabBoard state={state} onTile={driving ? controls.goTo : undefined} />
+      </div>
+      <ul className="order-first flex flex-col gap-1 lg:order-none lg:col-start-2" data-testid="scenario-objective" aria-label="Objectives">
         {statuses.map((status) => (
           <li key={status.id} className="flex items-center justify-between gap-2 text-[13px] leading-snug">
             <span className={status.done ? 'text-ok' : 'text-text'}>{status.label}</span>
@@ -95,7 +98,7 @@ export function LabPlay({ view, controls, mode }: LabPlayProps) {
         ))}
       </ul>
 
-      <div className="flex flex-wrap gap-1.5">
+      <div className="order-first flex flex-wrap gap-1.5 lg:order-none lg:col-start-2">
         <span className="rr-chip tabular-nums" data-testid="scenario-time">{state.t.toFixed(1)} s</span>
         <span className={`rr-chip tabular-nums ${me.batteryPct < 20 ? '!border-bad !text-bad' : ''}`}>Battery {Math.round(me.batteryPct)} %</span>
         <span className={`rr-chip tabular-nums ${me.damagePct > 0 ? '!border-warn !text-warn' : ''}`}>Damage {Math.round(me.damagePct)} %</span>
@@ -103,14 +106,12 @@ export function LabPlay({ view, controls, mode }: LabPlayProps) {
         {state.weatherActive.length > 0 ? <span className="rr-chip !border-warn !text-warn">{state.weather.find((w) => state.weatherActive.includes(w.id))?.label}</span> : null}
       </div>
 
-      <LabBoard state={state} onTile={driving ? controls.goTo : undefined} />
-
-      <p className="min-h-8 font-mono text-[11px] leading-snug text-text-2" aria-live="polite" data-testid="scenario-noticed">
+      <p className="min-h-8 font-mono text-[11px] leading-snug text-text-2 lg:col-start-2" aria-live="polite" data-testid="scenario-noticed">
         {view.noticed ? view.noticed.label : 'Fog is what no sensor has reported. The tint is what your sensors see now.'}
       </p>
 
       {driving ? (
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center justify-between gap-3 lg:col-start-2">
           <div className="grid grid-cols-[repeat(3,52px)] grid-rows-[repeat(3,52px)] gap-1.5" role="group" aria-label="Move">
             {PAD.map((button) => (
               <button key={button.id} type="button" className={`rr-iconbtn !h-[52px] !w-[52px] bg-panel-2 ${button.place}`} aria-label={button.label} data-testid={button.id} onClick={() => press(button.dir)}>
@@ -134,11 +135,13 @@ export function LabPlay({ view, controls, mode }: LabPlayProps) {
       ) : null}
 
       {!driving || rival ? (
+        <div className="lg:col-start-2">
         <DecisionThread
           decisions={thread}
           limit={driving ? 3 : 5}
           title={`${driving ? (rival?.label ?? 'Jev') : 'Your robot'} · decisions (${STAND_IN_NAME.toLowerCase()})${view.thinking.length > 0 ? ' · thinking' : ''}`}
         />
+        </div>
       ) : null}
     </div>
   );
