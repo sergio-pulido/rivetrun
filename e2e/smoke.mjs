@@ -2,7 +2,7 @@
 // Headless Chromium against QA_BASE_URL. scripts/qa.sh points it at a production build of the commit under test;
 // on its own it defaults to the dev server. It starts no server and writes nothing outside e2e/screens.
 //   node e2e/smoke.mjs                 all steps
-//   QA_ONLY=drive node e2e/smoke.mjs   one step group: pages | drive | jev | m5 | lab | missions | fallback | race | desktop
+//   QA_ONLY=drive node e2e/smoke.mjs   one step group: pages | drive | jev | m5 | lab | missions | fallback | race | arena | desktop
 // Env: QA_BASE_URL (default http://localhost:3000), QA_SCREENS (output directory), QA_HEADED=1 to watch.
 // Exit code: 0 when no step failed (skips are allowed), 1 otherwise. A summary lands in <QA_SCREENS>/summary.json.
 import { mkdirSync, writeFileSync } from 'node:fs';
@@ -687,6 +687,39 @@ try {
       const timed = (text.match(/\b\d{1,2}:\d\d\.\d\b|\b\d+\.\d s\b/g) ?? []).length;
       if (timed === 0 && !/DNF|did not finish/i.test(text)) throw new Error('FINISH shown but no time or DNF on the board');
       return verdict ? `verdict: ${verdict.slice(0, 80)}` : 'finished, both bots listed';
+    }, screen);
+  }
+
+  // ---- The live Brain Arena (OVN-BRAIN-6): /screen?room=CODE&arena=1, Jev against the fixed rules. No paid model. ----
+  if (wants('arena')) {
+    await step('arena race · Jev vs rules', async () => {
+      await go(screen, '/screen');
+      await screen.getByRole('button', { name: 'Start a Room Race' }).click();
+      await screen.waitForURL(/\/screen\?room=/, { timeout: NAV_MS });
+      await go(screen, `${new URL(screen.url()).pathname}${new URL(screen.url()).search}&arena=1`);
+      const jev = screen.getByRole('button', { name: /^\+ Jev$/ });
+      if (!(await jev.waitFor({ state: 'visible', timeout: 15_000 }).then(() => true, () => false))) throw new Skip('no arena host bar on this build (OVN-BRAIN-6 not in it)');
+      await screen.getByRole('radio', { name: /^M1\b/ }).first().click();
+      await jev.click();
+      await visibleText(screen, '1 in the room');
+      await screen.getByRole('button', { name: /^\+ Fixed rules$/ }).click();
+      await visibleText(screen, '2 in the room');
+      await shot(screen, 'screen-06-arena-lobby');
+      await screen.getByRole('button', { name: 'Open build phase' }).click();
+      const startNow = screen.getByRole('button', { name: 'Start now' });
+      await startNow.waitFor({ state: 'visible', timeout: 20_000 });
+      await startNow.click();
+      await visibleText(screen, 'BRAIN ARENA · LIVE', 30_000);
+      await sleep(7000);
+      await shot(screen, 'screen-07-arena-live');
+      await visibleText(screen, 'BRAIN ARENA · FINISH', 180_000);
+      await sleep(1500);
+      await shot(screen, 'screen-08-arena-finish');
+      await assertHealthy(screen, screenSeen, { sideways: false });
+      const text = await screen.locator('body').innerText();
+      const times = text.match(/\b\d{1,2}\.\d s\b/g) ?? [];
+      if (times.length === 0 && !/DNF/i.test(text)) throw new Error('FINISH shown but no time or DNF on the board');
+      return `Jev and the fixed rules raced M1; times on the board: ${times.slice(0, 4).join(', ') || 'DNF only'}`;
     }, screen);
   }
 
