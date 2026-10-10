@@ -141,7 +141,7 @@ async function tap(page, selector, what) {
  * TAP CLIMB prompt, as a player would; without it the phone is left alone (an agent drives, or nobody does).
  */
 async function raceToResult(page, { drive }) {
-  await page.waitForURL(/\/race\/[A-Z0-9]+/i, { timeout: COUNTDOWN_MS });
+  await page.waitForURL(/\/race\/[A-Z0-9]+/i, { timeout: COUNTDOWN_MS + 15_000 });
   const code = new URL(page.url()).pathname.split('/').pop();
   const deadline = Date.now() + COUNTDOWN_MS + RACE_MS;
   let lastTap = 0;
@@ -176,84 +176,82 @@ async function raceToResult(page, { drive }) {
   return { code, place: place ? `P${place[1]} of ${place[2]}` : null, lanes: place ? Number(place[2]) : 0, finished, dnf, time, playAgain, body };
 }
 
+/** One phone context on /play, matched into a test room. */
+async function phoneOnPlay(browser, label) {
+  const context = await browser.newContext({ viewport: PHONE, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
+  const page = await context.newPage();
+  return { context, page, seen: watch(page, label) };
+}
+
+// One phone at a time: a second software-rendered 3D page slows both below the race clock, and the room closes
+// 45 s after its first finisher. Phone A taps three times and drives; phone B, in the next room, is never touched.
 async function playSteps(browser) {
-  const driver = await browser.newContext({ viewport: PHONE, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
-  const idler = await browser.newContext({ viewport: PHONE, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
-  const a = await driver.newPage();
-  const b = await idler.newPage();
-  const seenA = watch(a, 'play');
-  const seenB = watch(b, 'play-idle');
+  const a = await phoneOnPlay(browser, 'play');
   let joined = false;
-  let rooms = [];
+  let tapped = false;
 
   await step('/play · match', async () => {
-    await openPlay(a);
-    await openPlay(b);
-    rooms = [await text(a.locator(id('play-room'))), await text(b.locator(id('play-room')))];
-    const countdown = await text(a.locator(id('play-countdown')));
+    await openPlay(a.page);
+    const room = await text(a.page.locator(id('play-room')));
+    const countdown = await text(a.page.locator(id('play-countdown')));
     if (!/\d/.test(countdown)) throw new Error(`no countdown on the first step (play-countdown: "${countdown}")`);
-    await shot(a, 'play-01-vehicle');
-    await assertHealthy(a, seenA);
+    await shot(a.page, 'play-01-vehicle');
+    await assertHealthy(a.page, a.seen);
     joined = true;
-    const same = rooms[0] && rooms[0] === rooms[1] ? 'both phones in the same room' : `the two phones are in rooms "${rooms[0]}" and "${rooms[1]}"`;
-    return `room ${rooms[0] || '(no play-room)'}, countdown ${countdown}; ${same}`;
-  }, a);
+    return `room ${room || '(no play-room)'}, countdown ${countdown}`;
+  }, a.page);
 
-  // Phone A taps three times and drives itself; phone B is never touched.
-  let tapped = false;
   await step('/play · 3 taps', async () => {
     if (!joined) throw new Skip('no room joined');
     const startedAt = Date.now();
-    const vehicle = await tap(a, id('play-vehicle-all_rounder'), 'All-rounder vehicle');
-    await waitForStep(a, ['agent'], 5000);
-    await shot(a, 'play-02-agent');
-    const agents = await a.locator('[data-testid^="play-agent-"]').evaluateAll((cards) => cards.map((card) => card.getAttribute('data-testid').replace('play-agent-', '')));
-    const agent = await tap(a, id('play-agent-human'), '"You drive" agent');
-    await waitForStep(a, ['strategy'], 5000);
-    await shot(a, 'play-03-strategy');
-    const strategies = await a.locator('[data-testid^="play-strategy-"]').evaluateAll((cards) => cards.map((card) => card.getAttribute('data-testid').replace('play-strategy-', '')));
-    const strategy = await tap(a, id('play-strategy-plan'), 'plan strategy');
+    const vehicle = await tap(a.page, id('play-vehicle-all_rounder'), 'All-rounder vehicle');
+    await waitForStep(a.page, ['agent'], 5000);
+    await shot(a.page, 'play-02-agent');
+    const agents = await a.page.locator('[data-testid^="play-agent-"]').evaluateAll((cards) => cards.map((card) => card.getAttribute('data-testid').replace('play-agent-', '')));
+    const agent = await tap(a.page, id('play-agent-human'), '"You drive" agent');
+    await waitForStep(a.page, ['strategy'], 5000);
+    await shot(a.page, 'play-03-strategy');
+    const strategies = await a.page.locator('[data-testid^="play-strategy-"]').evaluateAll((cards) => cards.map((card) => card.getAttribute('data-testid').replace('play-strategy-', '')));
+    const strategy = await tap(a.page, id('play-strategy-plan'), 'plan strategy');
     const tookMs = Date.now() - startedAt;
-    await waitForStep(a, ['waiting'], 5000);
+    await waitForStep(a.page, ['waiting'], 5000);
     await sleep(500);
-    await shot(a, 'play-04-waiting');
-    await assertHealthy(a, seenA);
+    await shot(a.page, 'play-04-waiting');
+    await assertHealthy(a.page, a.seen);
     tapped = true;
     return `${vehicle} → ${agent} → ${strategy} in ${(tookMs / 1000).toFixed(1)} s; agents offered: ${agents.join(', ')}; strategies: ${strategies.join(', ')}`;
-  }, a);
+  }, a.page);
 
-  let driven = null;
-  let idle = null;
   await step('/play · "You drive" → result', async () => {
     if (!tapped) throw new Skip('the three taps did not go through');
-    // Both phones are followed at once: they are in the same race.
-    const watching = raceToResult(b, { drive: false }).then((result) => { idle = result; }, (error) => { idle = { error: String(error?.message ?? error) }; });
-    driven = await raceToResult(a, { drive: true });
+    const driven = await raceToResult(a.page, { drive: true });
     await sleep(600);
-    await shot(a, 'play-06-result-driver');
-    await watching;
-    await assertHealthy(a, seenA);
+    await shot(a.page, 'play-06-result-driver');
+    await assertHealthy(a.page, a.seen);
     if (!driven.place) throw new Error(`the final order does not show this phone's place; the page said: "${driven.body.slice(0, 140)}"`);
     // This step is about the flow: the phone that drove gets the room's official result. A scripted thumb may well
-    // not finish the Play mission; a phone the room lost is a failure of the flow.
-    if (!driven.finished && /lost connection/i.test(driven.dnf ?? '')) throw new Error(`the room lost the driving phone (${driven.place}, ${driven.dnf}); the page said: "${driven.body.slice(0, 160)}"`);
+    // not finish the Play mission; a phone the room lost, or one still on the track when the race closed, is a failure.
+    if (!driven.finished && /lost connection|race closed/i.test(driven.dnf ?? '')) throw new Error(`the driving phone ended "${driven.dnf}" (${driven.place}); the page said: "${driven.body.slice(0, 160)}"`);
     if (!driven.playAgain) warnings.push('/play: the race result has no link back to /play ("Play again", docs/PLAY_AND_PLAN.md §4)');
     const outcome = driven.finished ? (driven.time ?? 'a race time') : `${driven.dnf} (a scripted thumb: throttle held, the action button on its prompts)`;
     return `room ${driven.code}: ${driven.place}, ${outcome}; ${driven.lanes} lanes${driven.lanes < 4 ? ' (the plan says bots fill to at least 4)' : ''}; Play again link: ${driven.playAgain ? 'yes' : 'NO'}`;
-  }, a);
+  }, a.page);
+  await a.context.close();
 
-  // The untouched phone gets the defaults (All-rounder, Jev, the plan): its agent has to bring it to a result.
+  // The untouched phone gets the defaults (All-rounder, Jev, the plan): its agent has to bring it to a finish.
+  const b = await phoneOnPlay(browser, 'play-idle');
   await step('/play · no taps → defaults', async () => {
-    if (!idle) throw new Skip('the race was not followed');
-    await shot(b, 'play-07-result-idle').catch(() => undefined);
-    if (idle.error) throw new Error(idle.error);
-    await assertHealthy(b, seenB);
+    if (!joined) throw new Skip('/play did not match the first phone');
+    await openPlay(b.page);
+    const room = await text(b.page.locator(id('play-room')));
+    const idle = await raceToResult(b.page, { drive: false });
+    await sleep(600);
+    await shot(b.page, 'play-07-result-idle');
+    await assertHealthy(b.page, b.seen);
     if (!idle.finished) throw new Error(`an untouched phone (defaults: All-rounder, Jev, the plan) did not finish: ${idle.place ?? 'no place'}, ${idle.dnf}; the page said: "${idle.body.slice(0, 160)}"`);
-    return `an untouched phone finished without a tap: ${idle.place}, ${idle.time ?? 'a race time'}`;
-  }, b);
-
-  await driver.close();
-  await idler.close();
+    return `room ${room}: an untouched phone finished without a tap: ${idle.place}, ${idle.time ?? 'a race time'}`;
+  }, b.page);
+  await b.context.close();
 }
 
 // ---- The match and pick routes, without a browser --------------------------------------------------------------------
@@ -449,9 +447,10 @@ const browser = await chromium.launch({
 });
 
 try {
-  if (wants('api')) await apiSteps();
   if (wants('analyze')) await analyzeSteps(browser);
   if (wants('play')) await playSteps(browser);
+  // Last: its room stays in the lobby for 30 s, and the phones above must not be matched into it.
+  if (wants('api')) await apiSteps();
 } finally {
   await browser.close();
 }
