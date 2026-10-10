@@ -71,7 +71,11 @@ const askServer = async (question: BrainQuestion, timeoutMs: number, url: string
       body: JSON.stringify(question),
       signal: controller.signal,
     });
-    if (!response.ok) throw new Error(`the brain's server responded ${response.status}`);
+    if (!response.ok) {
+      // 429 = a visitor limit (RR-GUARD): the server's own words say why the fixed rules are driving.
+      const said = response.status === 429 ? ((await response.json().catch(() => null)) as { error?: unknown } | null)?.error : undefined;
+      throw new Error(typeof said === 'string' && said ? said : `the brain's server responded ${response.status}`);
+    }
     const decision = BrainDecisionSchema.parse(await response.json());
     if (!question.options.includes(decision.selected)) throw new Error('decision is not an available action');
     return decision;

@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { MISSIONS } from '@rivetrun/sim';
 import type { HumanArenaBody } from '../api/_lib/humanArena';
+import type { PublicGuardStatus } from '../api/_lib/publicGuard';
 import { QrCode } from '../leaderboard/_lib/QrCode';
 import { AutoRoomsGrid } from './AutoRoomsGrid';
 import play from './play.module.css';
@@ -34,6 +35,29 @@ function useAudience(): HumanArenaBody | null {
   return body;
 }
 
+/** RR-GUARD spend and caps. The route answers only on the presenter's machine; anywhere else this stays null. */
+function useGuardStatus(): PublicGuardStatus | null {
+  const [status, setStatus] = useState<PublicGuardStatus | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    const load = (): void => {
+      fetch('/api/admin/public-ai', { cache: 'no-store' })
+        .then(async (response) => (response.ok ? ((await response.json()) as PublicGuardStatus) : null))
+        .then((next) => {
+          if (!cancelled) setStatus(next);
+        })
+        .catch(() => undefined);
+    };
+    load();
+    const timer = setInterval(load, 5000);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, []);
+  return status;
+}
+
 /**
  * /screen?mode=play — the hands-on part of the demo: one big QR to the Home page, three words, and the room's own
  * runs as they come in. Sized for the back of the room at 1920×1080 (everything scales with the screen).
@@ -41,6 +65,7 @@ function useAudience(): HumanArenaBody | null {
 export function PlayScreen({ siteUrl }: { readonly siteUrl: string }) {
   useAmbience('amb_arena', 'screen'); // RR-SOUND: arena ambience; silent when the pack has no file
   const audience = useAudience();
+  const guard = useGuardStatus();
   const board = audience?.board ?? [];
   const versus = audience?.vsJev ?? { runs: 0, humanWins: 0 };
   return (
@@ -88,6 +113,12 @@ export function PlayScreen({ siteUrl }: { readonly siteUrl: string }) {
               </div>
             ))}
           </div>
+          {/* Presenter only: this request answers on localhost and nowhere else. */}
+          {guard ? (
+            <span className={play.foot} data-testid="public-ai-status">
+              Visitor AI {guard.on ? 'ON' : 'OFF'} · models US${guard.ai.spentUsd.toFixed(2)} of {guard.ai.capUsd} · Jev {guard.jev.calls} of {guard.jev.cap} calls · {guard.runsPerClient} live runs per phone per {guard.windowMinutes} min · turned away {Object.values(guard.refused).reduce((sum, n) => sum + n, 0)}
+            </span>
+          ) : null}
           <span className={play.foot}>
             {audience ? `${audience.verified} ${audience.verified === 1 ? 'run' : 'runs'} replayed and checked by the server today` : 'Connecting…'} · Jev = the AI driving the same robot on the same track
           </span>

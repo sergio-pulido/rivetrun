@@ -5,7 +5,7 @@ import { z } from 'zod';
 import { apiError, parseWith } from '@/api/respond';
 import { PLAY_MISSION } from '@/play/playMission';
 import { ArenaBrainIdSchema } from '../../../race/_lib/protocol';
-import { requestGhost } from '../../_lib/ghostStore';
+import { guardedGhost } from '../../_lib/ghostGuard';
 import { resolveStrategy } from '../../_lib/playStrategy';
 
 export const runtime = 'nodejs';
@@ -35,12 +35,14 @@ export function GET(request: Request): Response {
   const resolved = resolveStrategy(mission, preset, strategy);
   const pick = { mission, preset, agent, strategy, seed, plan: resolved.plan, label: resolved.label, briefing: resolved.briefing, priority: resolved.priority, ...(resolved.planModel ? { planModel: resolved.planModel } : {}) };
 
-  const answer = requestGhost({ missionId: mission, seed, build: resolved.build, priority: resolved.priority, briefing: resolved.briefing, ...(agent === JEV_MODEL_ID ? {} : { agent }) });
+  const answer = guardedGhost(request, { missionId: mission, seed, build: resolved.build, priority: resolved.priority, briefing: resolved.briefing, ...(agent === JEV_MODEL_ID ? {} : { agent }) });
+  // RR-GUARD: 'cached' = an earlier recorded run stands in for this pick; `label` is what the phone says.
+  const served = answer.status === 'ready' && answer.served ? { served: answer.served, label: answer.label } : answer.status === 'unavailable' && answer.label ? { label: answer.label } : {};
   if (params.get('status')) {
     const status = answer.status === 'ready' ? 'ready' : answer.status === 'pending' ? 'computing' : 'unavailable';
-    return Response.json({ status, pick, ...(answer.status === 'ready' ? { decisions: answer.body.decisions, fallbacks: answer.body.fallbacks, timeS: answer.body.ghost.outcome.timeS, finished: answer.body.ghost.outcome.finished } : {}) }, { headers: { 'Cache-Control': 'no-store' } });
+    return Response.json({ status, pick, ...served, ...(answer.status === 'ready' ? { decisions: answer.body.decisions, fallbacks: answer.body.fallbacks, timeS: answer.body.ghost.outcome.timeS, finished: answer.body.ghost.outcome.finished } : {}) }, { headers: { 'Cache-Control': 'no-store' } });
   }
-  if (answer.status === 'ready') return Response.json({ ...answer.body, pick });
+  if (answer.status === 'ready') return Response.json({ ...answer.body, pick, ...served });
   if (answer.status === 'pending') return Response.json({ status: 'computing', pick }, { status: 202, headers: { 'Retry-After': '2' } });
   return apiError(503, 'upstream_error', `No run for this pick: ${answer.reason}`);
 }

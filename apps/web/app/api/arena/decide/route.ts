@@ -3,6 +3,7 @@ import { DecideRequestSchema, type BrainDecision } from '@rivetrun/contracts';
 import { apiError, parseJsonBody } from '@/api/respond';
 import { ARENA_DECIDE_TIMEOUT_MS, ArenaBrainIdSchema, type ArenaBrainId } from '../../../race/_lib/protocol';
 import { decideFault, jevFaultOf } from '../../_lib/jevFault';
+import { countPublicAi, countPublicJev, guardDecision, guardRefusal, isPublicRequest } from '../../_lib/publicGuard';
 import { liveDecisionStarted } from '../../_lib/liveTraffic';
 
 export const runtime = 'nodejs';
@@ -40,6 +41,8 @@ function contestantFor(id: ArenaBrainId): Promise<Contestant | null> {
   return resolved;
 }
 
+const JEV_BRAIN: ArenaBrainId = 'jev-1.13.0';
+
 const deadline = (ms: number): Promise<never> => new Promise((_resolve, reject) => setTimeout(() => reject(new Error('timeout')), ms));
 
 // GET /api/arena/decide — which brains this server can call right now, and what the live races have cost so far.
@@ -62,12 +65,24 @@ export async function POST(request: Request): Promise<Response> {
   try {
     const fault = jevFaultOf(request);
     if (fault) await decideFault(fault);
+    // RR-GUARD: visitors' live calls are budgeted apart from the presenter's (the fixed rules cost nothing).
+    const isPublic = !fault && model.data !== 'heuristic' && isPublicRequest(request);
+    const provider = model.data === JEV_BRAIN ? 'jev' : 'llm';
+    if (isPublic) {
+      const refused = guardDecision(request, provider, parsed.data.t < 0.5);
+      if (refused) return guardRefusal(refused);
+    }
     const contestant = await contestantFor(model.data);
     if (!contestant) return apiError(503, 'upstream_error', `${model.data} is not available on this server`);
     if (contestant.price && state.spentUsd >= capUsd()) return apiError(503, 'upstream_error', 'the live Arena spending cap is reached');
     const answer = await Promise.race([contestant.forRun(0)(parsed.data), deadline(ARENA_DECIDE_TIMEOUT_MS)]);
     state.calls += 1;
-    if (answer.usage && contestant.price) state.spentUsd += (answer.usage.inputTokens * contestant.price.in + answer.usage.outputTokens * contestant.price.out) / 1e6;
+    const costUsd = answer.usage && contestant.price ? (answer.usage.inputTokens * contestant.price.in + answer.usage.outputTokens * contestant.price.out) / 1e6 : 0;
+    state.spentUsd += costUsd;
+    if (isPublic) {
+      if (provider === 'jev') countPublicJev();
+      else countPublicAi(costUsd);
+    }
     const decision: BrainDecision = { probabilities: answer.probabilities, selected: answer.choice, policy: 'jev', fallback: false, latencyMs: answer.latencyMs, model: model.data };
     return Response.json(decision);
   } catch (error) {

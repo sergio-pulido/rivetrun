@@ -4,6 +4,7 @@ import { buildLabJevRequest, labQuestionVersion, type LabQuestionMode } from '@r
 import { LabQuestionSchema, type LabDecision as LabDecisionBase } from '@rivetrun/lab';
 import { apiError, parseJsonBody } from '@/api/respond';
 import { decideFault, jevFaultOf } from '../../_lib/jevFault';
+import { countPublicJev, guardDecision, guardRefusal, isPublicRequest } from '../../_lib/publicGuard';
 
 /** The answer also says which wording of the question it answered. */
 type LabDecision = LabDecisionBase & { readonly question: string };
@@ -54,6 +55,13 @@ export async function POST(request: Request): Promise<Response> {
 
   // Background ghost runs step aside while this is answered (liveTraffic.ts).
   const liveDone = liveDecisionStarted();
+  // RR-GUARD: a cached answer is free; a live Jev call for a visitor is counted and may be refused.
+  if (!fault && !state.inFlight.has(key)) {
+    const refused = guardDecision(request, 'jev', question.t < 0.5);
+    if (refused) return guardRefusal(refused);
+    if (isPublicRequest(request)) countPublicJev();
+  }
+
   try {
     if (fault) await decideFault(fault);
     const joined = state.inFlight.get(key);

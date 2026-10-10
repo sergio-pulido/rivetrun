@@ -2,6 +2,7 @@ import { MissionIdSchema, PresetIdSchema, type Plan } from '@rivetrun/contracts'
 import { z } from 'zod';
 import { apiError, parseJsonBody } from '@/api/respond';
 import { makePlan } from '../_lib/planner';
+import { isPublicRequest } from '../_lib/publicGuard';
 import { readPlanFile, storedPlan } from '../_lib/plans';
 
 export const runtime = 'nodejs';
@@ -44,6 +45,12 @@ export async function POST(request: Request): Promise<Response> {
   const { missionId, presetId } = parsed.data;
   const stored = (preset: Parameters<typeof storedPlan>[1]): Plan | null => storedPlan(missionId, preset);
 
+  // RR-GUARD: live planning is for the presenter. A visitor gets the committed plan, and no model is called.
+  if (isPublicRequest(request)) {
+    const plan = stored(presetId ?? 'all_rounder');
+    if (plan) return Response.json({ plan, source: 'pregenerated', fellBackBecause: 'live planning is for the presenter; this is the stored plan' } satisfies PlanBody);
+    return apiError(503, 'upstream_error', 'no stored plan for this mission');
+  }
   if (ledger().spentUsd >= capUsd()) {
     const plan = stored(presetId ?? 'all_rounder');
     if (plan) return Response.json({ plan, source: 'pregenerated', fellBackBecause: 'the spending cap for live model calls is reached' } satisfies PlanBody);

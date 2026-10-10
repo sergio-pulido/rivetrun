@@ -2,7 +2,7 @@ import { BriefingSchema, BuildSchema, MissionIdSchema, PrioritySchema, SeedSchem
 import { driveSeed, MISSIONS } from '@rivetrun/sim';
 import { z } from 'zod';
 import { apiError, parseWith } from '@/api/respond';
-import { requestGhost } from '../_lib/ghostStore';
+import { guardedGhost } from '../_lib/ghostGuard';
 import { jevFaultOf } from '../_lib/jevFault';
 
 export const runtime = 'nodejs';
@@ -44,13 +44,14 @@ export async function GET(request: Request): Promise<Response> {
   // Drive mode has one seed per mission; any other seed would be a fresh Jev run nobody races against.
   if (seed !== driveSeed(MISSIONS[mission])) return apiError(400, 'bad_request', 'seed is not this mission\'s Drive seed');
   const fault = jevFaultOf(request);
-  const answer = requestGhost({ missionId: mission, seed, build, priority, briefing, ...(fault ? { fault } : {}) });
+  const answer = guardedGhost(request, { missionId: mission, seed, build, priority, briefing, ...(fault ? { fault } : {}) });
+  const served = answer.status === 'ready' && answer.served ? { served: answer.served, label: answer.label } : {};
   // ?status=1: the Brief asks only whether Jev is ready (and starts the run if it is not), without the trace.
   if (params.get('status')) {
-    const body = answer.status === 'ready' ? { status: 'ready', decisions: answer.body.decisions, fallbacks: answer.body.fallbacks } : answer.status === 'pending' ? { status: 'computing' } : { status: 'unavailable' };
+    const body = answer.status === 'ready' ? { status: 'ready', decisions: answer.body.decisions, fallbacks: answer.body.fallbacks, ...served } : answer.status === 'pending' ? { status: 'computing' } : { status: 'unavailable', ...(answer.status === 'unavailable' && answer.label ? { label: answer.label } : {}) };
     return Response.json(body, { headers: { 'Cache-Control': 'no-store' } });
   }
-  if (answer.status === 'ready') return Response.json(answer.body);
+  if (answer.status === 'ready') return Response.json({ ...answer.body, ...served });
   if (answer.status === 'pending') return Response.json({ status: 'computing' }, { status: 202, headers: { 'Retry-After': '2' } });
   return apiError(503, 'upstream_error', `No Jev ghost: ${answer.reason}`);
 }

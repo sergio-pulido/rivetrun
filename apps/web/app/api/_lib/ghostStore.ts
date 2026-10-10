@@ -5,6 +5,7 @@ import type { Brain, Build, GhostTrace, MissionId } from '@rivetrun/contracts';
 import { driveSeed, heuristicBrain, MISSION_IDS, MISSIONS, runHeadless } from '@rivetrun/sim';
 import { faultedJev, type JevFault } from './jevFault';
 import { waitForQuiet } from './liveTraffic';
+import { countPublicAi, countPublicJev } from './publicGuard';
 import { CACHE_VERSION } from './version';
 
 // Jev ghosts for Drive mode: the server drives the same mission, seed, build and briefing once with Jev and
@@ -20,6 +21,8 @@ export interface GhostRequest {
    * Paid models are called through the arena adapters and their cost goes to the live ledger.
    */
   readonly agent?: string;
+  /** RR-GUARD: started for a visitor (the public URL): its provider calls count against the public budgets. Not part of the key. */
+  readonly public?: boolean;
   /** Test switch (jevFault.ts): drive this ghost with a Jev that fails or never answers in time. */
   readonly fault?: JevFault;
 }
@@ -35,7 +38,7 @@ export interface GhostBody {
 
 type Entry =
   | { readonly state: 'pending'; readonly since: number }
-  | { readonly state: 'ready'; readonly body: GhostBody }
+  | { readonly state: 'ready'; readonly body: GhostBody; /** What was asked for, to find the closest run for another pick (RR-GUARD). */ readonly request?: GhostRequest }
   | { readonly state: 'failed'; readonly at: number; readonly reason: string };
 
 export type GhostAnswer = { status: 'ready'; body: GhostBody } | { status: 'pending' } | { status: 'unavailable'; reason: string };
@@ -104,6 +107,19 @@ const liveLedger = (): { spentUsd: number; calls: number } => {
 };
 const liveCapUsd = (): number => Number(process.env.ARENA_LIVE_CAP_USD ?? 3);
 
+/** The cost of the most recent paid call, read right after it by the run that made it (calls of one run are sequential). */
+const lastAgentCost = { usd: 0 };
+
+/** Counts a visitor's run against the public budgets, call by call. */
+const counted = (brain: Brain, paid: boolean): Brain => ({
+  decide: async (question) => {
+    const decision = await brain.decide(question);
+    if (paid) countPublicAi(lastAgentCost.usd);
+    else countPublicJev();
+    return decision;
+  },
+});
+
 function agentBrain(agent: string): Promise<Brain> {
   const known = agents.get(agent);
   if (known) return known;
@@ -119,6 +135,8 @@ function agentBrain(agent: string): Promise<Brain> {
         const book = liveLedger();
         book.calls += 1;
         if (answer.usage && contestant.price) book.spentUsd += (answer.usage.inputTokens * contestant.price.in + answer.usage.outputTokens * contestant.price.out) / 1e6;
+        const costUsd = answer.usage && contestant.price ? (answer.usage.inputTokens * contestant.price.in + answer.usage.outputTokens * contestant.price.out) / 1e6 : 0;
+        lastAgentCost.usd = costUsd;
         return { probabilities: answer.probabilities, selected: answer.choice, policy: 'jev', fallback: false, latencyMs: answer.latencyMs, model: agent };
       },
     };
@@ -165,13 +183,21 @@ function remember(key: string, entry: Entry): void {
   state.entries.set(key, entry);
 }
 
+/** Who drives this ghost, with the public accounting around it when a visitor's request started the run. */
+function driverOf(request: GhostRequest, key: string, low: boolean, agent: Brain | null): Brain {
+  if (request.fault) return faultedJev(request.fault);
+  const brain = agent ?? (low ? politeJev(key) : jev);
+  if (!request.public || request.agent === 'heuristic') return brain;
+  return counted(brain, agent !== null);
+}
+
 async function compute(key: string, request: GhostRequest, low = false): Promise<void> {
   await new Promise<void>((start) => {
     state.waiting.push({ key, start, low });
     pump();
   });
   try {
-    const { episode, ghost } = await runHeadless(MISSIONS[request.missionId], request.seed, request.build, request.fault ? faultedJev(request.fault) : request.agent && request.agent !== JEV_MODEL_ID ? await agentBrain(request.agent) : low ? politeJev(key) : jev, {
+    const { episode, ghost } = await runHeadless(MISSIONS[request.missionId], request.seed, request.build, driverOf(request, key, low, request.agent && request.agent !== JEV_MODEL_ID ? await agentBrain(request.agent) : null), {
       priority: request.priority,
       policy: 'jev',
       briefing: request.briefing,
@@ -189,7 +215,7 @@ async function compute(key: string, request: GhostRequest, low = false): Promise
       const answered = episode.decisions.filter((decision) => !decision.fallback).map((decision) => decision.latencyMs).sort((a, b) => a - b);
       const mid = Math.floor(answered.length / 2);
       const medianLatencyMs = answered.length === 0 ? undefined : answered.length % 2 === 1 ? answered[mid]! : Math.round((answered[mid - 1]! + answered[mid]!) / 2);
-      remember(key, { state: 'ready', body: { ghost: { ...ghost, log }, decisions, fallbacks, ...(medianLatencyMs === undefined ? {} : { medianLatencyMs }) } });
+      remember(key, { state: 'ready', request, body: { ghost: { ...ghost, log }, decisions, fallbacks, ...(medianLatencyMs === undefined ? {} : { medianLatencyMs }) } });
     }
   } catch (error) {
     console.error('[ghost] run failed', error);
@@ -248,6 +274,30 @@ export function requestGhost(request: GhostRequest): GhostAnswer {
   void compute(key, request);
   warmSiblings(request);
   return { status: 'pending' };
+}
+
+/** 'ready', 'pending' or 'none' for exactly this request; never starts anything. */
+export function ghostStateOf(request: GhostRequest): 'ready' | 'pending' | 'none' {
+  const entry = state.entries.get(keyOf(request));
+  return entry?.state === 'ready' ? 'ready' : entry?.state === 'pending' ? 'pending' : 'none';
+}
+
+const sameBuild = (a: Build, b: Build): boolean => JSON.stringify({ ...a, sensors: [...a.sensors].sort(), extras: [...a.extras].sort() }) === JSON.stringify({ ...b, sensors: [...b.sensors].sort(), extras: [...b.extras].sort() });
+
+/**
+ * RR-GUARD: the recorded run closest to this request, for when a new one may not be driven. Same mission and seed
+ * always; then the same agent, the same vehicle and the same orders count, in that order. Null when none is stored.
+ */
+export function closestReady(request: GhostRequest): GhostBody | null {
+  let best: { body: GhostBody; score: number } | null = null;
+  for (const entry of state.entries.values()) {
+    if (entry.state !== 'ready' || !entry.request || entry.request.fault) continue;
+    const stored = entry.request;
+    if (stored.missionId !== request.missionId || stored.seed !== request.seed) continue;
+    const score = ((stored.agent ?? JEV_MODEL_ID) === (request.agent ?? JEV_MODEL_ID) ? 4 : 0) + (sameBuild(stored.build, request.build) ? 2 : 0) + ((stored.briefing ?? '') === (request.briefing ?? '') ? 1 : 0);
+    if (!best || score > best.score) best = { body: entry.body, score };
+  }
+  return best?.body ?? null;
 }
 
 /** The stored Jev ghost for this loadout if it is ready; never starts one. */

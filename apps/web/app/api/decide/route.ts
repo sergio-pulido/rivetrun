@@ -2,6 +2,7 @@ import { createJevBrain, JevError } from '@rivetrun/brain';
 import { DecideRequestSchema, type DecideResponse } from '@rivetrun/contracts';
 import { apiError, parseJsonBody } from '@/api/respond';
 import { decideFault, jevFaultOf } from '../_lib/jevFault';
+import { countPublicJev, guardDecision, guardRefusal, isPublicRequest } from '../_lib/publicGuard';
 import { cacheDecision, decisionKey, getCachedDecision } from '../_lib/store';
 import { liveDecisionStarted } from '../_lib/liveTraffic';
 
@@ -9,6 +10,8 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 const jev = createJevBrain();
+/** A question asked this early in sim time is the first of its run. */
+const START_T_S = 0.5;
 
 // Calls to Jev that are in flight, by question key. In a full room many phones reach the same decision point
 // in the same state within a few hundred ms: they share one call instead of each making their own.
@@ -33,6 +36,13 @@ export async function POST(request: Request): Promise<Response> {
 
   // Background ghost runs step aside while this is answered (liveTraffic.ts).
   const liveDone = liveDecisionStarted();
+  // RR-GUARD: a cached answer is free; a live Jev call for a visitor is counted and may be refused.
+  if (!fault && !inFlight.has(key)) {
+    const refused = guardDecision(request, 'jev', parsed.data.t < START_T_S);
+    if (refused) return guardRefusal(refused);
+    if (isPublicRequest(request)) countPublicJev();
+  }
+
   try {
     if (fault) await decideFault(fault);
     const joined = inFlight.get(key);
