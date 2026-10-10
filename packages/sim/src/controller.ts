@@ -8,6 +8,7 @@ import type {
   DamageCause,
   DecisionLog,
   DecisionRecord,
+  Outcome,
   Trigger,
   Episode,
   Mission,
@@ -90,6 +91,17 @@ function episodePolicy(decisions: readonly DecisionRecord[], explicit?: Policy):
   return decisions[0]?.policy ?? 'heuristic';
 }
 
+/** Fills the result breakdown's decision counts by trigger kind: "7 decisions: 3 perception, 2 energy, 2 body". */
+function withDecisionCounts(outcome: Outcome, decisions: readonly DecisionRecord[]): Outcome {
+  if (!outcome.breakdown) return outcome;
+  const counts: Partial<Record<Trigger['kind'], number>> = {};
+  for (const decision of decisions) {
+    const kind = decision.log?.trigger.kind;
+    if (kind) counts[kind] = (counts[kind] ?? 0) + 1;
+  }
+  return { ...outcome, breakdown: { ...outcome.breakdown, decisions: counts } };
+}
+
 function toEpisode(state: RunState, decisions: readonly DecisionRecord[], policy: Policy, id: string): Episode {
   return {
     id,
@@ -100,7 +112,7 @@ function toEpisode(state: RunState, decisions: readonly DecisionRecord[], policy
     environment: state.environment,
     priority: state.config.priority,
     decisions: decisions.slice(0, MAX_DECISIONS),
-    outcome: score(state),
+    outcome: withDecisionCounts(score(state), decisions),
   };
 }
 

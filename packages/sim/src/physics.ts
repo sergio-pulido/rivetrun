@@ -10,6 +10,9 @@ const G = 9.81;
 const DT_S = TUNING.dtMs / 1000;
 const DEG = Math.PI / 180;
 
+/** Scan zones: how close the nose must be to the zone, how slow, for how long; what a miss costs and a centred stop earns. */
+export const SCAN_RULES = { reachM: 0.3, maxSpeedMps: 0.1, holdS: 1.5, missPenaltyS: 10, centredM: 0.25, centredBonus: 15 } as const;
+
 /** Physics constants. v0 values. */
 export const PHYSICS = {
   /** Speed controller time constant, seconds. */
@@ -17,8 +20,20 @@ export const PHYSICS = {
   refMassKg: 3,
   sinkageDrag: 0.3,
   /** Impacts below this speed do no damage. */
+  /** Gameplay v3: contact at or below the safe speed is free; above it damage grows with (v − v_safe)². */
   safeImpactSpeedMps: 0.6,
-  impactDamagePerMps: 7,
+  impactDamagePerMps2: 5,
+  /** A bumper raises the safe speed; so does ground clearance, for obstacles the wheels roll over. */
+  bumperSafeSpeedFactor: 1.5,
+  refClearanceCm: 7.5,
+  /** Wheelspin: once the drive asks for more than the ground gives, only this share of the grip is left. */
+  kineticGripFactor: 0.7,
+  /** The drive has to ask for this much more than the grip before the wheels break loose. */
+  spinMargin: 1.1,
+  /** Scales what the drive draws (wheels, thrusters, winch), so that pace decides whether a small battery reaches the finish. */
+  /** Thrusters, tuned apart from the wheels: M6 is a 65 m swim. */
+  thrustEnergyScale: 1.2,
+  driveEnergyScale: 3.5,
   obstacleHardness: { step: 1, log: 1.5, rock: 1.6 } satisfies Record<Obstacle, number>,
   tipDamagePerDegS: 1.5,
   stuckAfterS: 8,
@@ -35,7 +50,7 @@ export const PHYSICS = {
   minLaunchMps: 0.3,
   /** Landings softer than this are free. */
   safeLandingMps: 4.5,
-  landingDamagePerMps: 10,
+  landingDamagePerMps2: 10,
   /** Margin above an obstacle's top at which an airborne robot passes over it. */
   obstacleClearM: 0.02,
   /** Wheels roll straight over gaps this narrow. */
@@ -62,7 +77,7 @@ export const PHYSICS = {
   /** Driving onto rough ground (impactRisk at or above this) faster than the safe speed is an impact. */
   roughTerrainRisk: 0.7,
   roughEntrySafeMps: 1,
-  roughEntryDamagePerMps: 60,
+  roughEntryDamagePerMps2: 45,
 } as const;
 
 interface ActionProfile {
@@ -78,20 +93,22 @@ interface ActionProfile {
 
 const DEFAULT_PROFILE = { force: 1, grip: 1, power: 1, impact: 1, drag: 1 };
 export const ACTION_PROFILES: Readonly<Record<Action, ActionProfile>> = {
-  cruise: { ...DEFAULT_PROFILE, speed: 0.7 },
+  // Throttle levels. `power` is the motor's draw at that level: full throttle pushes the motor past its efficient
+  // range, so per metre steady costs about 70 % of full and ease about 57 %. Brakes and coast draw nothing.
+  cruise: { ...DEFAULT_PROFILE, speed: 0.7, power: 0.5 },
   accelerate: { ...DEFAULT_PROFILE, speed: 1 },
-  slow_down: { ...DEFAULT_PROFILE, speed: 0.35 },
-  brake: { ...DEFAULT_PROFILE, speed: 0 },
+  slow_down: { ...DEFAULT_PROFILE, speed: 0.35, power: 0.2 },
+  brake: { ...DEFAULT_PROFILE, speed: 0, power: 0 },
   reverse: { ...DEFAULT_PROFILE, speed: -0.35 },
-  climb_mode: { speed: 0.45, force: 1.6, grip: 1.5, power: 1.4, impact: 0.3, drag: 0.6 },
+  climb_mode: { speed: 0.45, force: 1.6, grip: 1.5, power: 0.7, impact: 0.3, drag: 0.6 },
   deploy_winch: { speed: 0, force: 1, grip: 1, power: 0.3, impact: 0.1, drag: 1 },
   // Drives like cruise; the piston fires from step() (timed to the next gap unless a player drives).
   jump: { ...DEFAULT_PROFILE, speed: 0.7 },
   // Gameplay v3. Coast: no drive force, the ground slows the robot. Soft brake: 40 % of the braking force.
-  coast: { ...DEFAULT_PROFILE, speed: 0, force: 0 },
-  brake_soft: { ...DEFAULT_PROFILE, speed: 0, force: 0.4 },
+  coast: { ...DEFAULT_PROFILE, speed: 0, force: 0, power: 0 },
+  brake_soft: { ...DEFAULT_PROFILE, speed: 0, force: 0.4, power: 0 },
   // Scan: hold still on the zone (the scan itself is timed in step()).
-  scan: { ...DEFAULT_PROFILE, speed: 0 },
+  scan: { ...DEFAULT_PROFILE, speed: 0, power: 0 },
 };
 
 const clamp = (value: number, min: number, max: number): number => Math.min(max, Math.max(min, value));
@@ -138,6 +155,7 @@ export function createRun(config: RunConfig): RunState {
     falls: 0,
     jumpReadyT: 0,
     drawW: 0,
+    lastStallT: -1,
     stoppedS: 0,
     scans: { done: [], missed: [], holdS: 0, centred: 0 },
     brain: {
@@ -145,7 +163,7 @@ export function createRun(config: RunConfig): RunState {
       slipping: false, tiltBand: 0, energyLow: false, stallMark: 0, stopTold: false, jumpReady: true, damageStep: 0,
     },
     finished: false,
-    stats: { slipSByTerrain: {}, damageByCause: {}, lastTerrain: first.terrain },
+    stats: { slipSByTerrain: {}, slipLostS: 0, landingDamage: 0, fallDamage: 0, damageByCause: {}, lastTerrain: first.terrain },
   };
 }
 
@@ -204,7 +222,11 @@ function driveMotion(state: RunState, action: Action, terrain: TerrainId, slopeD
   const motorMax = spec.motorForceN * profile.force;
   const direction = target !== 0 ? Math.sign(target) : Math.sign(v);
   const requested = clamp((m * (target - v)) / (PHYSICS.throttleTauS * spec.throttleLag) + gravity + direction * resistance, -motorMax, motorMax);
-  const drive = clamp(requested, -traction, traction);
+  // Past the limit the wheels spin: the ground gives back only the kinetic share of its grip.
+  // Climb mode is the crawl gear with traction control: it never asks for more than the ground gives.
+  const spinning = Math.abs(requested) > traction * PHYSICS.spinMargin && action !== 'climb_mode';
+  const limit = spinning ? traction * PHYSICS.kineticGripFactor : traction;
+  const drive = clamp(requested, -limit, limit);
   const slipPct = Math.abs(requested) > traction && Math.abs(requested) > 1e-6 ? (1 - traction / Math.abs(requested)) * 100 : 0;
   const push = drive - gravity;
   let next: number;
@@ -222,10 +244,11 @@ function driveMotion(state: RunState, action: Action, terrain: TerrainId, slopeD
 
 function powerW(state: RunState, action: Action, load: number, swimming: boolean): number {
   const { spec } = state;
-  if (swimming) return spec.basePowerW + spec.thrusterPowerW * load;
-  if (action === 'brake') return spec.basePowerW;
+  // Thrusters have the same efficiency curve as the wheels: easing off costs less per metre swum.
+  if (swimming) return spec.basePowerW + spec.thrusterPowerW * load * (ACTION_PROFILES[action].power || 1) * PHYSICS.thrustEnergyScale;
+  if (ACTION_PROFILES[action].power === 0) return spec.basePowerW;
   const motor = spec.motorPowerW * (PHYSICS.idleLoad + (1 - PHYSICS.idleLoad) * load) * ACTION_PROFILES[action].power;
-  return spec.basePowerW + motor + (action === 'deploy_winch' ? spec.winchPowerW : 0);
+  return spec.basePowerW + (motor + (action === 'deploy_winch' ? spec.winchPowerW : 0)) * PHYSICS.driveEnergyScale;
 }
 
 function addDamage(stats: RunStats, damage: StepDamage): RunStats {
@@ -234,6 +257,8 @@ function addDamage(stats: RunStats, damage: StepDamage): RunStats {
   const isWorst = damage.cause === 'impact' && (damage.obstacle !== undefined || damage.roughEntry !== undefined || damage.air !== undefined) && (!worst || damage.amountPct > worst.amountPct);
   return {
     ...stats,
+    landingDamage: stats.landingDamage + (damage.air === 'landing' ? damage.amountPct : 0),
+    fallDamage: stats.fallDamage + (damage.air === 'fall' ? damage.amountPct : 0),
     damageByCause: byCause,
     worstImpact: isWorst
       ? { obstacle: damage.obstacle, roughEntry: damage.roughEntry, air: damage.air, blocked: damage.blocked, speedMps: damage.speedMps ?? 0, amountPct: damage.amountPct }
@@ -253,6 +278,13 @@ function effectsFor(terrain: TerrainId, v: number, slipPct: number, damage: numb
   if (damage > PHYSICS.smokeAboveDamagePct) effects.push('smoke');
   if (action === 'deploy_winch') effects.push('winch');
   return effects;
+}
+
+/** Contact speed at or below which this build takes no damage from an obstacle: the bumper and the clearance raise it. */
+export function safeContactSpeedMps(spec: RunState['spec'], _kind?: Obstacle): number {
+  const bumper = spec.impactDamageFactor < 1 ? PHYSICS.bumperSafeSpeedFactor : 1;
+  const clearance = clamp(spec.clearanceCm / PHYSICS.refClearanceCm, 0.8, 1.3);
+  return Math.round(PHYSICS.safeImpactSpeedMps * bumper * clearance * 100) / 100;
 }
 
 /** How close to an obstacle's face a stopped robot sits. */
@@ -353,7 +385,7 @@ export function step(state: RunState, action: Action): RunState {
       fell = gap;
     } else {
       const impactMps = Math.abs(vy);
-      const amountPct = Math.max(0, impactMps - PHYSICS.safeLandingMps) * PHYSICS.landingDamagePerMps * spec.impactDamageFactor;
+      const amountPct = Math.max(0, impactMps - PHYSICS.safeLandingMps) ** 2 * PHYSICS.landingDamagePerMps2 * spec.impactDamageFactor;
       landing = { cause: 'impact', amountPct, air: 'landing', speedMps: impactMps };
       lastAir = { type: 'landed', impactMps, airtimeS: Math.max(0, sim.t + DT_S - airStartT), damagePct: amountPct };
     }
@@ -377,7 +409,7 @@ export function step(state: RunState, action: Action): RunState {
       // Too tall to roll over: the robot stops against its near face. The winch hauls it over anything.
       const stopped = obstacle.heightM * 100 > reachCm && action !== 'deploy_winch';
       const amountPct =
-        Math.max(0, speed - PHYSICS.safeImpactSpeedMps) * PHYSICS.obstacleHardness[obstacle.kind] * PHYSICS.impactDamagePerMps *
+        Math.max(0, speed - safeContactSpeedMps(spec, obstacle.kind)) ** 2 * PHYSICS.obstacleHardness[obstacle.kind] * PHYSICS.impactDamagePerMps2 *
         (0.5 + TERRAINS[terrainId].impactRisk) * spec.impactDamageFactor * spec.obstacleImpactFactor * profile.impact *
         (terrainId === 'water' && segment.depthCm > spec.maxWadingDepthCm ? PHYSICS.submergedImpactFactor : 1);
       hit = { cause: 'impact', amountPct, obstacle: obstacle.kind, speedMps: speed, ...(stopped ? { blocked: true } : {}) };
@@ -394,7 +426,7 @@ export function step(state: RunState, action: Action): RunState {
   if (!hit && !airborne && !wasAirborne && entered.index > segment.index && entered.terrain !== terrainId && TERRAINS[entered.terrain].impactRisk >= PHYSICS.roughTerrainRisk) {
     const speed = Math.abs(v);
     const amountPct =
-      Math.max(0, speed - PHYSICS.roughEntrySafeMps) * PHYSICS.roughEntryDamagePerMps * spec.roughGroundFactor * spec.impactDamageFactor *
+      Math.max(0, speed - PHYSICS.roughEntrySafeMps) ** 2 * PHYSICS.roughEntryDamagePerMps2 * spec.roughGroundFactor * spec.impactDamageFactor *
       spec.obstacleImpactFactor * profile.impact;
     if (amountPct > 0) {
       hit = { cause: 'impact', amountPct, roughEntry: entered.terrain, speedMps: speed };
@@ -454,13 +486,36 @@ export function step(state: RunState, action: Action): RunState {
 
   const t = Math.round(stepCount * TUNING.dtMs) / 1000;
   if (motion.slipPct > PHYSICS.slipEffectPct) {
-    stats = { ...stats, slipSByTerrain: { ...stats.slipSByTerrain, [terrainId]: (stats.slipSByTerrain[terrainId] ?? 0) + DT_S } };
+    stats = { ...stats, slipLostS: stats.slipLostS + DT_S * (motion.slipPct / 100), slipSByTerrain: { ...stats.slipSByTerrain, [terrainId]: (stats.slipSByTerrain[terrainId] ?? 0) + DT_S } };
+  }
+
+  // Scan zones: hold still on the zone for the hold time with a sensor it accepts. Driving past it is a miss.
+  let scans = state.scans.justDone ? { ...state.scans, justDone: undefined } : state.scans;
+  let scanning: { zoneId: string; progress: number } | undefined;
+  for (const zone of state.config.mission.scanZones ?? []) {
+    if (scans.done.includes(zone.id) || scans.missed.includes(zone.id)) continue;
+    const offset = x - zone.atM;
+    const able = zone.needs.some((kind) => spec.sensorRangeM[kind] !== undefined);
+    if (offset > zone.halfLengthM + SCAN_RULES.reachM) {
+      scans = { ...scans, missed: [...scans.missed, zone.id], holdS: 0 };
+    } else if (able && !airborne && Math.abs(offset) <= zone.halfLengthM + SCAN_RULES.reachM && Math.abs(v) < SCAN_RULES.maxSpeedMps) {
+      const holdS = scans.holdS + DT_S;
+      if (holdS >= SCAN_RULES.holdS) {
+        scans = { ...scans, done: [...scans.done, zone.id], holdS: 0, justDone: zone.label, centred: scans.centred + (Math.abs(offset) <= SCAN_RULES.centredM ? 1 : 0) };
+      } else {
+        scans = { ...scans, holdS };
+        scanning = { zoneId: zone.id, progress: holdS / SCAN_RULES.holdS };
+      }
+    } else if (scans.holdS > 0 && Math.abs(offset) <= zone.halfLengthM + SCAN_RULES.reachM) {
+      scans = { ...scans, holdS: 0 };
+    }
   }
   if (stats.lastTerrain !== terrainId) stats = { ...stats, lastTerrain: terrainId };
 
   const progressed = x > state.bestX + 0.02;
   const bestX = progressed ? x : state.bestX;
-  const lastProgressT = progressed || fell || airborne ? t : state.lastProgressT;
+  // Stuck means not getting anywhere: a robot climbing back after a slide is moving forward, so it is not stuck.
+  const lastProgressT = progressed || fell || airborne || v >= PHYSICS.rollbackMps ? t : state.lastProgressT;
 
   const finished = x >= world.lengthM;
   const dnfReason = finished
@@ -507,6 +562,8 @@ export function step(state: RunState, action: Action): RunState {
       effects: effectsFor(nextSegment.terrain, airborne ? 0 : v, motion.slipPct, damage, action, t < sparksUntilT, submergedDepthM),
       ...(shownHeightM > 0 || airborne ? { heightM: shownHeightM, vy: airborne ? vy : 0, airborne } : {}),
       ...(blockedBy ? { blockedBy } : {}),
+      ...(scanning ? { scan: scanning } : {}),
+      ...((state.config.mission.scanZones ?? []).length > 0 ? { scansDone: scans.done.length, scansMissed: scans.missed.length } : {}),
       ...(nextDepthM > 0 ? { waterDepthM: nextDepthM, submergedDepthM, thrusting: motion.swimming === true && Math.abs(v) > 0.05, ...(nextSegment.currentMps ? { waterCurrentMps: nextSegment.currentMps } : {}) } : {}),
     },
     action,
@@ -527,7 +584,9 @@ export function step(state: RunState, action: Action): RunState {
     jumpReadyT,
     lastAir,
     blockedBy,
+    scans,
     drawW: drawJ / DT_S,
+    lastStallT: state.stallS >= 1 ? t : state.lastStallT,
     stoppedS: !airborne && profile.speed === 0 && Math.abs(v) < PHYSICS.stallSpeedMps ? state.stoppedS + DT_S : 0,
     ...(hit?.obstacle && touched ? { lastContact: { atM: touched.xM, t, kind: hit.obstacle } } : {}),
     finished,

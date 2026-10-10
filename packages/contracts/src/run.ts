@@ -10,7 +10,7 @@ import {
   ProbabilitiesSchema,
 } from './brain';
 import { BuildSchema } from './build';
-import { TriggerKindSchema, TriggerSchema } from './sensing';
+import { TriggerCauseSchema, TriggerKindSchema, TriggerSchema } from './sensing';
 import { EnvironmentSchema, MissionIdSchema, ObstacleSchema, SeedSchema, TerrainIdSchema } from './world';
 
 export const SimEffectSchema = z.enum(['dust', 'splash', 'mud_spray', 'sparks', 'slip', 'smoke', 'winch', 'bubbles']);
@@ -44,6 +44,11 @@ export const SimStateSchema = z.object({
   vy: z.number().optional(),
   /** True between leaving the ground and landing. */
   airborne: z.boolean().optional(),
+  /** Gameplay v3: the scan zone under the robot and how far the 1.5 s hold has got (0–1). */
+  scan: z.object({ zoneId: z.string(), progress: z.number().min(0).max(1) }).optional(),
+  /** Scan zones done and missed so far. */
+  scansDone: z.number().int().min(0).optional(),
+  scansMissed: z.number().int().min(0).optional(),
   /** Set while the robot is stopped against an obstacle it cannot get over. */
   blockedBy: ObstacleSchema.optional(),
   /** Depth of the water column at the robot, metres (0 or absent on dry ground and in shallows). */
@@ -82,6 +87,11 @@ export const OutcomeSchema = z.object({
     decisions: z.partialRecord(TriggerKindSchema, z.number().int().min(0)),
     /** One line on what to try next, from the biggest loss. */
     tryNext: z.string(),
+    /** Seconds added to the time for missed scans, and points added for centred ones. */
+    scanPenaltyS: z.number().min(0),
+    scanBonus: z.number().min(0),
+    /** Drive mode: how fast the player's thumbs answered each thing the robot detected. null = no control change within 3 s. */
+    reactions: z.array(z.object({ t: z.number(), xM: z.number(), label: z.string(), cause: TriggerCauseSchema, humanS: z.number().min(0).nullable() })).optional(),
   }).optional(),
   /** One-line explanation derived by the sim from ground truth, e.g. "Slipped 6 s on ice — no IMU". */
   why: z.string().max(200).optional(),

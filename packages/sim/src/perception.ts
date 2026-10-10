@@ -4,7 +4,7 @@ import type {
 } from '@rivetrun/contracts';
 import { TUNING } from './data';
 import { mixSeed, mulberry32 } from './rng';
-import { ACTION_PROFILES, PHYSICS, step } from './physics';
+import { ACTION_PROFILES, PHYSICS, SCAN_RULES, safeContactSpeedMps, step } from './physics';
 import { deriveSpec } from './spec';
 import type { RunState } from './types';
 import { makeObstacle, waterDepthCmAt } from './world';
@@ -14,13 +14,12 @@ const NOISE = { droneDistanceM: 0.5, distanceM: 0.2, obstacleM: 0.1, slipPct: 3,
 const ASSUMED_DEPTH_CM = 5;
 const UNDERWATER_ULTRASONIC = { rangeFactor: 0.5, noiseFactor: 3 } as const;
 /** Without an IMU, a robot that drives and does not move assumes it is on a hill this steep. */
-// 8° is enough to rule out plain cruising on soft or icy ground without ruling out climb mode.
-const STALL_INFERENCE = { afterS: 1, slopeDeg: 8 } as const;
+// 6° is enough to rule out plain driving on soft or icy ground without ruling out climb mode, even for plain wheels on ice.
+const STALL_INFERENCE = { afterS: 1, slopeDeg: 6, rememberS: 8 } as const;
 const MIN_DECISION_GAP_S = 0.5;
 const DAMAGE_DECISION_STEP_PCT = 5;
 const ALL_ACTIONS: readonly Action[] = ['accelerate', 'cruise', 'slow_down', 'coast', 'brake_soft', 'brake', 'reverse', 'climb_mode', 'deploy_winch', 'jump'];
-/** Scan zones: how close the robot's nose must be to the zone, how slow, and for how long. */
-export const SCAN = { reachM: 0.3, maxSpeedMps: 0.1, holdS: 1.5, missPenaltyS: 10, centredM: 0.25, centredBonus: 15 } as const;
+export const SCAN = SCAN_RULES;
 
 const round = (value: number, digits: number): number => {
   const scale = 10 ** digits;
@@ -114,8 +113,8 @@ const capacityJoules = (state: RunState): number =>
   state.spec.capacityWh * (state.environment.weather === 'cold' ? TUNING.weather.cold.batteryCapacityFactor : 1) * 3600;
 
 /** Contact speed at or below which this build takes no damage from an obstacle. */
-export function safeSpeedMps(_state: RunState, _kind: Obstacle): number {
-  return PHYSICS.safeImpactSpeedMps;
+export function safeSpeedMps(state: RunState, kind: Obstacle): number {
+  return safeContactSpeedMps(state.spec, kind);
 }
 
 /**
@@ -241,7 +240,8 @@ function perceivedWorld(state: RunState, seen: Observation): World {
   const x = state.sim.x;
   const terrainKnown = seen.terrainAhead !== 'unknown';
   // Driving and not moving (encoders + current): assume soft ground on a hill.
-  const stalled = state.stallS >= STALL_INFERENCE.afterS;
+  // The lesson lasts a while after it gets moving again, or it would floor it straight back into the same stall.
+  const stalled = state.stallS >= STALL_INFERENCE.afterS || (state.lastStallT >= 0 && state.sim.t - state.lastStallT < STALL_INFERENCE.rememberS);
   // Its own thrusters running is the one way a build without a probe knows it is in deep water.
   const swimming = state.sim.thrusting === true;
   const here = state.world.segments[state.segmentIndex]!;
@@ -343,7 +343,7 @@ export function detectDecisionPoint(prev: RunState, next: RunState): DecisionTri
 }
 
 const HAZARD_REACH_M = 1;
-const ZONE_NOTICE_M = 6;
+const ZONE_NOTICE_M = 3;
 const ENERGY = { lowPct: 10, okPct: 30 } as const;
 const SLIP_OFF_PCT = 15;
 const TOLD_AFTER_S = 1;

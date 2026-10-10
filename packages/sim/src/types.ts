@@ -70,6 +70,11 @@ export interface StepDamage {
 /** Ground-truth tallies the "why" line is derived from. */
 export interface RunStats {
   readonly slipSByTerrain: Partial<Record<TerrainId, number>>;
+  /** Seconds lost to wheelspin: time slipping, weighted by how much of the drive was wasted. */
+  readonly slipLostS: number;
+  /** Impact damage split for the result: hard landings and falls apart from hits. */
+  readonly landingDamage: number;
+  readonly fallDamage: number;
   readonly damageByCause: Partial<Record<DamageCause, number>>;
   readonly worstImpact?: { readonly obstacle?: Obstacle; readonly roughEntry?: TerrainId; readonly air?: 'landing' | 'fall'; readonly blocked?: boolean; readonly speedMps: number; readonly amountPct: number };
   readonly lastTerrain: TerrainId;
@@ -112,6 +117,8 @@ export interface RunState {
   readonly blockedBy?: Obstacle;
   /** Electrical draw in the last step, watts (core kit: current sensing). */
   readonly drawW: number;
+  /** Sim time of the last moment the robot was driving without moving (encoders); -1 = never. */
+  readonly lastStallT: number;
   /** Seconds at rest under a command to stand still. */
   readonly stoppedS: number;
   /** The last obstacle touched. A brain learns of it only through a bumper or an IMU. */

@@ -5,6 +5,7 @@ export const MISSIONS: Readonly<Record<MissionId, Mission>> = {
   M1: {
     id: 'M1', name: 'Garage Test', description: 'Asphalt, grass and a small step. Learn to read the Brain HUD.',
     weather: 'clear', starThreshold: 750, leaderboard: false,
+    scanZones: [{ id: 'M1-survivor', label: 'survivor', atM: 17, halfLengthM: 0.5, needs: ['camera', 'scout_drone'] }],
     track: {
       segments: [
         { terrain: 'asphalt', lengthM: 12, slopeDeg: 0 },
@@ -31,6 +32,10 @@ export const MISSIONS: Readonly<Record<MissionId, Mission>> = {
   M3: {
     id: 'M3', name: 'Mud Run', description: 'Grass, a 15° mud slope, deep mud and rock.',
     weather: 'clear', starThreshold: 650, leaderboard: false,
+    scanZones: [
+      { id: 'M3-survivor', label: 'survivor', atM: 5, halfLengthM: 0.5, needs: ['camera', 'scout_drone'] },
+      { id: 'M3-soil', label: 'soil sample', atM: 26, halfLengthM: 0.5, needs: ['moisture'] },
+    ],
     track: {
       segments: [
         { terrain: 'grass', lengthM: 10, slopeDeg: 0 },
@@ -74,7 +79,7 @@ export const MISSIONS: Readonly<Record<MissionId, Mission>> = {
   },
   M6: {
     id: 'M6', name: 'Deep Water', description: 'A flooded passage up to 120 cm deep, with a current and submerged debris. Seal the robot and fit thrusters, or sink.',
-    weather: 'clear', starThreshold: 500, leaderboard: false,
+    weather: 'clear', starThreshold: 450, leaderboard: false,
     track: {
       segments: [
         { terrain: 'asphalt', lengthM: 12, slopeDeg: 0 },
@@ -89,8 +94,13 @@ export const MISSIONS: Readonly<Record<MissionId, Mission>> = {
     },
   },
   M7: {
-    id: 'M7', name: 'Scrapyard Jumps', description: 'Ramps, gaps and a drop. Hit the ramps fast, and bring a piston for the gap with no ramp.',
+    id: 'M7', name: 'Earthquake Rescue', description: 'Broken ground: ramps, gaps and a drop, with two survivors and a cracked structure to scan. Bring a piston for the gap with no ramp.',
     weather: 'clear', starThreshold: 650, leaderboard: false,
+    scanZones: [
+      { id: 'M7-survivor-1', label: 'survivor', atM: 4, halfLengthM: 0.5, needs: ['camera', 'scout_drone'] },
+      { id: 'M7-survivor-2', label: 'survivor', atM: 19, halfLengthM: 0.5, needs: ['camera', 'scout_drone'] },
+      { id: 'M7-structure', label: 'structure', atM: 42, halfLengthM: 0.5, needs: ['ultrasonic'] },
+    ],
     track: {
       segments: [
         { terrain: 'asphalt', lengthM: 8, slopeDeg: 0 },

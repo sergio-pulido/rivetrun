@@ -39,9 +39,9 @@ export const PARTS: readonly Part[] = [
   },
   // Battery (exactly 1)
   {
-    id: 'battery_small', name: 'Small battery', slot: 'battery', blurb: 'Light. Runs out sooner.',
+    id: 'battery_small', name: 'Small battery', slot: 'battery', blurb: 'Light. A quarter of the large pack: pace yourself.',
     massKg: 0.3, costEur: 20, powerW: 0, unlockPoints: 0,
-    effects: { capacityWh: 0.5 },
+    effects: { capacityWh: 0.3 },
   },
   {
     id: 'battery_large', name: 'Large battery', slot: 'battery', blurb: 'Heavy. Goes the distance.',
