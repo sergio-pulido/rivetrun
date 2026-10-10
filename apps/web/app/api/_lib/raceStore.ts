@@ -1,8 +1,15 @@
-import type { MissionId } from '@rivetrun/contracts';
-import { SCAN_RULES } from '@rivetrun/sim';
+import { MissionIdSchema, type GhostTrace, type MissionId, type PlayerPick } from '@rivetrun/contracts';
+import { MISSIONS, PRESETS, SCAN_RULES, driveSeed, runHeuristicSync, score, TUNING } from '@rivetrun/sim';
 import {
   ARENA_BRAINS,
   ARENA_MAX_BOTS,
+  ArenaBrainIdSchema,
+  AUTO_CLOSE_AFTER_RESULTS_MS,
+  AUTO_LOBBY_MS,
+  AUTO_MIN_LANES,
+  AUTO_MIN_LEFT_MS,
+  AUTO_ROOM_CAP,
+  DEFAULT_MAX_AUTO_ROOMS,
   BUILD_MS,
   CLOSE_AFTER_LEADER_MS,
   COUNTDOWN_MS,
@@ -14,13 +21,16 @@ import {
   RACE_TIMEOUT_MS,
   SILENT_MS,
   type JoinResponse,
+  type MatchResponse,
   type RaceAction,
   type RaceDnf,
   type RacePlayer,
   type RaceSnapshot,
   type RaceStatus,
 } from '../../race/_lib/protocol';
+import { peekGhost, requestGhost } from './ghostStore';
 import { recordHumanRun } from './humanArena';
+import { resolveStrategy } from './playPlans';
 import { addRun } from './store';
 
 const SCAN_MISS_PENALTY_MS = SCAN_RULES.missPenaltyS * 1000;
@@ -47,6 +57,21 @@ interface Room {
   /** Players whose Episode of the current race is already logged. */
   readonly logged: Set<string>;
   readonly createdAt: number;
+  /** Set on rooms the matchmaker opened (/play). */
+  auto?: AutoRoom;
+}
+
+interface AutoRoom {
+  /** Server epoch ms when the lobby countdown ends. */
+  readonly endsAt: number;
+  /** A load-test room: its runs reach no board and no episode log. */
+  readonly test: boolean;
+  /** Phones seated by the matchmaker, whatever agent they then pick. */
+  readonly phones: Set<string>;
+  /** Recorded runs the server replays for its own bots, by player id. */
+  readonly replays: Map<string, GhostTrace>;
+  /** Set when the results are in: the room is removed AUTO_CLOSE_AFTER_RESULTS_MS later. */
+  finishedAt: number | null;
 }
 
 type Act<K extends RaceAction['action']> = Extract<RaceAction, { action: K }>;
@@ -121,6 +146,7 @@ function closeRace(room: Room, now: number): void {
 
 /** Time-driven transitions. Called on every read and write, so results never depend on who is watching. */
 function advance(room: Room, now: number): void {
+  if (room.auto) advanceAuto(room, room.auto, now);
   if (room.status === 'build' && room.buildEndsAt !== null) {
     const humans = [...room.players.values()].filter((player) => player.kind === 'human');
     const allReady = humans.length > 0 && humans.every((player) => player.ready);
@@ -131,14 +157,15 @@ function advance(room: Room, now: number): void {
     room.version += 1;
   }
   if (room.status === 'racing' && room.startAt !== null) {
+    if (room.auto) replayServerBots(room, room.auto, now);
     for (const player of room.players.values()) {
-      if (player.done) continue;
+      if (player.done || player.serverDriven) continue;
       const silent = now - (room.lastSeen.get(player.id) ?? room.startAt) > SILENT_MS;
       if (silent !== player.silent) update(room, player, { silent, thinking: silent ? false : player.thinking });
     }
     const players = [...room.players.values()];
     // The room waits for every device that is still reporting; one that has been gone for GONE_MS no longer holds it open.
-    const waitingFor = players.filter((player) => !player.done && now - (room.lastSeen.get(player.id) ?? room.startAt!) <= GONE_MS);
+    const waitingFor = players.filter((player) => !player.done && (player.serverDriven === true || now - (room.lastSeen.get(player.id) ?? room.startAt!) <= GONE_MS));
     const closeAt = Math.min(room.closesAt ?? Infinity, room.startAt + RACE_TIMEOUT_MS);
     if (players.length === 0 || waitingFor.length === 0 || now >= closeAt) closeRace(room, now);
   }
@@ -156,6 +183,7 @@ const toSnapshot = (room: Room, now: number): RaceSnapshot => ({
   raceNo: room.raceNo,
   seats: room.seats,
   players: [...room.players.values()],
+  ...(room.auto ? { auto: { endsAt: room.auto.endsAt, removedAt: room.auto.finishedAt === null ? null : room.auto.finishedAt + AUTO_CLOSE_AFTER_RESULTS_MS, test: room.auto.test } } : {}),
 });
 
 export function createRoom(missionId: MissionId): RaceSnapshot {
@@ -188,6 +216,10 @@ export function readRoom(code: string): { snapshot: RaceSnapshot; version: numbe
   if (!room) return null;
   const now = Date.now();
   advance(room, now);
+  if (expired(room, now)) {
+    rooms.delete(code);
+    return null;
+  }
   return { snapshot: toSnapshot(room, now), version: room.version };
 }
 
@@ -198,7 +230,7 @@ const freeLane = (room: Room): number => {
   return lane;
 };
 
-function seatPlayer(room: Room, fields: Pick<RacePlayer, 'nickname' | 'kind' | 'build' | 'briefing' | 'model'>): JoinResponse {
+function seatPlayer(room: Room, fields: Pick<RacePlayer, 'nickname' | 'kind' | 'build' | 'briefing' | 'model'> & Partial<Pick<RacePlayer, 'priority' | 'plan' | 'pick' | 'serverDriven'>>): JoinResponse {
   const playerId = crypto.randomUUID();
   const token = crypto.randomUUID();
   room.players.set(playerId, onGrid({ ...fields, id: playerId, ready: fields.kind === 'jev', lane: freeLane(room) } as RacePlayer));
@@ -227,14 +259,22 @@ function addBot(room: Room, action: Act<'addBot'>): RaceResult<JoinResponse> {
   if (action.model) {
     // Live Arena: one bot per brain, named after it.
     if (bots.length >= ARENA_MAX_BOTS) return fail(409, `At most ${ARENA_MAX_BOTS} brains per race.`);
-    if (bots.some((bot) => bot.model === action.model)) return fail(409, 'That brain is already on the grid.');
+    // One bot per brain, and one more with a plan: "Jev" and "Jev + plan" race side by side.
+    const planned = action.plan === true;
+    if (bots.some((bot) => bot.model === action.model && (bot.plan === true) === planned)) return fail(409, 'That brain is already on the grid.');
     const label = ARENA_BRAINS.find((brain) => brain.id === action.model)?.label ?? action.model;
-    return done(seatPlayer(room, { nickname: label, kind: 'jev', build: action.build, model: action.model }));
+    return done(seatPlayer(room, {
+      nickname: planned ? `${label} + plan` : label, kind: 'jev', build: action.build, model: action.model,
+      briefing: action.briefing || undefined, ...(action.priority !== undefined ? { priority: action.priority } : {}), ...(planned ? { plan: true } : {}),
+    }));
   }
   if (bots.length >= MAX_BOTS) return fail(409, `At most ${MAX_BOTS} JEV bots per room.`);
   const names = new Set(bots.map((bot) => bot.nickname));
   const nickname = ['JEV-1', 'JEV-2', 'JEV-3'].find((name) => !names.has(name)) ?? 'JEV';
-  return done(seatPlayer(room, { nickname, kind: 'jev', build: action.build, briefing: action.briefing || undefined }));
+  return done(seatPlayer(room, {
+    nickname, kind: 'jev', build: action.build, briefing: action.briefing || undefined,
+    ...(action.priority !== undefined ? { priority: action.priority } : {}), ...(action.plan ? { plan: true } : {}),
+  }));
 }
 
 function remove(room: Room, action: Act<'remove'>): RaceResult<null> {
@@ -329,6 +369,8 @@ function report(room: Room, action: Act<'state'>, now: number): RaceResult<null>
   if (action.done && action.episode && !room.logged.has(player.id)) {
     // Room Race runs count as episodes, like a run submitted from the Result screen.
     room.logged.add(player.id);
+    // A load-test room's runs reach no board and no episode log.
+    if (room.auto?.test) return done(null);
     // A race run that replays from its input log also counts for the arena's human row. The race result itself is
     // the server's own clock and stands either way, but an episode whose replay gives a different result is not
     // logged: its score would otherwise reach the leaderboard unchecked.
@@ -368,4 +410,197 @@ export function applyAction(code: string, action: RaceAction): RaceResult<JoinRe
     advance(room, now);
   }
   return result;
+}
+
+// ---- Auto rooms (RR-PLAN §5): /play phones are matched into rooms that fill up and start on their own.
+
+const JEV_AGENT = ARENA_BRAINS[0].id;
+const maxAutoRooms = (): number => {
+  const value = Number(process.env.MAX_AUTO_ROOMS);
+  return Number.isInteger(value) && value > 0 ? value : DEFAULT_MAX_AUTO_ROOMS;
+};
+/** The mission every auto room runs (env PLAY_MISSION, from the rehearsal), on its fixed seed so the board compares like with like. */
+const playMission = (): MissionId => {
+  const parsed = MissionIdSchema.safeParse(process.env.PLAY_MISSION);
+  return parsed.success ? parsed.data : 'M5';
+};
+
+const expired = (room: Room, now: number): boolean =>
+  room.auto !== undefined && ((room.auto.finishedAt !== null && now >= room.auto.finishedAt + AUTO_CLOSE_AFTER_RESULTS_MS) || (room.status === 'lobby' && room.auto.phones.size === 0 && now >= room.auto.endsAt));
+
+const busy = (room: Room): boolean => room.status === 'lobby' || room.status === 'build' || room.status === 'countdown' || room.status === 'racing';
+
+/** Gives a phone that has not picked the defaults: All-rounder, Jev, the plan. */
+function applyPick(room: Room, player: RacePlayer, pick: PlayerPick): void {
+  const strategy = resolveStrategy(room.missionId, pick.presetId, pick.strategy);
+  const human = pick.agent === 'human';
+  const { briefing: _briefing, priority: _priority, plan: _plan, model: _model, ...rest } = player;
+  room.players.set(player.id, {
+    ...rest,
+    kind: human ? 'human' : 'jev',
+    build: PRESETS[pick.presetId].build,
+    pick,
+    ready: true,
+    // A human drives by hand: the strategy is shown on their lane but there is no brain to brief.
+    ...(human ? {} : { model: pick.agent, priority: strategy.priority, ...(strategy.briefing ? { briefing: strategy.briefing } : {}) }),
+    ...(strategy.plan ? { plan: true } : {}),
+  });
+}
+
+/** The fixed rules' own run of this room's track, as a trace the server can replay for a bot. */
+function heuristicTrace(room: Room): GhostTrace {
+  const mission = MISSIONS[room.missionId];
+  const frames: GhostTrace['frames'] = [];
+  const every = Math.max(1, Math.round(1000 / TUNING.ghostHz / TUNING.dtMs));
+  const run = runHeuristicSync({ mission, seed: room.seed, build: PRESETS.all_rounder.build, priority: 0.5 }, (_prev, next) => {
+    if (next.stepCount % every === 0 || next.done) frames.push(next.sim);
+  });
+  return { policy: 'heuristic', frames, outcome: score(run.state) };
+}
+
+/** Fills the room to AUTO_MIN_LANES with bots the server moves itself: Jev with the plan when its recorded run is ready, the fixed rules otherwise. */
+function fillWithBots(room: Room, auto: AutoRoom): void {
+  const strategy = resolveStrategy(room.missionId, 'all_rounder', 'plan');
+  const build = PRESETS.all_rounder.build;
+  const ready = peekGhost({ missionId: room.missionId, seed: room.seed, build, priority: strategy.priority, ...(strategy.briefing ? { briefing: strategy.briefing } : {}) });
+  let n = 0;
+  while (room.players.size < AUTO_MIN_LANES) {
+    n += 1;
+    // The second and later fill lanes are always the fixed rules: identical Jev runs side by side would show nothing.
+    const jev = ready !== null && n === 1;
+    const base = jev ? (strategy.plan ? 'Jev + plan' : 'Jev') : 'Fixed rules';
+    const taken = new Set([...room.players.values()].map((player) => player.nickname));
+    const nickname = taken.has(base) ? `${base} ${n}` : base;
+    const seat = seatPlayer(room, {
+      nickname, kind: 'jev', build, model: jev ? JEV_AGENT : 'heuristic', serverDriven: true,
+      ...(jev ? { priority: strategy.priority, ...(strategy.briefing ? { briefing: strategy.briefing } : {}), ...(strategy.plan ? { plan: true } : {}) } : {}),
+    });
+    auto.replays.set(seat.playerId, jev ? ready.ghost : heuristicTrace(room));
+  }
+}
+
+/** Lobby countdown, start, and removal of an auto room. */
+function advanceAuto(room: Room, auto: AutoRoom, now: number): void {
+  if (room.status === 'lobby' && auto.phones.size > 0) {
+    const phones = [...auto.phones].map((id) => room.players.get(id)).filter((player): player is RacePlayer => player !== undefined);
+    const fullAndPicked = phones.length >= AUTO_ROOM_CAP && phones.every((player) => player.pick !== undefined);
+    if (now >= auto.endsAt || fullAndPicked) {
+      for (const player of phones) if (!player.pick) applyPick(room, player, { presetId: 'all_rounder', agent: JEV_AGENT, strategy: 'plan' });
+      fillWithBots(room, auto);
+      room.raceNo += 1;
+      beginCountdown(room, now);
+    }
+  }
+  if (room.status === 'finished' && auto.finishedAt === null) {
+    auto.finishedAt = now;
+    room.version += 1;
+  }
+}
+
+/** Moves the server's own bots along their recorded runs. Race time is the run's own time, as for a device that posts. */
+function replayServerBots(room: Room, auto: AutoRoom, now: number): void {
+  if (room.startAt === null) return;
+  const elapsedS = (now - room.startAt) / 1000;
+  for (const [playerId, trace] of auto.replays) {
+    const player = room.players.get(playerId);
+    if (!player || player.done || trace.frames.length === 0) continue;
+    const outcome = trace.outcome;
+    const lastT = trace.frames[trace.frames.length - 1]!.t;
+    if (elapsedS >= lastT) {
+      const penaltyMs = outcome.finished ? (outcome.breakdown?.scansMissed ?? 0) * SCAN_MISS_PENALTY_MS : 0;
+      const last = trace.frames[trace.frames.length - 1]!;
+      room.players.set(playerId, {
+        ...player, x: last.x, v: 0, damagePct: Math.min(100, last.damage), batteryPct: Math.max(0, last.battery), thinking: false, done: true,
+        finished: outcome.finished, dnfReason: outcome.finished ? null : (outcome.dnfReason ?? 'stuck'), raceMs: Math.round(lastT * 1000) + penaltyMs, penaltyMs, score: outcome.score,
+      });
+      if (outcome.finished && room.closesAt === null) room.closesAt = now + CLOSE_AFTER_LEADER_MS;
+      room.version += 1;
+      continue;
+    }
+    // Frames are 10 Hz of sim time; the clock can jump (a fall), so find the last frame at or before now.
+    let index = Math.max(0, Math.min(trace.frames.length - 1, Math.floor(elapsedS * TUNING.ghostHz)));
+    while (index > 0 && trace.frames[index]!.t > elapsedS) index -= 1;
+    const frame = trace.frames[index]!;
+    if (frame.x !== player.x || frame.v !== player.v) {
+      room.players.set(playerId, { ...player, x: frame.x, v: frame.v, damagePct: Math.min(100, frame.damage), batteryPct: Math.max(0, frame.battery) });
+      room.version += 1;
+    }
+  }
+}
+
+export type MatchResult = { ok: true; data: MatchResponse } | { ok: false; status: 503; error: string; retryInS: number };
+
+/**
+ * /play: seats the phone in the oldest auto room that is still in its lobby with a free slot and more than
+ * AUTO_MIN_LEFT_MS on the clock, or opens a new one. With MAX_AUTO_ROOMS busy it answers "next race in N s".
+ */
+export function matchRoom(options: { nickname?: string; test?: boolean } = {}): MatchResult {
+  const now = Date.now();
+  const test = options.test === true;
+  for (const [code, room] of rooms) {
+    advance(room, now);
+    if (expired(room, now) || now - room.createdAt > ROOM_TTL_MS) rooms.delete(code);
+  }
+  const autos = [...rooms.values()].filter((room) => room.auto !== undefined && room.auto.test === test);
+  let room = autos
+    .filter((candidate) => candidate.status === 'lobby' && candidate.auto!.phones.size < AUTO_ROOM_CAP && candidate.auto!.endsAt - now > AUTO_MIN_LEFT_MS)
+    .sort((a, b) => a.createdAt - b.createdAt)[0];
+  if (!room) {
+    const active = autos.filter(busy);
+    if (active.length >= maxAutoRooms()) {
+      // The next slot opens when the first of the busy rooms ends: its lobby, then the race at its longest.
+      const soonest = Math.min(...active.map((candidate) => (candidate.closesAt ?? (candidate.startAt ?? candidate.auto!.endsAt + COUNTDOWN_MS) + RACE_TIMEOUT_MS) - now));
+      return { ok: false, status: 503, error: 'Every room is racing. The next race opens shortly.', retryInS: Math.max(1, Math.min(60, Math.ceil(soonest / 1000))) };
+    }
+    const missionId = playMission();
+    room = {
+      code: newCode(), missionId, seed: driveSeed(MISSIONS[missionId]), status: 'lobby', buildEndsAt: null, startAt: null, closesAt: null, raceNo: 0,
+      seats: AUTO_ROOM_CAP, version: 0, players: new Map(), tokens: new Map(), lastSeen: new Map(), logged: new Set(), createdAt: now,
+      auto: { endsAt: now + AUTO_LOBBY_MS, test, phones: new Set(), replays: new Map(), finishedAt: null },
+    };
+    rooms.set(room.code, room);
+    // The lobby's 30 s are used to drive the fill bot's run once, so it is ready at the start. Not for load tests.
+    if (!test) {
+      const strategy = resolveStrategy(missionId, 'all_rounder', 'plan');
+      requestGhost({ missionId, seed: room.seed, build: PRESETS.all_rounder.build, priority: strategy.priority, ...(strategy.briefing ? { briefing: strategy.briefing } : {}) });
+    }
+  }
+  const taken = new Set([...room.players.values()].map((player) => player.nickname.toLowerCase()));
+  let nickname = options.nickname && !taken.has(options.nickname.toLowerCase()) ? options.nickname : '';
+  for (let n = room.players.size + 1; nickname === ''; n += 1) if (!taken.has(`player ${n}`)) nickname = `Player ${n}`;
+  const seat = seatPlayer(room, { nickname, kind: 'human', build: PRESETS.all_rounder.build, briefing: undefined });
+  room.auto!.phones.add(seat.playerId);
+  room.version += 1;
+  return { ok: true, data: { code: room.code, endsAt: room.auto!.endsAt, playerId: seat.playerId, token: seat.token, nickname, serverNow: now } };
+}
+
+/** /play: the phone's three taps. Allowed until the room starts; the last pick sent stands. */
+export function pickInRoom(code: string, playerId: string, token: string, pick: PlayerPick): RaceResult<null> {
+  const room = rooms.get(code);
+  if (!room) return fail(404, 'No such room.');
+  const now = Date.now();
+  advance(room, now);
+  if (!room.auto) return fail(409, 'Picks are for /play rooms. This room has a host.');
+  const player = room.players.get(playerId);
+  if (!player || room.tokens.get(playerId) !== token || !room.auto.phones.has(playerId)) return fail(403, 'Unknown player.');
+  if (room.status !== 'lobby') return fail(409, 'The race has started: the pick is locked.');
+  if (pick.agent !== 'human' && !ArenaBrainIdSchema.safeParse(pick.agent).success) return fail(400, `Unknown agent "${pick.agent}".`);
+  applyPick(room, player, pick);
+  room.version += 1;
+  advance(room, now);
+  return done(null);
+}
+
+/** Live auto rooms for the /screen?mode=play grid, oldest first. Load-test rooms only when asked for. */
+export function autoRooms(options: { test?: boolean } = {}): RaceSnapshot[] {
+  const now = Date.now();
+  const test = options.test === true;
+  const list: RaceSnapshot[] = [];
+  for (const [code, room] of rooms) {
+    if (!room.auto || room.auto.test !== test) continue;
+    advance(room, now);
+    if (expired(room, now)) rooms.delete(code);
+    else list.push(toSnapshot(room, now));
+  }
+  return list.sort((a, b) => (a.auto!.endsAt - b.auto!.endsAt));
 }

@@ -8,6 +8,8 @@ import {
   EpisodeSchema,
   MissionIdSchema,
   NicknameSchema,
+  PlayerPickSchema,
+  PrioritySchema,
   SeedSchema,
 } from '@rivetrun/contracts';
 import { z } from 'zod';
@@ -33,6 +35,20 @@ export const RACE_TIMEOUT_MS = 180_000;
 export const SILENT_MS = 5000;
 /** Silent for this long: the room no longer waits for that device to close the race. */
 export const GONE_MS = 20_000;
+
+// ---- Auto rooms (RR-PLAN, docs/PLAY_AND_PLAN.md §5): rooms the matchmaker opens for /play. No host, no code to type.
+/** Phones in one auto room. */
+export const AUTO_ROOM_CAP = 8;
+/** From the room's first phone to the start, unless the room fills and everyone has picked. */
+export const AUTO_LOBBY_MS = 30_000;
+/** A phone is not matched into a room with less than this left on its countdown. */
+export const AUTO_MIN_LEFT_MS = 8_000;
+/** Bots fill an auto room up to this many lanes at the start. */
+export const AUTO_MIN_LANES = 4;
+/** An auto room is removed this long after its results. */
+export const AUTO_CLOSE_AFTER_RESULTS_MS = 60_000;
+/** Auto rooms in the lobby or racing at once, unless MAX_AUTO_ROOMS says otherwise. */
+export const DEFAULT_MAX_AUTO_ROOMS = 8;
 
 export const RaceCodeSchema = z
   .string()
@@ -86,6 +102,14 @@ export const RacePlayerSchema = z.object({
   briefing: BriefingSchema.optional(),
   /** Live Arena bots only (/screen?arena=1): the brain that drives this bot, one of ARENA_BRAINS. */
   model: z.string().optional(),
+  /** 0 = speed, 1 = safety, handed to the brain with the briefing. Absent = 0.5. */
+  priority: PrioritySchema.optional(),
+  /** True when the briefing and priority come from a plan ("<brain> + plan"). */
+  plan: z.boolean().optional(),
+  /** /play: what this phone picked (or the defaults it was given at the start). */
+  pick: PlayerPickSchema.optional(),
+  /** A bot the server moves itself from a recorded run: no device posts for it. */
+  serverDriven: z.boolean().optional(),
   /** Bots: how long the brain took over its last decision, ms. */
   latencyMs: z.number().min(0).nullable().default(null),
   /** Bots, this race so far: the median response time of the brain's own answers, ms. */
@@ -140,6 +164,8 @@ export const RaceSnapshotSchema = z.object({
   /** Human seats the host opened (4, 6 or 8). */
   seats: z.number().int().min(1).max(MAX_SEATS).default(DEFAULT_SEATS),
   players: z.array(RacePlayerSchema),
+  /** Auto rooms only: when the lobby countdown ends, and when the room is removed after its results. */
+  auto: z.object({ endsAt: z.number(), removedAt: z.number().nullable(), test: z.boolean() }).optional(),
 });
 export type RaceSnapshot = z.infer<typeof RaceSnapshotSchema>;
 
@@ -148,7 +174,12 @@ const seat = { playerId: z.string(), token: z.string() };
 export const RaceActionSchema = z.discriminatedUnion('action', [
   z.object({ action: z.literal('join'), nickname: NicknameSchema, build: BuildSchema }),
   /** Host: add a JEV bot. The caller (the big screen) gets its seat and runs it. */
-  z.object({ action: z.literal('addBot'), build: BuildSchema, briefing: BriefingSchema.optional(), model: ArenaBrainIdSchema.optional() }),
+  z.object({
+    action: z.literal('addBot'), build: BuildSchema, briefing: BriefingSchema.optional(), model: ArenaBrainIdSchema.optional(),
+    /** "+ plan" lanes: the plan's priority, and the flag that names the lane. One bot per (model, plan). */
+    priority: PrioritySchema.optional(),
+    plan: z.boolean().optional(),
+  }),
   /** Host: remove a player or a bot before the race. */
   z.object({ action: z.literal('remove'), playerId: z.string() }),
   /** Host: pick the track in the lobby, so every screen shows it before the BUILD phase. */
@@ -185,6 +216,23 @@ export const RaceActionSchema = z.discriminatedUnion('action', [
   }),
 ]);
 export type RaceAction = z.infer<typeof RaceActionSchema>;
+
+/** POST /api/race/match: the phone is seated in an auto room. */
+export const MatchResponseSchema = z.object({
+  code: RaceCodeSchema,
+  /** Server epoch ms when the room's lobby countdown ends. */
+  endsAt: z.number(),
+  playerId: z.string(),
+  token: z.string(),
+  nickname: z.string(),
+  serverNow: z.number(),
+});
+export type MatchResponse = z.infer<typeof MatchResponseSchema>;
+/** POST /api/race/match when every auto room is busy: HTTP 503 with this body. */
+export const MatchBusySchema = z.object({ error: z.string(), retryInS: z.number().int().min(1) });
+export const MatchRequestSchema = z.object({ nickname: NicknameSchema.optional(), test: z.boolean().optional() });
+/** POST /api/race/[code]/pick. `agent` must be one of ARENA_BRAINS or 'human'. */
+export const PickRequestSchema = z.object({ playerId: z.string(), token: z.string(), pick: PlayerPickSchema });
 
 export const JoinResponseSchema = z.object({ playerId: z.string(), token: z.string(), nickname: z.string().optional() });
 export type JoinResponse = z.infer<typeof JoinResponseSchema>;
