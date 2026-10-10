@@ -28,7 +28,7 @@ def material(name,color,metal=0,rough=.5):
 def begin(key,dim,src=None,approx=None):
     global root,approximations,source,envelope,pcb,black,steel,brass,white,rubber
     assert key in ITEMS,key
-    clear();pcb=material('pcb',(.012,.20,.055),rough=.48);black=material('black_polymer',(.012,.014,.017),rough=.6);steel=material('steel',(.48,.54,.60),.85,.29);brass=material('brass',(.56,.36,.095),.8,.3);white=material('polymer',(.65,.69,.70));rubber=material('rubber',(.018,.02,.022),rough=.83)
+    clear();pcb=material('pcb',(.002125,.08022,.02416),rough=.65);black=material('black_polymer',(.012,.014,.017),rough=.6);steel=material('steel',(.48,.54,.60),.85,.29);brass=material('brass',(.56,.36,.095),.8,.3);white=material('polymer',(.65,.69,.70));rubber=material('rubber',(.0075,.0086,.0097),rough=.94)
     root=bpy.data.objects.new('part_'+key,None);bpy.context.collection.objects.link(root)
     root['key']=key;root['author']=AUTHOR
     approximations=approx or [];source=src or 'docs/inputs/bom-mk2.json: '+key;envelope=dim

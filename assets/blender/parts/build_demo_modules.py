@@ -63,7 +63,7 @@ def printcopy(id,parent,p,rotation=None,index=None):
         q=matrix@v.co;v.co=(rotation@q if rotation else q)+Vector(p)
     bpy.data.objects.remove(o,do_unlink=True)
     n=bpy.data.objects.new('print_'+id+(('__'+str(index)) if index is not None else ''),data);bpy.context.scene.collection.objects.link(n);n.parent=parent;n['printedPartId']=id
-    mat=bpy.data.materials.get('petg') or bpy.data.materials.new('petg');mat.diffuse_color=(.08,.13,.16,1);mat.use_nodes=True;mat.node_tree.nodes['Principled BSDF'].inputs['Base Color'].default_value=(.08,.13,.16,1)
+    mat=bpy.data.materials.get('petg') or bpy.data.materials.new('petg');mat.diffuse_color=(1,.1946,.0103,1);mat.use_nodes=True;mat.node_tree.nodes['Principled BSDF'].inputs['Base Color'].default_value=(1,.1946,.0103,1)
     data.materials.clear();data.materials.append(mat);return n
 
 def compact(root):
@@ -87,10 +87,11 @@ def tris(root):
     return total
 
 def export(id,root,slot):
-    compact(root);limit=3300 if slot=='locomotion' else 1800 if slot=='motor' else 2300
+    compact(root);limit=8000 if slot=='locomotion' else 1800 if slot=='motor' else 2300
     for attempt in range(5):
         total=tris(root)
         if total<=limit:break
+        assert slot!='locomotion',(id,'Model closed surfaces to budget; do not collapse wheel hubs',total)
         for o in root.children_recursive:
             if o.type=='MESH':
                 bpy.context.view_layer.objects.active=o;m=o.modifiers.new('Demo visual LOD','DECIMATE');m.ratio=min(.85,(limit-100)/total);bpy.ops.object.modifier_apply(modifier=m.name)
@@ -104,7 +105,7 @@ def export(id,root,slot):
     count=sum(doc['accessors'][p['indices']]['count']//3 for p in prims)
     assert count<=(8000 if slot=='locomotion' else 2500)
     assert slot=='locomotion' or len(prims)<=6,(id,len(prims))
-    assert len(blob)<=400000
+    assert len(blob)<=2000000 # compressed budget is checked after meshopt
     ids=sorted({o.get('printedPartId') for o in root.children_recursive if o.get('printedPartId')})
     assert set(ids)<={p['id'] for p in json.loads((ROOT/'docs/inputs/printed-parts.json').read_text())}
     manifest['modules'][id]={'file':path.name,'slot':slot,'triangles':count,'meshes':len(prims),'bytes':len(blob),'printedParts':ids}

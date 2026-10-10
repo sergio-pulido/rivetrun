@@ -16,7 +16,7 @@
       "slot": "fixed",
       "triangles": 2200,
       "meshes": 1,
-      "bytes": 41136,
+      "bytes": 41124,
       "printedParts": [
         "chassis_base"
       ],
@@ -27,7 +27,7 @@
       "slot": "locomotion",
       "triangles": 6964,
       "meshes": 12,
-      "bytes": 41616,
+      "bytes": 41704,
       "printedParts": [
         "motor_cap",
         "motor_saddle"
@@ -39,7 +39,7 @@
       "slot": "motor",
       "triangles": 1698,
       "meshes": 4,
-      "bytes": 37196,
+      "bytes": 37016,
       "printedParts": [],
       "compression": "meshopt"
     },
@@ -48,7 +48,7 @@
       "slot": "motor",
       "triangles": 1698,
       "meshes": 4,
-      "bytes": 37196,
+      "bytes": 37016,
       "printedParts": [],
       "compression": "meshopt"
     },
@@ -57,7 +57,7 @@
       "slot": "battery",
       "triangles": 844,
       "meshes": 2,
-      "bytes": 15868,
+      "bytes": 15836,
       "printedParts": [
         "battery_tray"
       ],
@@ -68,7 +68,7 @@
       "slot": "battery",
       "triangles": 844,
       "meshes": 2,
-      "bytes": 15760,
+      "bytes": 15728,
       "printedParts": [
         "battery_tray"
       ],
@@ -79,7 +79,7 @@
       "slot": "sensor",
       "triangles": 196,
       "meshes": 2,
-      "bytes": 7024,
+      "bytes": 6964,
       "printedParts": [],
       "compression": "meshopt"
     },
@@ -88,7 +88,7 @@
       "slot": "sensor",
       "triangles": 104,
       "meshes": 2,
-      "bytes": 5816,
+      "bytes": 5804,
       "printedParts": [],
       "compression": "meshopt"
     },
@@ -97,7 +97,7 @@
       "slot": "locomotion",
       "triangles": 5243,
       "meshes": 16,
-      "bytes": 51768,
+      "bytes": 51724,
       "printedParts": [
         "motor_cap",
         "motor_saddle"
@@ -112,7 +112,7 @@
       "slot": "locomotion",
       "triangles": 2944,
       "meshes": 1,
-      "bytes": 34516,
+      "bytes": 34500,
       "printedParts": [],
       "compression": "meshopt"
     },
@@ -121,7 +121,7 @@
       "slot": "fixed",
       "triangles": 2160,
       "meshes": 6,
-      "bytes": 50628,
+      "bytes": 50436,
       "printedParts": [
         "controller_carrier",
         "electronics_bridge"
@@ -133,7 +133,7 @@
       "slot": "extra",
       "triangles": 2198,
       "meshes": 2,
-      "bytes": 42468,
+      "bytes": 42440,
       "printedParts": [],
       "compression": "meshopt"
     }

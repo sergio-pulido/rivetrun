@@ -8,7 +8,7 @@
       "file": "apps/web/public/models/parts/pi_regulator_s13v30f5.glb",
       "kind": "part",
       "limit": 0.5,
-      "bytes": 22740,
+      "bytes": 22632,
       "triangles": 996,
       "meshes": 4,
       "decodedSize": [
@@ -23,7 +23,7 @@
       "file": "apps/web/public/models/parts/motor_driver_max14870_rpi.glb",
       "kind": "part",
       "limit": 0.5,
-      "bytes": 17932,
+      "bytes": 17828,
       "triangles": 804,
       "meshes": 3,
       "decodedSize": [
@@ -38,12 +38,12 @@
       "file": "apps/web/public/models/parts/wheels_60x8.glb",
       "kind": "part",
       "limit": 0.5,
-      "bytes": 35608,
-      "triangles": 2158,
+      "bytes": 13608,
+      "triangles": 956,
       "meshes": 2,
       "decodedSize": [
         0.05999999865889549,
-        0.011750992036059602,
+        0.011748824904481345,
         0.05999999865889549
       ],
       "offlineDecoder": true
@@ -53,12 +53,12 @@
       "file": "apps/web/public/models/parts/wheels_80x10.glb",
       "kind": "part",
       "limit": 0.5,
-      "bytes": 41656,
-      "triangles": 2614,
+      "bytes": 13468,
+      "triangles": 968,
       "meshes": 2,
       "decodedSize": [
         0.07999999821186066,
-        0.013548864876366494,
+        0.013547518545281134,
         0.07999999821186066
       ],
       "offlineDecoder": true
@@ -68,12 +68,12 @@
       "file": "apps/web/public/models/parts/wheels_90x10.glb",
       "kind": "part",
       "limit": 0.5,
-      "bytes": 41764,
-      "triangles": 2614,
+      "bytes": 13592,
+      "triangles": 968,
       "meshes": 2,
       "decodedSize": [
         0.09000000357627869,
-        0.013547506517336917,
+        0.01354635902283962,
         0.09000000357627869
       ],
       "offlineDecoder": true
@@ -83,7 +83,7 @@
       "file": "apps/web/public/models/parts/battery_4s_small.glb",
       "kind": "part",
       "limit": 0.5,
-      "bytes": 7592,
+      "bytes": 7564,
       "triangles": 216,
       "meshes": 2,
       "decodedSize": [
@@ -98,7 +98,7 @@
       "file": "apps/web/public/models/parts/battery_4s_large.glb",
       "kind": "part",
       "limit": 0.5,
-      "bytes": 7488,
+      "bytes": 7464,
       "triangles": 216,
       "meshes": 2,
       "decodedSize": [
@@ -113,7 +113,7 @@
       "file": "apps/web/public/models/parts/ultrasonic_hc_sr04.glb",
       "kind": "part",
       "limit": 0.5,
-      "bytes": 20992,
+      "bytes": 20816,
       "triangles": 1040,
       "meshes": 4,
       "decodedSize": [
@@ -128,7 +128,7 @@
       "file": "apps/web/public/models/parts/imu_mpu6050.glb",
       "kind": "part",
       "limit": 0.5,
-      "bytes": 18656,
+      "bytes": 18552,
       "triangles": 612,
       "meshes": 4,
       "decodedSize": [
@@ -143,7 +143,7 @@
       "file": "apps/web/public/models/parts/camera_module_3.glb",
       "kind": "part",
       "limit": 0.5,
-      "bytes": 15152,
+      "bytes": 15044,
       "triangles": 588,
       "meshes": 4,
       "decodedSize": [
@@ -173,7 +173,7 @@
       "file": "apps/web/public/models/parts/raspberry_pi_5_4gb.glb",
       "kind": "part",
       "limit": 0.5,
-      "bytes": 44016,
+      "bytes": 43836,
       "triangles": 3436,
       "meshes": 5,
       "decodedSize": [
@@ -188,7 +188,7 @@
       "file": "apps/web/public/models/parts/motor_50to1_hpcb_12v_ext.glb",
       "kind": "part",
       "limit": 0.5,
-      "bytes": 30468,
+      "bytes": 30296,
       "triangles": 1412,
       "meshes": 5,
       "decodedSize": [
@@ -203,7 +203,7 @@
       "file": "apps/web/public/models/parts/motor_298to1_hpcb_12v_ext.glb",
       "kind": "part",
       "limit": 0.5,
-      "bytes": 30520,
+      "bytes": 30348,
       "triangles": 1412,
       "meshes": 5,
       "decodedSize": [
@@ -218,7 +218,7 @@
       "file": "apps/web/public/models/parts/encoder_kit_magnetic_12cpr.glb",
       "kind": "part",
       "limit": 0.5,
-      "bytes": 7868,
+      "bytes": 7844,
       "triangles": 300,
       "meshes": 2,
       "decodedSize": [
@@ -233,7 +233,7 @@
       "file": "apps/web/public/models/parts/winch_pololu_1000to1.glb",
       "kind": "part",
       "limit": 0.5,
-      "bytes": 31148,
+      "bytes": 30988,
       "triangles": 1760,
       "meshes": 4,
       "decodedSize": [
@@ -248,7 +248,7 @@
       "file": "apps/web/public/models/parts/bumper_romi_switch_kit.glb",
       "kind": "part",
       "limit": 0.5,
-      "bytes": 64808,
+      "bytes": 64776,
       "triangles": 4798,
       "meshes": 2,
       "decodedSize": [
@@ -263,7 +263,7 @@
       "file": "apps/web/public/models/parts/moisture_probe_sen0193.glb",
       "kind": "part",
       "limit": 0.5,
-      "bytes": 21692,
+      "bytes": 21520,
       "triangles": 720,
       "meshes": 5,
       "decodedSize": [
@@ -278,13 +278,13 @@
       "file": "apps/web/public/models/parts/offroad_tread_tpu.glb",
       "kind": "part",
       "limit": 0.5,
-      "bytes": 59244,
-      "triangles": 5018,
+      "bytes": 10424,
+      "triangles": 544,
       "meshes": 1,
       "decodedSize": [
-        0.08800000417977571,
-        0.010398755338727729,
-        0.08800000417977571
+        0.08799999952316284,
+        0.010398754788466642,
+        0.08799999952316284
       ],
       "offlineDecoder": true
     },
@@ -293,7 +293,7 @@
       "file": "apps/web/public/models/parts/tracks_pololu_30t.glb",
       "kind": "part",
       "limit": 0.5,
-      "bytes": 21132,
+      "bytes": 21020,
       "triangles": 1472,
       "meshes": 3,
       "decodedSize": [
@@ -308,7 +308,7 @@
       "file": "apps/web/public/models/parts/scout_drone_crazyflie_21_plus.glb",
       "kind": "part",
       "limit": 0.5,
-      "bytes": 65176,
+      "bytes": 65072,
       "triangles": 9790,
       "meshes": 7,
       "decodedSize": [
@@ -323,7 +323,7 @@
       "file": "apps/web/public/models/parts/arduino_uno_r4_wifi.glb",
       "kind": "part",
       "limit": 0.5,
-      "bytes": 37992,
+      "bytes": 37888,
       "triangles": 1972,
       "meshes": 3,
       "decodedSize": [
@@ -338,7 +338,7 @@
       "file": "apps/web/public/models/parts/ir_distance_sharp_gp2y0a21.glb",
       "kind": "part",
       "limit": 0.5,
-      "bytes": 15488,
+      "bytes": 15396,
       "triangles": 712,
       "meshes": 3,
       "decodedSize": [
@@ -353,7 +353,7 @@
       "file": "apps/web/public/models/parts/thermal_camera_mlx90640.glb",
       "kind": "part",
       "limit": 0.5,
-      "bytes": 19068,
+      "bytes": 18968,
       "triangles": 704,
       "meshes": 4,
       "decodedSize": [
@@ -368,7 +368,7 @@
       "file": "apps/web/public/models/parts/stepper_nema17_pololu.glb",
       "kind": "part",
       "limit": 0.5,
-      "bytes": 13544,
+      "bytes": 13456,
       "triangles": 572,
       "meshes": 2,
       "decodedSize": [
@@ -383,7 +383,7 @@
       "file": "apps/web/public/models/parts/servo_metal_gear_mg92b.glb",
       "kind": "part",
       "limit": 0.5,
-      "bytes": 9956,
+      "bytes": 9872,
       "triangles": 340,
       "meshes": 2,
       "decodedSize": [
@@ -398,7 +398,7 @@
       "file": "apps/web/public/models/parts/battery_holder_4aa.glb",
       "kind": "part",
       "limit": 0.5,
-      "bytes": 16612,
+      "bytes": 16524,
       "triangles": 1116,
       "meshes": 2,
       "decodedSize": [
@@ -413,7 +413,7 @@
       "file": "apps/web/public/models/parts/lidar_rplidar_c1.glb",
       "kind": "part",
       "limit": 0.5,
-      "bytes": 10228,
+      "bytes": 10136,
       "triangles": 340,
       "meshes": 2,
       "decodedSize": [
@@ -428,7 +428,7 @@
       "file": "apps/web/public/models/parts/camera_module_3_noir.glb",
       "kind": "part",
       "limit": 0.5,
-      "bytes": 15140,
+      "bytes": 15036,
       "triangles": 588,
       "meshes": 4,
       "decodedSize": [
@@ -443,7 +443,7 @@
       "file": "apps/web/public/models/parts/tof_vl53l1x_pololu.glb",
       "kind": "part",
       "limit": 0.5,
-      "bytes": 11144,
+      "bytes": 11040,
       "triangles": 252,
       "meshes": 3,
       "decodedSize": [
@@ -458,7 +458,7 @@
       "file": "apps/web/public/models/parts/gps_adafruit_ultimate.glb",
       "kind": "part",
       "limit": 0.5,
-      "bytes": 20824,
+      "bytes": 20652,
       "triangles": 688,
       "meshes": 5,
       "decodedSize": [
@@ -473,7 +473,7 @@
       "file": "apps/web/public/models/parts/gas_sensor_bme688.glb",
       "kind": "part",
       "limit": 0.5,
-      "bytes": 16120,
+      "bytes": 16016,
       "triangles": 468,
       "meshes": 4,
       "decodedSize": [
@@ -488,7 +488,7 @@
       "file": "apps/web/public/models/parts/microphone_i2s_sph0645.glb",
       "kind": "part",
       "limit": 0.5,
-      "bytes": 11688,
+      "bytes": 11584,
       "triangles": 300,
       "meshes": 3,
       "decodedSize": [
@@ -503,7 +503,7 @@
       "file": "apps/web/public/models/mk2/chassis.glb",
       "kind": "module",
       "limit": 3,
-      "bytes": 41136,
+      "bytes": 41124,
       "triangles": 2200,
       "meshes": 1,
       "decodedSize": [
@@ -518,13 +518,13 @@
       "file": "apps/web/public/models/mk2/wheels.glb",
       "kind": "module",
       "limit": 3,
-      "bytes": 30472,
-      "triangles": 5352,
+      "bytes": 41704,
+      "triangles": 6964,
       "meshes": 12,
       "decodedSize": [
-        2.0999999530613422,
-        0.800000103041985,
-        1.2000031459521674
+        2.1000001056492295,
+        0.7999999821186066,
+        1.3709534218877568
       ],
       "offlineDecoder": true
     },
@@ -533,7 +533,7 @@
       "file": "apps/web/public/models/mk2/motor_light.glb",
       "kind": "module",
       "limit": 3,
-      "bytes": 37196,
+      "bytes": 37016,
       "triangles": 1698,
       "meshes": 4,
       "decodedSize": [
@@ -548,7 +548,7 @@
       "file": "apps/web/public/models/mk2/motor_torque.glb",
       "kind": "module",
       "limit": 3,
-      "bytes": 37196,
+      "bytes": 37016,
       "triangles": 1698,
       "meshes": 4,
       "decodedSize": [
@@ -563,7 +563,7 @@
       "file": "apps/web/public/models/mk2/battery_small.glb",
       "kind": "module",
       "limit": 3,
-      "bytes": 15868,
+      "bytes": 15836,
       "triangles": 844,
       "meshes": 2,
       "decodedSize": [
@@ -578,7 +578,7 @@
       "file": "apps/web/public/models/mk2/battery_large.glb",
       "kind": "module",
       "limit": 3,
-      "bytes": 15760,
+      "bytes": 15728,
       "triangles": 844,
       "meshes": 2,
       "decodedSize": [
@@ -593,7 +593,7 @@
       "file": "apps/web/public/models/mk2/ultrasonic.glb",
       "kind": "module",
       "limit": 3,
-      "bytes": 7024,
+      "bytes": 6964,
       "triangles": 196,
       "meshes": 2,
       "decodedSize": [
@@ -608,7 +608,7 @@
       "file": "apps/web/public/models/mk2/camera.glb",
       "kind": "module",
       "limit": 3,
-      "bytes": 5816,
+      "bytes": 5804,
       "triangles": 104,
       "meshes": 2,
       "decodedSize": [
@@ -623,13 +623,13 @@
       "file": "apps/web/public/models/mk2/offroad_wheels.glb",
       "kind": "module",
       "limit": 3,
-      "bytes": 58612,
-      "triangles": 2896,
+      "bytes": 51724,
+      "triangles": 5243,
       "meshes": 16,
       "decodedSize": [
-        2.177454136815946,
-        0.8775443071675824,
-        1.2512113547436527
+        2.18000010386109,
+        0.8799999803304672,
+        1.2509876556697144
       ],
       "offlineDecoder": true
     },
@@ -638,7 +638,7 @@
       "file": "apps/web/public/models/mk2/tracks.glb",
       "kind": "module",
       "limit": 3,
-      "bytes": 34516,
+      "bytes": 34500,
       "triangles": 2944,
       "meshes": 1,
       "decodedSize": [
@@ -653,7 +653,7 @@
       "file": "apps/web/public/models/mk2/controller.glb",
       "kind": "module",
       "limit": 3,
-      "bytes": 50628,
+      "bytes": 50436,
       "triangles": 2160,
       "meshes": 6,
       "decodedSize": [
@@ -668,7 +668,7 @@
       "file": "apps/web/public/models/mk2/bumper.glb",
       "kind": "module",
       "limit": 3,
-      "bytes": 42468,
+      "bytes": 42440,
       "triangles": 2198,
       "meshes": 2,
       "decodedSize": [
