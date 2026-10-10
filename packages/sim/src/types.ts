@@ -115,8 +115,10 @@ export interface RunState {
   /** Sim time at which the piston can fire again. */
   readonly jumpReadyT: number;
   readonly lastAir?: AirEvent;
-  /** Drive mode: the body's pitch in the air, degrees. The player turns it with throttle and brake. */
+  /** The body's pitch in the air, degrees. It levels itself; a player's brake or added throttle overrides that. */
   readonly airPitchDeg?: number;
+  /** The command held at take-off: keeping it in the air is not an air input. */
+  readonly airAction?: Action;
   /** Drive mode: seconds the jump button has been held (charging the piston). */
   readonly jumpChargeS?: number;
   /** Share of the piston's impulse the next jump uses (set by a charged release). Absent = full. */

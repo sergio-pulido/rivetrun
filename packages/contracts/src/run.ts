@@ -235,7 +235,7 @@ export const RunEventSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('airborne'), t: z.number(), x: z.number(), v: z.number(), vy: z.number(), cause: z.enum(['ramp', 'jump', 'drop']) }),
   z.object({
     type: z.literal('landed'), t: z.number(), x: z.number(), impactMps: z.number().min(0), airtimeS: z.number().min(0), damagePct: z.number().min(0),
-    /** Air control (Drive mode): how square the robot met the ground. Absent when a brain drives (always level). */
+    /** How square the robot met the ground. The robot levels itself in the air for every driver; a player's air input can spoil it. */
     grade: z.enum(['clean', 'hard', 'crash']).optional(),
     /** Nose angle against the ground at touchdown, degrees (positive = nose up). */
     pitchErrorDeg: z.number().optional(),

@@ -134,59 +134,71 @@ describe('gameplay v3: traction', () => {
 });
 
 describe('gameplay v3 P2: air control', () => {
-  // A 20° ramp onto flat ground: the body leaves nose-up and has to be levelled in the air.
+  // A 20° ramp onto flat ground: the body leaves nose-up and levels itself in the air.
   const rampTrack: Mission = { ...MISSIONS.M1, scanZones: [], track: { segments: [{ terrain: 'asphalt', lengthM: 8, slopeDeg: 0, feature: { type: 'ramp', launchDeg: 20, lengthM: 1.5 } }, { terrain: 'asphalt', lengthM: 20, slopeDeg: 0 }] } };
-  const fly = (inAir: Action, manual: boolean) => {
-    let state = createRun({ mission: rampTrack, seed: 1, build: allRounder, priority: 0.5, manual });
-    let pitchInAir: number | undefined;
-    for (let i = 0; i < 600 && !state.done; i += 1) {
-      state = step(state, state.airborne ? inAir : 'accelerate');
-      if (state.airborne) pitchInAir = state.sim.pitch;
-      if (state.lastAir?.type === 'landed') return { landed: state.lastAir, pitchInAir, v: state.sim.v, t: state.sim.t };
+  /** Drives up the ramp with `ground`, then holds `inAir` until it lands. */
+  const fly = (mission: Mission, ground: Action, inAir: Action, manual: boolean) => {
+    let state = createRun({ mission, seed: 1, build: allRounder, priority: 0.5, manual });
+    let firstPitch: number | undefined;
+    for (let i = 0; i < 900 && !state.done; i += 1) {
+      const before = state.sim.t;
+      state = step(state, state.airborne ? inAir : ground);
+      if (state.airborne && firstPitch === undefined) firstPitch = state.sim.pitch;
+      if (state.lastAir?.type === 'landed') return { landed: state.lastAir, firstPitch, v: state.sim.v, stepS: state.sim.t - before };
     }
     throw new Error('never landed');
   };
 
-  it('throttle in the air pitches the nose up, brake pitches it down, and the landing is graded', () => {
-    const coasted = fly('coast', true);
-    expect(coasted.landed.grade).toBe('hard');
-    expect(coasted.landed.pitchErrorDeg).toBe(20);
+  it('one rule for every driver: a player who gives no air input lands exactly as a brain does', () => {
+    const brain = fly(rampTrack, 'accelerate', 'accelerate', false);
+    const held = fly(rampTrack, 'accelerate', 'accelerate', true);
+    const letGo = fly(rampTrack, 'accelerate', 'coast', true);
+    expect(brain.firstPitch!).toBeGreaterThan(10);
+    expect(brain.landed.grade).toBe('clean');
+    expect(held.landed).toEqual(brain.landed);
+    expect(letGo.landed.grade).toBe('clean');
+    expect(letGo.landed.damagePct).toBe(brain.landed.damagePct);
+  });
 
-    const levelled = fly('brake_soft', true);
-    expect(levelled.pitchInAir!).toBeLessThan(coasted.pitchInAir!);
-    expect(levelled.landed.grade).toBe('clean');
-    expect(levelled.landed.damagePct).toBeLessThan(coasted.landed.damagePct);
+  it('on the ramps of M2, M5 and M7 a player holding the throttle takes the same landing as a brain holding it', () => {
+    for (const id of ['M2', 'M5', 'M7'] as const) {
+      const landings = (manual: boolean) => {
+        let state = createRun({ mission: MISSIONS[id], seed: 1, build: allRounder, priority: 0.5, manual });
+        const seen: unknown[] = [];
+        for (let i = 0; i < 400 && !state.done && seen.length < 1; i += 1) {
+          state = step(state, 'accelerate');
+          if (state.lastAir?.type === 'landed') seen.push(state.lastAir);
+        }
+        return seen;
+      };
+      expect(landings(true), id).toEqual(landings(false));
+      expect(landings(true), id).toHaveLength(1);
+    }
+  });
 
-    const noseUp = fly('accelerate', true);
-    expect(noseUp.landed.pitchErrorDeg!).toBeGreaterThan(coasted.landed.pitchErrorDeg!);
-    expect(noseUp.landed.damagePct).toBeGreaterThan(coasted.landed.damagePct);
+  it('braking in the air pushes the nose down, adding throttle lifts it, and the landing is graded', () => {
+    const level = fly(rampTrack, 'cruise', 'cruise', true);
+    const noseUp = fly(rampTrack, 'cruise', 'accelerate', true);
+    const noseDown = fly(rampTrack, 'cruise', 'brake', true);
+    expect(level.landed.grade).toBe('clean');
+    expect(noseUp.landed.pitchErrorDeg!).toBeGreaterThan(20);
+    expect(noseUp.landed.grade).toBe('hard');
+    expect(noseUp.landed.damagePct).toBeGreaterThan(level.landed.damagePct);
+    expect(noseDown.landed.pitchErrorDeg!).toBeLessThan(level.landed.pitchErrorDeg!);
+    // A brain's command in the air never turns the body.
+    expect(fly(rampTrack, 'cruise', 'brake', false).landed.grade).toBe('clean');
   });
 
   it('over 30° nose-first is a crash: damage, a dead stop and a second lost', () => {
     const dropTrack: Mission = { ...MISSIONS.M1, scanZones: [], track: { segments: [{ terrain: 'asphalt', lengthM: 8, slopeDeg: 0 }, { terrain: 'asphalt', lengthM: 20, slopeDeg: 0, feature: { type: 'drop', heightM: 1.6 } }] } };
-    const land = (inAir: Action) => {
-      let state = createRun({ mission: dropTrack, seed: 1, build: allRounder, priority: 0.5, manual: true });
-      for (let i = 0; i < 600 && !state.done; i += 1) {
-        const before = state.sim.t;
-        state = step(state, state.airborne ? inAir : 'accelerate');
-        if (state.lastAir?.type === 'landed') return { landed: state.lastAir, v: state.sim.v, stepS: state.sim.t - before };
-      }
-      throw new Error('never landed');
-    };
-    const flat = land('coast');
-    const dive = land('brake');
+    const flat = fly(dropTrack, 'accelerate', 'accelerate', true);
+    const dive = fly(dropTrack, 'accelerate', 'brake', true);
     expect(flat.landed.grade).toBe('clean');
     expect(dive.landed.grade).toBe('crash');
     // 10 % for the crash, halved by this build's bumper.
     expect(dive.landed.damagePct).toBeCloseTo(flat.landed.damagePct + 5, 5);
     expect(dive.v).toBe(0);
     expect(dive.stepS).toBeCloseTo(1.05, 5);
-  });
-
-  it('a brain\'s robot is always level: no grade, the same landing as before', () => {
-    const auto = fly('coast', false);
-    expect(auto.landed.grade).toBeUndefined();
-    expect(auto.landed.damagePct).toBeLessThanOrEqual(fly('brake_soft', true).landed.damagePct + 1e-9);
   });
 });
 

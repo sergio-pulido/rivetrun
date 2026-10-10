@@ -375,11 +375,13 @@ export function step(state: RunState, action: Action): RunState {
   let fell: Extract<WorldFeature, { type: 'gap' }> | undefined;
   let jumpJ = 0;
   let airPitchDeg = state.airPitchDeg;
+  let airAction = state.airAction;
   let crashed = false;
   const takeOff = (cause: 'ramp' | 'jump' | 'drop', fromHeightM: number, verticalMps: number): void => {
     airborne = true;
-    // The body leaves at the angle of the ground it left: a ramp sends it off nose-up.
-    if (state.config.manual) airPitchDeg = segment.slopeDeg + (cause === 'ramp' && ramp ? ramp.launchDeg : 0);
+    // The body leaves at the angle of the ground it left: a ramp sends it off nose-up. One rule for every driver.
+    airPitchDeg = segment.slopeDeg + (ramp && cause !== 'jump' ? ramp.launchDeg : 0);
+    airAction = action;
     heightM = fromHeightM;
     vy = verticalMps;
     airStartT = sim.t;
@@ -389,8 +391,16 @@ export function step(state: RunState, action: Action): RunState {
   if (wasAirborne) {
     vy -= G * DT_S;
     heightM += vy * DT_S;
-    // Throttle spins the wheels up and the body turns nose-up; the brake turns it nose-down.
-    if (airPitchDeg !== undefined) airPitchDeg = clamp(airPitchDeg + airTorque(action) * PHYSICS.airPitchRateDps * DT_S, -90, 90);
+    if (airPitchDeg !== undefined) {
+      // The robot levels itself to the ground below, at the same rate for a brain and for a player.
+      // A player overrides it by changing the wheels' speed in the air: braking turns the nose down, more throttle lifts it.
+      // Holding the take-off command, or letting go, is not an air input. Brains never give one.
+      const torque = airTorque(action);
+      const override = state.config.manual === true && action !== airAction && torque !== 0;
+      const turn = PHYSICS.airPitchRateDps * DT_S;
+      const level = world.segments[segmentIndexAt(world, x, state.segmentIndex)]!.slopeDeg;
+      airPitchDeg = override ? clamp(airPitchDeg + torque * turn, -90, 90) : airPitchDeg + clamp(level - airPitchDeg, -turn, turn);
+    }
   } else if (ramp && x >= ramp.endM) {
     const launchRad = ramp.launchDeg * DEG;
     if (Math.abs(v) >= PHYSICS.minLaunchMps) {
@@ -589,7 +599,10 @@ export function step(state: RunState, action: Action): RunState {
   const groundHeightM = Math.max(rampHeightM, deckHeightM, bump.heightM);
   const shownHeightM = airborne ? Math.max(0, heightM) : groundHeightM;
   const surfaceSlopeDeg = nextSegment.slopeDeg + (nextRamp ? nextRamp.launchDeg : 0) + bump.slopeDeg;
-  if (!airborne) airPitchDeg = undefined;
+  if (!airborne) {
+    airPitchDeg = undefined;
+    airAction = undefined;
+  }
   const pitch = airborne && airPitchDeg !== undefined
     ? airPitchDeg
     : airborne
@@ -635,6 +648,7 @@ export function step(state: RunState, action: Action): RunState {
     jumpReadyT,
     lastAir,
     airPitchDeg,
+    airAction,
     jumpChargeS: state.jumpChargeS,
     jumpPower: undefined,
     blockedBy,
