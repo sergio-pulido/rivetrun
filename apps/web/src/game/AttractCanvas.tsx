@@ -88,7 +88,8 @@ function Legend({ mission, entries, clock }: { mission: Mission; entries: readon
   const lengthM = mission.track.segments.reduce((sum, segment) => sum + segment.lengthM, 0);
 
   return (
-    <div ref={panel} className="pointer-events-none absolute bottom-4 left-4 w-[320px] rounded-2xl px-4 py-3" style={{ zoom, background: 'rgb(14 16 19 / 0.86)', border: '1px solid #262b33', color: UI.text }}>
+    <div ref={panel} // Sits a line above the bottom edge: the big screen puts its own "demo replay" note along the bottom of this panel.
+      className="pointer-events-none absolute bottom-11 left-4 w-[320px] rounded-2xl px-4 py-3" style={{ zoom, background: 'rgb(14 16 19 / 0.86)', border: '1px solid #262b33', color: UI.text }}>
       <div className="flex items-baseline justify-between">
         <span className="font-display text-[15px] font-bold tracking-[2px]" style={{ color: UI.cyan }}>
           ONE BRAIN · {entries.length} BODIES

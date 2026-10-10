@@ -162,6 +162,9 @@ function FallToast({ fall }: { fall: { readonly falls: number; readonly at: numb
 }
 
 const NO_GHOSTS: readonly GhostTrace[] = [];
+/** Chips stay off the START sign until the robot has gone this far (or a second decision has arrived). */
+const CHIPS_AFTER_M = 1;
+
 const SHORT_LANDSCAPE = '(orientation: landscape) and (max-height: 500px)';
 
 /** A phone turned on its side: about 390 px tall. The HUD stacks tighter there and keeps to the right, clear of the robot. */
@@ -314,6 +317,12 @@ export function RunHud({ mission, feed, ghosts = NO_GHOSTS, drive, build }: RunH
   const telemetryOpen = useTelemetryOpen();
   const drawerOpen = telemetryOpen && build !== undefined && !view.done;
   const short = useShortLandscape();
+  // The first second belongs to the START sign and the robot: the chips come in once the robot has moved a metre
+  // or a decision after the start one has arrived, whichever is first, and then stay.
+  const [settled, setSettled] = useState(false);
+  const underWay = (view.state?.x ?? 0) >= CHIPS_AFTER_M || view.decisionCount >= 2;
+  if (underWay && !settled) setSettled(true);
+  if (!view.state && settled) setSettled(false);
   const alerts = alertsOf(view, mission, driving ? build : undefined);
   const senses = useMemo(() => (build ? sensesOf(build, mission.weather) : null), [build, mission.weather]);
   const atmosphere = useMemo(() => atmosphereOf(mission, weatherOverride()), [mission]);
@@ -350,7 +359,7 @@ export function RunHud({ mission, feed, ghosts = NO_GHOSTS, drive, build }: RunH
           <MuteButton />
         </div>
         {/* The decision log (Brain v3): what the robot senses, then its last three decisions, newest first. */}
-        {!view.done && (
+        {!view.done && settled && (
           <div className="mt-2 flex flex-col items-start gap-1">
             {/* On a short screen the standing facts give way: they are in the Brief and in the telemetry drawer. */}
             {!short && <WeatherChip atmosphere={atmosphere} gust={view.state?.gust === true} />}
