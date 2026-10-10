@@ -18,6 +18,8 @@ export interface GhostBody {
   /** Decisions in the run, and how many of them the heuristic made because Jev failed or was slow. */
   readonly decisions: number;
   readonly fallbacks: number;
+  /** Median response time of the decisions Jev itself answered, ms. Absent when it answered none. */
+  readonly medianLatencyMs?: number;
 }
 
 type Entry =
@@ -78,7 +80,11 @@ async function compute(key: string, request: GhostRequest): Promise<void> {
       // The telemetry console replays this thread against the ghost's clock. Only entries the sim logged are
       // passed on: nothing is reconstructed here, and Jev's answer is a choice with probabilities, never text.
       const log = episode.decisions.flatMap((decision) => (decision.log ? [decision.log] : []));
-      remember(key, { state: 'ready', body: { ghost: { ...ghost, log }, decisions, fallbacks } });
+      // The reaction duel on the Result compares the player's reaction time with this.
+      const answered = episode.decisions.filter((decision) => !decision.fallback).map((decision) => decision.latencyMs).sort((a, b) => a - b);
+      const mid = Math.floor(answered.length / 2);
+      const medianLatencyMs = answered.length === 0 ? undefined : answered.length % 2 === 1 ? answered[mid]! : Math.round((answered[mid - 1]! + answered[mid]!) / 2);
+      remember(key, { state: 'ready', body: { ghost: { ...ghost, log }, decisions, fallbacks, ...(medianLatencyMs === undefined ? {} : { medianLatencyMs }) } });
     }
   } catch (error) {
     console.error('[ghost] run failed', error);
