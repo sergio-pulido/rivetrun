@@ -2,7 +2,7 @@
 
 import { useBuildStore } from '@/state/build';
 
-const LINE = 'font-display text-[40px] font-bold leading-[1.02]';
+const LINE = 'font-display text-[40px] font-bold leading-[1.02] lg:text-[68px]';
 
 /** Home's line as one sentence, for places that quote it (the share card): the last part follows who drove. */
 export const tagline = (drove: boolean): string => `Build the body. Brief the brain. ${drove ? 'Then race it.' : 'Watch it drive.'}`;

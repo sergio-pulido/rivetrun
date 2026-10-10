@@ -10,12 +10,12 @@ import { Stars } from '@/ui/Stars';
 export function MissionRail() {
   const best = useProgressStore((store) => store.best);
   return (
-    <ul className="rr-scroll-x -mx-5 flex gap-2.5 px-5 pb-1">
+    <ul className="rr-scroll-x -mx-5 flex gap-2.5 px-5 pb-1 lg:mx-0 lg:grid lg:grid-cols-[repeat(auto-fill,minmax(160px,1fr))] lg:overflow-visible lg:px-0">
       {MISSION_IDS.map((id) => {
         const mission = MISSIONS[id];
         const length = mission.track.segments.reduce((sum, segment) => sum + segment.lengthM, 0);
         return (
-          <li key={id} className="w-[150px] shrink-0 snap-start">
+          <li key={id} className="w-[150px] shrink-0 snap-start lg:w-auto">
             <Link href={`/brief/${id}`} className="rr-card block p-3 active:bg-panel-2">
               <div className="flex items-center justify-between font-mono text-[10px] font-medium tracking-[1.5px]">
                 <span className="text-orange-soft">MISSION 0{id.slice(1)}</span>
