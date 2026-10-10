@@ -42,6 +42,8 @@ export interface RescueDressingProps {
   clear?: readonly Span[];
   /** 0–1: fraction of the debris, dust and lights to draw (0.5 on weak devices and with ?quality=low). */
   budget?: number;
+  /** Also build the slabs, walls and cordons here. False when the prop kit (run/rescue) supplies them: only grit and dust are drawn. */
+  full?: boolean;
 }
 
 interface Built {
@@ -52,7 +54,7 @@ interface Built {
   readonly tape: Array<{ readonly x0: number; readonly y0: number; readonly x1: number; readonly y1: number }>;
 }
 
-function build(layout: TrackLayout, clear: readonly Span[], budget: number): Built {
+function build(layout: TrackLayout, clear: readonly Span[], budget: number, full: boolean): Built {
   const rand = mulberry32(7007);
   const out: Built = { concrete: [], rods: [], posts: [], beacons: [], tape: [] };
   const pick = <T,>(list: readonly T[]): T => list[Math.floor(rand() * list.length)]!;
@@ -63,7 +65,7 @@ function build(layout: TrackLayout, clear: readonly Span[], budget: number): Bui
   const at = (s: number) => sampleTrack(layout, s);
 
   // Slabs and broken walls along the back of the street.
-  for (let s = 1.6; s < layout.lengthM - 1.5; s += 1.5 + rand() * 1.5) {
+  for (let s = 1.6; full && s < layout.lengthM - 1.5; s += 1.5 + rand() * 1.5) {
     if (inside(solid, s, 1.1) || inside(clear, s, 1.7) || signs(s)) continue;
     const here = at(s);
     const z = BACK.far + 0.15 + rand() * 0.35;
@@ -107,7 +109,7 @@ function build(layout: TrackLayout, clear: readonly Span[], budget: number): Bui
   }
 
   // Each hole and the drop is cordoned off along the back: two posts with a beacon, hazard tape between them.
-  const cordons: Span[] = [...layout.gaps, ...layout.inclines.filter((incline) => incline.kind === 'drop').map((incline) => ({ s0: incline.s1 - 0.4, s1: incline.s1 + 0.4 }))];
+  const cordons: Span[] = !full ? [] : [...layout.gaps, ...layout.inclines.filter((incline) => incline.kind === 'drop').map((incline) => ({ s0: incline.s1 - 0.4, s1: incline.s1 + 0.4 }))];
   for (const hole of cordons) {
     const ends = [Math.max(0.5, hole.s0 - 1.3), Math.min(layout.lengthM - 0.5, hole.s1 + 1.3)] as const;
     const z = BACK.near - 0.12;
@@ -122,11 +124,11 @@ function build(layout: TrackLayout, clear: readonly Span[], budget: number): Bui
   return out;
 }
 
-const DUST = 34;
+const DUST = 48;
 
-/** Collapsed concrete, rebar, rubble, cordons with beacons, and dust hanging in the air. About seven draw calls. */
-export function RescueDressing({ layout, clear = [], budget = 1 }: RescueDressingProps) {
-  const built = useMemo(() => build(layout, clear, budget), [layout, clear, budget]);
+/** Rubble and dust hanging in the air; with `full`, also collapsed concrete, rebar and cordons with beacons. Two to seven draw calls. */
+export function RescueDressing({ layout, clear = [], budget = 1, full = true }: RescueDressingProps) {
+  const built = useMemo(() => build(layout, clear, budget, full), [layout, clear, budget, full]);
   const camera = useThree((state) => state.camera);
 
   const tape = useMemo(() => {
@@ -180,7 +182,7 @@ export function RescueDressing({ layout, clear = [], budget = 1 }: RescueDressin
   // Dust: slow motes in a box that follows the camera.
   const motes = Math.round(DUST * (budget >= 1 ? 1 : 0));
   const dust = useRef<InstancedMesh>(null);
-  const dustMaterial = useMemo(() => new MeshBasicMaterial({ color: '#d8c9a8', transparent: true, opacity: 0.22, depthWrite: false, fog: false }), []);
+  const dustMaterial = useMemo(() => new MeshBasicMaterial({ color: '#f0cfa4', transparent: true, opacity: 0.2, depthWrite: false, fog: false }), []);
   useEffect(() => () => dustMaterial.dispose(), [dustMaterial]);
   const seeds = useMemo(() => Array.from({ length: DUST }, (_, i) => [((i * 53) % 97) / 97, ((i * 31) % 89) / 89, ((i * 17) % 83) / 83] as const), []);
   const dummy = useMemo(() => new Object3D(), []);

@@ -6,6 +6,7 @@ import { CircleGeometry, MeshBasicMaterial, Vector3, type DirectionalLight, type
 import type { Build, GhostTrace, Mission, Policy, SimEffect } from '@rivetrun/contracts';
 import { TUNING, deriveSpec } from '@rivetrun/sim';
 import { atmosphereOf, weatherOverride } from '../atmosphere';
+import { duskOver } from './rescue/dusk';
 import { LANES, POLICY_LABEL, POLICY_TINT, TERRAIN_LOOK, UI, laneZ } from '../palette';
 import { clamp, damp, lerp } from '../rng';
 import { restDrive, type Expression, type RobotDrive } from '../robot/drive';
@@ -458,14 +459,11 @@ export function RunScene({ mission, build, feed, ghosts = [], particleBudget = 1
   const pose = useRef<Pose>(restPose());
   const hasDrone = build.sensors.includes('scout_drone');
   const senses = useMemo(() => sensesOf(build, mission.weather), [build, mission.weather]);
-  // Earthquake Rescue is dressed as a collapse site, with dust in the air: closer, warmer haze.
-  const rescue = useMemo(
-    () => (mission.id === 'M7' ? { clear: (mission.scanZones ?? []).map((zone) => ({ s0: zone.atM - zone.halfLengthM, s1: zone.atM + zone.halfLengthM })) } : undefined),
-    [mission],
-  );
+  // Earthquake Rescue is a collapse site at dusk: its own backdrop, props, light and haze.
+  const rescue = useMemo(() => (mission.id === 'M7' ? { zones: mission.scanZones ?? [] } : undefined), [mission]);
   const atmosphere = useMemo(() => {
     const base = atmosphereOf(mission, weatherOverride());
-    return rescue ? { ...base, key: `${base.key}|rescue`, sky: { ...base.sky, fog: '#cdbfa6', horizon: '#e6cfa6' }, fogNear: 24, fogFar: 200 } : base;
+    return rescue ? duskOver(base) : base;
   }, [mission, rescue]);
   // Lights come on by themselves only on a build with an ambient-light sensor (the sim's rule); others drive dark.
   const autoLights = useMemo(() => deriveSpec(build).autoLights === true, [build]);

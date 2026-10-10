@@ -36,6 +36,23 @@ rendering unless it says otherwise. Nothing was seen on a real phone or heard th
 - Result pages for battery and timeout DNFs; /screen with a board of 1–6 real rows above the attract loop.
 - Three driver alerts stacked at once (two were seen); the water alert on a build with a moisture probe.
 
+## M7 Earthquake Rescue: backdrop and prop kit (`game/run/rescue/`)
+- Art is the Blender delivery in `apps/web/public/env/m7/` (three WebP layers, eleven GLB props). Its manifest
+  `docs/inputs/m7-env.json` is not served by the app: file names, parallax factors, depths and prop envelopes are
+  copied into `rescue/kit.ts`. A renamed file or a new prop means editing that table.
+- Backdrop (`CityLayers`): far, mid, near pictures behind the track, each passing at its own speed, mirrored at the
+  seam, top edge faded. Loaded only after the scene has drawn its first frames, then faded in over the dusk sky.
+  If a picture is missing the old ridges are drawn. Phones and the low tier take the pictures at half size.
+- Props (`placement.ts`, tested in `placement.test.ts`): placed from the sim's track, never in a lane, over a hole
+  or in an obstacle. Beacons at both ends of each scan zone, a slab lying on each ramp and deck, rubble on rough
+  ground, tape across a hole where both posts find level ground, a work light after each hole, a barrier after the
+  drop, walls at intervals. One draw call per kind of prop; only instances near the camera are submitted.
+  If no prop file loads, the procedural slabs, walls and cordons (`RescueDressing`) are drawn instead.
+- Dusk light and haze: `rescue/dusk.ts`. Dust motes and halos only at full quality.
+- `?quality=low` (and weak devices): no near layer, no dust, no halos, no shadows, fewer props.
+- Measured in headless Chromium at 390×844, MK-II, drive mode: 119–148 draw calls and 54–86 k triangles at full
+  quality depending on the stretch, 82 calls and 34 k triangles at low. Frame rate on a real phone: not measured.
+
 ## If this breaks at the demo
 1. A phone shows a drafting-sheet background and "3D VIEW UNAVAILABLE" or "3D VIEW PAUSED".
    The run still works by the gauges. Tap RELOAD; if it repeats, use the low tier (next point: no shadows,

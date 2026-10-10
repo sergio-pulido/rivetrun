@@ -6,6 +6,8 @@ import { AdditiveBlending, IcosahedronGeometry, MeshBasicMaterial, Shape, ShapeG
 import type { Atmosphere } from '../atmosphere';
 import { clamp, mulberry32 } from '../rng';
 import type { TrackLayout } from '../track';
+import { CityLayers, useCityLayers } from './rescue/CityLayers';
+import { useSettled } from './rescue/useSettled';
 import { glowTexture, skyTexture } from './textures';
 
 /** A jagged silhouette. `feature` = width of one facet, so far ridges stay readable in a narrow view. */
@@ -21,6 +23,9 @@ function ridgeGeometry(fromX: number, toX: number, baseY: number, height: number
   return new ShapeGeometry(shape);
 }
 
+/** How far the sun is lowered behind the M7 skyline, world units at its distance. */
+const SUNSET_DROP = -17;
+
 const CLOUD = new IcosahedronGeometry(1, 1);
 const PUFFS: ReadonlyArray<readonly [number, number, number, number]> = [
   [0, 0, 0, 1],
@@ -32,10 +37,21 @@ const PUFFS: ReadonlyArray<readonly [number, number, number, number]> = [
 interface BackdropProps {
   layout: TrackLayout;
   atmosphere: Atmosphere;
+  /**
+   * Earthquake Rescue: the wrecked city's picture layers stand in for the ridges and clouds once they have loaded
+   * (until then, and if they fail, the ridges are drawn). `near` false drops the nearest layer; `weak` halves the pictures.
+   */
+  city?: { readonly near: boolean; readonly weak: boolean };
 }
 
-/** Sky gradient, sun, three hill ridges and drifting low-poly clouds. */
-export function Backdrop({ layout, atmosphere }: BackdropProps) {
+/** Sky gradient, sun, three hill ridges and drifting low-poly clouds; or, for M7, the city's parallax layers. */
+export function Backdrop({ layout, atmosphere, city }: BackdropProps) {
+  // The pictures start to load once the scene is drawing. Until they are in there is only the sky; the ridges are
+  // drawn only for other missions, or if the pictures cannot be loaded.
+  const settled = useSettled();
+  const cityState = useCityLayers(city !== undefined && settled, city?.near ?? false, city?.weak ?? false);
+  const layers = cityState.layers;
+  const hills = city === undefined || cityState.failed;
   const look = atmosphere.sky;
   const { overcast, night } = atmosphere;
   const scene = useThree((state) => state.scene);
@@ -94,21 +110,26 @@ export function Backdrop({ layout, atmosphere }: BackdropProps) {
 
   return (
     <>
-      {ridges.map((ridge) => (
-        <mesh key={ridge.z} geometry={ridge.geometry} position={[0, 0, ridge.z]}>
-          <meshBasicMaterial color={ridge.color} />
-        </mesh>
-      ))}
-      <group ref={far}>
+      {layers ? (
+        <CityLayers layers={layers} mid={mid} />
+      ) : hills ? (
+        ridges.map((ridge) => (
+          <mesh key={ridge.z} geometry={ridge.geometry} position={[0, 0, ridge.z]}>
+            <meshBasicMaterial color={ridge.color} />
+          </mesh>
+        ))
+      ) : null}
+      {/* Over the city the sun is low: it sets behind the skyline. */}
+      <group ref={far} position={[0, city ? SUNSET_DROP : 0, 0]}>
         <mesh material={sunMaterial} position={[13, mid - 6.5, -190]}>
           {/* At night the same disc is the moon: smaller. */}
           <circleGeometry args={[night ? 2.6 : 5.5, 28]} />
         </mesh>
-        <mesh material={glowMaterial} position={[13, mid - 6.5, -189]}>
+        <mesh material={glowMaterial} position={[13, mid - 6.5, -189]} renderOrder={-8}>
           <planeGeometry args={[46, 46]} />
         </mesh>
       </group>
-      <group ref={clouds} position={[0, mid, 0]}>
+      <group ref={clouds} position={[0, mid, 0]} visible={hills}>
         {cloudField.map((cloud, i) => (
           <group key={i} position={[cloud.x, cloud.y, cloud.z]} scale={[cloud.scale * 1.6, cloud.scale * 0.6, cloud.scale]}>
             {PUFFS.map(([x, y, z, r]) => (
