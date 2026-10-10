@@ -51,7 +51,7 @@ def append(key,parent,pos=(0,0,0),rot=None,omit_rubber=False):
     for o in loaded:bpy.data.objects.remove(o,do_unlink=True)
     return result
 
-def printcopy(id,parent,p,rotation=None):
+def printcopy(id,parent,p,rotation=None,index=None):
     path=ROOT/'assets/print/mk2/mk2-print-source.blend'
     with bpy.data.libraries.load(str(path),link=False) as (a,b):b.objects=['print_'+id]
     o=b.objects[0];bpy.context.scene.collection.objects.link(o);bpy.context.view_layer.update()
@@ -59,7 +59,7 @@ def printcopy(id,parent,p,rotation=None):
     for v in data.vertices:
         q=matrix@v.co;v.co=(rotation@q if rotation else q)+Vector(p)
     bpy.data.objects.remove(o,do_unlink=True)
-    n=bpy.data.objects.new('print_'+id,data);bpy.context.scene.collection.objects.link(n);n.parent=parent;n['printedPartId']=id
+    n=bpy.data.objects.new('print_'+id+(('__'+str(index)) if index is not None else ''),data);bpy.context.scene.collection.objects.link(n);n.parent=parent;n['printedPartId']=id
     mat=bpy.data.materials.get('petg') or bpy.data.materials.new('petg');mat.diffuse_color=(.08,.13,.16,1);mat.use_nodes=True;mat.node_tree.nodes['Principled BSDF'].inputs['Base Color'].default_value=(.08,.13,.16,1)
     data.materials.clear();data.materials.append(mat);return n
 
@@ -84,7 +84,7 @@ def tris(root):
     return total
 
 def export(id,root,slot):
-    compact(root);limit=3300 if slot=='locomotion' else 2300
+    compact(root);limit=3300 if slot=='locomotion' else 1800 if slot=='motor' else 2300
     for attempt in range(5):
         total=tris(root)
         if total<=limit:break
@@ -108,16 +108,14 @@ def export(id,root,slot):
     bpy.ops.wm.save_as_mainfile(filepath=str(ROOT/'assets/blender/parts'/('module_'+id+'.blend')))
     print('EXPORTED',id,count,len(prims),len(blob),flush=True)
 
+r=start('chassis')
+printcopy('chassis_base',r,(0,0,27))
+export('chassis',r,'fixed')
+
 r=start('offroad_wheels')
-# Reuse existing mount nodes, changing the visible tyre/hub geometry only.
-bpy.ops.import_scene.gltf(filepath=str(OUT/'wheels.glb'))
-old=bpy.data.objects.get('module_wheels');bpy.context.view_layer.update()
-for o in list(old.children_recursive):
-    if o.name.startswith('print_'):
-        world=o.matrix_world.copy();o.parent=r;o.matrix_world=world
-for o in list(old.children_recursive):bpy.data.objects.remove(o,do_unlink=True)
-bpy.data.objects.remove(old,do_unlink=True)
 for i,(x,sign) in enumerate([(65,-1),(65,1),(-65,-1),(-65,1)]):
+    printcopy('motor_saddle',r,(x,sign*35,35),index=i+1)
+    printcopy('motor_cap',r,(x,sign*35,50),index=i+1)
     pivot=empty('wheel_offroad_'+str(i),r,(x,sign*48.8,44))
     rot=Matrix.Rotation(sign*math.pi/2,3,'X')
     append('wheels_80x10',pivot,rot=rot,omit_rubber=True)
@@ -138,6 +136,15 @@ append('raspberry_pi_5_4gb',r,(-12,0,91))
 append('motor_driver_max14870_rpi',r,(-25.81,19,94.846))
 append('pi_regulator_s13v30f5',r,(48,0,80))
 export('controller',r,'fixed')
+r=start('bumper')
+append('bumper_romi_switch_kit',r,(58,0,31),Matrix.Rotation(-math.pi/2,3,'Z'))
+export('bumper',r,'extra')
+for module_id,key in [('motor_light','motor_50to1_hpcb_12v_ext'),('motor_torque','motor_298to1_hpcb_12v_ext')]:
+    r=start(module_id)
+    for x,sign in [(65,-1),(65,1),(-65,-1),(-65,1)]:
+        rot=Matrix(((0,sign,0),(0,0,sign),(1,0,0)))
+        append(key,r,(x,sign*47.8,40),rot)
+    export(module_id,r,'motor')
 manifest['deferred']=[id for id in manifest['deferred'] if id not in manifest['modules']]
 manifest['status']='partial_demo_visual_assets'
 manifest['deckOffsetY']={'wheels':0,'offroad_wheels':.04,'tracks':-.205}

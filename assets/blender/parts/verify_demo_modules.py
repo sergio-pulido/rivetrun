@@ -23,6 +23,7 @@ for key,entry in m['modules'].items():
 assert len(materials)<=8,materials
 for loco in ['wheels','offroad_wheels','tracks']:
  keys=['chassis','controller',loco,'motor_torque','battery_large','camera','ultrasonic']
+ if loco=='offroad_wheels' and 'bumper' in m['modules']:keys.append('bumper')
  total={k:sum(m['modules'][id][k] for id in keys) for k in ['triangles','meshes','bytes']}
  assert total['triangles']<=18000 and total['meshes']<=36 and total['bytes']<=900000,(loco,total)
  print('ASSEMBLY',loco,total)

@@ -14,9 +14,9 @@
     "chassis": {
       "file": "chassis.glb",
       "slot": "fixed",
-      "triangles": 2156,
+      "triangles": 2200,
       "meshes": 1,
-      "bytes": 119884,
+      "bytes": 123044,
       "printedParts": [
         "chassis_base"
       ]
@@ -35,17 +35,17 @@
     "motor_light": {
       "file": "motor_light.glb",
       "slot": "motor",
-      "triangles": 48,
-      "meshes": 1,
-      "bytes": 5020,
+      "triangles": 1698,
+      "meshes": 4,
+      "bytes": 101992,
       "printedParts": []
     },
     "motor_torque": {
       "file": "motor_torque.glb",
       "slot": "motor",
-      "triangles": 48,
-      "meshes": 1,
-      "bytes": 5024,
+      "triangles": 1698,
+      "meshes": 4,
+      "bytes": 101992,
       "printedParts": []
     },
     "battery_small": {
@@ -87,9 +87,9 @@
     "offroad_wheels": {
       "file": "offroad_wheels.glb",
       "slot": "locomotion",
-      "triangles": 3188,
+      "triangles": 3194,
       "meshes": 12,
-      "bytes": 274060,
+      "bytes": 293448,
       "printedParts": [
         "motor_cap",
         "motor_saddle"
@@ -100,7 +100,7 @@
       "slot": "locomotion",
       "triangles": 2944,
       "meshes": 1,
-      "bytes": 125236,
+      "bytes": 125016,
       "printedParts": []
     },
     "controller": {
@@ -108,11 +108,19 @@
       "slot": "fixed",
       "triangles": 2156,
       "meshes": 6,
-      "bytes": 152796,
+      "bytes": 152564,
       "printedParts": [
         "controller_carrier",
         "electronics_bridge"
       ]
+    },
+    "bumper": {
+      "file": "bumper.glb",
+      "slot": "extra",
+      "triangles": 2198,
+      "meshes": 2,
+      "bytes": 166228,
+      "printedParts": []
     }
   },
   "deckOffsetY": {
@@ -126,7 +134,6 @@
     "scout_drone",
     "winch",
     "waterproof_case",
-    "bumper",
     "thruster_kit",
     "piston_jump"
   ],
