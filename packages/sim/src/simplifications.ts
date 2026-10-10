@@ -30,4 +30,7 @@ export const SIMPLIFICATIONS: readonly Simplification[] = [
   { id: 'lab_ultrasonic_adjacent', screen: 'lab', partId: 'ultrasonic', sentence: 'On the grid the ultrasonic senses only the four tiles next to the robot; on the track it ranges 3 m ahead.' },
   { id: 'lab_load_speed', screen: 'lab', sentence: 'On the grid a loaded motor turns up to 60 % slower; on the track speed comes out of the forces on the robot.' },
   { id: 'lab_weather', screen: 'lab', sentence: 'Lab weather uses range factors set per scenario, not the track\'s wind, cold and visibility model.' },
+  { id: 'lab_lidar_all_round', screen: 'lab', partId: 'lidar_rplidar_c1', sentence: 'On the grid the lidar sees walls and moving things all round, in line of sight; on the track it is a forward ranger.' },
+  { id: 'lab_ramp_both_ways', screen: 'lab', sentence: 'A ramp tile costs as a climb in both directions: the grid has no height, so it cannot tell which way is down.' },
+  { id: 'lab_forklift', screen: 'lab', sentence: 'A forklift turns back for a robot standing in its way and only hits one that drives onto its tile or the tile it is heading for.' },
 ];
