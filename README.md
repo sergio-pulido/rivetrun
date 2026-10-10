@@ -1,65 +1,66 @@
 # RivetRun
 
-You build the body. AI drives it. A mobile-browser game: design a DIY robot, and an AI decision model (Jev) pilots it through terrain missions with every decision visible on screen.
+Build a small robot from real maker parts, then drive it, or let a decision model called Jev drive it, along rail missions with simplified physics, weather and sensors. The same run can be driven by Jev, by other language models, by fixed rules or by a person, and the results compared. There is a Room Race for phones with a big screen, and a second, top-down grid simulation called Lab Missions. It is a hackathon proof of concept that runs on localhost.
 
-- Spec: [docs/GAME_SPEC.md](docs/GAME_SPEC.md)
-- Jev integration notes: [docs/JEV.md](docs/JEV.md)
-- Session prompts: [docs/prompts/kickoff-v3.md](docs/prompts/kickoff-v3.md)
+This file describes `main` at `7aa92cb` (Saturday 10 October 2026, 05:22), while work was still going on. Every number names the file it comes from.
 
-Status: **scaffold**. Contracts and v0 data are real; sim, brain and API handlers are typed stubs; pages are placeholders.
+## Try it
 
-## Layout
-
-| Path | What | Owner session |
-| - | - | - |
-| `packages/contracts` | Zod schemas + inferred types. Single source of truth. Frozen after scaffold. | scaffold |
-| `packages/sim` | Deterministic sim (stubs) + `src/data` (terrains, parts, missions, tuning) | sim |
-| `packages/brain` | Server-only Jev client (stub) | brain |
-| `packages/db` | Drizzle + Postgres (Neon) schema; client is `null` without `DATABASE_URL` | brain |
-| `apps/web` | Next.js 16 App Router, React 19, Tailwind 4, three.js via React Three Fiber | render / ui / brain (api) |
-
-Workspace packages export TypeScript source; `apps/web` compiles them through `transpilePackages`, so there is no package build step.
-
-## Requirements
-
-Node >= 20 and pnpm 10 (`packageManager` is pinned in `package.json`).
-
-## Commands
-
-Run from the repo root. All of these were run on the scaffold branch.
+Node >= 20 and pnpm 10.
 
 ```sh
-pnpm install      # install the workspace
-pnpm typecheck    # tsc --noEmit in every package
-pnpm lint         # eslint in every package
-pnpm test         # vitest in every package
-pnpm build        # next build (apps/web)
+pnpm install
+pnpm dev          # http://localhost:3000
+pnpm demo:stable -- --ref "$(git tag -l 'demo-good-*' | sort | tail -1)"   # last commit that passed QA, on :3001
 ```
 
-Run the production build locally (this is how the scaffold was checked at 390 px):
+Without `JEV_API_KEY` in `apps/web/.env.local` a rule-based driver decides instead of Jev and the HUD shows FALLBACK. The tunnel, the other variables and what each command does are in [docs/SETUP.md](docs/SETUP.md).
 
-```sh
-pnpm --filter @rivetrun/web exec next start -p 3111
-```
+## What is in it
 
-`pnpm dev` runs `next dev` through turbo (http://localhost:3000). It is wired but was not exercised during the scaffold.
+- **Workshop** (`/workshop`): 22 parts, four presets and three dials. Each part sheet shows the real component behind it, and "Build it for real" gives a bill of materials with official links ([docs/MK2_BOM.md](docs/MK2_BOM.md)).
+- **Missions** (`/brief/Mx` → `/run/Mx` → `/result`): nine rail missions, M1 to M9. Drive with analog throttle and brake against a Jev ghost, or watch Jev drive with each decision on the HUD. The simulation is deterministic and a brain knows only what the fitted sensors report ([docs/SIM_MODEL.md](docs/SIM_MODEL.md)).
+- **Brain Arena** (`/lab`): Jev, nine LLMs, the rule-based driver and a random driver on identical runs, with latency counted as simulation time. The page also shows how the project was built.
+- **Room Race** (`/screen` and `/race`): a big screen shows a QR code; up to 8 phones and 2 Jev bots race the same seed; the server decides the result.
+- **Lab Missions** (`/scenarios`): five grid scenarios (maze, warehouse, Mars sample return, house inspection, capture the flag) with the same parts, sensors and battery. Labelled in the UI as a grid simulation.
 
-## Environment
+## Brains compared
 
-Copy `.env.example` to `apps/web/.env.local` and fill in values. Both are optional for the scaffold.
+Mean score, higher is better. Rail: M1–M9 on one build plus one specialist build, 3 seeds, 30 runs per row ([docs/ARENA.md](docs/ARENA.md)). Lab Missions: 5 scenarios, 3 seeds, 15 runs per row ([docs/ARENA_LAB.md](docs/ARENA_LAB.md)).
 
-| Variable | Used by | Without it |
-| - | - | - |
-| `JEV_API_KEY` | `packages/brain` (server only) | Jev calls fail; the heuristic decides with `fallback: true` |
-| `DATABASE_URL` | `packages/db` | Runs are not stored, leaderboard is empty, stats return 0 |
+| Brain | Rail score | Rail latency p50 | Lab Missions score |
+|---|---|---|---|
+| Rule-based driver | 554 | 0 ms | 702 |
+| Jev (`jev-1.13.0`) | 546 | 250 ms | 694 |
+| GPT-6 Luna, the best LLM on the rail among rows run on the same game version | 496 | 853 ms | 482 |
+| DeepSeek Flash, the best LLM on Lab Missions | 476 | 817 ms | 510 |
+| Random | 41 | 0 ms | 259 |
 
-Never commit `.env*` files (only `.env.example` is tracked). The Jev key must never reach the client.
+Over the 810 runs of the benchmark, Jev finishes 62 % with a mean score of 433 and the rule-based driver 63 % with 441 ([docs/BENCHMARK.md](docs/BENCHMARK.md)). Jev does not beat the fixed rules; it stays close to them and answers faster than the other models.
 
-## Routes
+Caveat, as shown on `/lab`: "Our sim, our prompts, 283 runs, 2026-10-10. Not a general model ranking." Two more: the three Claude rows are carried over from an earlier game version and are not comparable, and in places the question tells the brain which option the rules consider correct (finding Q20 in [docs/QA.md](docs/QA.md), open).
 
-Pages: `/`, `/workshop`, `/brief/[mission]`, `/run/[mission]`, `/result`, `/leaderboard`, `/screen`.
-API (Node runtime; validate with contracts, then return 501 until the brain session lands): `POST /api/decide`, `POST /api/runs`, `GET /api/leaderboard?mission=M5`, `GET /api/stats`.
+## How it was made
 
-## Deploy
+- One person and up to six Claude Code sessions on a single checkout of `main`, each owning a set of paths: sim, brain, game, ui, then lab and a master session that orchestrates and tests and writes no feature code.
+- A separate asset agent (ChatGPT with Blender) made the models and renders; the human relayed between it and the sessions.
+- 292 commits between Friday 20:18 and Saturday 05:22, 91 of them in the hour from 04:00 (git log).
+- A gate (`scripts/qa.sh`) rebuilds each candidate commit in a clean worktree: typecheck, unit tests, determinism, balance, a production build and a Playwright smoke run. Seven commits carry a `demo-good-*` tag so far.
+- Sessions report each item as "verified" and "not verified", and findings are logged with an owner. The full account is in [docs/SETUP.md](docs/SETUP.md).
 
-Target: Vercel, project root directory `apps/web`. **Not deployed yet**: deploy is deferred to the integration session, so no deploy command has been run.
+## Honest limits
+
+- Nothing was run on a real phone. Touch, frame rate and sound are untested; the gate uses a headless browser, software rendering and the keyboard ([docs/QA.md](docs/QA.md)).
+- The physics is one-dimensional and made of formulas, with no steering and no rigid-body engine. Weather factors and several sensor rules are game rules. Lab Missions use a separate grid simulation.
+- The arena samples are small (30 runs per row, 9 or fewer for the reasoning models), rows ran on different commits, and finding Q20 above limits what the Jev comparison shows.
+- Room Race was tested with bots only, never with more than one person. State lives in server memory: no database, no accounts, no rate limiting.
+- The MK-II rover is designed, not built or test-printed. Its 3D kit sits behind a flag and no session has seen it on a real GPU; the newest asset files were uncommitted at the snapshot.
+
+## Docs
+
+- [docs/SETUP.md](docs/SETUP.md): run it, repository map, sessions and tools, the gate, what is simplified, known gaps, timeline.
+- [docs/OVERNIGHT_LOG.md](docs/OVERNIGHT_LOG.md): status log of the overnight program, decisions taken, what the human still has to do.
+- [docs/QA.md](docs/QA.md): what the gate proves and does not prove, and every finding with its owner and status.
+- [docs/SIM_MODEL.md](docs/SIM_MODEL.md): the simulation in plain words, with every number from the code.
+- [docs/BRAIN_ARENA.md](docs/BRAIN_ARENA.md): arena rules and contestants. Results: [docs/ARENA.md](docs/ARENA.md), [docs/ARENA_LAB.md](docs/ARENA_LAB.md).
+- [docs/MK2_BOM.md](docs/MK2_BOM.md): bill of materials for the real rover.
