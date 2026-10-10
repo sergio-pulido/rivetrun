@@ -25,6 +25,9 @@ Written by [MASTER] for the human. Newest status first. Program: docs/OVERNIGHT.
 
 ## Status log
 
+### 04:52 · fourth tag
+`demo-good-0452` → 537c721. In it: Jev now scans on M1 (26.9 s, was 33.4 s with the penalty); a first-timer at full throttle on M5 is told "STUCK IN 6 s · TAP CLIMB" and finishes in 62.9 s by doing only that; the arena's Lab track and the Lab Missions tab on /lab; `docs/SIM_MODEL.md`. Sim's 3-seed table with the fix: Jev is within 40 points of the fixed rules on every mission with the default build, scans as often, and is ahead by 82 on Deep Water with the Deep Diver. After the tag, on main: /scenarios (five Lab Missions on screen), race ranking that includes the 10 s per missed scan, v3 alerts on race phones, no stuck clock before the first touch.
+
 ### 04:38 · third tag
 `demo-good-0438` → f8b94fc. New in the e2e: Jev drives M1 from Play Now to the Result (33.4 s, no FALLBACK). It also showed that Jev skips the scan zone on M1 and loses to the fixed rules by 46 points (Q13, with [BRAIN]). Adds since 0432: the stranger table and the Brief's full-throttle warning, sim fuzz test in `pnpm test`, five Lab Missions in packages/lab (no screen yet), star thresholds for M8/M9.
 

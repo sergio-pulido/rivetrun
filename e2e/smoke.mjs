@@ -470,14 +470,44 @@ try {
       return `Brain Arena visible; ${tab}`;
     }, page);
 
-    await step('lab mission', async () => {
+    // One Lab Mission start to finish: the Maze, driven by [LAB]'s key sequence (the maze does not depend on the seed).
+    await step('lab mission · maze', async () => {
       const status = await go(page, '/scenarios');
       if (status === 404) throw new Skip('/scenarios is not there yet (OVN-LAB-3)');
       if (status !== 200) throw new Error(`GET /scenarios → ${status}`);
-      await sleep(1500);
+      const card = page.locator('[data-testid="scenario-maze"]');
+      await card.waitFor({ state: 'visible', timeout: 20_000 });
+      await sleep(800);
       await shot(page, 'phone-09-scenarios');
+      const honesty = await page.locator('[data-testid="scenario-honesty"]').first().innerText().catch(() => '');
+      if (!/grid/i.test(honesty)) throw new Error(`the picker does not say Lab Missions use a grid simulation (found: "${honesty.slice(0, 80)}")`);
+      await card.click();
+      await page.waitForURL('**/scenarios/maze', { timeout: NAV_MS });
+      const start = page.locator('[data-testid="scenario-start"]');
+      await start.waitFor({ state: 'visible', timeout: 20_000 });
+      await sleep(500);
+      await shot(page, 'phone-09b-maze-brief');
+      await start.click();
+      // The board mounts a moment after Start; keys sent before the pad is there are lost.
+      await page.locator('[data-testid="pad-up"]').waitFor({ state: 'visible', timeout: 20_000 });
+      await sleep(300);
+      const keys = { U: 'ArrowUp', R: 'ArrowRight', D: 'ArrowDown', L: 'ArrowLeft' };
+      for (const move of 'DDRRDDRRDDLLDDLLDDRRDDLLDDRRRRRRUULLUUUURRUURRDDRRDDDDDDRRR') {
+        await page.keyboard.press(keys[move]);
+        await sleep(25);
+      }
+      await sleep(6000);
+      await shot(page, 'phone-09c-maze-run');
+      const result = page.locator('[data-testid="scenario-result"]');
+      await result.waitFor({ state: 'visible', timeout: 75_000 });
+      await sleep(1200);
+      await shot(page, 'phone-09d-maze-result');
+      const heading = (await page.locator('[data-testid="scenario-result-heading"]').innerText()).trim();
+      const score = Number.parseInt((await page.locator('[data-testid="scenario-score"]').innerText()).replace(/[^0-9]/g, ''), 10);
       await assertHealthy(page, seen);
-      throw new Skip('/scenarios exists; the start-to-finish script is added when OVN-LAB-3 reports');
+      if (!/scenario complete/i.test(heading)) throw new Error(`result heading is "${heading}" (score ${score})`);
+      if (!(score > 600)) throw new Error(`score ${score}, expected above 600`);
+      return `"${heading}", score ${score}; the picker says: "${honesty.replace(/\s+/g, ' ').slice(0, 70)}"`;
     }, page);
   }
   // ---- Every mission opens: its Brief, and its run scene for a few seconds (terrain, weather, lights) ---------------
