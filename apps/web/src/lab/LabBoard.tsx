@@ -3,15 +3,17 @@
 import { memo, useMemo, type MouseEvent } from 'react';
 import type { TerrainId } from '@rivetrun/contracts';
 import { LAB_PLAYER, defOf, type AgentState, type Cell, type Dir, type LabObjectKind, type LabState } from '@rivetrun/lab';
+// The rover and the ground colours of the run view, so the board reads as the same game. From the module itself:
+// the game's index also exports its 3D scene.
+import { ROBOT_COLORS, RobotGlyph, terrainTile } from '@/game/glyph';
 import { inView, knownTiles, poseOf, trueTiles, type TileView } from './boardModel';
 
 /** Drawing units per tile. On a 390 px phone a 15-tile map is about 24 px a tile, so one unit is one pixel. */
 const T = 24;
 
+/** Floor a ranger has mapped: free, ground type not known. */
 const FLOOR = '#1b212a';
-const TERRAIN: Readonly<Record<TerrainId, string>> = {
-  asphalt: '#1f2630', grass: '#1e3324', sand: '#3d3423', mud: '#35281c', ice: '#27404d', water: '#16344d', rock: '#363c46', snow: '#4a5560',
-};
+const ground = (terrain: TerrainId | undefined): string => (terrain ? terrainTile(terrain) : FLOOR);
 const HEADING_DEG: Readonly<Record<Dir, number>> = { N: 0, E: 90, S: 180, W: 270 };
 
 interface TilesProps {
@@ -35,10 +37,9 @@ const Tiles = memo(function Tiles({ tiles }: TilesProps) {
             </g>
           );
         }
-        const ground = tile.terrain ? TERRAIN[tile.terrain] : FLOOR;
         return (
           <g key={tile.index}>
-            <rect x={x} y={y} width={T} height={T} fill={ground} stroke="#10141a" strokeWidth={0.5} />
+            <rect x={x} y={y} width={T} height={T} fill={ground(tile.terrain)} stroke="#10141a" strokeWidth={0.5} />
             {tile.look === 'door' ? <rect x={x + 2} y={y + 8} width={T - 4} height={8} rx={2} fill="#ffb27a" /> : null}
             {tile.look === 'door-open' ? <rect x={x + 2} y={y + 8} width={T - 4} height={8} rx={2} fill="none" stroke="#ffb27a" strokeWidth={1.5} strokeDasharray="3 2" /> : null}
             {tile.look === 'drop' ? (
@@ -110,8 +111,7 @@ function Robot({ agent, color, name }: RobotProps) {
   return (
     <g>
       <g transform={`rotate(${HEADING_DEG[agent.heading]} ${cx} ${cy})`}>
-        <circle cx={cx} cy={cy} r={9} fill={color} stroke="#0e1013" strokeWidth={1.5} />
-        <path d={`M${cx} ${cy - 8}l5 7h-10z`} fill="#0e1013" />
+        <RobotGlyph cx={cx} cy={cy} size={22} color={color} />
       </g>
       {agent.carrying.length > 0 ? <circle cx={cx + 8} cy={cy - 8} r={4} fill="#edeff2" stroke="#0e1013" /> : null}
       <title>{name}</title>
@@ -192,8 +192,8 @@ export function LabBoard({ state, reveal = false, onTile }: LabBoardProps) {
           <text x={mover.x * T + T / 2} y={mover.y * T + T / 2 + 4} textAnchor="middle" fontSize={11} fontWeight={700} fontFamily="var(--font-mono)" fill="#160b03">{mover.named ? 'F' : '?'}</text>
         </g>
       ))}
-      {rivals.map((agent) => <Robot key={agent.id} agent={agent} color="#3fd0e0" name={agent.label} />)}
-      <Robot agent={me} color="#ff7a1a" name="Your robot" />
+      {rivals.map((agent) => <Robot key={agent.id} agent={agent} color={ROBOT_COLORS.rival} name={agent.label} />)}
+      <Robot agent={me} color={ROBOT_COLORS.player} name="Your robot" />
     </svg>
   );
 }

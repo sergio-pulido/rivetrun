@@ -1,5 +1,6 @@
 import type { LabObjectKind, LabScenario } from '@rivetrun/lab';
 import { legendFor, type LegendKey } from './boardModel';
+import { ROBOT_COLORS, RobotGlyph } from '@/game/glyph';
 import { Glyph } from './LabBoard';
 
 const OBJECTS: readonly LabObjectKind[] = ['exit', 'parcel', 'bay', 'sample', 'lander', 'checkpoint', 'flag', 'home'];
@@ -11,7 +12,7 @@ function Mark({ entry }: { readonly entry: LegendKey }) {
   switch (entry) {
     case 'you':
     case 'rival':
-      return <g><circle cx={12} cy={12} r={9} fill={entry === 'you' ? '#ff7a1a' : '#3fd0e0'} stroke="#0e1013" strokeWidth={1.5} /><path d="M12 4l5 7h-10z" fill="#0e1013" /></g>;
+      return <RobotGlyph cx={12} cy={12} size={24} color={entry === 'you' ? ROBOT_COLORS.player : ROBOT_COLORS.rival} />;
     case 'mover':
       return <rect x={3} y={3} width={18} height={18} rx={3} fill="#fbbf24" stroke="#160b03" />;
     case 'door':
