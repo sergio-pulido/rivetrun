@@ -12,9 +12,11 @@ export const PLAY_MISSION: MissionId = fromEnv.success ? fromEnv.data : 'M7';
  * own fixed seed. Override with PLAY_MISSIONS, a comma-separated list (NEXT_PUBLIC_PLAY_MISSIONS for client code);
  * ids that are not missions are dropped. PLAY_MISSION is always allowed, and is what a phone gets when it asks for none.
  */
-// Sergio's list was M7, M3, M6, M9; [MASTER] swapped M3 and M9 for M5 and M8 after measuring (docs/OVERNIGHT.md, 14:05):
-// the best preset differs between these, and a first-timer finishes three of them in about 45 s.
-const DEFAULT_PLAY_MISSIONS: readonly MissionId[] = ['M7', 'M5', 'M8', 'M6'];
+// Sergio's list was M7, M3, M6, M9; [MASTER] measured and kept the missions where the best vehicle differs and a
+// first-timer finishes in about 45 s: M3 and M9 became M5 and M8 (14:05), and M6 went out (14:36: 74 s at best, and
+// with the plan's case and thrusters on every vehicle the Deep Diver does not win it). M6 comes back with
+// PLAY_MISSIONS=M7,M5,M8,M6 in the environment of the served build, no commit.
+const DEFAULT_PLAY_MISSIONS: readonly MissionId[] = ['M7', 'M5', 'M8'];
 const listed = (process.env.PLAY_MISSIONS ?? process.env.NEXT_PUBLIC_PLAY_MISSIONS ?? '')
   .split(',')
   .map((id) => MissionIdSchema.safeParse(id.trim()))

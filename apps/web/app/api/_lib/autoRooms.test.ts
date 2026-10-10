@@ -186,8 +186,8 @@ describe('auto rooms per mission (RR-PLAN amendment)', () => {
     drain();
     vi.useRealTimers();
   });
-  const match = (missionId?: 'M5' | 'M6' | 'M7' | 'M8' | 'M1') => matchRoom(missionId ? { missionId } : {});
-  const seated = (missionId?: 'M5' | 'M6' | 'M7' | 'M8') => {
+  const match = (missionId?: 'M5' | 'M7' | 'M8' | 'M1') => matchRoom(missionId ? { missionId } : {});
+  const seated = (missionId?: 'M5' | 'M7' | 'M8') => {
     const result = match(missionId);
     if (!result.ok) throw new Error(result.error);
     return result.data;
@@ -223,11 +223,32 @@ describe('auto rooms per mission (RR-PLAN amendment)', () => {
   it('MAX_AUTO_ROOMS counts every mission together', () => {
     process.env.MAX_AUTO_ROOMS = '2';
     seated('M5');
-    seated('M6');
+    seated('M7');
     const third = match('M8');
     expect(third).toMatchObject({ ok: false, status: 503 });
     // A phone for a mission that already has an open room still gets in.
     expect(match('M5').ok).toBe(true);
+  });
+
+  it('the default list is three missions; M6 is refused and the message names what is open', () => {
+    const refused = match('M6' as 'M5');
+    expect(refused).toMatchObject({ ok: false, status: 400, error: 'Mission M6 is not open for /play. Open: M7, M5, M8.' });
+    for (const id of ['M7', 'M5', 'M8'] as const) expect(match(id).ok, id).toBe(true);
+  });
+
+  it('70 phones over three missions: 64 seats in 8 rooms; a phone whose mission has no free seat is told when to retry, whatever the others have', () => {
+    const missions = ['M7', 'M5', 'M8'] as const;
+    // 24 phones each on M7 and M5 fill three rooms each; two rooms are left for M8.
+    for (let i = 0; i < 24; i += 1) expect(match('M7').ok && match('M5').ok).toBe(true);
+    for (let i = 0; i < 12; i += 1) expect(match('M8').ok).toBe(true);
+    expect(autoRooms()).toHaveLength(8);
+    // M7's rooms are full and no ninth room may open: the phone waits, although M8 still has four free seats.
+    const waits = match('M7');
+    expect(waits).toMatchObject({ ok: false, status: 503 });
+    expect(match('M8').ok).toBe(true);
+    const seatedPhones = autoRooms().reduce((sum, room) => sum + room.players.filter((p) => p.kind === 'human').length, 0);
+    expect(seatedPhones).toBe(24 + 24 + 13);
+    expect(new Set(autoRooms().map((room) => room.missionId))).toEqual(new Set(missions));
   });
 
   it('a mission tap moves the phone: it gives up its lobby seat and is seated in the other mission\'s room', () => {
