@@ -11,6 +11,7 @@ import { AppHeader } from '@/ui/AppHeader';
 import { Icon } from '@/ui/Icon';
 import { realForPart, type Bom } from '@/ui/real/bom';
 import type { PartMedia } from '@/ui/real/bomData';
+import { APPROXIMATE_CAPTION } from '@/ui/real/models';
 import { RealComponent } from '@/ui/real/RealComponent';
 import { GivesYourRover } from '@/ui/strategy/GivesYourRover';
 import { PartCanvas } from '@/ui/three';
@@ -106,6 +107,7 @@ export function PartSheet({ part, bom, media }: PartSheetProps) {
         ) : null}
         <span className="rr-label pointer-events-none absolute left-3 top-3 max-w-[70%] truncate !text-[#8FB8D6]">{lead?.model ?? lead?.manufacturer ?? SLOT_NAME[part.slot]}</span>
       </section>
+      {showRender && picture?.approximate ? <p className="-mt-1.5 text-center text-[11px] leading-snug text-muted">{APPROXIMATE_CAPTION}</p> : null}
 
       <section className="flex flex-col gap-0.5">
         <h1 className="font-display text-[26px] font-bold leading-tight">{part.name}</h1>

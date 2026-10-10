@@ -1,6 +1,7 @@
 import { AppHeader } from '@/ui/AppHeader';
 import { Icon } from '@/ui/Icon';
 import type { BomItem } from './bom';
+import { APPROXIMATE_CAPTION } from './models';
 import { RealComponent } from './RealComponent';
 
 const GROUP_LABEL = { core: 'Core kit', game: 'Real part', alt: 'Alternative', locked: 'Coming soon', tool: 'Fab lab tool' } as const;
@@ -8,13 +9,15 @@ const GROUP_LABEL = { core: 'Core kit', game: 'Real part', alt: 'Alternative', l
 interface RealItemSheetProps {
   readonly item: BomItem;
   readonly render: string | null;
+  /** The manifest marks the render approximate. */
+  readonly approximate?: boolean;
   readonly checkedAt: string | null;
   /** Where the back chevron goes. */
   readonly back: string;
 }
 
 /** A readable sheet for one bill-of-materials entry. Locked parts can be read here but not fitted: the game does not have them yet. */
-export function RealItemSheet({ item, render, checkedAt, back }: RealItemSheetProps) {
+export function RealItemSheet({ item, render, approximate = false, checkedAt, back }: RealItemSheetProps) {
   const locked = item.group === 'locked';
   return (
     <main className="mx-auto flex min-h-dvh max-w-[430px] flex-col gap-3 px-4 pt-[max(18px,env(safe-area-inset-top))]">
@@ -36,6 +39,7 @@ export function RealItemSheet({ item, render, checkedAt, back }: RealItemSheetPr
           </span>
         ) : null}
       </section>
+      {render && approximate ? <p className="-mt-1.5 text-center text-[11px] leading-snug text-muted">{APPROXIMATE_CAPTION}</p> : null}
 
       {item.scenario ? (
         <p className="font-mono text-[11px] font-medium uppercase tracking-[1.5px] text-cyan">Needs: {item.scenario}</p>

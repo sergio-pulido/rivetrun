@@ -1,11 +1,12 @@
 // Server-side loader for docs/inputs/bom-mk2.json. Import from server components only and pass slices down,
 // so the 49 KB file never reaches the client whole.
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { z } from 'zod';
 import { PARTS_BY_ID } from '@rivetrun/sim';
 import rawBom from '../../../../../docs/inputs/bom-mk2.json';
 import type { Bom, BomGroup, BomItem } from './bom';
+import { approximateKeys } from './models';
 
 const SpecValueSchema = z.union([z.string(), z.number(), z.boolean(), z.array(z.union([z.string(), z.number()]))]);
 const WebUrlSchema = z.url().refine((url) => /^https?:\/\//i.test(url), 'http(s) links only');
@@ -137,10 +138,25 @@ export const partModel = (key: string): string | null => (existsSync(path.join(p
 export interface PartMedia {
   readonly render: string | null;
   readonly model: string | null;
+  /** The manifest marks this render approximate: it is captioned as illustrative. */
+  readonly approximate: boolean;
 }
 
+const MODELS_MANIFEST = path.join(process.cwd(), '..', '..', 'docs', 'inputs', 'component-models.json');
+
+/** BOM keys whose render the component-models manifest marks approximate. Read per request: the manifest changes as models land. */
+export const approximateRenders = (): ReadonlySet<string> => {
+  try {
+    return new Set(approximateKeys(JSON.parse(readFileSync(MODELS_MANIFEST, 'utf8'))));
+  } catch {
+    return new Set(); // No manifest, or not JSON: no render is captioned.
+  }
+};
+
 /** Render and model per BOM key, for every key in a BOM slice. Checked on the server at request time, so new files show without a rebuild. */
-export const mediaFor = (bom: Bom | null): Readonly<Record<string, PartMedia>> =>
-  Object.fromEntries(Object.keys(bom?.items ?? {}).map((key) => [key, { render: partRender(key), model: partModel(key) }]));
+export const mediaFor = (bom: Bom | null): Readonly<Record<string, PartMedia>> => {
+  const approximate = approximateRenders();
+  return Object.fromEntries(Object.keys(bom?.items ?? {}).map((key) => [key, { render: partRender(key), model: partModel(key), approximate: approximate.has(key) }]));
+};
 
 export const toolRender = (item: Pick<BomItem, 'key' | 'category'>): string | null => renderIfPresent('tools', [item.key, TOOL_RENDER[item.category], item.category]);
