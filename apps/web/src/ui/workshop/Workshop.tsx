@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Part, Slot } from '@rivetrun/contracts';
 import { MISSIONS, PARTS_BY_ID, PRESETS, buildIssues } from '@rivetrun/sim';
 import type { RoverPick } from '@/game/robot/pick';
@@ -50,6 +50,15 @@ export function Workshop({ makers, locked, printedIds }: WorkshopProps) {
   const slot = useWorkshopUi((store) => store.slot);
   const setSlot = useWorkshopUi((store) => store.setSlot);
   const [notice, setNotice] = useState<string | null>(null);
+  const shelf = useRef<HTMLElement>(null);
+  // The shelf sits under the sticky tab bar and often below the fold: after a tab is tapped (not on first load, and not when
+  // another screen changed the slot) its cards are brought into view, once the new shelf has rendered.
+  const tapped = useRef(false);
+  useEffect(() => {
+    if (!tapped.current) return;
+    tapped.current = false;
+    shelf.current?.scrollIntoView({ block: 'start' });
+  }, [slot]);
   const setMission = useBuildStore((store) => store.setMission);
   const priority = useBuildStore((store) => store.priority);
   const testing = useWorkshopUi((store) => store.testRun);
@@ -185,6 +194,7 @@ export function Workshop({ makers, locked, printedIds }: WorkshopProps) {
               onClick={() => {
                 setSlot(info.slot);
                 setNotice(null);
+                tapped.current = true;
               }}
               className={`-mb-px flex h-11 flex-1 flex-col items-center justify-center gap-px border-b-2 font-mono text-[11px] font-medium uppercase tracking-[1px] ${
                 on ? 'border-cyan text-cyan' : 'border-transparent text-muted'
@@ -220,7 +230,7 @@ export function Workshop({ makers, locked, printedIds }: WorkshopProps) {
         </p>
       ) : null}
 
-      <section role="tabpanel" className="grid grid-cols-2 gap-2.5">
+      <section ref={shelf} role="tabpanel" className="grid scroll-mt-[56px] grid-cols-2 gap-2.5">
         {partsIn(slot).map((part) => (
           <PartCard
             key={part.id}
