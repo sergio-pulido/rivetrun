@@ -459,6 +459,19 @@ function heuristicTrace(room: Room, build: Build): GhostTrace {
 
 /** Fills the room to AUTO_MIN_LANES with bots the server moves itself: Jev with the plan when its recorded run is ready, the fixed rules otherwise. */
 function fillWithBots(room: Room, auto: AutoRoom): void {
+  // RR-GUARD, cache first: a phone that picked an AI agent gets the recorded run of exactly that pick when the server
+  // has it (the prewarm drives all 48). The server then moves the lane and no provider is called; only a pick with
+  // no recorded run is driven live from the phone, under the visitor limits.
+  for (const player of [...room.players.values()]) {
+    if (player.kind !== 'jev' || !player.pick || player.serverDriven) continue;
+    const recorded = peekGhost({
+      missionId: room.missionId, seed: room.seed, build: player.build, priority: player.priority ?? 0.5,
+      ...(player.briefing ? { briefing: player.briefing } : {}), ...(player.model && player.model !== JEV_AGENT ? { agent: player.model } : {}),
+    });
+    if (!recorded) continue;
+    room.players.set(player.id, { ...player, serverDriven: true });
+    auto.replays.set(player.id, recorded.ghost);
+  }
   const strategy = resolveStrategy(room.missionId, 'all_rounder', 'plan');
   const build = strategy.build;
   const ready = peekGhost({ missionId: room.missionId, seed: room.seed, build, priority: strategy.priority, briefing: strategy.briefing });

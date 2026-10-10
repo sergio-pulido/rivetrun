@@ -57,6 +57,8 @@ function useDrive(snapshot: RaceSnapshot, seat: RaceSeat, me: RacePlayer, clockO
     if (!live || startAt === null) return undefined;
     // The page was reloaded after this robot's result was final: there is nothing left to drive.
     if (doneRef.current) return undefined;
+    // The server moves this lane itself from a recorded run of the same pick (RR-GUARD, cache first): the phone watches.
+    if (me.serverDriven) return undefined;
     drive.release();
     let stop: (() => void) | undefined;
     const waitMs = startAt - (Date.now() + clockOffsetMs);
@@ -220,7 +222,7 @@ export default function RaceRun({ snapshot, seat, me, now, clockOffsetMs }: Race
       {running && agentDrives ? (
         <div className="pointer-events-none absolute inset-x-0 bottom-6 z-10 flex justify-center px-4">
           <p className="rr-mono rounded-lg border border-slate-line bg-black/80 px-3 py-2 text-center text-xs uppercase tracking-wider text-led">
-            {me.nickname} is driving your robot{me.plan ? ' · with the plan' : ''}
+            {me.serverDriven ? 'Cached run of your pick' : `${me.nickname} is driving your robot`}{me.plan ? ' · with the plan' : ''}
           </p>
         </div>
       ) : null}
