@@ -38,7 +38,7 @@ export function RealItemSheet({ item, render, checkedAt, back }: RealItemSheetPr
       </section>
 
       {item.scenario ? (
-        <p className="font-mono text-[11px] font-medium uppercase tracking-[1.5px] text-cyan">Built for: {item.scenario}</p>
+        <p className="font-mono text-[11px] font-medium uppercase tracking-[1.5px] text-cyan">Needs: {item.scenario}</p>
       ) : item.usedFor ? (
         <p className="text-[13px] leading-snug text-text-2">On this build it {item.usedFor}.</p>
       ) : null}
