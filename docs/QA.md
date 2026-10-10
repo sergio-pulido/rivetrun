@@ -13,6 +13,23 @@ Status: **OPEN** = reproduces now · **FIXED** = fix retested in the browser · 
 | R14 | game | FIXED | M7: hopping the log leaves no piston for the bare gap, and nothing said so. The JUMP button now shows the re-arm time large while cooling (seen: "2.3 s · JUMP"). The track is unchanged. | `/run/M7` with a piston build, press jump. |
 | R18 | human | OPEN (blocks phone testing on the dev server) | Phones on the LAN may not load the dev app: the laptop's address is now 192.168.0.14 (the `/screen` QR points there) but `apps/web/next.config.ts` `allowedDevOrigins` lists only 10.194.73.231, 127.0.0.1, `*.local`, `*.trycloudflare.com`. Reported by game; partly reproduced with curl: a dev chunk requested from 192.168.0.14 with an `Origin` or cross-site header returns 403, without them 200. Not confirmed on a phone. | From a phone on the same wifi open `http://192.168.0.14:3000/`. If it never becomes interactive, add `'192.168.0.14'` to `allowedDevOrigins` and restart `pnpm dev`, or use the tunnel / `pnpm demo:stable`. |
 
+## Dev server health — 10 Oct
+
+- Reported by game (clean headless Chromium): every page on `:3000` navigated to itself every 1–3 s and never mounted a canvas; the HMR socket sent `{"type":"restart"}` on every connect. Possible trigger, not proven: a missing public file (`/renders/parts/pi_regulator_s13v30f5.png`) being compiled as a page. Owner: human (restart `pnpm dev`).
+- Seen by sim shortly after: `/run/M1` showed "3D VIEW UNAVAILABLE ON THIS DEVICE", then requests returned empty responses, then nothing was listening on port 3000. Browser QA is not possible until the server is back.
+- Still owed once it is back: the in-browser timing of `assessBuild` (target < 200 ms). Measured in Node only so far: 8–35 ms warm, up to ~120 ms on a first call (M6). A dev-only handle is on the run page for the browser measurement: `window.__rivetrunSim.assessBuild(build, mission).computeMs`.
+
+## Strategy layer and physical plausibility — 10 Oct
+
+| Check | Result |
+|---|---|
+| `capabilities`, `missionDemands`, `assessBuild` exported with unit tests | PASS. 21 sim tests. |
+| `assessBuild` agrees with the headless run on every mission | PASS (same finish and score, M1–M7). |
+| Obstacles are solid: stop at the near face, event says why | PASS (unit test on M4's rock; `blockedBy`, `blocked: true`). |
+| Height follows geometry: 0 everywhere except ramp, obstacle, drop deck or airborne | PASS on M1–M7 (unit test). |
+| Preset balance after the changes | PASS. Core balance rows unchanged; only the piston test build moved (it now clears rocks in the air). |
+| New parts (lidar, ToF, brushless motor) | PASS for tests and determinism. For the heuristic the longer obstacle range gives no measurable gain (see CHANGES / report). |
+
 ## Retests — 10 Oct
 
 ### 1. ui fixes: Brief and Home (retested, all FIXED)
