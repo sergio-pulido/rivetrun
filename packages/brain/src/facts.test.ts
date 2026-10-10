@@ -25,8 +25,12 @@ describe('facts-only rail question', () => {
       // Same options and the same predicted numbers as the game's wording.
       const game = buildJevRequest(question).questions.action;
       expect(Object.keys(action.criteria)).toEqual(Object.keys(game.criteria));
-      // Every option keeps the game's description and numbers, then adds the sim's facts about that option.
-      for (const [id, text] of Object.entries(action.criteria)) expect((text ?? "").startsWith(game.criteria[id] ?? "?"), id).toBe(true);
+      // Every option keeps its meaning and its predicted numbers; the game's named levels are left out.
+      for (const [id, text] of Object.entries(action.criteria)) {
+        const numbers = /progress (-?[\d.]+) m.*damage \+([\d.]+) %.*energy ([\d.]+) %/.exec(game.criteria[id] ?? '');
+        if (numbers) expect(text, id).toContain(`progress ${numbers[1]} m, damage +${numbers[2]} %, energy ${numbers[3]} %.`);
+        expect(text, id).not.toMatch(/\((most|good|some|little|negligible|light|heavy|low|medium|high|comfortable|tight|critical)[,)]/);
+      }
       expect(VERDICT_WORDS.test(game.instructions)).toBe(true);
     }
     expect(jevQuestionVersion('facts')).toMatch(new RegExp(`^${jevQuestionVersion()}-facts`));

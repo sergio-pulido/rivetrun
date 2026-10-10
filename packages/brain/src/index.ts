@@ -26,8 +26,8 @@ export const JEV_QUESTION_VERSION = 'q9-scan-approach';
  * - 'facts': the same state, options and predicted numbers, with what each thing costs, and no rule or judgement.
  */
 export type QuestionMode = 'verdict' | 'facts';
-/** Wording version of the facts-only question: 2 = each option carries the sim's scan, contact and end-speed facts; 3 = also the time the rest of the track takes at that pace, and a fall into a gap. */
-const FACTS_WORDING = 'facts3';
+/** Wording version of the facts-only question: 2 = each option carries the sim's scan, contact and end-speed facts; 3 = also the time the rest of the track takes at that pace,  and a fall into a gap; 4 = numbers without this file's named levels, and the exact price of time, damage and charge. */
+const FACTS_WORDING = 'facts4';
 export const jevQuestionVersion = (mode: QuestionMode = 'verdict'): string => (mode === 'facts' ? `${JEV_QUESTION_VERSION}-${FACTS_WORDING}` : JEV_QUESTION_VERSION);
 /** Words that would tell the reader which option to take; a facts-only question holds none of them (unit-tested). */
 export const VERDICT_WORDS = /\b(correct|must|should|ought|best|prefer|wrong|pick)\b/i;
@@ -168,10 +168,10 @@ const finishChargeLevel = (pct: number): string =>
   pct < 0 ? 'runs out before the finish' : pct < 10 ? 'critical' : pct < 30 ? 'tight' : 'comfortable';
 
 /** The per-option half of the energy line: where the battery ends up if this option's pace holds to the finish. */
-const finishChargeLine = (entry: LookaheadEntry): string =>
+const finishChargeLine = (entry: LookaheadEntry, facts = false): string =>
   entry.projectedFinishPct === undefined
     ? ''
-    : ` Charge at the finish if this pace holds: ${round(entry.projectedFinishPct, 0)} % (${finishChargeLevel(entry.projectedFinishPct)}).`;
+    : ` Charge at the finish if this pace holds: ${round(entry.projectedFinishPct, 0)} %${facts ? '' : ` (${finishChargeLevel(entry.projectedFinishPct)})`}.`;
 
 /**
  * What the sim's rules know about this option, as numbers and outcomes (OVN-SIM-24). Printed in the facts-only
@@ -219,6 +219,17 @@ const describeOption = (
   const damage = round(entry.damagePct, 1);
   const energy = round(entry.energyPct, 2);
   const scale = lookaheadS / DEFAULT_LOOKAHEAD_S;
+  // Facts only: the numbers alone. The named levels ("most", "negligible", "medium") are this file's own grading
+  // of them, and a grade next to one option and not another is a nudge.
+  if (facts) {
+    return (
+      `${ACTION_MEANING[action]} Predicted over the next ${lookaheadS} s: progress ${progress} m, damage +${damage} %, energy ${energy} %.` +
+      finishChargeLine(entry, true) +
+      (entry.assumed ? ' This prediction runs past what the sensors know: it assumes the track continues unchanged.' : '') +
+      farHazardLine(hazard, entry, lookaheadS) +
+      optionFacts(entry)
+    );
+  }
   return (
     `${ACTION_MEANING[action]} Predicted over the next ${lookaheadS} s: ` +
     `progress ${progress} m (${progressBucket(entry.progressM, bestProgress, scale)}), ` +
@@ -226,8 +237,7 @@ const describeOption = (
     `energy ${energy} % (${energyBucket(entry.energyPct, scale)}).` +
     finishChargeLine(entry) +
     (entry.assumed ? ' This prediction runs past what the sensors know: it assumes the track continues unchanged.' : '') +
-    farHazardLine(hazard, entry, lookaheadS) +
-    (facts ? optionFacts(entry) : '')
+    farHazardLine(hazard, entry, lookaheadS)
   );
 };
 
@@ -342,7 +352,7 @@ function observationLines(question: BrainQuestion, observation: Observation, fac
     (unknown ? `Unknown to this robot, so no prediction accounts for it: ${unknown}. ` : '') +
     weatherLine(observation) +
     'Where a prediction says it runs past what the sensors know, treat it as a guess that the track continues unchanged. ' +
-    `Energy: the battery is at ${round(observation.batteryPct, 0)} %, drawing ${round(observation.drawW, 0)} W; at the current pace the charge at the finish would be ${charge} % (${finishChargeLevel(observation.projectedFinishPct)}), with ${round(observation.remainingM, 0)} m to go. ` +
+    `Energy: the battery is at ${round(observation.batteryPct, 0)} %, drawing ${round(observation.drawW, 0)} W; at the current pace the charge at the finish would be ${charge} %${facts ? '' : ` (${finishChargeLevel(observation.projectedFinishPct)})`}, with ${round(observation.remainingM, 0)} m to go. ` +
     (facts
       ? 'Each option states the charge at the finish if its pace holds. A robot that runs out of charge before the finish does not finish. '
       : 'Each option states the charge at the finish if its pace holds. An option that runs out before the finish loses the race: when the fast options run out or are critical, pick the fastest option that still finishes with charge left. ') +
@@ -389,11 +399,11 @@ export function buildJevRequest(question: BrainQuestion, model: string = JEV_MOD
         type: 'choice',
         instructions:
           (facts
-            ? 'A robot is racing along a track to the finish line. A robot that stops for good or goes backwards never reaches the finish, and a run that does not finish scores close to nothing; among runs that finish, every second of race time costs 4 points, and damage and charge used cost points too. ' +
+            ? 'A robot is racing along a track to the finish line. A robot that stops for good or goes backwards never reaches the finish, and a run that does not finish scores close to nothing; among runs that finish, every second of race time costs 4 points, every 1 % of damage 6 points and every 1 % of battery used 2 points. ' +
               'Choose one driving action for it to take now. '
             : 'A robot is racing along a track and must reach the finish line; a robot that stops or goes backwards never finishes and loses the race. ' +
               'Which driving action should it take now? ') +
-          `Each option states its predicted progress, damage and energy from a ${lookaheadS} second forward simulation of that action, each with a named level in brackets. ` +
+          `Each option states its predicted progress, damage and energy from a ${lookaheadS} second forward simulation of that action${facts ? '' : ', each with a named level in brackets'}. ` +
           (facts ? 'Damage is cumulative and the robot is destroyed at 100 %. ' : 'Damage is cumulative and the robot is only destroyed at 100 %, so negligible damage is acceptable. ') +
           briefingLine +
           (facts
