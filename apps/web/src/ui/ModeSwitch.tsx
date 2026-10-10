@@ -9,7 +9,7 @@ const MODES: readonly { id: PlayMode; label: string }[] = [
 
 /** What each mode is, in one line. */
 export const MODE_NOTE: Readonly<Record<PlayMode, string>> = {
-  drive: 'You drive with one thumb. Jev races you as a ghost on the same robot.',
+  drive: 'You drive: throttle on the right, brake on the left. A ghost races you on the same robot.',
   jev: 'Jev drives and you brief it. Fixed rules and coin flips race as ghosts.',
 };
 

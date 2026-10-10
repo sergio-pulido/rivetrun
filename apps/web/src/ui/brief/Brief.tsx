@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useMemo } from 'react';
 import type { Mission, MissionId } from '@rivetrun/contracts';
-import { MISSIONS, TUNING, compileTrack } from '@rivetrun/sim';
+import { MISSIONS, compileTrack } from '@rivetrun/sim';
 import { TERRAIN_LOOK } from '@/game/palette';
 import { useBuildStore } from '@/state/build';
 import { useWorkshopUi } from '@/state/workshop';
@@ -27,9 +27,8 @@ import { DriveCard } from './DriveCard';
 import { ObjectivesCard } from './ObjectivesCard';
 import { PrioritySlider } from './PrioritySlider';
 
-const { rain, cold } = TUNING.weather;
 
-/** The facts of a mission as chips: weather modifier, steepest climb, obstacles, crossings, seed. */
+/** The facts of a mission as chips: weather, steepest climb, obstacles, crossings, seed. */
 function conditionChips(mission: Mission): readonly string[] {
   const segments = mission.track.segments;
   const steepest = [...segments].sort((a, b) => b.slopeDeg - a.slopeDeg)[0];
@@ -43,8 +42,9 @@ function conditionChips(mission: Mission): readonly string[] {
   const plural = (count: number, word: string): string => `${count} ${word}${count === 1 ? '' : 's'}`;
   const obstacles = [...new Set(segments.flatMap((segment) => (segment.obstacle ? [segment.obstacle] : [])))];
   return [
-    mission.weather === 'rain' ? `Rain · grip ×${rain.frictionFactor}` : null,
-    mission.weather === 'cold' ? `Cold · battery ×${cold.batteryCapacityFactor}` : null,
+    // The weather word only: the figures are on the Weather card, which has this build's and this mission's numbers.
+    mission.weather === 'rain' ? 'Rain' : null,
+    mission.weather === 'cold' ? 'Cold' : null,
     mission.weather === 'clear' ? 'Clear' : null,
     steepest && steepest.slopeDeg >= 5 ? `${steepest.slopeDeg}° ${TERRAIN_LOOK[steepest.terrain].label} climb` : null,
     ramps > 0 ? plural(ramps, 'ramp') : null,
@@ -121,7 +121,7 @@ export function Brief({ missionId }: { readonly missionId: MissionId }) {
       <p className="text-xs text-[#B8C0C9]">
         {mode === 'drive' ? (
           <>
-            Same seed, one ghost: <span className="font-mono text-text">JEV</span>.
+            Same seed, one ghost: <span className="font-mono text-text">JEV</span>, or your own best run if you chose to race it.
           </>
         ) : (
           <>
@@ -189,7 +189,7 @@ export function Brief({ missionId }: { readonly missionId: MissionId }) {
 
       {mode === 'drive' ? (
         <div className="rr-rise" style={{ ['--i' as string]: 3 }}>
-          <DriveCard />
+          <DriveCard missionId={mission.id} />
         </div>
       ) : (
         <>
