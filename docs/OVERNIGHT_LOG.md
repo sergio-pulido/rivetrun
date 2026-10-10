@@ -56,6 +56,9 @@ Written by [MASTER] for the human. Newest status first. Program: docs/OVERNIGHT.
 
 README.md and docs/SETUP.md were rewritten from the repo at 05:22 (commit 05915a1) by a sub-agent under [MASTER]; they are refreshed before 10:00. Disagreements it found between documents: docs/JEV.md gives Jev's latency as p50 376 ms where docs/BENCHMARK.md has 243 ms; docs/QA.md R6 says Careful fails M6 with the Deep Diver where the benchmark shows it finishing.
 
+### 06:24 · eleventh tag
+`demo-good-0624` → d4bc2be, 20 e2e steps. New step: a live Brain Arena race on `/screen?room=CODE&arena=1`, Jev against the fixed rules on M1 (26.7 s and 25.7 s). A recurring warning became a finding: since the ghost warm-up, one decision of the ordinary Jev run times out in most cycles and the HUD shows FALLBACK (Q31, with [BRAIN]). Game's screenshot sweep (44 images) found four things, filed as Q27–Q30: part names cut on Build it for real, the race phone's result card breaking with a missed scan, and a Result that advises the waterproof case after getting stuck in mud.
+
 ### 06:07 · tenth tag
 `demo-good-0607` → b4c51ec, 19 e2e steps, unit tests green on the first attempt, `pnpm demo:stable -- --build-only` passed. In it: both arena columns on /lab with the sentence above them (on a phone the facts column is off the right edge: Q26), the review-round fixes of sim, game and lab, the loop under the board on the idle /screen, humans in the arena, a phone that drops off mid-race.
 
