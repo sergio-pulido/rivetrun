@@ -1,7 +1,7 @@
 'use client';
 
 import { useSyncExternalStore } from 'react';
-import { DECISION_CHIPS, decisionChipText, type DecisionChip } from './hud/decisionChip';
+import { DECISION_CHIPS, decisionChipText, hintChipText, type DecisionChip } from './hud/decisionChip';
 import type {
   BrainDecision,
   BrainQuestion,
@@ -123,7 +123,7 @@ function reduce(view: RunView, event: RunEvent): RunView {
         chips: withChip(view.chips, {
           id: `d${view.decisionCount}`,
           t: event.t,
-          text: decisionChipText(event.question, event.decision, event.log),
+          text: event.advisory ? hintChipText(event.question, event.decision, event.log) : decisionChipText(event.question, event.decision, event.log),
           // A hint in Drive mode is shown, not applied.
           tone: event.advisory ? 'hint' : event.decision.fallback ? 'fallback' : 'decision',
         }),

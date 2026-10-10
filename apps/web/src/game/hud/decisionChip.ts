@@ -53,6 +53,17 @@ export function decisionChipText(question: BrainQuestion, decision: BrainDecisio
   return `${question.cause?.label ?? firedBy(question)} → ${ACTION_LABEL[decision.selected].toLowerCase()}${share} · ${Math.round(decision.latencyMs)} ms`;
 }
 
+/**
+ * A Drive-mode hint: what the fixed rules would do right now, and the reading that made them look.
+ * Not "saw X → do Y": the choice weighs everything the robot knows (the hint "water in 6 m → climb mode"
+ * was the rules gearing down for a rock on a descent), so the action comes first and the reading is
+ * named as what was just seen. No probability and no latency: they mean nothing to a driver.
+ */
+export function hintChipText(question: BrainQuestion, decision: BrainDecision, log?: DecisionLog): string {
+  const seen = log?.trigger.label ?? question.cause?.label ?? firedBy(question);
+  return `rules would pick ${ACTION_LABEL[log?.choice ?? decision.selected].toUpperCase()} now · just seen: ${seen}`;
+}
+
 /** The last chips of a recorded run (a ghost, a Room Race seat) up to sim time `t`: the big screen reads these. */
 export function chipsFromRecords(records: readonly DecisionRecord[], t = Infinity, count = DECISION_CHIPS): DecisionChip[] {
   const chips: DecisionChip[] = [];
