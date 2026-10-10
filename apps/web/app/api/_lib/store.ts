@@ -63,32 +63,68 @@ export const episodeCount = (): number => store.runs.length;
 const bucket = (value: unknown, step: number): unknown =>
   typeof value === 'number' ? Math.round(value / step) * step : value;
 
+type Observed = NonNullable<BrainQuestion['observation']>;
+
+/** The rounded Observation: what a v3 question is built from, so what its cached answer depends on. */
+function observationKey(o: Observed): unknown[] {
+  const seen = <T extends object>(reading: T | null | 'unknown', pick: (value: T) => unknown[]): unknown =>
+    reading === 'unknown' || reading === null ? reading : pick(reading);
+  return [
+    o.sources,
+    bucket(o.speedMps, 0.25),
+    bucket(o.batteryPct, 10),
+    bucket(o.drawW, 5),
+    bucket(o.projectedFinishPct, 5),
+    bucket(o.remainingM, 5),
+    bucket(o.damagePct, 10),
+    o.scanZones.filter((zone) => !zone.done && !zone.missed).map((zone) => [zone.id, bucket(zone.distanceM, 1), zone.canScan]),
+    bucket(o.tiltDeg, 5),
+    bucket(o.slipPct, 10),
+    o.slipping,
+    o.blind,
+    seen(o.hazard, (h) => [h.source, bucket(h.distanceM, 0.5), h.kind ?? null, bucket(h.safeSpeedMps, 0.25)]),
+    seen(o.gap, (g) => [g.source, bucket(g.distanceM, 0.5), bucket(g.widthM, 0.25)]),
+    seen(o.terrainAhead, (t) => [t.source, t.terrain, bucket(t.distanceM, 1)]),
+    bucket(o.waterDepthCm, 5),
+    seen(o.lastContact, (c) => [c.source, c.kind ?? null, bucket(c.agoS, 1)]),
+    [bucket(o.actuators.jumpReadyInS, 0.5), o.actuators.winch, o.actuators.climbMode],
+  ];
+}
+
 /** Cache key by rounded state: near-identical questions reuse the same Jev answer. */
 export function decisionKey(q: BrainQuestion): string {
   const p = q.perceived;
   const byAction = new Map(q.lookahead.map((l) => [l.action, l]));
   return JSON.stringify([
     CACHE_VERSION,
+    q.gameplayVersion ?? null,
     q.briefing ?? '',
     q.lookaheadS ?? null,
-    p.terrainAheadSource ?? null,
     q.options,
     bucket(q.priority, 0.1),
-    p.terrainAhead,
-    bucket(p.terrainAheadDistanceM, 1),
-    bucket(p.obstacleAheadM, 0.5),
-    // Long-range rangers put gaps and obstacles up to 12 m out; the far-hazard lines in the question depend on them.
-    bucket(p.gapAheadM, 0.5),
-    bucket(p.gapWidthM, 0.25),
-    bucket(p.slipPct, 10),
-    bucket(p.tiltDeg, 5),
-    bucket(p.depthAheadCm, 5),
-    bucket(q.status.speedMps, 0.25),
-    bucket(q.status.batteryPct, 10),
-    bucket(q.status.damagePct, 10),
+    q.cause?.cause ?? null,
+    // Brain v3 questions are built from the Observation alone; older ones from `perceived` + `status`.
+    q.observation
+      ? observationKey(q.observation)
+      : [
+          p.terrainAheadSource ?? null,
+          p.terrainAhead,
+          bucket(p.terrainAheadDistanceM, 1),
+          bucket(p.obstacleAheadM, 0.5),
+          bucket(p.gapAheadM, 0.5),
+          bucket(p.gapWidthM, 0.25),
+          bucket(p.slipPct, 10),
+          bucket(p.tiltDeg, 5),
+          bucket(p.depthAheadCm, 5),
+          bucket(q.status.speedMps, 0.25),
+          bucket(q.status.batteryPct, 10),
+          bucket(q.status.damagePct, 10),
+        ],
     q.options.map((action) => {
       const l = byAction.get(action);
-      return l ? [bucket(l.progressM, 0.25), bucket(l.damagePct, 1), bucket(l.energyPct, 0.25)] : null;
+      return l
+        ? [bucket(l.progressM, 0.25), bucket(l.damagePct, 1), bucket(l.energyPct, 0.25), bucket(l.projectedFinishPct, 5), l.assumed ?? false]
+        : null;
     }),
   ]);
 }
