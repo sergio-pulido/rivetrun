@@ -19,7 +19,7 @@ import { mulberry32 } from '../rng';
 import { basinDepthAt, sampleTrack, type LaidObstacle, type TrackLayout } from '../track';
 import { checkerTexture, hazardTexture, labelTexture } from './textures';
 
-interface Item {
+export interface Item {
   readonly p: readonly [number, number, number];
   readonly s: readonly [number, number, number];
   readonly yaw: number;
@@ -46,7 +46,7 @@ interface ScatterProps {
 }
 
 /** One draw call for many static props. */
-function Scatter({ geometry, material, items, shadow = false }: ScatterProps) {
+export function Scatter({ geometry, material, items, shadow = false }: ScatterProps) {
   const mesh = useRef<InstancedMesh>(null);
   useLayoutEffect(() => {
     const node = mesh.current;
@@ -243,7 +243,7 @@ const RIDGE_COLORS = ['#3d4148', '#4c5058', '#33363c'] as const;
 /** Boulders across the lanes: each one stays inside the sim's footprint, under the mound the robots ride. */
 const BOULDERS = 12;
 
-function ObstacleProp({ layout, obstacle }: { layout: TrackLayout; obstacle: LaidObstacle }) {
+function ObstacleProp({ layout, obstacle, rubble }: { layout: TrackLayout; obstacle: LaidObstacle; rubble: boolean }) {
   const hazard = useMemo(() => {
     const texture = hazardTexture().clone();
     texture.needsUpdate = true;
@@ -284,13 +284,14 @@ function ObstacleProp({ layout, obstacle }: { layout: TrackLayout; obstacle: Lai
       {kind === 'log' && (
         <>
           <mesh geometry={LOG} position={[0, h / 2, midZ]} rotation={[Math.PI / 2, 0, 0]} scale={[length / 2, depth - 0.2, h / 2]} castShadow receiveShadow>
-            <meshStandardMaterial color="#6b4527" roughness={1} flatShading />
+            {/* Earthquake Rescue: the same round obstacle is a fallen concrete column. */}
+            <meshStandardMaterial color={rubble ? '#8d9094' : '#6b4527'} roughness={1} flatShading />
           </mesh>
           <mesh geometry={LOG} position={[0, h / 2, LANES.zFront - 0.09]} rotation={[Math.PI / 2, 0, 0]} scale={[(length / 2) * 0.86, 0.03, (h / 2) * 0.86]}>
-            <meshStandardMaterial color="#d9b382" roughness={1} />
+            <meshStandardMaterial color={rubble ? '#a7a9ac' : '#d9b382'} roughness={1} />
           </mesh>
           <mesh geometry={LOG} position={[0, h / 2, LANES.zFront - 0.085]} rotation={[Math.PI / 2, 0, 0]} scale={[(length / 2) * 0.5, 0.03, (h / 2) * 0.5]}>
-            <meshStandardMaterial color="#b98d5c" roughness={1} />
+            <meshStandardMaterial color={rubble ? '#5c3a2a' : '#b98d5c'} roughness={1} />
           </mesh>
         </>
       )}
@@ -329,10 +330,12 @@ interface DressingProps {
   layout: TrackLayout;
   /** Lane centres (Z). Default: the player and the two ghost lanes. */
   lanes?: readonly number[];
+  /** Collapse site (Earthquake Rescue): obstacles are concrete, and no trees stand on the street. */
+  rubble?: boolean;
 }
 
 /** Everything that sits on the terrain: tufts, stones, paint, obstacles, signs, gates. */
-export function Dressing({ layout, lanes = DEFAULT_LANES }: DressingProps) {
+export function Dressing({ layout, lanes = DEFAULT_LANES, rubble = false }: DressingProps) {
   const dressed = useMemo(() => dress(layout, lanes), [layout, lanes]);
   const checker = useMemo(() => {
     const texture = checkerTexture().clone();
@@ -358,9 +361,9 @@ export function Dressing({ layout, lanes = DEFAULT_LANES }: DressingProps) {
       <Scatter geometry={ICO} material={FLAT} items={dressed.blobs} shadow />
       <Scatter geometry={BOX} material={PAINT} items={dressed.paint} />
       <Scatter geometry={DISC} material={PUDDLE} items={dressed.puddles} />
-      <Scatter geometry={CONE} material={FLAT} items={dressed.trees} />
+      {!rubble && <Scatter geometry={CONE} material={FLAT} items={dressed.trees} />}
       {layout.obstacles.map((obstacle) => (
-        <ObstacleProp key={obstacle.s0} layout={layout} obstacle={obstacle} />
+        <ObstacleProp key={obstacle.s0} layout={layout} obstacle={obstacle} rubble={rubble} />
       ))}
 
       <mesh geometry={BOX} position={[0, 0.006, midZ]} scale={[0.14, 0.012, depth]}>

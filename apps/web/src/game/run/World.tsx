@@ -9,6 +9,7 @@ import type { TrackLayout } from '../track';
 import { Backdrop } from './Backdrop';
 import { Dressing } from './Dressing';
 import { Reflections } from './Reflections';
+import { RescueDressing } from './RescueDressing';
 import { Features } from './Features';
 import { Terrain } from './Terrain';
 import { WeatherFx } from './WeatherFx';
@@ -29,10 +30,12 @@ interface WorldProps {
   lanes?: readonly number[];
   /** Running late: no reflection environment, plain lights only. */
   plain?: boolean;
+  /** Earthquake Rescue: the street is dressed as a collapse site. `clear` are spans to keep free of tall pieces (scan pads). */
+  rescue?: { readonly clear: ReadonlyArray<{ readonly s0: number; readonly s1: number }> };
 }
 
 /** Everything that is not a robot: fog, lights, reflections, backdrop, the track strip and its dressing, weather. */
-export function World({ layout, atmosphere, windNow, sun, budget = 1, shadowSpan = 9, lanes, plain = false }: WorldProps) {
+export function World({ layout, atmosphere, windNow, sun, budget = 1, shadowSpan = 9, lanes, plain = false, rescue }: WorldProps) {
   const sky = atmosphere.sky;
   const scene = useThree((state) => state.scene);
 
@@ -76,7 +79,8 @@ export function World({ layout, atmosphere, windNow, sun, budget = 1, shadowSpan
 
       <Backdrop layout={layout} atmosphere={atmosphere} />
       <Terrain layout={layout} />
-      <Dressing layout={layout} lanes={lanes} />
+      <Dressing layout={layout} lanes={lanes} rubble={rescue !== undefined} />
+      {rescue && <RescueDressing layout={layout} clear={rescue.clear} budget={budget} />}
       <Features layout={layout} />
       <WeatherFx atmosphere={atmosphere} budget={budget} windNow={windNow} />
     </>

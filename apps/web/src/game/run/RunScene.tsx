@@ -458,7 +458,15 @@ export function RunScene({ mission, build, feed, ghosts = [], particleBudget = 1
   const pose = useRef<Pose>(restPose());
   const hasDrone = build.sensors.includes('scout_drone');
   const senses = useMemo(() => sensesOf(build, mission.weather), [build, mission.weather]);
-  const atmosphere = useMemo(() => atmosphereOf(mission, weatherOverride()), [mission]);
+  // Earthquake Rescue is dressed as a collapse site, with dust in the air: closer, warmer haze.
+  const rescue = useMemo(
+    () => (mission.id === 'M7' ? { clear: (mission.scanZones ?? []).map((zone) => ({ s0: zone.atM - zone.halfLengthM, s1: zone.atM + zone.halfLengthM })) } : undefined),
+    [mission],
+  );
+  const atmosphere = useMemo(() => {
+    const base = atmosphereOf(mission, weatherOverride());
+    return rescue ? { ...base, key: `${base.key}|rescue`, sky: { ...base.sky, fog: '#cdbfa6', horizon: '#e6cfa6' }, fogNear: 24, fogFar: 200 } : base;
+  }, [mission, rescue]);
   // Lights come on by themselves only on a build with an ambient-light sensor (the sim's rule); others drive dark.
   const autoLights = useMemo(() => deriveSpec(build).autoLights === true, [build]);
   // The wind of the moment, gusts included, straight from the sim; the mission's steady wind before the first frame.
@@ -468,7 +476,7 @@ export function RunScene({ mission, build, feed, ghosts = [], particleBudget = 1
   const sun = useRef<DirectionalLight>(null);
   return (
     <>
-      <World layout={layout} atmosphere={atmosphere} windNow={windNow} sun={sun} budget={particleBudget} plain={plain} />
+      <World layout={layout} atmosphere={atmosphere} windNow={windNow} sun={sun} budget={particleBudget} plain={plain} rescue={rescue} />
 
       {ghosts.map((trace) => (
         <Ghost key={trace.policy} trace={trace} build={build} layout={layout} pose={pose} timeScale={timeScale} driving={hands !== undefined} />
