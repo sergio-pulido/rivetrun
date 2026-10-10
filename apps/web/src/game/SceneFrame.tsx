@@ -10,6 +10,8 @@ import { SceneLoader } from './SceneLoader';
 const PLAIN_AFTER_MS = 3000;
 /** After this long without a first frame the 3D view is declared unavailable; the page around it keeps working. */
 const GIVE_UP_AFTER_MS = 15000;
+/** An unattended view that gave up starts over after this long. */
+const RETRY_AFTER_MS = 20000;
 const FADE_MS = 340;
 
 /** Reports once the scene has really been drawn: the second frame starts only after the first was rendered. */
@@ -53,7 +55,7 @@ interface Problem {
  * The 3D view is gone (lost context, no WebGL, a crash): say so and give a way on. It sits above whatever
  * overlay the page draws over the canvas (the HUD, the pedals), and only its two buttons take touches.
  */
-function SceneProblem({ problem }: { problem: Problem }) {
+function SceneProblem({ problem, actions }: { problem: Problem; actions: boolean }) {
   return (
     <div className="pointer-events-none absolute inset-x-0 z-40 flex justify-center px-5" style={{ top: '46%' }} role="alert">
       <div className="w-full max-w-[340px] rounded-2xl px-4 py-3.5 text-center" style={{ border: `2px solid ${UI.warn}`, background: 'rgb(14 16 19 / 0.94)', color: UI.text }}>
@@ -61,6 +63,7 @@ function SceneProblem({ problem }: { problem: Problem }) {
           {problem.title}
         </p>
         <p className="m-0 mt-1.5 text-[13px] leading-snug">{problem.help}</p>
+        {actions && (
         <div className="mt-3 flex justify-center gap-2">
           <button
             type="button"
@@ -74,6 +77,7 @@ function SceneProblem({ problem }: { problem: Problem }) {
             HOME
           </a>
         </div>
+        )}
       </div>
     </div>
   );
@@ -96,6 +100,10 @@ export interface SceneFrameProps {
   onCreated?: (state: RootState) => void;
   /** A tap or click that hit nothing interactive in the scene. */
   onPointerMissed?: () => void;
+  /** What still works without the 3D view, said under "3D view unavailable" (the run view: the gauges and controls). */
+  failureHelp?: string;
+  /** Nobody is at this screen (the big screen's replay): no buttons, and the view tries again by itself. */
+  unattended?: boolean;
 }
 
 /**
@@ -103,7 +111,9 @@ export interface SceneFrameProps {
  * a loading cover stays up until the first frame has been drawn, the scene falls back to plain lights
  * after 3 s, and a lost WebGL context or a crash in the scene becomes a message instead of a void.
  */
-export function SceneFrame({ children, camera, label, tips = false, bare = false, alpha = false, canvasStyle, onReady, onCreated, onPointerMissed }: SceneFrameProps) {
+export function SceneFrame({ children, camera, label, tips = false, bare = false, alpha = false, canvasStyle, onReady, onCreated, onPointerMissed, failureHelp, unattended = false }: SceneFrameProps) {
+  // Bumped on every automatic retry: the canvas and its error boundary start over.
+  const [attempt, setAttempt] = useState(0);
   const [phase, setPhase] = useState<'loading' | 'ready' | 'shown' | 'failed'>('loading');
   const [plain, setPlain] = useState(false);
   const [lost, setLost] = useState(false);
@@ -137,6 +147,17 @@ export function SceneFrame({ children, camera, label, tips = false, bare = false
     };
   }, [phase, fail]);
 
+  // An unattended screen that gave up tries again by itself: a wall display must not stay on an error.
+  useEffect(() => {
+    if (phase !== 'failed' || !unattended) return undefined;
+    const id = window.setTimeout(() => {
+      setAttempt((n) => n + 1);
+      setPlain(false);
+      setPhase('loading');
+    }, RETRY_AFTER_MS);
+    return () => window.clearTimeout(id);
+  }, [phase, unattended]);
+
   // The cover fades out over the first frames, then leaves the page.
   useEffect(() => {
     if (phase !== 'ready') return undefined;
@@ -146,7 +167,7 @@ export function SceneFrame({ children, camera, label, tips = false, bare = false
 
   const problem: Problem | null =
     phase === 'failed'
-      ? { title: '3D view unavailable on this device', help: 'The run itself still works: the gauges and controls are live. Reload to try the 3D view again.' }
+      ? { title: '3D view unavailable on this device', help: unattended ? 'Trying again in a moment.' : `${failureHelp ? `${failureHelp} ` : ''}Reload to try the 3D view again.` }
       : lost
         ? { title: '3D view paused', help: 'The graphics were reset. They usually come back by themselves in a moment; reload if they do not.' }
         : null;
@@ -155,7 +176,7 @@ export function SceneFrame({ children, camera, label, tips = false, bare = false
   return (
     <>
       {phase !== 'failed' && (
-        <SceneBoundary onError={fail}>
+        <SceneBoundary key={attempt} onError={fail}>
           <Canvas
             // Weak devices (and ?quality=low) skip the shadow pass: it redraws every caster, about a quarter of the draw calls.
             shadows={!tier.weak}
@@ -179,7 +200,7 @@ export function SceneFrame({ children, camera, label, tips = false, bare = false
         </SceneBoundary>
       )}
       {(bare || phase === 'shown') && !failed ? null : <SceneLoader label={label} tips={tips} leaving={phase === 'ready' && !failed} failed={failed} blank={problem !== null} />}
-      {problem ? <SceneProblem problem={problem} /> : null}
+      {problem ? <SceneProblem problem={problem} actions={!unattended} /> : null}
     </>
   );
 }

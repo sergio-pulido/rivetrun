@@ -115,6 +115,7 @@ export default function RunCanvas({ mission = MISSIONS.M5, build = PRESETS[DEFAU
     <div className="relative h-full w-full overflow-hidden" style={{ background: UI.ink }}>
       <SceneFrame
         label="Building the track"
+        failureHelp="The run itself still works: the gauges and controls are live."
         tips
         camera={{ fov: 38, near: 0.5, far: 420, position: [0, 6, 20] }}
         canvasStyle={{ touchAction: 'none' }}

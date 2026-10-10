@@ -146,7 +146,7 @@ export default function AttractCanvas({ mission = MISSIONS.M5, speed = 1, legend
       {entries && entries.length === 0 && <SceneLoader failed="Replay unavailable" tips={false} />}
       {entries && entries.length > 0 && (
         <>
-          <SceneFrame label="Warming up the replay" tips camera={{ fov: 38, near: 0.5, far: 420, position: [0, 6, 24] }} canvasStyle={{ touchAction: 'none' }} onReady={onReady}>
+          <SceneFrame label="Warming up the replay" tips unattended camera={{ fov: 38, near: 0.5, far: 420, position: [0, 6, 24] }} canvasStyle={{ touchAction: 'none' }} onReady={onReady}>
             {(plain) => <AttractScene mission={mission} entries={entries} clock={clock} speed={speed} particleBudget={tier.particles} plain={plain} />}
           </SceneFrame>
           {legend && <Legend mission={mission} entries={entries} clock={clock} />}
