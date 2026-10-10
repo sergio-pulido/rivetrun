@@ -79,7 +79,7 @@ describe('auto rooms', () => {
     expect(pickInRoom(alone.code, alone.playerId, alone.token, { presetId: 'speedster', agent: 'human', strategy: 'eco' })).toMatchObject({ ok: false, status: 409 });
   });
 
-  it('starts early only when the room is full and every phone has picked', () => {
+  it('a full room starts when its last phone picks', () => {
     const seats = Array.from({ length: AUTO_ROOM_CAP }, () => seat());
     const code = seats[0]!.code;
     for (const s of seats.slice(0, -1)) pickInRoom(code, s.playerId, s.token, { presetId: 'all_rounder', agent: 'human', strategy: 'plan' });
@@ -99,7 +99,7 @@ describe('auto rooms', () => {
   it('the server drives its own bots to a result, and the room is removed 60 s after the results', () => {
     const phone = seat();
     pickInRoom(phone.code, phone.playerId, phone.token, { presetId: 'all_rounder', agent: 'human', strategy: 'plan' });
-    vi.advanceTimersByTime(AUTO_LOBBY_MS + 100);
+    // The only phone has picked: the room does not wait for its 30 s.
     expect(readRoom(phone.code)!.snapshot.status).toBe('countdown');
     vi.advanceTimersByTime(COUNTDOWN_MS + 200);
     expect(readRoom(phone.code)!.snapshot.status).toBe('racing');
@@ -278,5 +278,64 @@ describe('auto rooms per mission (RR-PLAN amendment)', () => {
     const pick = PlayerPickSchema.parse({ presetId: 'speedster', agent: 'jev-1.13.0' });
     expect(pickInRoom(phone.code, phone.playerId, phone.token, pick).ok).toBe(true);
     expect(readRoom(phone.code)!.snapshot.players.find((p) => p.id === phone.playerId)!.pick).toEqual({ presetId: 'speedster', agent: 'jev-1.13.0', strategy: 'plan' });
+  });
+});
+
+describe('auto rooms start as soon as every phone has picked', () => {
+  beforeEach(() => {
+    clock += 10_000_000;
+    vi.useFakeTimers({ now: clock });
+    delete process.env.MAX_AUTO_ROOMS;
+  });
+  afterEach(() => {
+    drain();
+    vi.useRealTimers();
+  });
+  const human = { presetId: 'all_rounder', agent: 'human', strategy: 'plan' } as const;
+
+  it('solo pick: the race starts at once (start lights, then racing), filled to four lanes, and takes no new phone', () => {
+    const solo = seat();
+    vi.advanceTimersByTime(3_000);
+    expect(readRoom(solo.code)!.snapshot.status).toBe('lobby');
+    expect(pickInRoom(solo.code, solo.playerId, solo.token, human).ok).toBe(true);
+    const started = readRoom(solo.code)!.snapshot;
+    expect(started.status).toBe('countdown');
+    expect(started.startAt).toBe(clock + 3_000 + COUNTDOWN_MS);
+    expect(started.players).toHaveLength(AUTO_MIN_LANES);
+    // A phone arriving now opens a new room, with 27 s still on the first one's lobby clock.
+    expect(seat().code).not.toBe(solo.code);
+    vi.advanceTimersByTime(COUNTDOWN_MS + 50);
+    expect(readRoom(solo.code)!.snapshot.status).toBe('racing');
+  });
+
+  it('two phones: one pick keeps the countdown, the second pick starts the race', () => {
+    const a = seat();
+    const b = seat();
+    expect(b.code).toBe(a.code);
+    pickInRoom(a.code, a.playerId, a.token, human);
+    vi.advanceTimersByTime(5_000);
+    const waiting = readRoom(a.code)!.snapshot;
+    expect(waiting.status).toBe('lobby');
+    expect(waiting.auto!.endsAt).toBe(a.endsAt);
+    pickInRoom(b.code, b.playerId, b.token, { presetId: 'speedster', agent: 'jev-1.13.0', strategy: 'plan' });
+    expect(readRoom(a.code)!.snapshot.status).toBe('countdown');
+    vi.advanceTimersByTime(COUNTDOWN_MS + 50);
+    expect(readRoom(a.code)!.snapshot.status).toBe('racing');
+  });
+
+  it('a phone that is still choosing (ready: false) holds the room; without any pick the 30 s still apply', () => {
+    const solo = seat();
+    expect(pickInRoom(solo.code, solo.playerId, solo.token, { ...human, presetId: 'speedster' }, false).ok).toBe(true);
+    const choosing = readRoom(solo.code)!.snapshot;
+    expect(choosing.status).toBe('lobby');
+    expect(choosing.players[0]!.pick!.presetId).toBe('speedster');
+    // The last tap: done.
+    pickInRoom(solo.code, solo.playerId, solo.token, { ...human, presetId: 'speedster', agent: 'gpt-6-luna' });
+    expect(readRoom(solo.code)!.snapshot.status).toBe('countdown');
+    const idle = seat();
+    vi.advanceTimersByTime(AUTO_LOBBY_MS - 200);
+    expect(readRoom(idle.code)!.snapshot.status).toBe('lobby');
+    vi.advanceTimersByTime(400);
+    expect(readRoom(idle.code)!.snapshot.status).toBe('countdown');
   });
 });

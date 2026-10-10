@@ -239,7 +239,11 @@ export const MatchRequestSchema = z.object({
   leave: z.object({ code: RaceCodeSchema, playerId: z.string(), token: z.string() }).optional(),
 });
 /** POST /api/race/[code]/pick. `agent` must be one of ARENA_BRAINS or 'human'. */
-export const PickRequestSchema = z.object({ playerId: z.string(), token: z.string(), pick: PlayerPickSchema });
+/**
+ * `ready: false` = the phone is still choosing: the pick is kept, but it does not count towards "everyone has picked",
+ * which starts the room at once. Absent or true = this phone is done.
+ */
+export const PickRequestSchema = z.object({ playerId: z.string(), token: z.string(), pick: PlayerPickSchema, ready: z.boolean().optional() });
 
 export const JoinResponseSchema = z.object({ playerId: z.string(), token: z.string(), nickname: z.string().optional() });
 export type JoinResponse = z.infer<typeof JoinResponseSchema>;

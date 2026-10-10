@@ -69,6 +69,8 @@ interface AutoRoom {
   readonly test: boolean;
   /** Phones seated by the matchmaker, whatever agent they then pick. */
   readonly phones: Set<string>;
+  /** Phones that sent a pick with `ready: false`: still choosing. */
+  readonly choosing: Set<string>;
   /** Recorded runs the server replays for its own bots, by player id. */
   readonly replays: Map<string, GhostTrace>;
   /** Set when the results are in: the room is removed AUTO_CLOSE_AFTER_RESULTS_MS later. */
@@ -509,8 +511,10 @@ function fillWithBots(room: Room, auto: AutoRoom): void {
 function advanceAuto(room: Room, auto: AutoRoom, now: number): void {
   if (room.status === 'lobby' && auto.phones.size > 0) {
     const phones = [...auto.phones].map((id) => room.players.get(id)).filter((player): player is RacePlayer => player !== undefined);
-    const fullAndPicked = phones.length >= AUTO_ROOM_CAP && phones.every((player) => player.pick !== undefined);
-    if (now >= auto.endsAt || fullAndPicked) {
+    // The countdown is only for phones that are still choosing: once every phone in the room has picked, a solo
+    // player included, the race starts at once (the usual start lights, then go). A started room takes no new phones.
+    const allPicked = phones.length > 0 && phones.every((player) => player.pick !== undefined && !auto.choosing.has(player.id));
+    if (now >= auto.endsAt || allPicked) {
       for (const player of phones) if (!player.pick) applyPick(room, player, { presetId: 'all_rounder', agent: JEV_AGENT, strategy: 'plan' });
       fillWithBots(room, auto);
       room.raceNo += 1;
@@ -602,7 +606,7 @@ export function matchRoom(options: { nickname?: string; test?: boolean; missionI
     room = {
       code: newCode(), missionId, seed: driveSeed(MISSIONS[missionId]), status: 'lobby', buildEndsAt: null, startAt: null, closesAt: null, raceNo: 0,
       seats: AUTO_ROOM_CAP, version: 0, players: new Map(), tokens: new Map(), lastSeen: new Map(), logged: new Set(), createdAt: now,
-      auto: { endsAt: now + AUTO_LOBBY_MS, test, phones: new Set(), replays: new Map(), finishedAt: null },
+      auto: { endsAt: now + AUTO_LOBBY_MS, test, phones: new Set(), choosing: new Set(), replays: new Map(), finishedAt: null },
     };
     rooms.set(room.code, room);
     // The lobby's 30 s are used to drive the fill bot's run once, so it is ready at the start. Not for load tests.
@@ -621,7 +625,7 @@ export function matchRoom(options: { nickname?: string; test?: boolean; missionI
 }
 
 /** /play: the phone's three taps. Allowed until the room starts; the last pick sent stands. */
-export function pickInRoom(code: string, playerId: string, token: string, pick: PlayerPick): RaceResult<null> {
+export function pickInRoom(code: string, playerId: string, token: string, pick: PlayerPick, ready = true): RaceResult<null> {
   const room = rooms.get(code);
   if (!room) return fail(404, 'No such room.');
   const now = Date.now();
@@ -632,6 +636,8 @@ export function pickInRoom(code: string, playerId: string, token: string, pick: 
   if (room.status !== 'lobby') return fail(409, 'The race has started: the pick is locked.');
   if (pick.agent !== 'human' && !ArenaBrainIdSchema.safeParse(pick.agent).success) return fail(400, `Unknown agent "${pick.agent}".`);
   applyPick(room, player, pick);
+  if (ready) room.auto.choosing.delete(playerId);
+  else room.auto.choosing.add(playerId);
   room.version += 1;
   advance(room, now);
   return done(null);

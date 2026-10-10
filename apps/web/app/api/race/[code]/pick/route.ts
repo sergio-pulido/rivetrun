@@ -16,7 +16,7 @@ export async function POST(request: Request, { params }: RouteContext): Promise<
   if (!code.ok) return code.response;
   const body = await parseJsonBody(request, PickRequestSchema);
   if (!body.ok) return body.response;
-  const result = pickInRoom(code.data, body.data.playerId, body.data.token, body.data.pick);
+  const result = pickInRoom(code.data, body.data.playerId, body.data.token, body.data.pick, body.data.ready !== false);
   if (!result.ok) return apiError(result.status, 'bad_request', result.error);
   return Response.json({ ok: true });
 }

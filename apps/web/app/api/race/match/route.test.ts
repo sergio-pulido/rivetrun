@@ -10,7 +10,7 @@ describe('POST /api/race/match and /api/race/[code]/pick', () => {
     expect(seat.code).toMatch(/^[A-Z]{4}$/);
     expect(seat.endsAt - seat.serverNow).toBe(30_000);
     const picked = await PICK(
-      new Request(`http://localhost/api/race/${seat.code}/pick`, { method: 'POST', body: JSON.stringify({ playerId: seat.playerId, token: seat.token, pick: { presetId: 'speedster', agent: 'human', strategy: 'eco' } }) }),
+      new Request(`http://localhost/api/race/${seat.code}/pick`, { method: 'POST', body: JSON.stringify({ playerId: seat.playerId, token: seat.token, pick: { presetId: 'speedster', agent: 'human', strategy: 'eco' }, ready: false }) }),
       { params: Promise.resolve({ code: seat.code }) },
     );
     expect(picked.status).toBe(200);
@@ -26,7 +26,7 @@ describe('POST /api/race/match and /api/race/[code]/pick', () => {
     const onM9 = await POST(new Request('http://localhost/api/race/match', { method: 'POST', body: JSON.stringify({ test: true, missionId: 'M8' }) }));
     expect(onM9.status).toBe(200);
     const noStrategy = await PICK(
-      new Request(`http://localhost/api/race/${seat.code}/pick`, { method: 'POST', body: JSON.stringify({ playerId: seat.playerId, token: seat.token, pick: { presetId: 'speedster', agent: 'human' } }) }),
+      new Request(`http://localhost/api/race/${seat.code}/pick`, { method: 'POST', body: JSON.stringify({ playerId: seat.playerId, token: seat.token, pick: { presetId: 'speedster', agent: 'human' }, ready: false }) }),
       { params: Promise.resolve({ code: seat.code }) },
     );
     expect(noStrategy.status).toBe(200);
