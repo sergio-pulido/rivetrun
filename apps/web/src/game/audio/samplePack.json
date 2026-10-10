@@ -1,0 +1,5 @@
+{
+  "note": "Written by scripts/gen-sound.mjs (RR-SOUND). Lists the recorded sounds that exist in apps/web/public/sfx; the app asks only for these.",
+  "voice": null,
+  "files": {}
+}

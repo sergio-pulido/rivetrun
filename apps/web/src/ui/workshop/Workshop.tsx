@@ -25,6 +25,7 @@ import { PartSheet } from './PartSheet';
 import { Predicted } from './Predicted';
 import { SLOTS, fitted, partsIn, withPart } from './slots';
 import { Tuning } from './Tuning';
+import { useAmbience } from '@/game/audio/samples';
 
 const PRESET_LIST = Object.values(PRESETS);
 const BAR_COLOR = { speed: 'var(--color-orange)', grip: 'var(--color-pcb)', endurance: '#E3B341', perception: 'var(--color-cyan)' } as const;
@@ -53,6 +54,7 @@ const isWide = (): boolean => typeof window !== 'undefined' && window.matchMedia
 const LOCKED_SLOT: Readonly<Record<string, Slot>> = { motor: 'motor', battery: 'battery', actuator: 'extra', compute: 'extra' };
 
 export function Workshop({ makers, locked, printedIds, bom, media }: WorkshopProps) {
+  useAmbience('amb_workshop'); // RR-SOUND: workshop ambience, quiet on a phone; silent when the pack has no file
   const build = useBuildStore((store) => store.build);
   const setBuild = useBuildStore((store) => store.setBuild);
   const missionId = useBuildStore((store) => store.missionId);

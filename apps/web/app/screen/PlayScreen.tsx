@@ -7,6 +7,7 @@ import { QrCode } from '../leaderboard/_lib/QrCode';
 import { AutoRoomsGrid } from './AutoRoomsGrid';
 import play from './play.module.css';
 import styles from './screen.module.css';
+import { useAmbience } from '@/game/audio/samples';
 
 const REFRESH_MS = 3000;
 
@@ -38,6 +39,7 @@ function useAudience(): HumanArenaBody | null {
  * runs as they come in. Sized for the back of the room at 1920×1080 (everything scales with the screen).
  */
 export function PlayScreen({ siteUrl }: { readonly siteUrl: string }) {
+  useAmbience('amb_arena', 'screen'); // RR-SOUND: arena ambience; silent when the pack has no file
   const audience = useAudience();
   const board = audience?.board ?? [];
   const versus = audience?.vsJev ?? { runs: 0, humanWins: 0 };

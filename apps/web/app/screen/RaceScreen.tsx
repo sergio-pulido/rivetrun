@@ -13,6 +13,7 @@ import { Side, useEpisodeCount } from './Side';
 import { ArenaResults } from './ArenaResults';
 import { ThreadPanel } from './ThreadPanel';
 import { useJevBots, type JevBots } from './useJevBots';
+import { useRaceSound } from '@/game/audio/sampleCues';
 import styles from './screen.module.css';
 
 interface RaceScreenProps {
@@ -254,6 +255,7 @@ export function RaceScreen({ code, siteUrl, arena = false }: RaceScreenProps) {
   const now = useServerNow(clockOffsetMs);
   const episodes = useEpisodeCount();
   const bots = useJevBots(snapshot, clockOffsetMs);
+  useRaceSound(snapshot, clockOffsetMs); // RR-SOUND: arena ambience, start horn and the announcer; silent when the pack has no file
   const lanes = useLaneBudget();
   const [error, setError] = useState<string | null>(null);
   const joinUrl = `${siteUrl}/race/${code}`;

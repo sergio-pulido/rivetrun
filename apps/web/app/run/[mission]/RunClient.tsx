@@ -4,6 +4,7 @@ import type { MissionId } from '@rivetrun/contracts';
 import { useEffect, useMemo } from 'react';
 import { MISSIONS, PRESETS, assessBuild } from '@rivetrun/sim';
 import { RunCanvas } from '@/game';
+import { useMissionAmbience } from '@/game/audio/samples';
 import { useBuildStore } from '@/state/build';
 import { personalBestTrace } from '@/state/personalBests';
 import { useRunStore } from '@/state/run';
@@ -11,6 +12,7 @@ import { useRun } from './useRun';
 
 export function RunClient({ missionId }: { readonly missionId: MissionId }) {
   const mission = MISSIONS[missionId];
+  useMissionAmbience(mission); // RR-SOUND: the place's recorded ambience, quiet on a phone; silent when the pack has no file
   const build = useRunStore((store) => store.build);
   const priority = useRunStore((store) => store.priority);
   const briefing = useBuildStore((store) => store.briefing);
