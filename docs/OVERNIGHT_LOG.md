@@ -34,6 +34,11 @@ Written by [MASTER] for the human. Newest status first. Program: docs/OVERNIGHT.
 
 ## Status log
 
+### 11:27 · polish sprint: `demo-good-1127`
+`demo-good-1127` → 1a9b707, 23 e2e steps. The gate now asserts that the MK-II kit, not the procedural robot, is on the Workshop stage and in the run view, and fails if it is not. In the tag: the MK-II as the default robot ([GAME], 0dc1d63, marker ab798f4), the Workshop as a light studio, M7 dressed as a collapse site (a4d051f), desktop and projector layouts for Workshop, Brief, Result, Home and /lab ([UI]), Lab Missions drawn with sprites ([LAB], `?sprites=0` for the old board). Seen by QA in the gate's stills: the Workshop at 1280×720 (two columns, the rover on the light stage) and the M7 run at 390×844 (the orange MK-II, the collapsed slab behind it, Jev slowing for the scan zone).
+
+Two things about the machine and the network this morning, both outside the code: (1) from about 10:31 to 10:40 the laptop reached neither Jev nor GitHub; since then a few Jev calls per gate still fail at the network level (7, then 14) and the game shows FALLBACK for those decisions. If the venue network behaves like this, that is what the room will see. (2) Load average reached 50–74 while several sessions ran headless browsers; at that load the software renderer misses the game's 15 s first-frame limit and shows "3D VIEW UNAVAILABLE". The gate retries; a phone's GPU is a different matter and nobody has measured it.
+
 ### 10:20 · polish sprint until 13:30
 The human resumed [MASTER]: cycles until 13:30, no new features, every green commit gated and tagged, the last tag before 13:45 for the 14:00 freeze build. [GAME] is making the MK-II the default robot and restyling the Workshop stage; the e2e gets a check that the kit, not the procedural robot, is on the Workshop and in the run.
 
