@@ -3,7 +3,7 @@
 import { useMemo } from 'react';
 import type { Build, Mission } from '@rivetrun/contracts';
 import { fixesFor, testRunReport, type Fix, type TestRunReport } from './scenario';
-import { assessBuild, partsProviding, type BuildAssessment } from './sim';
+import { assessBuild, capabilities, partsProviding, type BuildAssessment } from './sim';
 
 export interface TestRunResult {
   /** Null when the sim could not run this build. */
@@ -21,7 +21,9 @@ export function useTestRun(build: Build, mission: Mission, priority: number, ena
     if (!enabled) return NOT_RUN;
     const assessment = assessBuild(build, mission, priority);
     if (!assessment) return NOT_RUN;
-    const report = testRunReport(assessment);
+    const caps = capabilities(build);
+    const senses = caps ? { ...caps.lookahead, tilt: caps.sensesTilt } : undefined;
+    const report = testRunReport(assessment, senses ? { segments: mission.track.segments, senses } : undefined);
     return { assessment, report, fixes: fixesFor(report.missing, build, partsProviding) };
   }, [build, mission, priority, enabled]);
 }

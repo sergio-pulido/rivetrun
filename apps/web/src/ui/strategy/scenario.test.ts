@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Build } from '@rivetrun/contracts';
 import { MISSIONS, PRESETS } from '@rivetrun/sim';
-import { fixesFor, scenarioSegments, segmentFacts, testRunReport } from './scenario';
+import { blindReasons, fixesFor, scenarioSegments, segmentFacts, testRunReport } from './scenario';
 import { assessBuild, type BuildAssessment, type SegmentAssessment } from './sim';
 
 const PLAIN: Build = { locomotion: 'wheels', motor: 'motor_light', battery: 'battery_small', sensors: ['camera', 'ultrasonic'], extras: [] };
@@ -85,6 +85,44 @@ describe('testRunReport', () => {
   it('is clean when nothing went wrong', () => {
     const report = testRunReport(finished([segment('ok', 0, { missing: ['protection'] })], { damagePct: 0, stars: 3 }));
     expect(report).toMatchObject({ tone: 'ok', title: 'Finishes in 17.1 s · 3 of 3 stars', trouble: [], missing: [] });
+  });
+});
+
+describe('blindReasons', () => {
+  const BLIND = { obstacleM: 0, terrainM: 0, waterDepthM: 0, tilt: false };
+  const rock = { terrain: 'rock', lengthM: 8, slopeDeg: 0, obstacle: 'rock' } as const;
+
+  it('cites the distance sensor a build lacks where it met an obstacle', () => {
+    expect(blindReasons(rock, [], BLIND)).toEqual(['no distance sensor']);
+    expect(blindReasons(rock, [], { ...BLIND, obstacleM: 4 })).toEqual([]);
+  });
+
+  it('cites the camera and the IMU when the sim says the segment needed them', () => {
+    expect(blindReasons({ terrain: 'mud', lengthM: 10, slopeDeg: 15 }, ['traction:mud', 'sense_tilt', 'lookahead_terrain'], BLIND)).toEqual(['no camera to read the ground ahead', 'no IMU to feel the slope']);
+  });
+
+  it('puts the missing sensor on the line of a test run', () => {
+    const blind: Build = { ...PLAIN, sensors: [] };
+    const report = testRunReport(finished([segment('damage', 22, { segmentIndex: 0, note: 'Hit the rock at 2 m/s' })]), { segments: [rock], senses: BLIND });
+    expect(report.trouble).toEqual([{ atM: 22, verdict: 'damage', note: 'Hit the rock at 2 m/s: no distance sensor' }]);
+    const real = testRunReport(assessBuild(blind, MISSIONS.M1)!, { segments: MISSIONS.M1.track.segments, senses: BLIND });
+    expect(real.trouble.map((entry) => entry.note.replace(/at [\d.]+ m\/s/, 'at speed'))).toEqual(['Hit the step at speed: no distance sensor']);
+  });
+
+  it('adds the distance sensor to a DNF on an obstacle, and leaves a reason the sim gave alone', () => {
+    const dnf = (why: string) => ({ ...finished([segment('fail', 20, { segmentIndex: 0 })]), finished: false, dnf: { reason: 'stuck' as const, atM: 22, why, missing: [] } });
+    expect(testRunReport(dnf('Stopped by the rock'), { segments: [rock], senses: BLIND }).detail).toBe('Stopped by the rock: no distance sensor');
+    expect(testRunReport(dnf('Stopped by the rock'), { segments: [rock], senses: { ...BLIND, obstacleM: 3 } }).detail).toBe('Stopped by the rock');
+    expect(testRunReport(dnf('Wrecked: slammed onto rock at 2.2 m/s — no scout drone to see it in time'), { segments: [rock], senses: BLIND }).detail).toBe('Wrecked: slammed onto rock at 2.2 m/s — no scout drone to see it in time');
+    expect(testRunReport(finished([segment('damage', 24, { segmentIndex: 0, note: 'Water got in: no sealed hull' })]), { segments: [rock], senses: BLIND }).trouble[0]!.note).toBe('Water got in: no sealed hull');
+  });
+
+  it('does not repeat a sensor the sim already named', () => {
+    const report = testRunReport(
+      { ...finished([segment('fail', 10, { segmentIndex: 0, missing: ['sense_tilt'] })]), finished: false, dnf: { reason: 'stuck', atM: 11.6, why: 'Stuck on a 15° mud slope — no IMU to feel the tilt', missing: ['sense_tilt'] } },
+      { segments: [{ terrain: 'mud', lengthM: 10, slopeDeg: 15 }], senses: BLIND },
+    );
+    expect(report.detail).toBe('Stuck on a 15° mud slope — no IMU to feel the tilt');
   });
 });
 

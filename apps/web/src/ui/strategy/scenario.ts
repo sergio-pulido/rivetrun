@@ -81,17 +81,67 @@ export interface TestRunReport {
 
 const unique = <T,>(items: readonly T[]): readonly T[] => [...new Set(items)];
 
-/** A test run in a few lines: where the build fails and why, or how it finishes and where it struggles. */
-export function testRunReport(assessment: BuildAssessment): TestRunReport {
+/** How far the build senses ahead and whether it feels its own tilt, as the sim reports it. */
+export interface Senses {
+  readonly obstacleM: number;
+  readonly terrainM: number;
+  readonly waterDepthM: number;
+  readonly tilt: boolean;
+}
+
+/**
+ * The sensors a build lacked on a stretch where it had trouble: it met an obstacle without a distance sensor,
+ * or the sim says the stretch needed a view of the ground or a sense of the slope it does not have.
+ */
+export function blindReasons(segment: Segment, missing: readonly CapabilityId[], senses: Senses): readonly string[] {
+  return [
+    segment.obstacle && senses.obstacleM === 0 ? 'no distance sensor' : null,
+    missing.includes('lookahead_terrain') && senses.terrainM === 0 ? 'no camera to read the ground ahead' : null,
+    missing.includes('sense_tilt') && !senses.tilt ? 'no IMU to feel the slope' : null,
+    missing.includes('lookahead_depth') && senses.waterDepthM === 0 ? 'no probe to measure the depth' : null,
+  ].flatMap((reason) => (reason ? [reason] : []));
+}
+
+/** What the report needs to say which sensors were missing: the track and what the build senses. */
+export interface SensingContext {
+  readonly segments: readonly Segment[];
+  readonly senses: Senses;
+}
+
+/** The sim's line already gives a missing part as the reason ("— no IMU to feel the tilt", ": no sealed hull"). */
+const citesAReason = (line: string): boolean => /(—|:)\s+no\s/i.test(line);
+
+/** A segment's note with the sensors the build lacked there after it. A note that already gives its reason is left alone. */
+function withBlind(note: string, segment: Segment | undefined, missing: readonly CapabilityId[], context: SensingContext | undefined): string {
+  if (!segment || !context || citesAReason(note)) return note;
+  const reasons = blindReasons(segment, missing, context.senses);
+  return reasons.length > 0 ? `${note}: ${reasons.join(', ')}` : note;
+}
+
+/**
+ * Why a build did not finish. The sim's sentence is the authority on the cause; the one thing added is the distance sensor
+ * a build lacked when an obstacle on that stretch is what ended the run and the sentence gives no reason of its own.
+ */
+function dnfDetail(why: string, segment: Segment | undefined, context: SensingContext | undefined): string {
+  if (!segment?.obstacle || !context || citesAReason(why) || !why.toLowerCase().includes(segment.obstacle)) return why;
+  return context.senses.obstacleM === 0 ? `${why}: no distance sensor` : why;
+}
+
+/** A test run in a few lines: where the build fails and why, or how it finishes and where it struggles. Names the sensors it lacked there. */
+export function testRunReport(assessment: BuildAssessment, context?: SensingContext): TestRunReport {
   if (assessment.dnf) {
-    return { tone: 'bad', title: `DNF at ${Math.round(assessment.dnf.atM)} m`, detail: assessment.dnf.why, trouble: [], missing: unique(assessment.dnf.missing) };
+    const failed = assessment.segments.find((segment) => segment.verdict === 'fail');
+    const detail = dnfDetail(assessment.dnf.why, failed ? context?.segments[failed.segmentIndex] : undefined, context);
+    return { tone: 'bad', title: `DNF at ${Math.round(assessment.dnf.atM)} m`, detail, trouble: [], missing: unique(assessment.dnf.missing) };
   }
   const rough = assessment.segments.filter((segment) => segment.verdict === 'damage' || segment.verdict === 'slow');
   return {
     tone: rough.length > 0 ? 'warn' : 'ok',
     title: `Finishes in ${formatSeconds(assessment.timeS)} s · ${assessment.stars} of ${MAX_STARS} stars`,
     detail: `${Math.round(assessment.damagePct)}% damage · ${Math.round(assessment.energyLeftPct)}% battery left`,
-    trouble: rough.flatMap((segment) => (segment.note ? [{ atM: segment.startM, verdict: segment.verdict, note: segment.note }] : [])),
+    trouble: rough.flatMap((segment) =>
+      segment.note ? [{ atM: segment.startM, verdict: segment.verdict, note: withBlind(segment.note, context?.segments[segment.segmentIndex], segment.missing, context) }] : [],
+    ),
     missing: unique(rough.flatMap((segment) => segment.missing)),
   };
 }
