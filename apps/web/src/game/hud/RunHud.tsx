@@ -14,6 +14,7 @@ import { telemetry, useTelemetryOpen } from '../telemetry/telemetryStore';
 import { BrainHud } from './BrainHud';
 import { DECISION_CHIPS, type DecisionChip } from './decisionChip';
 import { DecisionChips } from './DecisionChips';
+import { DriveAlerts } from './DriveAlerts';
 import { FpsBadge } from './FpsBadge';
 import styles from './hud.module.css';
 import { TopBar } from './TopBar';
@@ -151,11 +152,11 @@ function FallToast({ fall }: { fall: { readonly falls: number; readonly at: numb
   }, [fall.at]);
   if (!shown) return null;
   return (
-    <div className="absolute inset-x-0 flex justify-center" style={{ top: '33%' }}>
+    <>
       <span className="rounded-lg px-3 py-2 font-mono text-[12px] font-semibold tracking-[1px]" style={{ border: `2px solid ${UI.bad}`, background: 'rgb(14 16 19 / 0.88)', color: UI.bad }}>
         FELL · +5 s · {fall.falls} of 3
       </span>
-    </div>
+    </>
   );
 }
 
@@ -177,25 +178,25 @@ function ContactToast({ hit }: { hit: NonNullable<RunView['lastDamage']> }) {
   const what = hit.obstacle ? `HIT ${OBSTACLE_NAME[hit.obstacle]}` : hit.roughEntry ? `TOO FAST ONTO ${TERRAIN_LOOK[hit.roughEntry].label.toUpperCase()}` : null;
   if (!shown || !what || hit.amountPct < 0.5) return null;
   return (
-    <div className="absolute inset-x-0 flex justify-center" style={{ top: '33%' }}>
+    <>
       <span className="rounded-lg px-3 py-2 font-mono text-[12px] font-semibold tracking-[1px]" style={{ border: `2px solid ${UI.warn}`, background: 'rgb(14 16 19 / 0.88)', color: UI.warn }}>
         {what} · −{hit.amountPct.toFixed(0)}%
       </span>
-    </div>
+    </>
   );
 }
 
 /** Stopped against an obstacle the robot cannot roll over: stays up for as long as the sim says so. */
 function BlockedChip({ kind }: { kind: Obstacle }) {
   return (
-    <div className="absolute inset-x-0 flex justify-center" style={{ top: '33%' }}>
+    <>
       <span className="rounded-lg px-3 py-2 text-center font-mono text-[12px] font-semibold leading-snug tracking-[1px]" style={{ border: `2px solid ${UI.bad}`, background: 'rgb(14 16 19 / 0.88)', color: UI.bad }}>
         BLOCKED BY {OBSTACLE_NAME[kind]}
         <span className="block text-[10px] font-normal" style={{ color: UI.text }}>
           too tall to roll over
         </span>
       </span>
-    </div>
+    </>
   );
 }
 
@@ -278,17 +279,20 @@ export function RunHud({ mission, feed, ghosts = NO_GHOSTS, drive, build }: RunH
           <div className="mt-2 flex flex-col items-start gap-1">
             {senses && <SenseChip senses={senses} />}
             {/* With the drawer open the thread has the detail: one chip keeps the track in view. */}
-            <DecisionChips chips={telemetryOpen ? chips.slice(-1) : chips} />
+            {/* A driver gets one hint at a time: the alerts below are what to act on. */}
+            <DecisionChips chips={telemetryOpen || driving ? chips.slice(-1) : chips} />
           </div>
         )}
       </div>
 
-      {view.lastFall && !view.done ? <FallToast fall={view.lastFall} /> : null}
-      {view.done ? null : view.state?.blockedBy ? (
-        <BlockedChip kind={view.state.blockedBy} />
-      ) : view.lastDamage ? (
-        <ContactToast hit={view.lastDamage} />
-      ) : null}
+      {/* One column for everything that needs the driver's eyes: what just happened, then what is coming. */}
+      {!view.done && (
+        <div className="absolute inset-x-0 flex flex-col items-center gap-1.5 px-3" style={{ top: '33%' }}>
+          {view.lastFall ? <FallToast fall={view.lastFall} /> : null}
+          {view.state?.blockedBy ? <BlockedChip kind={view.state.blockedBy} /> : view.lastDamage ? <ContactToast hit={view.lastDamage} /> : null}
+          {driving && build ? <DriveAlerts mission={mission} build={build} state={view.state} observation={view.observation?.value ?? null} /> : null}
+        </div>
+      )}
 
       {view.done && (
         <div className="absolute inset-x-0 flex justify-center" style={{ top: '24%' }}>

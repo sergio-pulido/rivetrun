@@ -17,6 +17,7 @@ import { Particles, type ParticleEmitter } from './Particles';
 import { restPose, type Pose } from './pose';
 import { restRide, rideOver, stanceFor } from './ride';
 import { ScoutDroneRig } from './ScoutDroneRig';
+import { ScanPads } from './ScanPads';
 import { SenseBand } from './SenseBand';
 import { EFFECT_PARTICLES, Tag, swimLift } from './shared';
 import { World } from './World';
@@ -176,8 +177,10 @@ function Player({ feed, build, layout, pose, timeScale, particles, hands }: Play
       if (count === 0) continue;
       const x = spec.where === 'rear' ? p.x - dir * 0.55 : spec.where === 'front' ? p.x + 0.7 : p.x - 0.1;
       const y = spec.where === 'top' ? p.y + 0.8 : effect === 'bubbles' ? p.y + 0.5 : p.y + 0.06;
-      const color = effect === 'dust' ? TERRAIN_LOOK[state.terrain].dust : undefined;
-      emitter.emit(spec.kind, x, y, LANES.player + (Math.random() < 0.5 ? 0.5 : -0.5), count, dir, color);
+      // Spinning wheels throw up whatever they stand on: mud, ice chips, spray, or the ground's own dust.
+      const roost = effect === 'slip' ? (state.terrain === 'mud' ? 'mud' : state.terrain === 'ice' ? 'ice' : state.terrain === 'water' ? 'splash' : 'dust') : spec.kind;
+      const color = roost === 'dust' ? TERRAIN_LOOK[state.terrain].dust : undefined;
+      emitter.emit(roost, x, y, LANES.player + (Math.random() < 0.5 ? 0.5 : -0.5), count, dir, color);
     }
     // A current: specks streaming past the robot through the water column.
     if ((state.waterCurrentMps ?? 0) > 0 && !view.done && Math.random() < simDt * 22 * (state.waterCurrentMps ?? 0)) {
@@ -384,6 +387,7 @@ export function RunScene({ mission, build, feed, ghosts = [], particleBudget = 1
       ))}
       <Player feed={feed} build={build} layout={layout} pose={pose} timeScale={timeScale} particles={particles} hands={hands} />
       <SenseBand layout={layout} pose={pose} feed={feed} senses={senses} />
+      {mission.scanZones && mission.scanZones.length > 0 ? <ScanPads layout={layout} zones={mission.scanZones} build={build} feed={feed} /> : null}
       {hasDrone && <ScoutDroneRig feed={feed} layout={layout} pose={pose} />}
       <Particles ref={particles} timeScale={timeScale} budget={particleBudget} />
       <CameraRig pose={pose} light={sun} startX={0} wide={hasDrone} driving={hands !== undefined} raise={raise} />

@@ -1,12 +1,13 @@
 'use client';
 
-import { useEffect, useMemo, useState, useSyncExternalStore, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react';
 import type { Build, ControlSpecial } from '@rivetrun/contracts';
-import { PARTS_BY_ID } from '@rivetrun/sim';
+import { PARTS_BY_ID, deriveSpec, safeContactSpeedMps } from '@rivetrun/sim';
 import { UI } from '../palette';
 import { useRunView, type RunFeed } from '../runFeed';
 import type { DriveInput, DriveInputState } from './driveInput';
 import { haptic } from './haptics';
+import { BRAKE_MARKS, THROTTLE_MARKS, brakeBand, hazardWarning, throttleBand } from './hazard';
 
 /** Uphill steeper than this: the action button offers the winch (or climb mode) instead of the jump. */
 const STEEP_DEG = 6;
@@ -15,31 +16,99 @@ const RING_LENGTH = 2 * Math.PI * RING_R;
 
 const NO_SELECT: CSSProperties = { touchAction: 'none', userSelect: 'none', WebkitUserSelect: 'none', WebkitTouchCallout: 'none', WebkitTapHighlightColor: 'transparent' };
 
-interface HoldHandlers {
+/** Touch-down is this much throttle (or brake); sliding up adds, sliding down takes away. */
+const TOUCH_START = 0.3;
+/** Finger travel for the whole 0–100 % range, px. */
+const TRAVEL_PX = 200;
+
+interface Thumb {
+  readonly id: number;
+  /** Where the finger went down, in the overlay's own pixels. */
+  readonly x: number;
+  readonly y: number;
+}
+
+interface SlideHandlers {
   onPointerDown: (event: ReactPointerEvent<HTMLElement>) => void;
+  onPointerMove: (event: ReactPointerEvent<HTMLElement>) => void;
   onPointerUp: (event: ReactPointerEvent<HTMLElement>) => void;
   onPointerCancel: (event: ReactPointerEvent<HTMLElement>) => void;
   onLostPointerCapture: (event: ReactPointerEvent<HTMLElement>) => void;
 }
 
-/** Press-and-hold with any number of fingers: held while at least one pointer is down on the element. */
-function holdHandlers(set: (held: boolean) => void, onPress?: () => void): HoldHandlers {
-  const pointers = new Set<number>();
-  const up = (event: ReactPointerEvent<HTMLElement>): void => {
-    pointers.delete(event.pointerId);
-    if (pointers.size === 0) set(false);
-  };
-  return {
-    onPointerDown: (event) => {
-      event.currentTarget.setPointerCapture(event.pointerId);
-      pointers.add(event.pointerId);
-      set(true);
-      onPress?.();
-    },
-    onPointerUp: up,
-    onPointerCancel: up,
-    onLostPointerCapture: up,
-  };
+/**
+ * One half of the screen as a slider: the first finger down sets 30 %, sliding up goes to 100 %,
+ * sliding down to 0 %, letting go is 0 %. A second finger on the same half is ignored.
+ */
+function useSlide(set: (value: number) => void): { thumb: Thumb | null; handlers: SlideHandlers } {
+  const [thumb, setThumb] = useState<Thumb | null>(null);
+  const active = useRef<{ id: number; clientY: number } | null>(null);
+  const handlers = useMemo<SlideHandlers>(() => {
+    const end = (event: ReactPointerEvent<HTMLElement>): void => {
+      if (active.current?.id !== event.pointerId) return;
+      active.current = null;
+      setThumb(null);
+      set(0);
+    };
+    return {
+      onPointerDown: (event) => {
+        if (active.current) return;
+        event.currentTarget.setPointerCapture(event.pointerId);
+        const frame = event.currentTarget.parentElement?.getBoundingClientRect();
+        active.current = { id: event.pointerId, clientY: event.clientY };
+        setThumb({ id: event.pointerId, x: event.clientX - (frame?.left ?? 0), y: event.clientY - (frame?.top ?? 0) });
+        set(TOUCH_START);
+        haptic(6);
+      },
+      onPointerMove: (event) => {
+        const origin = active.current;
+        if (!origin || origin.id !== event.pointerId) return;
+        set(Math.min(1, Math.max(0, TOUCH_START + (origin.clientY - event.clientY) / TRAVEL_PX)));
+      },
+      onPointerUp: end,
+      onPointerCancel: end,
+      onLostPointerCapture: end,
+    };
+  }, [set]);
+  return { thumb, handlers };
+}
+
+interface GaugeProps {
+  thumb: Thumb;
+  value: number;
+  side: 'left' | 'right';
+  color: string;
+  band: string;
+  marks: ReadonlyArray<{ readonly at: number; readonly label: string }>;
+}
+
+/** The gauge that appears beside the thumb: the whole range, the sim's bands, and where the thumb is on it. */
+function Gauge({ thumb, value, side, color, band, marks }: GaugeProps) {
+  // Beside the thumb, on the side towards the middle of the screen, so the hand does not cover it.
+  const left = side === 'right' ? thumb.x - 74 : thumb.x + 60;
+  const top = thumb.y - (1 - TOUCH_START) * TRAVEL_PX;
+  return (
+    <div className="pointer-events-none absolute" style={{ left, top, width: 14, height: TRAVEL_PX }}>
+      <div className="absolute inset-0 overflow-hidden rounded-full" style={{ background: 'rgb(14 16 19 / 0.78)', border: '1px solid rgb(237 239 242 / 0.35)' }}>
+        <div className="absolute inset-x-0 bottom-0" style={{ height: `${value * 100}%`, background: color }} />
+      </div>
+      {marks.map((mark) => (
+        <div key={mark.label} className="absolute flex items-center gap-1" style={{ bottom: `calc(${mark.at * 100}% - 5px)`, [side === 'right' ? 'right' : 'left']: 18 }}>
+          {side === 'left' && <span className="h-px w-2" style={{ background: 'rgb(237 239 242 / 0.6)' }} />}
+          <span className="font-mono text-[8px] leading-[10px] tracking-[1px]" style={{ color: value >= mark.at ? UI.text : UI.dim }}>
+            {mark.label}
+          </span>
+          {side === 'right' && <span className="h-px w-2" style={{ background: 'rgb(237 239 242 / 0.6)' }} />}
+        </div>
+      ))}
+      <div
+        className="absolute whitespace-nowrap rounded-md px-1.5 py-1 font-mono text-[11px] font-semibold leading-none tabular-nums"
+        style={{ bottom: `calc(${value * 100}% - 10px)`, [side === 'right' ? 'left' : 'right']: 20, background: color, color: UI.ink }}
+      >
+        {Math.round(value * 100)} % {band}
+      </div>
+    </div>
+  );
 }
 
 /** Which special the one action button offers right now. JUMP and WINCH only exist with their parts. */
@@ -54,25 +123,44 @@ function contextualSpecial(build: Build, slopeDeg: number, winchHeld: boolean): 
 
 const SPECIAL_LABEL: Readonly<Record<ControlSpecial, string>> = { jump: 'JUMP', winch: 'WINCH', climb: 'CLIMB' };
 
-function Pad({ side, label, held, color }: { side: 'left' | 'right'; label: string; held: boolean; color: string }) {
+interface PadProps {
+  side: 'left' | 'right';
+  /** 0–1: how far the pedal is down. */
+  value: number;
+  color: string;
+  /** Big line (with an optional unit) and small line. */
+  title: string;
+  unit?: string;
+  caption: string;
+  /** Text colour of the big line (the speedometer turns red above the safe speed). */
+  tone?: string;
+  /** Amber frame: the wheels are spinning. */
+  alert?: boolean;
+}
+
+/** The resting pedals in the bottom corners. The right one is the speedometer; both fill with the pedal's value. */
+function Pad({ side, value, color, title, unit, caption, tone, alert = false }: PadProps) {
+  const down = value > 0;
   return (
     <div
-      className="pointer-events-none absolute flex h-[84px] w-[112px] flex-col items-center justify-center gap-1 rounded-2xl font-display"
+      className="pointer-events-none absolute flex h-[84px] w-[112px] flex-col items-center justify-center gap-1 overflow-hidden rounded-2xl font-display"
       style={{
         [side]: 14,
         bottom: 'max(18px, env(safe-area-inset-bottom))',
-        background: held ? color : 'rgb(14 16 19 / 0.62)',
-        border: `2px solid ${held ? color : 'rgb(237 239 242 / 0.28)'}`,
-        color: held ? UI.ink : UI.text,
-        transform: held ? 'scale(0.95)' : 'scale(1)',
-        transition: 'transform 70ms ease-out, background 70ms ease-out',
-        boxShadow: held ? `0 0 26px ${color}66` : '0 8px 20px rgb(0 0 0 / 0.35)',
+        background: 'rgb(14 16 19 / 0.62)',
+        border: `2px solid ${alert ? UI.warn : down ? color : 'rgb(237 239 242 / 0.28)'}`,
+        color: UI.text,
+        boxShadow: down ? `0 0 26px ${color}55` : '0 8px 20px rgb(0 0 0 / 0.35)',
       }}
     >
-      <svg width="26" height="22" viewBox="0 0 26 22" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-        {side === 'right' ? <path d="M4 4l7 7-7 7M14 4l7 7-7 7" /> : <path d="M6 4v14M13 4v14M20 4v14" />}
-      </svg>
-      <span className="text-[13px] font-bold leading-none tracking-[2px]">{label}</span>
+      <div className="absolute inset-x-0 bottom-0" style={{ height: `${value * 100}%`, background: color, opacity: 0.55 }} />
+      <span className="relative text-[24px] font-bold leading-none tabular-nums" style={{ color: tone ?? UI.text }}>
+        {title}
+        {unit && <span className="ml-1 font-mono text-[10px] font-semibold tracking-[1px]">{unit}</span>}
+      </span>
+      <span className="relative whitespace-nowrap font-mono text-[9px] font-semibold leading-none tracking-[1.5px]" style={{ color: alert ? UI.warn : UI.text }}>
+        {caption}
+      </span>
     </div>
   );
 }
@@ -86,9 +174,12 @@ export interface DriveControlsProps {
 }
 
 /**
- * Drive-mode touch controls: hold the right half to drive, the left half to brake, and one
- * contextual action button (JUMP / WINCH / CLIMB) with a cooldown ring. Arrow keys / A-D / Space
- * and W work on a laptop. Fills its parent; put it over the run canvas.
+ * Drive-mode touch controls (gameplay v3): the right half of the screen is the throttle slider, the
+ * left half the brake (touch = 30 %, slide up to 100 %, down to 0 %), with a gauge beside the thumb.
+ * The right pedal is the speedometer: red above the safe speed of the hazard ahead, SLIP when the
+ * wheels spin. One contextual action button (JUMP / WINCH / CLIMB) with a cooldown ring.
+ * Keyboard: Up / W full throttle (Shift = 50 %), Down / S brake, Space / J the action button.
+ * Fills its parent; put it over the run canvas.
  */
 export function DriveControls({ drive, feed, build }: DriveControlsProps) {
   const input = useSyncExternalStore<DriveInputState>(drive.subscribe, drive.peek, drive.peek);
@@ -112,8 +203,15 @@ export function DriveControls({ drive, feed, build }: DriveControlsProps) {
   void tick;
 
   useEffect(() => {
-    if (input.throttle) setDriven(true);
+    if (input.throttle > 0) setDriven(true);
   }, [input.throttle]);
+
+  const throttle = useSlide(drive.setThrottle);
+  const brake = useSlide(drive.setBrake);
+  const safeContactMps = useMemo(() => safeContactSpeedMps(deriveSpec(build)), [build]);
+  const speed = view.state?.v ?? 0;
+  const warning = hazardWarning(view.observation?.value ?? null, speed, safeContactMps);
+  const slipping = view.state?.effects.includes('slip') === true && !airborne;
 
   // Hands off when the run ends or the tab goes away: nothing stays "held".
   useEffect(() => {
@@ -135,21 +233,17 @@ export function DriveControls({ drive, feed, build }: DriveControlsProps) {
       else if (kind === 'climb') drive.toggleClimb();
       else drive.setWinch(true);
     };
-    return {
-      throttle: holdHandlers(drive.setThrottle, () => haptic(6)),
-      brake: holdHandlers(drive.setBrake, () => haptic(6)),
-      fire,
-    };
+    return { fire };
   }, [drive]);
 
-  // Keyboard, for laptops: → / D / Space drive, ← / A brake, ↑ / W / J the action button.
+  // Keyboard, for laptops: Up / W (or → / D) full throttle, with Shift 50 %; Down / S (or ← / A) brake; Space / J the action button.
   useEffect(() => {
     const key = (event: KeyboardEvent, down: boolean): void => {
       if (event.repeat || done) return;
       const code = event.code;
-      if (code === 'ArrowRight' || code === 'KeyD' || code === 'Space') drive.setThrottle(down);
-      else if (code === 'ArrowLeft' || code === 'KeyA') drive.setBrake(down);
-      else if (code === 'ArrowUp' || code === 'KeyW' || code === 'KeyJ') {
+      if (code === 'ArrowUp' || code === 'KeyW' || code === 'ArrowRight' || code === 'KeyD') drive.setThrottle(down ? (event.shiftKey ? 0.5 : 1) : 0);
+      else if (code === 'ArrowDown' || code === 'KeyS' || code === 'ArrowLeft' || code === 'KeyA') drive.setBrake(down);
+      else if (code === 'Space' || code === 'KeyJ') {
         if (down && ready) press.fire(special);
         if (!down) drive.setWinch(false);
       } else return;
@@ -171,13 +265,24 @@ export function DriveControls({ drive, feed, build }: DriveControlsProps) {
 
   return (
     <div className="absolute inset-0" style={NO_SELECT} onContextMenu={(event) => event.preventDefault()}>
-      <div className="absolute inset-y-0 left-0 w-1/2" style={NO_SELECT} aria-label="Brake: hold the left half" role="button" {...press.brake} />
-      <div className="absolute inset-y-0 right-0 w-1/2" style={NO_SELECT} aria-label="Drive: hold the right half" role="button" {...press.throttle} />
+      <div className="absolute inset-y-0 left-0 w-1/2" style={NO_SELECT} aria-label="Brake: touch the left half and slide up for more" role="slider" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(input.brake * 100)} {...brake.handlers} />
+      <div className="absolute inset-y-0 right-0 w-1/2" style={NO_SELECT} aria-label="Throttle: touch the right half and slide up for more" role="slider" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(input.throttle * 100)} {...throttle.handlers} />
 
       {!done && (
         <>
-          <Pad side="left" label="BRAKE" held={input.brake} color="#f8514a" />
-          <Pad side="right" label="DRIVE" held={input.throttle} color={UI.safety} />
+          <Pad side="left" value={input.brake} color={UI.bad} title={input.brake > 0 ? `${Math.round(input.brake * 100)} %` : 'BRAKE'} caption={input.brake > 0 ? `BRAKE ${brakeBand(input.brake)}` : 'SLIDE UP'} />
+          <Pad
+            side="right"
+            value={input.throttle}
+            color={UI.safety}
+            title={Math.abs(speed).toFixed(1)}
+            unit="m/s"
+            caption={slipping ? 'SLIP · EASE OFF' : input.throttle > 0 ? `${throttleBand(input.throttle)} ${Math.round(input.throttle * 100)} %` : 'COAST'}
+            tone={warning?.over ? UI.bad : undefined}
+            alert={slipping}
+          />
+          {brake.thumb && <Gauge thumb={brake.thumb} value={input.brake} side="left" color={UI.bad} band={brakeBand(input.brake)} marks={BRAKE_MARKS} />}
+          {throttle.thumb && <Gauge thumb={throttle.thumb} value={input.throttle} side="right" color={UI.safety} band={throttleBand(input.throttle)} marks={THROTTLE_MARKS} />}
 
           <button
             type="button"
@@ -240,7 +345,7 @@ export function DriveControls({ drive, feed, build }: DriveControlsProps) {
           {!driven && (
             <div className="pointer-events-none absolute inset-x-0 flex justify-center" style={{ bottom: 'calc(max(18px, env(safe-area-inset-bottom)) + 104px)' }}>
               <span className="rounded-full px-3 py-1.5 font-mono text-[10px] tracking-[1.5px]" style={{ background: 'rgb(14 16 19 / 0.8)', border: `1px solid ${UI.line}`, color: UI.text }}>
-                HOLD RIGHT TO DRIVE · LEFT TO BRAKE
+                SLIDE UP: RIGHT DRIVES · LEFT BRAKES
               </span>
             </div>
           )}

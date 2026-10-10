@@ -2,8 +2,10 @@ import type { ControlInput, ControlSpecial } from '@rivetrun/contracts';
 
 /** What the controls overlay shows about itself. */
 export interface DriveInputState {
-  readonly throttle: boolean;
-  readonly brake: boolean;
+  /** 0–1 (gameplay v3): how far the right thumb is up its slider. */
+  readonly throttle: number;
+  /** 0–1: the left thumb. */
+  readonly brake: number;
   /** Climb mode is a toggle: on until tapped again. */
   readonly climb: boolean;
   /** Winch is held, like the pedals. */
@@ -27,8 +29,9 @@ export interface DriveInput {
   /** Current state without consuming anything (UI, robot face). */
   readonly peek: () => DriveInputState;
   readonly subscribe: (listener: () => void) => () => void;
-  readonly setThrottle: (held: boolean) => void;
-  readonly setBrake: (held: boolean) => void;
+  /** 0–1. A boolean still works: true = 1. */
+  readonly setThrottle: (value: number | boolean) => void;
+  readonly setBrake: (value: number | boolean) => void;
   readonly setWinch: (held: boolean) => void;
   readonly toggleClimb: () => void;
   readonly jump: () => void;
@@ -36,7 +39,9 @@ export interface DriveInput {
   readonly release: () => void;
 }
 
-const REST: DriveInputState = { throttle: false, brake: false, climb: false, winch: false, jumpAt: 0 };
+const REST: DriveInputState = { throttle: 0, brake: 0, climb: false, winch: false, jumpAt: 0 };
+
+const level = (value: number | boolean): number => (typeof value === 'number' ? Math.min(1, Math.max(0, value)) : value ? 1 : 0);
 
 export function createDriveInput(): DriveInput {
   let state = REST;
@@ -62,8 +67,8 @@ export function createDriveInput(): DriveInput {
         listeners.delete(listener);
       };
     },
-    setThrottle: (held) => set({ throttle: held }),
-    setBrake: (held) => set({ brake: held }),
+    setThrottle: (value) => set({ throttle: level(value) }),
+    setBrake: (value) => set({ brake: level(value) }),
     setWinch: (held) => set({ winch: held }),
     toggleClimb: () => set({ climb: !state.climb }),
     jump: () => {
@@ -72,7 +77,7 @@ export function createDriveInput(): DriveInput {
     },
     release: () => {
       jumpQueued = false;
-      set({ throttle: false, brake: false, winch: false });
+      set({ throttle: 0, brake: 0, winch: false });
     },
   };
 }
