@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { commitsOverTime, ownerOf, parseGitLog, parseMarkdownTable, parseSessions, parseTokens } from './built';
+import { commitsOverTime, ownerOf, parseGitLog, parseMarkdownTable, parseSessions, parseTokens, soundCredit } from './built';
 
 const SESSIONS = `# Program
 
@@ -123,5 +123,12 @@ describe('parseTokens', () => {
     expect(parseTokens(null)).toEqual([]);
     expect(parseTokens({ sessions: [{ name: 'UI' }] })).toEqual([]);
     expect(parseTokens('lots')).toEqual([]);
+  });
+});
+
+describe('soundCredit', () => {
+  it('credits ElevenLabs only while its files are there', () => {
+    expect(soundCredit(true)).toBe('Ambience, announcer and stingers: ElevenLabs. Engine and event sounds: procedural WebAudio.');
+    expect(soundCredit(false)).toBe('Engine and event sounds: procedural WebAudio.');
   });
 });

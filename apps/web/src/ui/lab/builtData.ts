@@ -1,10 +1,10 @@
 // Server-side sources for /lab "How it was built": the program's sessions table, the git log, the benchmark file and
 // the token counts. Each is read on request and is simply absent when it cannot be read; nothing is made up.
 import { execFileSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { parseHowBuilt, parseTokenReport, type HowBuilt, type TokenReport } from './accounting';
-import { LOG_FORMAT, commitsOverTime, parseGitLog, parseMarkdownTable, parseSessions, parseTokens, type CommitChart, type MarkdownTable, type Session, type TokenRow } from './built';
+import { LOG_FORMAT, commitsOverTime, parseGitLog, parseMarkdownTable, parseSessions, parseTokens, soundCredit, type CommitChart, type MarkdownTable, type Session, type TokenRow } from './built';
 
 const REPO = path.join(process.cwd(), '..', '..');
 const doc = (name: string): string | null => {
@@ -44,6 +44,17 @@ export interface Built {
   readonly tokenReport: TokenReport | null;
   /** docs/how-built.json: models and tools per session, the other agents, what agents and the human did. */
   readonly facts: HowBuilt | null;
+  /** Who made the game's sound, as far as the files on this server bear out. */
+  readonly sound: string;
+}
+
+/** The generated sound pack is there when public/sfx holds at least one .mp3 (docs/SOUND_PACK.md). */
+function hasSoundPack(): boolean {
+  try {
+    return readdirSync(path.join(process.cwd(), 'public', 'sfx')).some((file) => file.toLowerCase().endsWith('.mp3'));
+  } catch {
+    return false; // No such folder: no pack.
+  }
 }
 
 /** A docs file as JSON, or undefined when it is missing or not JSON: its block is then left out. */
@@ -67,5 +78,6 @@ export function howItWasBuilt(): Built {
     tokens: tokenReport ? [] : parseTokens(tokensFile),
     tokenReport,
     facts: parseHowBuilt(json('how-built.json')),
+    sound: soundCredit(hasSoundPack()),
   };
 }

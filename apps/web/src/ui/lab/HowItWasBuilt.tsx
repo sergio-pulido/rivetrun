@@ -72,7 +72,7 @@ const compact = (value: number): string => (value >= 1_000_000 ? `${(value / 1_0
 
 /** /lab "How it was built": the sessions and their roles, when the commits landed, the benchmark, and tokens when they are provided. */
 export function HowItWasBuilt({ built }: { readonly built: Built }) {
-  const { sessions, commits, benchmark, tokens, tokenReport, facts } = built;
+  const { sessions, commits, benchmark, tokens, tokenReport, facts, sound } = built;
   // With the facts file, each session is listed there with its model and tools: the program's shorter list is not repeated.
   const roles = facts && facts.sessions.length > 0 ? [] : sessions;
   return (
@@ -85,6 +85,11 @@ export function HowItWasBuilt({ built }: { readonly built: Built }) {
       </div>
 
       {facts ? <BuiltFacts facts={facts} /> : null}
+
+      <div className="flex flex-col gap-1.5 lg:col-span-2" data-testid="built-sound">
+        <h3 className="rr-label">Sound</h3>
+        <p className="text-xs leading-snug text-text-2 lg:text-sm">{sound}</p>
+      </div>
 
       {roles.length > 0 ? (
         <div className="flex flex-col gap-1.5">

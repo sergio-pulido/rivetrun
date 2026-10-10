@@ -167,3 +167,11 @@ export function parseTokens(raw: unknown): readonly TokenRow[] {
     return total === null ? [] : [{ name, input: null, output: null, total }];
   });
 }
+
+const PROCEDURAL = 'Engine and event sounds: procedural WebAudio.';
+
+/**
+ * The sound credit (docs/SOUND_PACK.md). The ElevenLabs part is said only while its files are in public/sfx:
+ * without them the game's sound is all procedural, and the line says only that.
+ */
+export const soundCredit = (hasSoundPack: boolean): string => (hasSoundPack ? `Ambience, announcer and stingers: ElevenLabs. ${PROCEDURAL}` : PROCEDURAL);
