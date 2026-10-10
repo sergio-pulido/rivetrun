@@ -1,6 +1,5 @@
 'use client';
 
-import { TUNING } from '@rivetrun/sim';
 import { POLICY_LABEL } from '@/game/palette';
 import { useBuildStore } from '@/state/build';
 import { useRunStore } from '@/state/run';
@@ -30,7 +29,8 @@ function useReadout(): Readout {
     };
   }
   const decision = result?.episode.decisions.at(-1);
-  if (!decision) return { head: 'JEV · STANDING BY', body: `decides every ${TUNING.decision.intervalS} s`, tone: 'brain' };
+  // Since Brain v3 Jev decides on events, not on a clock: no interval to quote here.
+  if (!decision) return { head: 'JEV · STANDING BY', body: 'decides on events', tone: 'brain' };
   const probability = decision.probabilities[decision.selected];
   return {
     head: `${decision.fallback ? 'FALLBACK' : POLICY_LABEL[decision.policy]} · ${Math.round(decision.latencyMs)} ms`,
