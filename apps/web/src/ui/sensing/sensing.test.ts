@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import type { Build } from '@rivetrun/contracts';
-import { sensing } from './sensing';
+import { derivedSensing, sensing } from './sensing';
 
 const BLIND: Build = { locomotion: 'wheels', motor: 'motor_light', battery: 'battery_small', sensors: [], extras: [] };
 
-describe('sensing', () => {
+describe('derivedSensing', () => {
+  const sensing = derivedSensing;
+
   it('always lists the core kit, power sensing included', () => {
     const { core } = sensing(BLIND);
     expect(core.join(' · ')).toContain('Battery charge and current draw');
@@ -44,5 +46,15 @@ describe('sensing', () => {
       ['body', 'IMU'],
       ['contact', 'IMU'],
     ]);
+  });
+});
+
+describe('sensing', () => {
+  it('always answers, with at least one thing the build knows and what a sensorless build cannot', () => {
+    const blind = sensing(BLIND);
+    expect(blind.sensorless).toBe(true);
+    expect(blind.cannot.length).toBeGreaterThan(0);
+    expect([...blind.core, ...blind.can.map((row) => row.text)].join(' ').toLowerCase()).toContain('battery charge');
+    expect(sensing({ ...BLIND, sensors: ['camera'] }).sensorless).toBe(false);
   });
 });

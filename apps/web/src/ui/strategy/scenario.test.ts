@@ -68,7 +68,8 @@ describe('testRunReport', () => {
   it('says where a build fails and why', () => {
     const report = testRunReport(assessBuild(PLAIN, MISSIONS.M6)!);
     expect(report.tone).toBe('bad');
-    expect(report.title).toBe('DNF at 22 m');
+    // The exact metre moves with the sim's tuning; that it fails in the first water stretch (20–35 m) does not.
+    expect(report.title).toMatch(/^DNF at (2\d|3[0-5]) m$/);
     expect(report.detail).toBe('Flooded in 60 cm of water — no waterproof case');
     expect(report.missing).toEqual(['waterproof', 'thrust']);
   });

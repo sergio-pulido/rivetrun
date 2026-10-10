@@ -17,8 +17,10 @@ export interface SenseRow {
 }
 
 export interface Sensing {
-  /** What every build knows, sensors or not. The core kit includes power sensing. */
+  /** What every build knows, sensors or not, when the rows below do not already list it. The core kit includes power sensing. */
   readonly core: readonly string[];
+  /** No sensor fitted at all: only the core kit reports. */
+  readonly sensorless: boolean;
   readonly can: readonly SenseRow[];
   readonly cannot: readonly SenseRow[];
 }
@@ -39,29 +41,32 @@ const playable = (part: Part): boolean => !part.comingSoon;
 const partsOfKind = (kinds: readonly SensorKind[]): readonly Part[] => PARTS.filter((part) => playable(part) && part.effects.sensor !== undefined && kinds.includes(part.effects.sensor));
 const anyOf = (names: readonly string[]): string => (names.length > 1 ? `${names.slice(0, -1).join(', ')} or ${names[names.length - 1]}` : (names[0] ?? ''));
 
+const capitalised = (text: string): string => text.charAt(0).toUpperCase() + text.slice(1);
+
 /**
- * The sim's own statement of what a build senses (Brain v3), once it exports one: the same wording as the run HUD and the
- * question Jev is asked. Looked up at call time, and ignored unless it has the shape the sim session posted.
+ * The sim's own statement of what a build senses (Brain v3): the same wording as the run HUD and the question Jev is
+ * asked. Its list starts with the core kit. Looked up at call time, and ignored unless it has the shape the sim posted.
  */
-function simSenses(build: Build): Pick<Sensing, 'can' | 'cannot'> | null {
+function simSensing(build: Build): Sensing | null {
   const senses = (sim as unknown as { readonly senses?: (build: Build) => unknown }).senses;
   if (typeof senses !== 'function') return null;
   try {
-    const said = senses(build) as { readonly can?: unknown; readonly cannot?: unknown } | null;
+    const said = senses(build) as { readonly can?: unknown; readonly cannot?: unknown; readonly sources?: unknown } | null;
     const lines = (value: unknown): readonly string[] | null => (Array.isArray(value) && value.every((line) => typeof line === 'string') ? value : null);
-    const [can, cannot] = [lines(said?.can), lines(said?.cannot)];
-    if (!can || !cannot) return null;
-    const rows = (texts: readonly string[]): readonly SenseRow[] => texts.map((text) => ({ id: text, text, source: null, fit: null }));
-    return { can: rows(can), cannot: rows(cannot) };
+    const [can, cannot, sources] = [lines(said?.can), lines(said?.cannot), lines(said?.sources)];
+    if (!can || !cannot || !sources) return null;
+    const rows = (texts: readonly string[]): readonly SenseRow[] => texts.map((text) => ({ id: text, text: capitalised(text), source: null, fit: null }));
+    return { core: [], sensorless: sources.every((source) => source === 'core'), can: rows(can), cannot: rows(cannot) };
   } catch {
     return null;
   }
 }
 
-/** What this build's brain can know and what it cannot. */
-export function sensing(build: Build): Sensing {
-  const said = simSenses(build);
-  if (said) return { core: CORE, ...said };
+/** What this build's brain can know and what it cannot: in the sim's words when it states them, otherwise worked out from the fitted parts. */
+export const sensing = (build: Build): Sensing => simSensing(build) ?? derivedSensing(build);
+
+/** The same answer worked out here from the sim's capabilities and the fitted parts, naming the part behind each sense. */
+export function derivedSensing(build: Build): Sensing {
   const caps = capabilities(build);
   const fitted = [...build.sensors, ...build.extras].flatMap((id) => PARTS_BY_ID.get(id) ?? []);
   // Of two fitted parts that give the same sense, the longer range is the one that counts.
@@ -104,5 +109,5 @@ export function sensing(build: Build): Sensing {
         : { id: 'contact', text: 'Contact: it does not feel a hit', source: null, fit: anyOf([...PARTS.filter((part) => playable(part) && part.effects.impactDamageFactor !== undefined), ...partsOfKind(KINDS.body)].map((part) => part.name)) },
     },
   ];
-  return { core: CORE, can: rows.filter((entry) => entry.on).map((entry) => entry.row), cannot: rows.filter((entry) => !entry.on).map((entry) => entry.row) };
+  return { core: CORE, sensorless: build.sensors.length === 0 && contact === null, can: rows.filter((entry) => entry.on).map((entry) => entry.row), cannot: rows.filter((entry) => !entry.on).map((entry) => entry.row) };
 }
