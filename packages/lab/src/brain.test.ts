@@ -199,6 +199,14 @@ describe('latency, misses and determinism', () => {
     expect(instant.decisions.every((d) => d.appliedT === d.t)).toBe(true);
   });
 
+  it('waiting for a slow answer is not a reason to ask again', async () => {
+    const slowRun = await runLabEntries(maze, 1, [{ agentId: 'you', build, brain: slow(1500) }]);
+    expect(slowRun.outcomes.you!.finished).toBe(true);
+    expect(slowRun.decisions.some((d) => d.trigger.cause === 'idle')).toBe(false);
+    const quick = await runLabEntries(maze, 1, [{ agentId: 'you', build, brain: labHeuristicBrain }]);
+    expect(slowRun.decisions.length).toBeLessThanOrEqual(quick.decisions.length + 2);
+  });
+
   it('the same seed and the same latencies give the same run; sync and async agree', async () => {
     const a = await runLabEntries(maze, 4, [{ agentId: 'you', build, brain: slow(350) }], { frameEvery: 4 });
     const b = await runLabEntries(maze, 4, [{ agentId: 'you', build, brain: slow(350) }], { frameEvery: 4 });
@@ -230,6 +238,20 @@ describe('latency, misses and determinism', () => {
     const counting: LabBrain = { decide: async (question) => { calls += 1; return labHeuristicDecide(question); } };
     await runLabEntries({ ...maze, maxS: 20 }, 1, [{ agentId: 'you', build: BASE, brain: counting }], { maxDecisions: 3 });
     expect(calls).toBe(3);
+  });
+
+  it('a fallback is logged as one: the fixed rules decided, after the wait', async () => {
+    const lateJev: LabBrain = { decide: async (question) => ({ ...labHeuristicDecide(question), policy: 'heuristic', fallback: true, latencyMs: 1200 }) };
+    const result = await runLabEntries(maze, 1, [{ agentId: 'you', build, brain: lateJev, policy: 'jev' }]);
+    expect(result.decisions.every((d) => d.fallback && d.policy === 'heuristic')).toBe(true);
+    expect(result.decisions[0]!.chip).toMatch(/^START → Explore (east|south) \(FALLBACK\) · 1200 ms$/);
+    const answered = await runLabEntries(maze, 1, [{ agentId: 'you', build, brain: labHeuristicBrain }]);
+    expect(answered.decisions.every((d) => !d.fallback && !d.cached)).toBe(true);
+    // An answer from a cache says so instead of showing a latency that is not the model's.
+    const cachedJev: LabBrain = { decide: async (question) => ({ ...labHeuristicDecide(question), policy: 'jev', cached: true, latencyMs: 0 }) };
+    const replay = await runLabEntries(maze, 1, [{ agentId: 'you', build, brain: cachedJev }]);
+    expect(replay.decisions[0]!.cached).toBe(true);
+    expect(replay.decisions[0]!.chip).toMatch(/ · cached$/);
   });
 
   it('the decision log reads as a chip', () => {

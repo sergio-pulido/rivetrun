@@ -170,6 +170,10 @@ export const LabDecisionSchema = z.object({
   policy: PolicySchema.optional(),
   /** Versioned model id reported by the provider. */
   model: z.string().optional(),
+  /** True when the brain that was asked did not answer in time, or not validly, and the fixed rules decided instead. */
+  fallback: z.boolean().optional(),
+  /** True when the answer came from a cache of an identical question: `latencyMs` is then about 0, not the model's time. */
+  cached: z.boolean().optional(),
 });
 export type LabDecision = z.infer<typeof LabDecisionSchema>;
 

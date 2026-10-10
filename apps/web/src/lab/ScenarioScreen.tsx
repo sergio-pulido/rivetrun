@@ -7,11 +7,11 @@ import { useBuildStore } from '@/state/build';
 import { saveResult, useLabBests } from './bests';
 import { SCENARIO_BRIEFS, labLoadouts, sensorLine } from './copy';
 import { Simplifications } from './Simplifications';
-import { STAND_IN_NOTE } from './labBrain';
+import { JEV_LIVE_NOTE, STAND_IN_NOTE } from './labBrain';
 import { LabLegend } from './LabLegend';
 import { LabPlay } from './LabPlay';
 import { LabResult } from './LabResult';
-import { useLabRun, type LabMode, type LabRunSetup } from './useLabRun';
+import { useJevLive, useLabRun, type LabMode, type LabRunSetup } from './useLabRun';
 
 /** One Lab Mission from brief to result. */
 export function ScenarioScreen({ id }: { readonly id: LabScenarioId }) {
@@ -26,8 +26,10 @@ export function ScenarioScreen({ id }: { readonly id: LabScenarioId }) {
   const [bestBefore, setBestBefore] = useState<number | null>(null);
   const bests = useLabBests();
   const { view, controls } = useLabRun(setup);
+  const jevLive = useJevLive();
   const loadout = loadouts.find((l) => l.id === loadoutId) ?? loadouts[0]!;
   const twoRobots = scenario.agents.length > 1;
+  const robotLine = `${loadout.name} · ${sensorLine(loadout.build)}`;
   const result = view?.result;
 
   useEffect(() => {
@@ -38,15 +40,15 @@ export function ScenarioScreen({ id }: { readonly id: LabScenarioId }) {
 
   const start = (): void => {
     setBestBefore(bests[id]?.score ?? null);
-    setSetup({ scenarioId: id, seed: LAB_SEEDS[0], build: loadout.build, mode, attempt: (setup?.attempt ?? 0) + 1 });
+    setSetup({ scenarioId: id, seed: LAB_SEEDS[0], build: loadout.build, mode, jevLive: jevLive === true, attempt: (setup?.attempt ?? 0) + 1 });
   };
 
   if (setup !== null && view !== null && result) {
     const score = result.outcomes[LAB_PLAYER]!.score;
     const newBest = score > 0 && (bestBefore === null || score > bestBefore);
-    return <LabResult result={result} mode={setup.mode} newBest={newBest} onRetry={start} onChangeBuild={() => setSetup(null)} />;
+    return <LabResult result={result} mode={setup.mode} robot={robotLine} newBest={newBest} onRetry={start} onChangeBuild={() => setSetup(null)} />;
   }
-  if (setup !== null && view !== null) return <LabPlay view={view} controls={controls} mode={setup.mode} />;
+  if (setup !== null && view !== null) return <LabPlay view={view} controls={controls} mode={setup.mode} robot={robotLine} jevLive={setup.jevLive} />;
 
   return (
     <div className="mx-auto flex w-full max-w-[430px] flex-col gap-3">
@@ -104,7 +106,9 @@ export function ScenarioScreen({ id }: { readonly id: LabScenarioId }) {
             </button>
           ))}
         </div>
-        {mode === 'jev' || twoRobots ? <p className="text-xs leading-snug text-cyan-muted">{STAND_IN_NOTE}</p> : null}
+        {mode === 'jev' || twoRobots ? (
+          <p className="text-xs leading-snug text-cyan-muted" data-testid="scenario-brain-note">{jevLive === null ? 'Checking whether Jev is reachable…' : jevLive ? JEV_LIVE_NOTE : STAND_IN_NOTE}</p>
+        ) : null}
       </section>
 
       <Simplifications />

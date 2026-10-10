@@ -6,7 +6,7 @@ import {
   LAB_PLAYER, LAB_SCENARIOS, LAB_TUNING, createLabDriver,
   type Cell, type Dir, type LabBrain, type LabDecisionLog, type LabDriver, type LabRunResult, type LabScenarioId, type LabState, type LabTrigger,
 } from '@rivetrun/lab';
-import { standInBrain } from './labBrain';
+import { jevIsLive, jevLabBrain, standInBrain } from './labBrain';
 
 /** drive = the player's thumbs · jev = a brain drives the player's robot and the player watches its decisions. */
 export type LabMode = 'drive' | 'jev';
@@ -16,6 +16,8 @@ export interface LabRunSetup {
   readonly seed: number;
   readonly build: Build;
   readonly mode: LabMode;
+  /** True when the server has a route to Jev: the brain seats ask it live. False: the lab's fixed rules sit there. */
+  readonly jevLive: boolean;
   /** Changes on every start, so a retry with the same setup is a new run. */
   readonly attempt: number;
 }
@@ -64,7 +66,7 @@ export function useLabRun(setup: LabRunSetup | null): { view: LabRunView | null;
     }
     const scenario = LAB_SCENARIOS[setup.scenarioId];
     const brains: Record<string, LabBrain | undefined> = Object.fromEntries(
-      scenario.agents.map((agent) => [agent.id, agent.id !== LAB_PLAYER || setup.mode === 'jev' ? standInBrain() : undefined]));
+      scenario.agents.map((agent) => [agent.id, agent.id !== LAB_PLAYER || setup.mode === 'jev' ? (setup.jevLive ? jevLabBrain() : standInBrain()) : undefined]));
     const driver = createLabDriver(scenario, setup.seed, scenario.agents.map((agent) => ({ agentId: agent.id, build: setup.build, ...(brains[agent.id] ? { brain: brains[agent.id] } : {}) })), { live: true });
     driverRef.current = driver;
     queueRef.current = [];
@@ -149,4 +151,15 @@ export function useLabRun(setup: LabRunSetup | null): { view: LabRunView | null;
 
   // A view left over from an earlier start is not this run's.
   return { view: view !== null && setup !== null && view.attempt === setup.attempt ? view : null, controls: { press, goTo, act, togglePace, halt } };
+}
+
+/** Whether the server has a route to Jev for Lab Missions. `null` until the answer is in. */
+export function useJevLive(): boolean | null {
+  const [live, setLive] = useState<boolean | null>(null);
+  useEffect(() => {
+    let current = true;
+    void jevIsLive().then((answer) => { if (current) setLive(answer); });
+    return () => { current = false; };
+  }, []);
+  return live;
 }

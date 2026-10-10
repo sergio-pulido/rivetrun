@@ -42,6 +42,10 @@ export interface LabDecisionLog {
   readonly choice: string;
   readonly choiceLabel: string;
   readonly policy: Policy;
+  /** True when the brain asked did not answer and the fixed rules decided instead. */
+  readonly fallback: boolean;
+  /** True when the answer came from a cache of an identical question, not from a fresh call. */
+  readonly cached: boolean;
   readonly latencyMs: number;
   /** Sim time at which the choice took effect. */
   readonly appliedT: number;
@@ -141,7 +145,9 @@ export function createLabDriver(scenario: LabScenario, seed: number, entries: re
   const latch = (): void => {
     for (const agent of state.agents) {
       const held = queued.get(agent.id);
-      if (agent.trigger !== undefined && (held === undefined || RANK[agent.trigger.kind] > RANK[held.kind])) queued.set(agent.id, agent.trigger);
+      // A robot standing still because its answer is on the way is not asking to be asked again.
+      const waiting = agent.trigger?.cause === 'idle' && (asked.has(agent.id) || due.has(agent.id));
+      if (agent.trigger !== undefined && !waiting && (held === undefined || RANK[agent.trigger.kind] > RANK[held.kind])) queued.set(agent.id, agent.trigger);
     }
   };
   latch();
@@ -187,7 +193,8 @@ export function createLabDriver(scenario: LabScenario, seed: number, entries: re
     }
     const applyT = options.live ? state.t : askedT + decision.latencyMs / 1000;
     const probability = decision.probabilities?.[option.id];
-    const policy = entries.find((e) => e.agentId === agentId)?.policy ?? decision.policy ?? 'heuristic';
+    // A fallback is the fixed rules' decision whatever the entry is labelled.
+    const policy = decision.fallback ? (decision.policy ?? 'heuristic') : (entries.find((e) => e.agentId === agentId)?.policy ?? decision.policy ?? 'heuristic');
     const agent = state.agents.find((a) => a.id === agentId)!;
     const log: LabDecisionLog = {
       agentId, t: askedT, cell: question.observation.cell, trigger: question.trigger, knew: question.knew, unknown: question.unknown,
@@ -196,8 +203,9 @@ export function createLabDriver(scenario: LabScenario, seed: number, entries: re
         ...(o.predicted?.steps !== undefined ? { steps: o.predicted.steps } : {}),
         ...(o.predicted?.batteryAfterPct !== undefined ? { batteryAfterPct: o.predicted.batteryAfterPct } : {}),
       })),
-      choice: option.id, choiceLabel: option.label, policy, latencyMs: decision.latencyMs, appliedT: applyT,
-      chip: `${question.trigger.label} → ${option.label}${probability !== undefined ? ` (${Math.round(probability * 100)} %)` : ''} · ${Math.round(decision.latencyMs)} ms`,
+      choice: option.id, choiceLabel: option.label, policy, fallback: decision.fallback === true, cached: decision.cached === true,
+      latencyMs: decision.latencyMs, appliedT: applyT,
+      chip: `${question.trigger.label} → ${option.label}${decision.fallback ? ' (FALLBACK)' : probability !== undefined ? ` (${Math.round(probability * 100)} %)` : ''} · ${decision.cached ? 'cached' : `${Math.round(decision.latencyMs)} ms`}`,
     };
     if (agent.status === 'running') due.set(agentId, { applyT, option, log });
   };

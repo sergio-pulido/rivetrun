@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react';
 import { LAB_PLAYER, interactionsAt, objectiveStatus, type Dir, type LabDecisionLog } from '@rivetrun/lab';
-import { STAND_IN_NAME } from './labBrain';
 import { LabBoard } from './LabBoard';
 import { LabLegend } from './LabLegend';
 import type { LabMode, LabRunControls, LabRunView } from './useLabRun';
@@ -52,10 +51,14 @@ interface LabPlayProps {
   readonly view: LabRunView;
   readonly controls: LabRunControls;
   readonly mode: LabMode;
+  /** The robot on the map, e.g. "Lidar loaner · RPLIDAR C1, Camera". */
+  readonly robot: string;
+  /** Jev is asked live (the thread then shows its latencies and any FALLBACK); false = the fixed rules sit in its seat. */
+  readonly jevLive: boolean;
 }
 
 /** The run: status line, the map, the last thing the robot noticed, the arrow pad and the brain's thread. */
-export function LabPlay({ view, controls, mode }: LabPlayProps) {
+export function LabPlay({ view, controls, mode, robot, jevLive }: LabPlayProps) {
   const { state } = view;
   const me = state.agents.find((agent) => agent.id === LAB_PLAYER)!;
   const driving = mode === 'drive';
@@ -113,6 +116,7 @@ export function LabPlay({ view, controls, mode }: LabPlayProps) {
         <span className={`rr-chip tabular-nums ${me.damagePct > 0 ? '!border-warn !text-warn' : ''}`}>Damage {Math.round(me.damagePct)} %</span>
         {me.carrying.length > 0 ? <span className="rr-chip rr-chip-on">Carrying {me.carrying.length}</span> : null}
         {state.weatherActive.length > 0 ? <span className="rr-chip !border-warn !text-warn">{state.weather.find((w) => state.weatherActive.includes(w.id))?.label}</span> : null}
+        <span className="w-full truncate font-mono text-[11px] text-muted" data-testid="scenario-robot">{robot}</span>
       </div>
 
       <p className="min-h-8 font-mono text-[11px] leading-snug text-text-2 lg:col-start-2" aria-live="polite" data-testid="scenario-noticed">
@@ -141,24 +145,24 @@ export function LabPlay({ view, controls, mode }: LabPlayProps) {
             <button type="button" className="rr-btn rr-btn-secondary !min-h-11 !text-xs" data-testid="pad-pace" onClick={controls.togglePace}>
               Pace: {me.pace === 'full' ? 'Full' : 'Eco'}
             </button>
-            <p className="text-[11px] leading-snug text-faint">Arrows or WASD. Tap a tile you have mapped to drive there.</p>
+            <p className="text-[11px] leading-snug text-faint">Arrows or WASD · tap a mapped tile to drive there.</p>
           </div>
         </div>
       ) : null}
-
-      <div className="lg:col-start-2">
-        <LabLegend scenario={state.scenario} />
-      </div>
 
       {!driving || rival ? (
         <div className="lg:col-start-2">
         <DecisionThread
           decisions={thread}
           limit={driving ? 3 : 5}
-          title={`${driving ? (rival?.label ?? 'Jev') : 'Your robot'} · decisions (${STAND_IN_NAME.toLowerCase()})${view.thinking.length > 0 ? ' · thinking' : ''}`}
+          title={`${driving ? (rival?.label ?? 'Jev') : 'Your robot'} · ${jevLive ? 'Jev decides, live' : 'decisions by the fixed rules'}${view.thinking.length > 0 ? ' · thinking' : ''}`}
         />
         </div>
       ) : null}
+
+      <div className="lg:col-start-2">
+        <LabLegend scenario={state.scenario} />
+      </div>
     </div>
   );
 }

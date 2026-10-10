@@ -12,13 +12,21 @@ import type { LabMode } from './useLabRun';
 interface LabResultProps {
   readonly result: LabRunResult;
   readonly mode: LabMode;
+  /** The robot that ran, e.g. "Recommended · Camera, Ultrasonic". */
+  readonly robot: string;
   readonly newBest: boolean;
   readonly onRetry: () => void;
   readonly onChangeBuild: () => void;
 }
 
 /** How it went: the headline, the score and what it was made of, the decisions, and what the sensors never saw. */
-export function LabResult({ result, mode, newBest, onRetry, onChangeBuild }: LabResultProps) {
+/** "7 decisions · 2 by the fixed rules (FALLBACK)": how many a brain made and how many it missed. */
+const tally = (decisions: readonly { readonly fallback: boolean }[]): string => {
+  const missed = decisions.filter((d) => d.fallback).length;
+  return `${decisions.length} decisions${missed > 0 ? ` · ${missed} by the fixed rules (FALLBACK)` : ''}`;
+};
+
+export function LabResult({ result, mode, robot, newBest, onRetry, onChangeBuild }: LabResultProps) {
   const outcome = result.outcomes[LAB_PLAYER]!;
   const me = result.final.agents.find((agent) => agent.id === LAB_PLAYER)!;
   const fog = fogReport(result.final, me);
@@ -36,6 +44,7 @@ export function LabResult({ result, mode, newBest, onRetry, onChangeBuild }: Lab
         <p className="font-display text-5xl font-bold tabular-nums" data-testid="scenario-score">{outcome.score}</p>
         <p className="rr-label">Score{newBest ? ' · new best' : ''}</p>
         <p className="text-[13px] leading-snug text-text-2">{outcome.why}</p>
+        <p className="font-mono text-[11px] text-muted" data-testid="scenario-robot">{robot} · {mode === 'jev' ? 'the brain drove' : 'you drove'}</p>
       </section>
 
       <div className="flex flex-wrap justify-center gap-1.5 lg:col-start-1">
@@ -56,8 +65,8 @@ export function LabResult({ result, mode, newBest, onRetry, onChangeBuild }: Lab
         <p className="text-[11px] leading-snug text-faint">The whole map. Hatched tiles were never reported by a sensor.</p>
       </section>
 
-      {mode === 'jev' ? <div className="lg:col-start-1"><DecisionThread decisions={mine} limit={40} title={`Your robot · ${mine.length} decisions`} /></div> : null}
-      {theirs.length > 0 ? <div className="lg:col-start-1"><DecisionThread decisions={theirs} limit={40} title={`Jev · ${theirs.length} decisions`} /></div> : null}
+      {mode === 'jev' ? <div className="lg:col-start-1"><DecisionThread decisions={mine} limit={40} title={`Your robot · ${tally(mine)}`} /></div> : null}
+      {theirs.length > 0 ? <div className="lg:col-start-1"><DecisionThread decisions={theirs} limit={40} title={`Jev · ${tally(theirs)}`} /></div> : null}
 
       <div className="grid grid-cols-2 gap-2 lg:col-start-1">
         <button type="button" className="rr-btn rr-btn-secondary" onClick={onChangeBuild} data-testid="scenario-change">Change robot</button>
