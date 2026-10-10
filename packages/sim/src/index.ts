@@ -25,3 +25,5 @@ export { naiveDrive, carefulDrive, fullThrottleCheck } from './stranger';
 export type { FullThrottleCheck } from './stranger';
 export { SIMPLIFICATIONS } from './simplifications';
 export type { Simplification } from './simplifications';
+export { wayOut, STUCK_RULES } from './wayout';
+export type { WayOut } from './wayout';

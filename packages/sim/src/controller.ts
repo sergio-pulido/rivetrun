@@ -24,6 +24,7 @@ import { TUNING } from './data';
 import { START_TRIGGER, advanceBrain, availableActions, buildQuestion, observe } from './perception';
 import { createRun, jumpChargePower, markDecision, step, withAction } from './physics';
 import { score } from './score';
+import { wayOut, type WayOut } from './wayout';
 import type { HeadlessOptions, HeadlessResult, RunConfig, RunController, RunControllerOptions, RunState, StepDamage } from './types';
 
 // The package compiles without DOM or Node libs; these exist in every runtime we target.
@@ -36,6 +37,7 @@ const MAX_DECISIONS = 2000;
 const OBSERVE_EVERY_STEPS = 4;
 /** Drive mode: a control change within this long of a trigger counts as the player's reaction to it. */
 const REACTION_WINDOW_S = 3;
+const WAY_OUT_EVERY_STEPS = 10;
 /** One entry per step at most: the longest run always fits, so a logged run can be replayed in full. */
 const MAX_INPUT_LOG = Math.ceil((TUNING.maxRunS * 1000) / TUNING.dtMs);
 const TICK_MS = 16;
@@ -344,6 +346,7 @@ export function driveController(config: RunConfig, readInput: () => ControlInput
       let lastAction: Action | undefined;
       // Charged jump: seconds the button has been held; fires when it is let go.
       let chargeS = 0;
+      let hint: WayOut | undefined;
       let accumulatedMs = 0;
       let last = now();
       const complete = (): void => {
@@ -366,6 +369,10 @@ export function driveController(config: RunConfig, readInput: () => ControlInput
           const action = driven.action;
           state = driven.state;
           chargeS = driven.chargeS;
+          // Getting nowhere: tell the player which command frees this build. Checked twice a second, kept in between.
+          if (state.sim.stuckInS === undefined) hint = undefined;
+          else if (hint === undefined || state.stepCount % WAY_OUT_EVERY_STEPS === 0) hint = wayOut(state);
+          if (hint && state.sim.stuckInS !== undefined) state = { ...state, sim: { ...state.sim, freeWith: hint } };
           emitStepEvents(emit, prev, state, pendingDamage);
           if (state.stepCount % OBSERVE_EVERY_STEPS === 0) {
             emit({ type: 'observation', t: state.sim.t, observation: observe(state), control: { throttle: level(input.throttle), brake: level(input.brake), action } });

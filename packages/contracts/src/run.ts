@@ -66,6 +66,10 @@ export const SimStateSchema = z.object({
   gust: z.boolean().optional(),
   /** Piston charge while the player holds the jump button, 0..1 of full impulse (0.4 = a tap). */
   jumpCharge: z.number().min(0).max(1).optional(),
+  /** Seconds until a robot that is getting nowhere is declared stuck. Present once it has made no progress for 1.5 s. */
+  stuckInS: z.number().min(0).optional(),
+  /** Drive mode, while `stuckInS` runs: the command that gets this build moving again from here, if one does. */
+  freeWith: z.enum(['climb', 'ease', 'winch', 'throttle']).optional(),
 });
 export type SimState = z.infer<typeof SimStateSchema>;
 

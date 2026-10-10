@@ -38,6 +38,8 @@ export const PHYSICS = {
   obstacleHardness: { step: 1, log: 1.5, rock: 1.6 } satisfies Record<Obstacle, number>,
   tipDamagePerDegS: 1.5,
   stuckAfterS: 8,
+  /** No progress for this long: the countdown to stuck is shown. */
+  stuckWarnS: 1.5,
   winchSpeedMps: 0.6,
   slipEffectPct: 25,
   smokeAboveDamagePct: 50,
@@ -625,6 +627,7 @@ export function step(state: RunState, action: Action): RunState {
       effects: effectsFor(nextSegment.terrain, airborne ? 0 : v, motion.slipPct, damage, action, t < sparksUntilT, submergedDepthM),
       ...(shownHeightM > 0 || airborne ? { heightM: shownHeightM, vy: airborne ? vy : 0, airborne } : {}),
       ...(blockedBy ? { blockedBy } : {}),
+      ...(!finished && t - lastProgressT >= PHYSICS.stuckWarnS ? { stuckInS: Math.max(0, Math.round((PHYSICS.stuckAfterS - (t - lastProgressT)) * 10) / 10) } : {}),
       ...(state.jumpChargeS ? { jumpCharge: jumpChargePower(state.jumpChargeS) } : {}),
       ...(hasWind(state.environment) ? { windMps: Math.round(headwindMps(state.environment, t) * 10) / 10, gust: gustAt(state.environment, t) > 0 } : {}),
       ...(scanning ? { scan: scanning } : {}),
