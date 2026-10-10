@@ -5,7 +5,7 @@ import { z } from 'zod';
 import { LAB_CAUSES } from './types';
 
 /** Bumped when the grid rules or the question change in a way that makes cached answers stale. */
-export const LAB_VERSION = 1;
+export const LAB_VERSION = 2;
 
 const CellSchema = z.object({ x: z.number().int(), y: z.number().int() });
 const DirSchema = z.enum(['N', 'E', 'S', 'W']);
@@ -37,6 +37,13 @@ export const LabPredictionSchema = z.object({
   batteryAfterPct: z.number().optional(),
   /** Charge left after then driving on to the mission's end point; negative = it would not get back. */
   marginAfterPct: z.number().optional(),
+  /** Tiles for the whole job this option starts: to the thing and on to where it has to go. */
+  jobSteps: z.number().int().min(0).optional(),
+  /**
+   * Tiles for all the known work if this is done first and the rest in its best order, the way to the end point
+   * included. The number to compare options on: the nearest thing is not always the best one to start with.
+   */
+  tourSteps: z.number().int().min(0).optional(),
   /** True when the way crosses ground the robot has not seen: the scenario's usual ground was assumed. */
   assumed: z.boolean().optional(),
   risk: z.string().optional(),
@@ -69,8 +76,17 @@ const ObjectiveStatusSchema = z.object({ id: z.string(), label: z.string(), done
 
 const EnergySchema = z.object({
   batteryPct: z.number().min(0).max(100),
-  /** Charge left after the known way to the mission's end point at this pace. Absent while the robot knows no way there. */
+  /**
+   * Projected charge at the finish: what is left after the known way to the mission's end point at this pace; for a
+   * mission without an end point, after the known work. Negative = it will not make it at this pace. Absent while
+   * the robot knows neither.
+   */
   projectedPct: z.number().optional(),
+  /**
+   * Charge the known work left would cost at this pace: a rough tour of what the robot knows it still has to do,
+   * the way to the end point included. More than `batteryPct` = not all of it fits at this pace.
+   */
+  workPct: z.number().min(0).optional(),
   /** Tiles of the usual ground the charge covers at this pace. */
   rangeTiles: z.number().int().min(0),
 });

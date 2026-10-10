@@ -4,6 +4,7 @@ import { navigate, type Nav, type NavContext } from './nav';
 import { finalGoal } from './objectives';
 import { tileMotion } from './robot';
 import type { AgentState, LabState } from './types';
+import { knownWorkTiles } from './wants';
 
 /** The planner's inputs for a robot: its own map, its build and its pace. */
 export function navContextOf(state: LabState, agent: AgentState): NavContext {
@@ -16,7 +17,15 @@ export interface EnergyView {
   readonly batteryPct: number;
   /** Charge the known way to the mission's end point costs at this pace. Absent when the robot knows no way there. */
   readonly returnPct?: number;
-  /** Charge left after that way; the battery itself while no way is known. */
+  /**
+   * Charge the known work left would cost at this pace: a rough tour of what the robot knows it still has to do,
+   * the way to the end point included. Absent when it knows of nothing left.
+   */
+  readonly workPct?: number;
+  /**
+   * Projected charge at the finish: what is left after the known way to the end point; for a mission without an
+   * end point, after the known work; the battery itself while neither is known. The energy trigger watches this.
+   */
   readonly marginPct: number;
   /** Tiles of the scenario's usual ground the charge still covers at this pace. */
   readonly rangeTiles: number;
@@ -33,7 +42,14 @@ export function energyView(state: LabState, agent: AgentState, nav?: Nav): Energ
   const goal = finalGoal(scenario, agent.id);
   const known = goal !== undefined ? agent.knownObjects[goal.id] : undefined;
   const wayWh = known !== undefined ? (nav ?? navigate(navContextOf(state, agent), agent.cell)).energyWh[indexOf(scenario.map, known.at)]! : Infinity;
-  if (!Number.isFinite(wayWh)) return { batteryPct: round1(agent.batteryPct), marginPct: round1(agent.batteryPct), rangeTiles };
-  const returnPct = (wayWh / spec.capacityWh) * 100;
-  return { batteryPct: round1(agent.batteryPct), returnPct: round1(returnPct), marginPct: round1(agent.batteryPct - returnPct), rangeTiles };
+  const workTiles = knownWorkTiles(state, agent);
+  const workPct = workTiles > 0 && Number.isFinite(perTileWh) ? ((workTiles * perTileWh) / spec.capacityWh) * 100 : undefined;
+  const returnPct = Number.isFinite(wayWh) ? (wayWh / spec.capacityWh) * 100 : undefined;
+  return {
+    batteryPct: round1(agent.batteryPct),
+    ...(returnPct !== undefined ? { returnPct: round1(returnPct) } : {}),
+    ...(workPct !== undefined ? { workPct: round1(workPct) } : {}),
+    marginPct: round1(agent.batteryPct - (returnPct ?? workPct ?? 0)),
+    rangeTiles,
+  };
 }

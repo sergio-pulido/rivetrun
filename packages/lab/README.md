@@ -46,13 +46,25 @@ and the last command holds (no fallback inside the sim).
 | id | Objective | What decides it |
 |---|---|---|
 | `maze` | Reach the exit of an unmapped maze (only where the exit lies is known) | Sensing. Heuristic, same build: lidar 59 tiles, camera 71, ultrasonic 115; blind is wrecked on the walls, or gets out battered with a bumper |
-| `warehouse` | Deliver 3 parcels to their bays, one at a time, among 3 forklifts; 2 m tiles | Seeing the forklifts (lidar: no collision on any seed; camera looks ahead only) and the battery (the small pack runs flat) |
+| `warehouse` | Deliver 3 parcels to their bays, one at a time, among 8 forklifts; 2 m tiles | The order of the jobs (best order about 75 tiles, worst about 110), seeing the forklifts (hits over three seeds: lidar 2, camera 6, none 10) and the battery (the small pack runs flat) |
 | `mars` | Take 3 of 5 soil samples and return to the lander; a dust storm cuts camera range | The moisture probe (no probe, no sample), the battery on sand, craters a ranger cannot see |
 | `house` | Go into 4 rooms and scan 4 checkpoints | The camera (scanning needs it; only it sees the stairs) |
 | `ctf` | Two robots, one flag: first to bring it home | The driver: decision latency and route. Driving into the carrier takes the flag and stuns it for 2 s; a fresh carrier is safe for 2 s |
 
 `LAB_SCENARIO_IDS`, `LAB_DEFAULT_BUILDS[id]` (a build that completes it), `LAB_SEEDS = [1001, 1002, 1003]` (the seed
 moves forklifts and the storm, never the map), `LAB_PLAYER = 'you'`, `LAB_RIVAL = 'jev'`.
+
+## What the options tell a brain
+Every option carries a prediction from the robot's own map: `steps`, `timeS`, `energyPct`, `batteryAfterPct`,
+`marginAfterPct` (after then driving on to the end point). An option that starts a job also carries `jobSteps` (to the
+thing and on to where it goes) and `tourSteps` (all the known work if this goes first and the rest in its best order):
+the nearest parcel is not always the one to start with. `wait` and a pace switch are always on offer. The energy line
+is `{ batteryPct, projectedPct, workPct, rangeTiles }`: `projectedPct` is the charge left after the known way to the
+end point (the energy trigger watches it), `workPct` what the known work left would cost at this pace.
+
+Measured with the default builds on seeds 1001–1006, mean score, heuristic against a random driver: maze 708 / 338,
+warehouse 557 / 240, mars 644 / 67, house 744 / 487, ctf 837 / 69. On Warehouse no fixed order of the parcels beats
+the heuristic by more than 20 points. Both are asserted in `scenarios.test.ts`.
 
 ## API
 ```ts
@@ -75,7 +87,7 @@ result.misses;         // decisions asked for and not given
 - `LabBrain.decide(question: LabQuestion) → Promise<LabDecision>`; `LabDecision = { choice: optionId, probabilities?, latencyMs, policy?, model? }`.
 - `LabQuestion = { scenarioId, objective, trigger, knew[], unknown[], energy, objectives[], options[], observation, labVersion }`.
   Options are named moves with stable ids: `do:<object>`, `goto:<object>`, `goto:zone:<zone>`, `explore:<N|E|S|W>`,
-  `wait`, `pace:<full|eco>`, each with a label, a description and a prediction from the robot's own map.
+  `tag:<robot>`, `wait`, `pace:<full|eco>`, each with a label, a description and a prediction from the robot's own map.
 - Engine for a UI: `createLab`, `stepLab` (pure, one 50 ms step), `command`, `setPace`, `observeLab`, `buildOptions`,
   `interactionsAt`, `objectiveStatus`, `scoreLab`; or `createLabDriver` for a loop with brains and a player together.
 - Maps are ASCII (`parseMap`): `#` wall · `.` floor · `+` door · `^` ramp · `>` drop · `a g s m i w r` terrain ·

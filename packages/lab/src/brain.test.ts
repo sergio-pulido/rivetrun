@@ -44,12 +44,15 @@ describe('the brain knows only what its sensors report', () => {
   it('options are named moves with ids, and predictions come from the robot own map', () => {
     const state = createLab({ scenario: maze, seed: 1, entries: [{ agentId: 'you', build: withSensors('lidar_rplidar_c1') }] });
     const options = buildOptions(state, 'you');
-    expect(options.map((o) => o.id).sort()).toEqual(['explore:E', 'explore:S']);
-    expect(options.every((o) => o.kind === 'explore' && o.predicted?.steps !== undefined && o.command !== undefined)).toBe(true);
+    // Two ways to explore; waiting and changing pace are always possible.
+    expect(options.map((o) => o.id)).toEqual(['explore:E', 'explore:S', 'wait', 'pace:eco']);
+    expect(options.filter((o) => o.kind === 'explore').every((o) => o.predicted?.steps !== undefined && o.command !== undefined)).toBe(true);
+    expect(options.find((o) => o.id === 'pace:eco')).toMatchObject({ kind: 'pace', pace: 'eco' });
+    expect(options.find((o) => o.id === 'pace:eco')?.command).toBeUndefined();
     // Blind: every direction is unexplored from the next tile on, and nothing can be predicted.
     const blind = buildOptions(createLab({ scenario: maze, seed: 1, entries: [{ agentId: 'you', build: BASE }] }), 'you');
-    expect(blind.map((o) => o.id)).toEqual(['explore:N', 'explore:E', 'explore:S', 'explore:W']);
-    expect(blind.every((o) => o.predicted?.steps === 0)).toBe(true);
+    expect(blind.map((o) => o.id)).toEqual(['explore:N', 'explore:E', 'explore:S', 'explore:W', 'wait', 'pace:eco']);
+    expect(blind.filter((o) => o.kind === 'explore').every((o) => o.predicted?.steps === 0 && o.predicted.batteryAfterPct === undefined)).toBe(true);
   });
 
   it('every question and answer of a run passes its schema', async () => {
@@ -232,7 +235,7 @@ describe('latency, misses and determinism', () => {
   it('the decision log reads as a chip', () => {
     const result = heuristic(maze, withSensors('lidar_rplidar_c1'));
     expect(result.decisions[0]!.chip).toMatch(/^START → Explore (east|south) \(\d+ %\) · 0 ms$/);
-    expect(result.decisions[0]!.options.length).toBe(2);
+    expect(result.decisions[0]!.options.map((o) => o.id)).toEqual(['explore:E', 'explore:S', 'wait', 'pace:eco']);
     expect(result.decisions[0]!.knew.join(' ')).toMatch(/CORE · battery 100 %/);
   });
 });

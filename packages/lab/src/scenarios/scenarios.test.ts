@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import type { Build } from '@rivetrun/contracts';
-import { labHeuristicBrain, labHeuristicDecide } from '../brains';
+import { labHeuristicBrain, labHeuristicDecide, labRandomBrain } from '../brains';
 import { runLabSync, type LabRunResult } from '../controller';
 import { expandRoute, indexOf, inside, sameCell, tileAt } from '../grid';
 import { hasRole } from '../objectives';
-import { LabQuestionSchema, type LabBrain } from '../schema';
+import { LabQuestionSchema, type LabBrain, type LabDecision, type LabQuestion } from '../schema';
 import type { LabOutcome } from '../score';
 import { LAB_DEFAULT_BUILDS, LAB_RIVAL_LATENCY_MS, LAB_SCENARIOS, LAB_SCENARIO_IDS, LAB_SEEDS, runLabHeadless, type LabScenarioId } from './index';
 
@@ -96,24 +96,32 @@ describe('Maze: what the robot can sense decides how much of it gets driven', ()
   });
 });
 
-describe('Warehouse: forklifts and a battery budget', () => {
-  it('a lidar build delivers all three parcels without a collision on every seed', () => {
-    for (const outcome of everySeed('warehouse', withSensors('lidar_rplidar_c1'))) {
-      expect(outcome).toMatchObject({ status: 'complete', damagePct: 0 });
-      expect(outcome.stats.collisions).toBe(0);
-    }
+describe('Warehouse: forklifts, the order of the jobs and a battery budget', () => {
+  const hits = (build: Build): number => everySeed('warehouse', build).reduce((sum, outcome) => sum + outcome.stats.collisions, 0);
+
+  it('the more a build sees of the forklifts, the less it is hit: lidar, then camera, then none', () => {
+    const lidar = everySeed('warehouse', withSensors('lidar_rplidar_c1'));
+    expect(lidar.every((outcome) => outcome.status === 'complete')).toBe(true);
+    // Shelves hide a cross-aisle until the robot is at its mouth: even a lidar is caught now and then.
+    expect(hits(withSensors('lidar_rplidar_c1'))).toBeLessThan(hits(withSensors('camera')));
+    expect(hits(withSensors('camera'))).toBeLessThan(hits(BASE));
   });
 
-  it('a build that cannot see the forklifts is wrecked by them', () => {
-    for (const outcome of everySeed('warehouse', BASE)) {
-      expect(outcome).toMatchObject({ status: 'dnf', dnfReason: 'damage' });
-      expect(outcome.stats.collisions).toBeGreaterThanOrEqual(3);
-    }
+  it('a build that cannot see the forklifts is hit on every seed, and wrecked on some', () => {
+    const blind = everySeed('warehouse', BASE);
+    expect(blind.every((outcome) => outcome.stats.collisions >= 1)).toBe(true);
+    expect(blind.some((outcome) => outcome.status === 'dnf' && outcome.dnfReason === 'damage')).toBe(true);
   });
 
-  it('a camera only looks ahead: forklifts from the side still catch it', () => {
-    const outcomes = everySeed('warehouse', withSensors('camera'));
-    expect(outcomes.every((o) => o.stats.collisions >= 1)).toBe(true);
+  it('each pickup is predicted as a whole job and as the start of the whole tour, and the heuristic starts with the best one', () => {
+    const result = play('warehouse', LAB_DEFAULT_BUILDS.warehouse);
+    const first = result.decisions[0]!;
+    // Parcel 2 is the nearest. It is also the right one to start with, but for the tour it leaves, not for being near.
+    const picks = first.options.filter((o) => o.id.startsWith('goto:parcel-'));
+    expect(picks.map((o) => o.id).sort()).toEqual(['goto:parcel-1', 'goto:parcel-2', 'goto:parcel-3']);
+    expect(first.choice).toBe('goto:parcel-2');
+    const order = result.decisions.map((d) => d.choice).filter((choice) => choice.startsWith('goto:parcel-'));
+    expect([...new Set(order)]).toEqual(['goto:parcel-2', 'goto:parcel-3', 'goto:parcel-1']);
   });
 
   it('the small battery does not cover the three round trips', () => {
@@ -215,4 +223,36 @@ describe('Capture the flag and the headless run', () => {
     expect(questions.some((q) => q.knew.includes('CORE · Jev holds the flag'))).toBe(true);
     expect(result.decisions.filter((d) => d.agentId === 'you').some((d) => d.options.some((o) => o.id === 'tag:jev' || o.id === 'goto:home-jev'))).toBe(true);
   });
+});
+
+describe('the score tells good choices from bad ones', () => {
+  const SEEDS = [1001, 1002, 1003, 1004, 1005, 1006];
+  const mean = (scores: number[]): number => scores.reduce((sum, score) => sum + score, 0) / scores.length;
+
+  it('on every scenario the heuristic beats a random driver by a wide margin', async () => {
+    for (const id of LAB_SCENARIO_IDS) {
+      const build = LAB_DEFAULT_BUILDS[id];
+      const heuristic = mean(await Promise.all(LAB_SEEDS.map(async (seed) => (await runLabHeadless(id, seed, build, labHeuristicBrain)).outcome.score)));
+      const random = mean(await Promise.all(LAB_SEEDS.flatMap((seed) => [0, 1].map(async (k) => (await runLabHeadless(id, seed, build, labRandomBrain(seed * 31 + k))).outcome.score))));
+      expect(heuristic - random, `${id}: heuristic ${Math.round(heuristic)} vs random ${Math.round(random)}`).toBeGreaterThan(150);
+    }
+  }, 60000);
+
+  it('Warehouse: no fixed order of the three parcels beats the heuristic by more than 20 points', () => {
+    const scenario = LAB_SCENARIOS.warehouse;
+    const build = LAB_DEFAULT_BUILDS.warehouse;
+    const run = (decide: (question: LabQuestion) => LabDecision): number =>
+      mean(SEEDS.map((seed) => runLabSync(scenario, seed, [{ agentId: 'you', build, decide }]).outcomes.you!.score));
+    const heuristic = run(labHeuristicDecide);
+    const fixed = (order: string) => (question: LabQuestion): LabDecision => {
+      const act = question.options.find((o) => o.kind === 'interact') ?? question.options.find((o) => o.id.startsWith('goto:bay-'));
+      const pick = [...order].map((digit) => `goto:parcel-${digit}`).find((id) => question.options.some((o) => o.id === id));
+      return { ...labHeuristicDecide(question), choice: act?.id ?? pick ?? labHeuristicDecide(question).choice };
+    };
+    const orders = ['123', '132', '213', '231', '312', '321'].map((order) => ({ order, score: run(fixed(order)) }));
+    const best = orders.reduce((a, b) => (b.score > a.score ? b : a));
+    expect(heuristic, `heuristic ${Math.round(heuristic)}; best fixed order ${best.order} ${Math.round(best.score)}`).toBeGreaterThanOrEqual(best.score - 20);
+    // The order matters: the worst is far behind the best.
+    expect(best.score - Math.min(...orders.map((o) => o.score))).toBeGreaterThan(100);
+  }, 60000);
 });

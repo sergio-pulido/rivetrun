@@ -25,7 +25,7 @@ const map = parseMap(ROWS, { defaultTerrain: 'asphalt' });
 const at = (marker: string) => markerCell(map, marker);
 
 /**
- * Three parcels to three bays, one at a time, with forklifts working the cross-aisles. The job sheet and the floor
+ * Three parcels to three bays, one at a time, with eight forklifts working the cross-aisles and three of the aisles. The job sheet and the floor
  * plan are known; the forklifts are not. Each tile is 2 m, so the three round trips are about 160 m: more than
  * the small battery holds.
  */
@@ -52,6 +52,11 @@ export const WAREHOUSE: LabScenario = {
     { id: 'forklift-1', label: 'Forklift', path: [{ x: 1, y: 2 }, { x: 13, y: 2 }], loop: 'bounce', speedMps: 1.2, damagePct: 30 },
     { id: 'forklift-2', label: 'Forklift', path: [{ x: 13, y: 7 }, { x: 1, y: 7 }], loop: 'bounce', speedMps: 1.2, damagePct: 30 },
     { id: 'forklift-3', label: 'Forklift', path: [{ x: 7, y: 3 }, { x: 7, y: 11 }], loop: 'bounce', speedMps: 1, damagePct: 30 },
+    { id: 'forklift-4', label: 'Forklift', path: [{ x: 1, y: 12 }, { x: 13, y: 12 }], loop: 'bounce', speedMps: 1.4, damagePct: 30 },
+    { id: 'forklift-5', label: 'Forklift', path: [{ x: 13, y: 11 }, { x: 13, y: 3 }], loop: 'bounce', speedMps: 1, damagePct: 30 },
+    { id: 'forklift-6', label: 'Forklift', path: [{ x: 13, y: 2 }, { x: 1, y: 2 }], loop: 'bounce', speedMps: 1.4, damagePct: 30 },
+    { id: 'forklift-7', label: 'Forklift', path: [{ x: 1, y: 7 }, { x: 13, y: 7 }], loop: 'bounce', speedMps: 1.4, damagePct: 30 },
+    { id: 'forklift-8', label: 'Forklift', path: [{ x: 4, y: 11 }, { x: 4, y: 3 }], loop: 'bounce', speedMps: 1, damagePct: 30 },
   ],
   objectives: [{ id: 'deliver', label: 'Deliver the three parcels', type: 'deliver', kind: 'parcel' }],
   maxS: 240,

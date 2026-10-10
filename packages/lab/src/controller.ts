@@ -156,7 +156,9 @@ export function createLabDriver(scenario: LabScenario, seed: number, entries: re
       const trigger = queued.get(agent.id);
       if (trigger === undefined || (count.get(agent.id) ?? 0) >= maxDecisions) continue;
       queued.delete(agent.id);
-      const question = buildLabQuestion(state, agent.id, trigger, entry.briefing);
+      const built = buildLabQuestion(state, agent.id, trigger, entry.briefing);
+      // Waiting and changing pace are always on offer; with nothing else to choose there is nothing left to do.
+      const question = built?.options.some((option) => option.kind !== 'wait' && option.kind !== 'pace') ? built : undefined;
       if (question === undefined) {
         // Standing still with no move on offer, and nobody else on the map to change that: this robot's run is over.
         const alone = state.agents.every((other) => other.id === agent.id || other.status !== 'running');

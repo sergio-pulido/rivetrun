@@ -4,6 +4,8 @@ import { mulberry32 } from './rng';
 
 /** Charge the heuristic will not plan to go below. */
 const RESERVE_PCT = 5;
+/** Under this much to spare after the way to the end, it does not drive into ground it cannot predict. */
+const WANDER_FLOOR_PCT = 20;
 const TEMPERATURE = 8;
 
 const affordable = (predicted: LabPrediction | undefined): boolean =>
@@ -20,20 +22,40 @@ export function labUtility(option: LabOption, question: LabQuestion): number {
     case 'return': {
       if (option.completes) return 90 - steps * 0.1;
       // Ending early is for when nothing else can be afforded.
-      const more = question.options.some((other) => (other.kind === 'objective' || other.kind === 'explore') && affordable(other.predicted));
+      const thin = (question.energy.projectedPct ?? 100) < WANDER_FLOOR_PCT;
+      const more = question.options.some((other) =>
+        (other.kind === 'objective' || other.kind === 'explore') && affordable(other.predicted) && !(thin && other.predicted?.batteryAfterPct === undefined));
       return more ? -40 : 30;
     }
-    case 'objective':
-      return ok ? 60 - steps * 0.5 + staying : -20;
+    case 'objective': {
+      if (!ok) return -20;
+      // With the whole tour predicted, the job to start with is the one that makes everything shortest, not the nearest.
+      const tour = option.predicted?.tourSteps;
+      if (tour === undefined) return 60 - steps * 0.5 + staying;
+      const shortest = Math.min(...question.options.map((other) => other.predicted?.tourSteps ?? Infinity));
+      return 60 - (tour - shortest) * 0.5 - steps * 0.01 + staying;
+    }
     case 'explore':
-      return ok ? 40 - (steps + (option.towardTiles ?? 0)) * 0.5 - (option.visited ? 2 : 0) + staying : -30;
+    {
+      // Into the unknown there is no prediction to check: that takes charge to spare.
+      const blindLeg = option.predicted?.batteryAfterPct === undefined && (question.energy.projectedPct ?? 100) < WANDER_FLOOR_PCT;
+      return ok && !blindLeg ? 40 - (steps + (option.towardTiles ?? 0)) * 0.5 - (option.visited ? 2 : 0) + staying : -30;
+    }
     case 'wait':
       return question.trigger.cause === 'mover_ahead' ? 35 : 5;
-    case 'pace':
-      if (option.pace === 'eco' && question.trigger.cause === 'energy_low') return 95;
-      // Blind and just hit something: slow down first, then choose a way.
-      if (option.pace === 'eco' && question.trigger.cause === 'bumped' && question.observation.blind) return 95;
-      return option.pace === 'full' && question.trigger.cause === 'energy_ok' ? 70 : -10;
+    case 'pace': {
+      const projected = question.energy.projectedPct;
+      if (option.pace === 'eco') {
+        // The charge will not cover what is left at this pace: ease off before anything else.
+        const work = question.energy.workPct;
+        const short = question.trigger.cause === 'energy_low' || (projected !== undefined && projected < RESERVE_PCT)
+          || (work !== undefined && work > question.energy.batteryPct - RESERVE_PCT);
+        // Blind and just hit something: slow down first, then choose a way.
+        const hurt = question.trigger.cause === 'bumped' && question.observation.blind;
+        return short || hurt ? 95 : -10;
+      }
+      return question.trigger.cause === 'energy_ok' && !question.observation.blind ? 70 : -10;
+    }
   }
 }
 

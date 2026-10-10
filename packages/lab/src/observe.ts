@@ -5,11 +5,13 @@ import { SOURCE_LABEL } from './autopilot';
 import { energyView, navContextOf } from './context';
 import { DIRS, DIR_NAME, bearing, cellAt, indexOf, inside, manhattan, sameCell, stepCell } from './grid';
 import { enterCost, frontiers, navigate, type Nav, type NavContext } from './nav';
-import { canSense, defOf, destinationsOf, finalGoal, hasRole, interactionBlockers, interactionsAt, objectiveStatus } from './objectives';
+import { defOf, finalGoal, interactionBlockers, interactionsAt, objectiveStatus } from './objectives';
 import { PACE, rangeTiles, type Pace } from './robot';
 import { LAB_VERSION, type LabObservation, type LabOption, type LabPrediction, type LabQuestion } from './schema';
 import { knownShare, weatherFactor } from './sensing';
-import type { AgentState, Cell, Dir, LabCommand, LabObjectDef, LabState, LabTrigger } from './types';
+import { bestTour, type TourJob } from './tour';
+import type { AgentState, Cell, Dir, LabCommand, LabState, LabTrigger } from './types';
+import { openObjects, seeking, wants } from './wants';
 
 const round1 = (value: number): number => Math.round(value * 10) / 10;
 const WAIT_S = 2;
@@ -38,16 +40,6 @@ function surroundSource(agent: AgentState): SensorSource {
   return suite.lidarM > 0 ? 'lidar' : suite.droneM > 0 ? 'scout_drone' : suite.cameraM > 0 ? 'camera' : suite.tofM > 0 ? 'tof' : suite.ultrasonic ? 'ultrasonic' : 'core';
 }
 
-/** Objects the robot knows of and still has business with. */
-function openObjects(state: LabState, agent: AgentState): { def: LabObjectDef; at: Cell; via: SensorSource }[] {
-  return Object.entries(agent.knownObjects).flatMap(([id, known]) => {
-    const object = state.objects.find((o) => o.id === id)!;
-    // Its own doing is known to it: what it carries, delivered or scanned needs no further line.
-    if (object.by === agent.id && object.status !== 'idle') return [];
-    return [{ def: defOf(state.scenario, id), at: known.at, via: known.via }];
-  });
-}
-
 export function observeLab(state: LabState, agentId: string): LabObservation {
   const agent = state.agents.find((a) => a.id === agentId);
   if (!agent) throw new Error(`@rivetrun/lab: no robot "${agentId}"`);
@@ -69,7 +61,9 @@ export function observeLab(state: LabState, agentId: string): LabObservation {
   const here = agent.known[indexOf(scenario.map, agent.cell)];
   const statuses = objectiveStatus(state, agent);
 
-  const way = energy.returnPct !== undefined ? `, ${energy.marginPct} % to spare after the way to the end` : '';
+  const projected = energy.returnPct !== undefined || energy.workPct !== undefined;
+  const way = (energy.returnPct !== undefined ? `, ${energy.marginPct} % to spare after the way to the end` : '')
+    + (energy.workPct !== undefined ? `, the known work left needs about ${energy.workPct} % at this pace` : '');
   const describe = (run: { free: number; then: RunEnd }): string => (run.free === 0 ? run.then : `${run.free} free then ${run.then}`);
   const lines = [
     `CORE · battery ${energy.batteryPct} %, about ${energy.rangeTiles} tiles of range at ${agent.pace} pace${way}`,
@@ -95,7 +89,10 @@ export function observeLab(state: LabState, agentId: string): LabObservation {
   return {
     sources: [...suite.sources], t: state.t, cell: agent.cell, heading: agent.heading, pace: agent.pace, speedMps: round1(agent.speedMps), drawW: round1(agent.drawW),
     damagePct: round1(agent.damagePct),
-    energy: { batteryPct: energy.batteryPct, ...(energy.returnPct !== undefined ? { projectedPct: energy.marginPct } : {}), rangeTiles: energy.rangeTiles },
+    energy: {
+      batteryPct: energy.batteryPct, ...(projected ? { projectedPct: energy.marginPct } : {}),
+      ...(energy.workPct !== undefined ? { workPct: energy.workPct } : {}), rangeTiles: energy.rangeTiles,
+    },
     carrying: agent.carrying.map((id) => defOf(scenario, id).label), objectives: statuses, blind, around, exploredPct, objects, moving,
     tiltDeg: suite.imu ? (here?.kind === 'ramp' ? (here.slopeDeg ?? 0) : 0) : 'unknown',
     unknown, lines,
@@ -104,87 +101,6 @@ export function observeLab(state: LabState, agentId: string): LabObservation {
 
 const sameCommand = (a: LabCommand, b: LabCommand): boolean =>
   a.type === 'goto' && b.type === 'goto' ? sameCell(a.to, b.to) && a.interact === b.interact && a.thenHeading === b.thenHeading : a.type === 'heading' && b.type === 'heading' && a.dir === b.dir;
-
-interface Want {
-  /** The option's id. */
-  readonly id: string;
-  readonly at: Cell;
-  readonly kind: 'objective' | 'return';
-  readonly label: string;
-  readonly description: string;
-  /** Interact with this object on arrival; absent = being there is enough. */
-  readonly interact?: string;
-  readonly completes?: boolean;
-}
-
-/**
- * What the mission still needs that the robot has not found. `find`: something is out there to find. `look`: it can
- * only be found by looking at the floor (a parcel, a sample, a checkpoint), not by mapping walls; an exit is a gap
- * in the wall, which a ranger finds too. The mission plan says how many things there are, not where.
- */
-function seeking(state: LabState, agent: AgentState): { find: boolean; look: boolean } {
-  const { scenario } = state;
-  const statuses = objectiveStatus(state, agent);
-  const unknown = (id: string): boolean => agent.knownObjects[id] === undefined;
-  const goal = finalGoal(scenario, agent.id);
-  const goalHidden = goal !== undefined && unknown(goal.id) && scenario.objectives.some((objective, i) => objective.type === 'reach' && !statuses[i]!.done);
-  const depotHidden = agent.carrying.some((id) => destinationsOf(scenario, defOf(scenario, id), agent.id).every((depot) => unknown(depot.id)));
-  // Things the build could not pick up or scan anyway are not worth looking for.
-  const thingHidden = scenario.objectives.some((objective, i) =>
-    !statuses[i]!.done && (objective.type === 'deliver' || objective.type === 'collect' || objective.type === 'scan')
-    && state.objects.some((object) => { const def = defOf(scenario, object.id); return object.status === 'idle' && def.kind === objective.kind && unknown(object.id) && canSense(def, agent); }));
-  const look = depotHidden || thingHidden || (goalHidden && goal.kind !== 'exit');
-  return { find: look || goalHidden, look };
-}
-
-/** The known places the robot has a reason to go to now. */
-function wants(state: LabState, agent: AgentState): Want[] {
-  const { scenario } = state;
-  const known = openObjects(state, agent);
-  const statuses = objectiveStatus(state, agent);
-  const open = (type: string, kind?: string): boolean => scenario.objectives.some((o, i) => o.type === type && (kind === undefined || ('kind' in o && o.kind === kind)) && !statuses[i]!.done);
-  const found: Want[] = [];
-  for (const id of agent.carrying) {
-    const item = defOf(scenario, id);
-    for (const depot of destinationsOf(scenario, item, agent.id)) {
-      const at = agent.knownObjects[depot.id]?.at;
-      if (at !== undefined) found.push({ id: `goto:${depot.id}`, at, kind: 'objective', label: `Deliver ${item.label} to ${depot.label}`, description: `carrying ${item.label}`, interact: depot.id });
-    }
-  }
-  for (const { def, at } of known) {
-    const wanted = open('deliver', def.kind) || open('collect', def.kind);
-    if (hasRole(def, 'item') && wanted && canSense(def, agent) && agent.carrying.length < scenario.carryLimit) {
-      found.push({ id: `goto:${def.id}`, at, kind: 'objective', label: `Go and ${def.kind === 'sample' ? 'take' : 'pick up'} ${def.label}`, description: `${def.kind} for the mission`, interact: def.id });
-    }
-    if (hasRole(def, 'check') && open('scan', def.kind) && canSense(def, agent)) {
-      found.push({ id: `goto:${def.id}`, at, kind: 'objective', label: `Go and scan ${def.label}`, description: 'a checkpoint to scan', interact: def.id });
-    }
-  }
-  // Something the robot is after, in another robot's hands. Who holds what is public (the referee says so);
-  // where that robot is, only the sensors can tell.
-  if (scenario.tagSteals && agent.carrying.length < scenario.carryLimit) {
-    for (const object of state.objects) {
-      const def = defOf(scenario, object.id);
-      const holder = object.status === 'carried' && object.by !== agent.id ? state.agents.find((a) => a.id === object.by) : undefined;
-      if (holder === undefined || !(open('deliver', def.kind) || open('collect', def.kind))) continue;
-      const seen = agent.visibleRivals.find((rival) => rival.id === holder.id);
-      const base = destinationsOf(scenario, def, holder.id)[0];
-      const baseAt = base !== undefined ? agent.knownObjects[base.id]?.at : undefined;
-      if (seen !== undefined) found.push({ id: `tag:${holder.id}`, at: seen.cell, kind: 'objective', label: `Tag ${holder.label} and take ${def.label}`, description: `${holder.label} is in view with ${def.label}` });
-      else if (base !== undefined && baseAt !== undefined) found.push({ id: `goto:${base.id}`, at: baseAt, kind: 'objective', label: `Cut ${holder.label} off at ${base.label}`, description: `${holder.label} holds ${def.label} and is out of view` });
-    }
-  }
-  const goal = finalGoal(scenario, agent.id);
-  const goalAt = goal !== undefined ? agent.knownObjects[goal.id]?.at : undefined;
-  const reach = scenario.objectives.find((o) => o.type === 'reach');
-  if (goal !== undefined && goalAt !== undefined && reach?.type === 'reach') {
-    const othersDone = statuses.every((s, i) => s.done || scenario.objectives[i] === reach);
-    const done = statuses.filter((s) => s.done).length;
-    if (!reach.last || othersDone) found.push({ id: `goto:${goal.id}`, at: goalAt, kind: 'return', label: `Go to ${goal.label}`, description: 'completes the mission', completes: true });
-    else found.push({ id: `goto:${goal.id}`, at: goalAt, kind: 'return', label: `Go to ${goal.label} and end the mission`, description: `ends it with ${done} of ${statuses.length} objectives done`, interact: goal.id, completes: false });
-  }
-  return found;
-}
 
 function predict(agent: AgentState, nav: Nav, index: number, backWh: number | undefined, defaultTerrain: string): LabPrediction {
   const capacityWh = agent.robot.spec.capacityWh;
@@ -203,7 +119,7 @@ function predict(agent: AgentState, nav: Nav, index: number, backWh: number | un
 }
 
 /** The named moves the build can make now, each with what the robot expects of it. */
-export function buildOptions(state: LabState, agentId: string, trigger?: LabTrigger): LabOption[] {
+export function buildOptions(state: LabState, agentId: string): LabOption[] {
   const agent = state.agents.find((a) => a.id === agentId);
   if (!agent || agent.status !== 'running') return [];
   const { scenario } = state;
@@ -230,16 +146,42 @@ export function buildOptions(state: LabState, agentId: string, trigger?: LabTrig
   }
 
   const wanted = wants(state, agent);
+  // The order of the jobs: driving distances between the places involved, by the robot's own map where it knows a
+  // way and as the crow flies (stretched by a quarter) where it does not.
+  const navs = new Map<number, typeof nav>([[indexOf(map, agent.cell), nav]]);
+  const tiles = (from: number, to: number): number => {
+    const known = (navs.get(from) ?? navs.set(from, navigate(ctx, cellAt(map, from))).get(from)!).tiles[to]!;
+    return Number.isFinite(known) ? known : Math.ceil(manhattan(cellAt(map, from), cellAt(map, to)) * 1.25);
+  };
+  const jobs: TourJob[] = wanted.filter((want) => want.job === 'start').map((want) => ({ id: want.id, from: indexOf(map, want.at), to: indexOf(map, want.jobTo ?? want.at) }));
+  const statuses = objectiveStatus(state, agent);
+  // How many of the known jobs the mission still needs: "3 of the 5 samples" leaves a choice of which.
+  const needed = Math.min(jobs.length, scenario.objectives.reduce((sum, objective, i) =>
+    sum + (objective.type === 'deliver' || objective.type === 'collect' || objective.type === 'scan' ? Math.max(0, statuses[i]!.need - statuses[i]!.have - agent.carrying.filter((id) => defOf(scenario, id).kind === objective.kind && objective.type === 'deliver').length) : 0), 0));
+  const closing = scenario.objectives.some((objective) => objective.type === 'reach') && goalAt !== undefined ? indexOf(map, goalAt) : undefined;
+  const tour = (want: (typeof wanted)[number]): { jobSteps: number; tourSteps: number } | undefined => {
+    const here = indexOf(map, agent.cell);
+    const at = indexOf(map, want.at);
+    if (want.job === 'finish') return { jobSteps: tiles(here, at), tourSteps: tiles(here, at) + bestTour(at, jobs, needed, closing, tiles) };
+    const job = jobs.find((j) => j.id === want.id);
+    if (job === undefined) return undefined;
+    const jobSteps = tiles(here, job.from) + tiles(job.from, job.to);
+    return { jobSteps, tourSteps: jobSteps + bestTour(job.to, jobs.filter((other) => other !== job), needed - 1, closing, tiles) };
+  };
+
   const noWay: Cell[] = [];
   for (const want of wanted) {
     const index = indexOf(map, want.at);
     if (sameCell(want.at, agent.cell)) continue;
     if (!Number.isFinite(nav.timeS[index]!)) { noWay.push(want.at); continue; }
-    const predicted = predict(agent, nav, index, want.kind === 'return' ? 0 : backWh(index), scenario.defaultTerrain);
+    const leg = predict(agent, nav, index, want.kind === 'return' ? 0 : backWh(index), scenario.defaultTerrain);
+    const whole = jobs.length + agent.carrying.length > 1 || want.jobTo !== undefined ? tour(want) : undefined;
+    const job = whole === undefined ? '' : whole.jobSteps !== leg.steps ? `, ${whole.jobSteps} for the whole job` : '';
+    const all = whole !== undefined && whole.tourSteps !== whole.jobSteps ? `; ${whole.tourSteps} tiles for all the known work if this goes first` : '';
     add({
-      id: want.id, kind: want.kind, label: want.label, description: `${predicted.steps} tiles by the known way; ${want.description}`,
+      id: want.id, kind: want.kind, label: want.label, description: `${leg.steps} tiles by the known way${job}${all}; ${want.description}`,
       command: { type: 'goto', to: want.at, ...(want.interact !== undefined ? { interact: want.interact } : {}) },
-      predicted, ...(want.completes !== undefined ? { completes: want.completes } : {}),
+      predicted: { ...leg, ...(whole ?? {}) }, ...(want.completes !== undefined ? { completes: want.completes } : {}),
     });
   }
 
@@ -283,18 +225,14 @@ export function buildOptions(state: LabState, agentId: string, trigger?: LabTrig
     });
   }
 
-  if (agent.visibleMovers.length > 0 || agent.visibleRivals.length > 0 || trigger?.cause === 'mover_ahead') {
-    add({ id: 'wait', kind: 'wait', label: `Wait ${WAIT_S} s`, description: 'hold still and look again', command: { type: 'wait', forS: WAIT_S }, predicted: { steps: 0, timeS: WAIT_S } });
-  }
-  // Pace is offered when it matters: on the energy line, and after driving into a wall (a slower hit costs less).
-  if (trigger?.kind === 'energy' || (trigger?.cause === 'bumped' && agent.damagePct > 0)) {
-    const other: Pace = agent.pace === 'full' ? 'eco' : 'full';
-    const range = energyView(state, { ...agent, pace: other }).rangeTiles;
-    add({
-      id: `pace:${other}`, kind: 'pace', label: `Switch to ${other} pace`, pace: other,
-      description: `${Math.round(PACE[other].speed * 100)} % of top speed; about ${range} tiles of range instead of ${energyView(state, agent).rangeTiles}`,
-    });
-  }
+  // Waiting and changing pace are always possible. They are choices too: both cost time, eco saves charge.
+  add({ id: 'wait', kind: 'wait', label: `Wait ${WAIT_S} s`, description: 'hold still and look again', command: { type: 'wait', forS: WAIT_S }, predicted: { steps: 0, timeS: WAIT_S } });
+  const other: Pace = agent.pace === 'full' ? 'eco' : 'full';
+  const range = energyView(state, { ...agent, pace: other }).rangeTiles;
+  add({
+    id: `pace:${other}`, kind: 'pace', label: `Switch to ${other} pace`, pace: other,
+    description: `${Math.round(PACE[other].speed * 100)} % of top speed; about ${range} tiles of range instead of ${energyView(state, agent).rangeTiles}`,
+  });
   return options;
 }
 
@@ -304,7 +242,7 @@ export const missionLine = (state: LabState): string =>
 
 /** Everything a brain is asked: why now, what the robot knows, and the moves on offer. `undefined` = nothing to choose. */
 export function buildLabQuestion(state: LabState, agentId: string, trigger: LabTrigger, briefing?: string): LabQuestion | undefined {
-  const options = buildOptions(state, agentId, trigger);
+  const options = buildOptions(state, agentId);
   if (options.length === 0) return undefined;
   const observation = observeLab(state, agentId);
   return {

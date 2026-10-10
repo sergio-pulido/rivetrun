@@ -220,7 +220,8 @@ function act(d: Draft, agent: AgentState, arriving: boolean): AgentState {
 function energyCheck(d: Draft, agent: AgentState): AgentState {
   const state = view(d);
   const energy = energyView(state, agent, navigate(navContextOf(state, agent), agent.cell));
-  const way = energy.returnPct !== undefined ? ` after the ${energy.returnPct} % the way to the end costs` : '';
+  const way = energy.returnPct !== undefined ? ` after the ${energy.returnPct} % the way to the end costs`
+    : energy.workPct !== undefined ? ` after the ${energy.workPct} % the known work left needs at this pace` : '';
   const low = !agent.memory.energyLow && energy.marginPct < LAB_TUNING.energy.lowPct;
   const ok = agent.memory.energyLow && energy.marginPct > LAB_TUNING.energy.okPct;
   if (!low && !ok) return agent;
