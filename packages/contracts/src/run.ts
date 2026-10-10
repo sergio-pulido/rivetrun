@@ -10,7 +10,7 @@ import {
   ProbabilitiesSchema,
 } from './brain';
 import { BuildSchema } from './build';
-import { EnvironmentSchema, MissionIdSchema, SeedSchema, TerrainIdSchema } from './world';
+import { EnvironmentSchema, MissionIdSchema, ObstacleSchema, SeedSchema, TerrainIdSchema } from './world';
 
 export const SimEffectSchema = z.enum(['dust', 'splash', 'mud_spray', 'sparks', 'slip', 'smoke', 'winch', 'bubbles']);
 export type SimEffect = z.infer<typeof SimEffectSchema>;
@@ -43,6 +43,8 @@ export const SimStateSchema = z.object({
   vy: z.number().optional(),
   /** True between leaving the ground and landing. */
   airborne: z.boolean().optional(),
+  /** Set while the robot is stopped against an obstacle it cannot get over. */
+  blockedBy: ObstacleSchema.optional(),
   /** Depth of the water column at the robot, metres (0 or absent on dry ground and in shallows). */
   waterDepthM: z.number().min(0).optional(),
   /** How far the robot is below the surface, metres (0 or absent = not under water). */
@@ -135,6 +137,13 @@ export const RunEventSchema = z.discriminatedUnion('type', [
     cause: DamageCauseSchema,
     amountPct: z.number().min(0),
     totalPct: z.number().min(0).max(100),
+    // What was hit, so the event says why (all optional).
+    obstacle: ObstacleSchema.optional(),
+    /** The obstacle stopped the robot: it could not get over it. */
+    blocked: z.boolean().optional(),
+    /** Drove onto this rough terrain too fast. */
+    roughEntry: TerrainIdSchema.optional(),
+    air: z.enum(['landing', 'fall']).optional(),
   }),
   z.object({ type: z.literal('airborne'), t: z.number(), x: z.number(), v: z.number(), vy: z.number(), cause: z.enum(['ramp', 'jump', 'drop']) }),
   z.object({ type: z.literal('landed'), t: z.number(), x: z.number(), impactMps: z.number().min(0), airtimeS: z.number().min(0), damagePct: z.number().min(0) }),

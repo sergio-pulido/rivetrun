@@ -31,6 +31,9 @@ export function why(state: RunState): string {
     `Slipped ${Math.round(worstSlip![1])} s on ${TERRAINS[worstSlip![0]].name.toLowerCase()}${has('imu') ? '' : ' — no IMU'}`;
 
   if (state.dnfReason === 'stuck' && state.falls >= 3) return `Fell into the gap ${state.falls} times${spec.jumpImpulseMps > 0 ? '' : ' — no piston to jump it'}`;
+  if (state.dnfReason === 'stuck' && state.blockedBy) {
+    return `Blocked by a ${state.blockedBy} — ${spec.wheelSizeMm} mm ${spec.locomotionName.toLowerCase()} clear ${round1(spec.clearanceCm)} cm; it needs climb mode, bigger wheels or a jump`;
+  }
   const gapAhead = state.world.features.find((f) => f.type === 'gap' && f.endM > sim.x && f.startM - sim.x <= 1.5);
   if (state.dnfReason === 'stuck' && gapAhead) {
     return `Stopped at a ${Math.round((gapAhead.endM - gapAhead.startM) * 100)} cm gap${spec.jumpImpulseMps > 0 ? ' and never took the jump' : ' — no ramp, no piston to jump it'}`;

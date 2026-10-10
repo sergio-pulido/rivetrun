@@ -20,11 +20,40 @@ export interface WorldSegment {
   readonly currentMps?: number;
 }
 
+/** Obstacle sizes in real rover metres. The footprint starts at the contact point and runs forward. */
+export const OBSTACLE_SIZE_M: Readonly<Record<Obstacle, { readonly heightM: number; readonly lengthM: number }>> = {
+  step: { heightM: 0.035, lengthM: 0.3 },
+  log: { heightM: 0.04, lengthM: 0.3 },
+  rock: { heightM: 0.05, lengthM: 0.3 },
+};
+
 export interface WorldObstacle {
+  /** Contact point: the near face of the obstacle (same as startM). */
   readonly xM: number;
   readonly kind: Obstacle;
   readonly segmentIndex: number;
+  readonly startM: number;
+  readonly endM: number;
+  readonly heightM: number;
 }
+
+export function makeObstacle(kind: Obstacle, xM: number, segmentIndex: number): WorldObstacle {
+  const size = OBSTACLE_SIZE_M[kind];
+  return { xM, kind, segmentIndex, startM: xM, endM: xM + size.lengthM, heightM: size.heightM };
+}
+
+/** Height of the obstacle's profile under x: a triangle from its near face to its far face. */
+export function obstacleHeightAt(obstacles: readonly WorldObstacle[], xM: number): { readonly heightM: number; readonly slopeDeg: number } {
+  const obstacle = obstacles.find((o) => xM >= o.startM && xM <= o.endM);
+  if (!obstacle) return { heightM: 0, slopeDeg: 0 };
+  const half = (obstacle.endM - obstacle.startM) / 2;
+  const fromMiddle = xM - (obstacle.startM + half);
+  const slopeDeg = (Math.atan(obstacle.heightM / half) * 180) / Math.PI;
+  return { heightM: obstacle.heightM * (1 - Math.abs(fromMiddle) / half), slopeDeg: fromMiddle < 0 ? slopeDeg : -slopeDeg };
+}
+
+/** A drop is a raised deck: the ground rises to it over this distance before the edge. */
+export const DROP_APPROACH_M = 2;
 
 /** Track with absolute positions. Obstacles sit in the middle of their segment. */
 export interface World {
@@ -63,7 +92,7 @@ export function compileTrack(track: Track): World {
       features.push({ type: 'drop', startM, endM: startM, heightM: feature.heightM });
     }
     if (segment.obstacle) {
-      obstacles.push({ xM: startM + segment.lengthM / 2, kind: segment.obstacle, segmentIndex: index });
+      obstacles.push(makeObstacle(segment.obstacle, startM + segment.lengthM / 2, index));
     }
   });
   return { segments, obstacles, features, lengthM: cursor };

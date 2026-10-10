@@ -130,7 +130,13 @@ function emitStepEvents(
   if (damage) {
     const total = (pendingDamage[damage.cause] ?? 0) + damage.amountPct;
     if (damage.cause === 'impact' || total >= DAMAGE_EVENT_PCT || state.done) {
-      emit({ type: 'damage', t: state.sim.t, cause: damage.cause, amountPct: total, totalPct: Math.min(100, state.sim.damage) });
+      emit({
+        type: 'damage', t: state.sim.t, cause: damage.cause, amountPct: total, totalPct: Math.min(100, state.sim.damage),
+        ...(damage.obstacle ? { obstacle: damage.obstacle } : {}),
+        ...(damage.blocked ? { blocked: true } : {}),
+        ...(damage.roughEntry ? { roughEntry: damage.roughEntry } : {}),
+        ...(damage.air ? { air: damage.air } : {}),
+      });
       pendingDamage[damage.cause] = 0;
     } else {
       pendingDamage[damage.cause] = total;

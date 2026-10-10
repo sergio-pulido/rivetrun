@@ -27,6 +27,9 @@ export interface RobotSpec {
   /** Deepest water the locomotion can drive through, cm. */
   readonly maxWadingDepthCm: number;
   readonly roughGroundFactor: number;
+  /** Tallest obstacle the build gets over while driving normally, cm. */
+  readonly clearanceCm: number;
+  readonly wheelSizeMm: number;
   /** Multiplier on obstacle and rough-ground impacts from wheel size (bigger wheels roll over more). */
   readonly obstacleImpactFactor: number;
   /** Vertical launch speed of the piston, m/s (0 = no piston). */
@@ -61,6 +64,8 @@ export function buildIssues(build: Build): string[] {
 
 /** Size L: the 90 mm wheel, the largest in the real parts list (docs/MK2_BOM.md). */
 const WHEEL_L = { speed: 1.15, force: 0.87, massKg: 0.15, impact: 0.75, wading: 1.25, costEur: 10 } as const;
+
+const CLEARANCE_BUMP_FACTOR = 1.5;
 
 /** Gameplay v2 tuning. Every factor is 1 at the stock setting, so untuned builds drive exactly as before. */
 export const BUILD_TUNING = {
@@ -100,7 +105,9 @@ export function deriveSpec(build: Build): RobotSpec {
   const cellCount = build.batteryCells ?? BUILD_TUNING.stockCells;
   const voltageSpeed = 0.6 + 0.2 * cellCount;
   const voltageForce = 0.85 + 0.075 * cellCount;
-  const wheel = BUILD_TUNING.wheel[build.wheelSizeMm ?? BUILD_TUNING.stockWheelMm];
+  // 100 is the old value for L (90 mm): one wheel, one radius.
+  const wheelMm = build.wheelSizeMm === 100 ? 90 : (build.wheelSizeMm ?? BUILD_TUNING.stockWheelMm);
+  const wheel = BUILD_TUNING.wheel[wheelMm];
   const gear = (build.gearStep ?? BUILD_TUNING.stockGear) - 1;
   const speedFactor = voltageSpeed * wheel.speed * BUILD_TUNING.gearSpeed[gear]!;
   const forceFactor = voltageForce * wheel.force * BUILD_TUNING.gearForce[gear]!;
@@ -121,6 +128,9 @@ export function deriveSpec(build: Build): RobotSpec {
     maxSlopeDeg: locomotion.effects.maxSlopeDeg ?? 20,
     maxWadingDepthCm: (locomotion.effects.maxWadingDepthCm ?? 25) * wheel.wading,
     roughGroundFactor: locomotion.effects.roughGroundFactor ?? 1,
+    // Wheel radius, raised by tyre or track, with the half-radius of extra a rolling wheel can bump over.
+    clearanceCm: (wheelMm / 20) * (locomotion.effects.clearanceFactor ?? 1) * CLEARANCE_BUMP_FACTOR,
+    wheelSizeMm: wheelMm,
     obstacleImpactFactor: wheel.impact,
     jumpImpulseMps: piston?.effects.jumpImpulseMps ?? 0,
     jumpCooldownS: piston?.effects.cooldownS ?? 0,

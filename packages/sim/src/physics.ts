@@ -3,7 +3,7 @@ import { TERRAINS, TUNING } from './data';
 import { mixSeed, nextRandom } from './rng';
 import { WHEEL_RADIUS_M, deriveSpec } from './spec';
 import type { AirEvent, RunConfig, RunState, RunStats, StepDamage } from './types';
-import { compileTrack, segmentIndexAt, waterDepthCmAt } from './world';
+import { DROP_APPROACH_M, compileTrack, obstacleHeightAt, segmentIndexAt, waterDepthCmAt } from './world';
 import type { World, WorldFeature } from './world';
 
 const G = 9.81;
@@ -44,6 +44,8 @@ export const PHYSICS = {
   respawnRunUpM: 3,
   /** An armed piston waits for a gap or obstacle this far beyond its reach. */
   jumpArmRangeM: 2,
+  /** Climb mode lifts the nose: this much more clearance over an obstacle. */
+  climbClearanceFactor: 1.3,
   swimSpeedMps: 1.5,
   swimTauS: 0.6,
   /** A flooded hull takes this many times the normal water damage. */
@@ -220,7 +222,7 @@ function addDamage(stats: RunStats, damage: StepDamage): RunStats {
     ...stats,
     damageByCause: byCause,
     worstImpact: isWorst
-      ? { obstacle: damage.obstacle, roughEntry: damage.roughEntry, air: damage.air, speedMps: damage.speedMps ?? 0, amountPct: damage.amountPct }
+      ? { obstacle: damage.obstacle, roughEntry: damage.roughEntry, air: damage.air, blocked: damage.blocked, speedMps: damage.speedMps ?? 0, amountPct: damage.amountPct }
       : worst,
   };
 }
@@ -238,6 +240,9 @@ function effectsFor(terrain: TerrainId, v: number, slipPct: number, damage: numb
   if (action === 'deploy_winch') effects.push('winch');
   return effects;
 }
+
+/** How close to an obstacle's face a stopped robot sits. */
+const BLOCK_GAP_M = 0.005;
 
 const rampAt = (world: World, xM: number): Extract<WorldFeature, { type: 'ramp' }> | undefined =>
   world.features.find((f): f is Extract<WorldFeature, { type: 'ramp' }> => f.type === 'ramp' && xM >= f.startM && xM < f.endM);
@@ -348,16 +353,26 @@ export function step(state: RunState, action: Action): RunState {
 
   // Damage: one cause per step (the largest), so events stay simple.
   let hit: StepDamage | undefined;
+  let blockedBy: RunState['blockedBy'];
+  const reachCm = spec.clearanceCm * (action === 'climb_mode' ? PHYSICS.climbClearanceFactor : 1);
   for (const obstacle of world.obstacles) {
     const cleared = (wasAirborne || airborne) && Math.min(state.heightM, heightM) >= PHYSICS.obstacleClearM;
     if (sim.x < obstacle.xM && x >= obstacle.xM && !cleared) {
       const speed = Math.abs(v);
+      // Too tall to roll over: the robot stops against its near face. The winch hauls it over anything.
+      const stopped = obstacle.heightM * 100 > reachCm && action !== 'deploy_winch';
       const amountPct =
         Math.max(0, speed - PHYSICS.safeImpactSpeedMps) * PHYSICS.obstacleHardness[obstacle.kind] * PHYSICS.impactDamagePerMps *
         (0.5 + TERRAINS[terrainId].impactRisk) * spec.impactDamageFactor * spec.obstacleImpactFactor * profile.impact *
         (terrainId === 'water' && segment.depthCm > spec.maxWadingDepthCm ? PHYSICS.submergedImpactFactor : 1);
-      hit = { cause: 'impact', amountPct, obstacle: obstacle.kind, speedMps: speed };
-      v *= profile.impact < 1 ? 0.9 : 0.5;
+      hit = { cause: 'impact', amountPct, obstacle: obstacle.kind, speedMps: speed, ...(stopped ? { blocked: true } : {}) };
+      if (stopped) {
+        x = obstacle.xM - BLOCK_GAP_M;
+        v = 0;
+        blockedBy = obstacle.kind;
+      } else {
+        v *= profile.impact < 1 ? 0.9 : 0.5;
+      }
     }
   }
   const entered = world.segments[segmentIndexAt(world, x, state.segmentIndex)]!;
@@ -370,6 +385,11 @@ export function step(state: RunState, action: Action): RunState {
       hit = { cause: 'impact', amountPct, roughEntry: entered.terrain, speedMps: speed };
       v *= 0.7;
     }
+  }
+  // Still pressed against the obstacle that stopped it, and still unable to get over it.
+  if (!blockedBy && state.blockedBy && !airborne && profile.speed > 0) {
+    const face = world.obstacles.find((o) => o.xM > x && o.xM - x <= BLOCK_GAP_M * 4);
+    if (face && face.heightM * 100 > reachCm && action !== 'deploy_winch') blockedBy = face.kind;
   }
   let stats = state.stats;
   let damage = sim.damage;
@@ -444,9 +464,14 @@ export function step(state: RunState, action: Action): RunState {
   // The hull is about this tall: it is under water once the depth passes it.
   const submergedDepthM = airborne ? 0 : Math.max(0, nextDepthM - PHYSICS.hullHeightM);
   const nextRamp = airborne ? undefined : rampAt(world, x);
-  const groundHeightM = nextRamp ? (x - nextRamp.startM) * Math.tan(nextRamp.launchDeg * DEG) : 0;
+  // The ground the wheels stand on: a ramp, the deck before a drop, or the back of an obstacle.
+  const bump = airborne ? { heightM: 0, slopeDeg: 0 } : obstacleHeightAt(world.obstacles, x);
+  const deck = airborne ? undefined : world.features.find((f) => f.type === 'drop' && x < f.startM && f.startM - x <= DROP_APPROACH_M);
+  const deckHeightM = deck && deck.type === 'drop' ? deck.heightM * (1 - (deck.startM - x) / DROP_APPROACH_M) : 0;
+  const rampHeightM = nextRamp ? (x - nextRamp.startM) * Math.tan(nextRamp.launchDeg * DEG) : 0;
+  const groundHeightM = Math.max(rampHeightM, deckHeightM, bump.heightM);
   const shownHeightM = airborne ? Math.max(0, heightM) : groundHeightM;
-  const surfaceSlopeDeg = nextSegment.slopeDeg + (nextRamp ? nextRamp.launchDeg : 0);
+  const surfaceSlopeDeg = nextSegment.slopeDeg + (nextRamp ? nextRamp.launchDeg : 0) + bump.slopeDeg;
   const pitch = airborne
     ? clamp(Math.atan2(vy, Math.max(0.2, Math.abs(v))) / DEG, -35, 35)
     : surfaceSlopeDeg + clamp(-motion.accel * 1.5, -8, 8);
@@ -465,6 +490,7 @@ export function step(state: RunState, action: Action): RunState {
       damage,
       effects: effectsFor(nextSegment.terrain, airborne ? 0 : v, motion.slipPct, damage, action, t < sparksUntilT, submergedDepthM),
       ...(shownHeightM > 0 || airborne ? { heightM: shownHeightM, vy: airborne ? vy : 0, airborne } : {}),
+      ...(blockedBy ? { blockedBy } : {}),
       ...(nextDepthM > 0 ? { waterDepthM: nextDepthM, submergedDepthM, thrusting: motion.swimming === true && Math.abs(v) > 0.05, ...(nextSegment.currentMps ? { waterCurrentMps: nextSegment.currentMps } : {}) } : {}),
     },
     action,
@@ -483,6 +509,7 @@ export function step(state: RunState, action: Action): RunState {
     falls,
     jumpReadyT,
     lastAir,
+    blockedBy,
     finished,
     dnfReason,
     lastDamage,

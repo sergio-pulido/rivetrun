@@ -4,7 +4,7 @@ import { mixSeed, mulberry32 } from './rng';
 import { step } from './physics';
 import { deriveSpec } from './spec';
 import type { RunState } from './types';
-import { waterDepthCmAt } from './world';
+import { makeObstacle, waterDepthCmAt } from './world';
 import type { World } from './world';
 
 const NOISE = { droneDistanceM: 0.5, distanceM: 0.2, obstacleM: 0.1, slipPct: 3, tiltDeg: 0.5, depthCm: 1 } as const;
@@ -123,9 +123,12 @@ function perceivedWorld(state: RunState, perceived: Perception): World {
   if (sees && perceived.terrainAhead !== 'unknown') {
     segments.push({ index: 1, startM: segments[0]!.endM, endM: far, terrain: perceived.terrainAhead, slopeDeg: 0, depthCm: depthFor(perceived.terrainAhead) });
   }
-  const obstacles =
-    typeof perceived.obstacleAheadM === 'number'
-      ? [{ xM: x + perceived.obstacleAheadM, kind: 'log' as const, segmentIndex: 0 }]
+  // An unseen obstacle is assumed to be a log; one the robot is pressed against is known for what it is.
+  const touching = state.blockedBy ? state.world.obstacles.find((o) => o.xM > x && o.xM - x < 0.05) : undefined;
+  const obstacles = touching
+    ? [makeObstacle(touching.kind, touching.xM, 0)]
+    : typeof perceived.obstacleAheadM === 'number'
+      ? [makeObstacle('log', x + perceived.obstacleAheadM, 0)]
       : [];
   // Ramps, gaps and drops the sensors can make out (and whatever the robot is standing on).
   const sight = featureSightM(state);

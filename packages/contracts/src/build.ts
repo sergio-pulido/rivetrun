@@ -22,6 +22,8 @@ export const PartEffectsSchema = z.object({
   sinkageFactor: z.number().positive().optional(),
   /** Multiplier on the impact of driving onto rough ground too fast (tracks < 1; missing = 1). */
   roughGroundFactor: z.number().min(0).max(1).optional(),
+  /** Multiplier on ground clearance from this locomotion (knobbly tyres and tracks ride over more). Missing = 1. */
+  clearanceFactor: z.number().positive().optional(),
   /** Deepest water this locomotion can drive through, cm. Deeper needs thrusters. */
   maxWadingDepthCm: z.number().positive().optional(),
   /** Tip-over limit. */

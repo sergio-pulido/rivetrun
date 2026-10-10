@@ -43,13 +43,15 @@ export interface StepDamage {
   readonly speedMps?: number;
   /** Set for a hard landing or a fall into a gap. */
   readonly air?: 'landing' | 'fall';
+  /** The obstacle stopped the robot. */
+  readonly blocked?: boolean;
 }
 
 /** Ground-truth tallies the "why" line is derived from. */
 export interface RunStats {
   readonly slipSByTerrain: Partial<Record<TerrainId, number>>;
   readonly damageByCause: Partial<Record<DamageCause, number>>;
-  readonly worstImpact?: { readonly obstacle?: Obstacle; readonly roughEntry?: TerrainId; readonly air?: 'landing' | 'fall'; readonly speedMps: number; readonly amountPct: number };
+  readonly worstImpact?: { readonly obstacle?: Obstacle; readonly roughEntry?: TerrainId; readonly air?: 'landing' | 'fall'; readonly blocked?: boolean; readonly speedMps: number; readonly amountPct: number };
   readonly lastTerrain: TerrainId;
 }
 
@@ -86,6 +88,8 @@ export interface RunState {
   /** Sim time at which the piston can fire again. */
   readonly jumpReadyT: number;
   readonly lastAir?: AirEvent;
+  /** The obstacle the robot is stopped against, if any. */
+  readonly blockedBy?: Obstacle;
   readonly finished: boolean;
   readonly dnfReason?: DnfReason;
   readonly lastDamage?: StepDamage;

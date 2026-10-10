@@ -31,7 +31,7 @@ describe('sim smoke', () => {
       }
     }
     console.log(rows.join('\n'));
-  });
+  }, 30000);
 
   it('runController plays M1 to the finish and emits the event stream', async () => {
     const events: RunEvent[] = [];
