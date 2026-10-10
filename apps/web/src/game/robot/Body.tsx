@@ -8,11 +8,8 @@ import { useMats } from './materials';
 import { Part } from './Part';
 import { Box, Cyl } from './primitives';
 
-/**
- * The procedural chassis is one printed piece. PROVISIONAL id: docs/inputs/printed-parts.json has not landed;
- * rename it to the matching id from that file when it does.
- */
-const CHASSIS_PICK = { printedPartId: 'chassis' } as const;
+/** The procedural chassis stands for the printed base plate (`chassis_base` in docs/inputs/printed-parts.json). */
+const CHASSIS_PICK = { printedPartId: 'chassis_base' } as const;
 
 const CORNERS: ReadonlyArray<readonly [number, number]> = [
   [1, 1],

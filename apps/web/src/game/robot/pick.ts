@@ -14,10 +14,10 @@ const FIXED_MODULES: ReadonlySet<string> = new Set(['chassis', 'controller', 'fa
 
 /**
  * Node-name convention of docs/MK2_ASSET_CONTRACT.md: `print_<id>` is a printed part and `module_<partId>`
- * a catalog part. A trailing `_node` (v1 exports) and an instance or material suffix `__<digits>` are ignored.
+ * a catalog part. A double-underscore suffix (`__2` for an instance, `__steel` for a material) is ignored.
  */
 export function pickFromName(name: string): RoverPick | null {
-  const base = name.replace(/_node$/, '').replace(/__\d+$/, '');
+  const base = name.replace(/__[a-z0-9]+$/, '');
   if (base.startsWith('print_') && base.length > 6) return { printedPartId: base.slice(6) };
   if (base.startsWith('module_') && base.length > 7) {
     const partId = base.slice(7);
@@ -29,7 +29,10 @@ export function pickFromName(name: string): RoverPick | null {
 /** The pick a node carries itself: an explicit tag (procedural robot) or its name (MK-II asset). */
 export function ownPick(node: Object3D): RoverPick | null {
   const tagged = node.userData.pick as RoverPick | undefined;
-  return tagged ?? pickFromName(node.name);
+  if (tagged) return tagged;
+  // The v2 export also writes the id into the node's glTF extras.
+  const printed = node.userData.printedPartId;
+  return typeof printed === 'string' && printed ? { printedPartId: printed } : pickFromName(node.name);
 }
 
 /** Resolves a tapped mesh: the nearest ancestor-or-self that is a printed part, else a catalog part. */

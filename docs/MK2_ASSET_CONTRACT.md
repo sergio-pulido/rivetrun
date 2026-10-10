@@ -18,17 +18,18 @@ If a module file is missing, slow (3 s) or broken, that robot is drawn procedura
 
 ## Files
 
-- Location: `apps/web/public/models/rivet-mk-ii/` (served by the app; nothing is fetched from another host).
-- One GLB per module: every catalog part id in `packages/sim/src/data/parts.ts`, plus the fixed modules `chassis` and `controller`. File name = `<id>.glb`.
-- `manifest.json` (see below). The assembled `rivet-mk-ii.glb` is optional and is not loaded by the game.
+- Location: **`apps/web/public/models/mk2/`** (served by the app; nothing is fetched from another host). This is the only folder the game reads. `models/rivet-mk-ii/` is the v1 rover with the face: it is not loaded and can be deleted.
+- One GLB per module: every catalog part id in `packages/sim/src/data/parts.ts`, plus the fixed modules `chassis` and `controller`. File name as listed in the manifest (`<id>.glb`).
+- `manifest.json` (see below) is required: the game reads it first and loads only the files it lists.
+- The export may be **partial**. Modules that are not in the manifest yet are drawn procedurally (see "What the game does").
 - Plain glTF 2.0 binary. **No Draco, no meshopt, no KTX2/Basis** (the app ships no decoders), no external URIs, no cameras, lights or animations.
 - There is no `face.glb` in v2.
 
 ## Coordinates
 
 - GLB axes: **+X forward, +Y up**, wheels spin around **local Z**. Origin = ground under the centre of the rover.
-- 1 unit = 1 render unit of the game (the stylized scale of the procedural robot: about 1.9 long, 1.5 wide, 1.3 tall without mast parts). Not physical millimetres.
-- Every module is authored in the rover's common frame: the game mounts each module's root at `(0, 0, 0)` under one parent with no extra offset. Manifest anchors are information only.
+- At the `module_<id>` root, **1 unit = 1 render unit** of the game. Geometry under the root may be authored in real millimetres with the scale on the root node (the v2 export does this: root scale 0.01, `scaleMmPerRenderUnit: 100`, so the 160 mm chassis is 1.6 render units long). The game applies no scale of its own; it uses the root exactly as exported.
+- Every module is authored in the rover's common frame: the game mounts each module's root at `(0, 0, 0)` under one parent with no extra offset.
 - Ride height follows the locomotion module: the chassis must sit correctly on all three locomotion modules at the same origin, or the manifest gives a `deckOffsetY` per locomotion id (see Manifest).
 
 ## Node names (required)
@@ -49,19 +50,18 @@ Names are matched literally, so they must survive export unchanged: lowercase `a
 
 Rules for all of them:
 
-- A trailing `_node` is tolerated (v1 exported `module_camera_node`); v2 should drop it.
-- Mesh children may carry a material suffix `__<nn>` (v1: `module_camera__01`). The game resolves a tapped mesh by walking **up** to the nearest ancestor-or-self whose name starts with `print_`, else `module_`.
-- If the same printed part appears several times in one file (four identical wheel brackets), name the instances `print_<id>__1`, `print_<id>__2`, … The game strips a trailing `__<digits>` and treats them as the same printed part: tapping one outlines all of them.
+- A double-underscore suffix is ignored when reading an id: `print_motor_cap__3` (an instance), `print_battery_tray__001`, `module_motor_light__steel` (a mesh named after its material). Ids themselves therefore never contain `__`.
+- The game resolves a tapped mesh by walking **up** to the nearest ancestor-or-self that is a printed part, else to the `module_` root. A node is a printed part if its name starts with `print_` or its glTF `extras.printedPartId` is set (the v2 export writes both).
+- If the same printed part appears several times in one file (four motor saddles), name the instances `print_<id>__1`, `print_<id>__2`, … They are the same printed part: tapping one outlines all of them.
+- Meshes that are not printed need no special name (`lipo_cell`, `tire_mesh_front_left`, `camera_pcb`): a tap on them selects their module.
 
 ## Printed parts
 
 - A printed part is **its own node** named `print_<id>`. Its subtree holds that part's meshes and nothing else.
 - Printed geometry must **not be merged** with other parts in the export copy. Merging static meshes by material is still fine *inside* one `print_<id>` node and inside the non-printed remainder of a module.
 - `print_<id>` nodes live **inside** the module they belong to (a camera mast under `module_camera`, the deck plate under `module_chassis`), so they are mounted, removed and thrown off with it.
-- Every `<id>` used must exist in `docs/inputs/printed-parts.json`. Ids not in that file are a validation failure, not a silent skip.
+- Every `<id>` used must exist in `docs/inputs/printed-parts.json` (today: `insert_test_coupon`, `chassis_base`, `motor_saddle`, `motor_cap`, `battery_tray`, `board_standoff`, `cable_clip`). Ids not in that file are a validation failure in the exporter; the game emits whatever id the node carries.
 - Printed parts that pivot (a printed wheel hub) sit under the pivot node: `wheel_front_left` › `print_hub__1`.
-
-> Open point: `docs/inputs/printed-parts.json` is not in the repository yet (checked Sat 01:50). Until it lands the game cannot validate ids; it will emit whatever follows `print_`.
 
 ## Not allowed in v2
 
@@ -79,7 +79,7 @@ Rules for all of them:
 
 ## Budgets (they decide the gate)
 
-v1 measured: 37,016 triangles and 75 mesh primitives assembled, 22,400 triangles in a wheel set, 1.72 MB assembled. That is too heavy for three robots on a phone. v2 targets:
+v1 measured 37,016 triangles and 75 mesh primitives assembled. The partial v2 export is far inside the targets so far (wheels 5,352 triangles in 12 primitives, chassis 2,156 in 1). Targets:
 
 | | Budget |
 |---|---|
@@ -98,33 +98,42 @@ Splitting a module into `print_` nodes costs primitives: one primitive per mater
   "version": 2,
   "fixed": ["chassis", "controller"],
   "modules": {
-    "camera": {
-      "file": "camera.glb",
-      "slot": "sensor",
-      "triangles": 1180,
-      "meshes": 4,
-      "bytes": 61240,
-      "printedParts": ["camera_mast", "camera_clip"]
+    "wheels": {
+      "file": "wheels.glb",
+      "slot": "locomotion",
+      "triangles": 5352,
+      "meshes": 12,
+      "bytes": 286276,
+      "printedParts": ["motor_cap", "motor_saddle"]
     }
   },
-  "deckOffsetY": { "wheels": 0, "offroad_wheels": 0.14, "tracks": 0.06 }
+  "deferred": ["offroad_wheels", "controller", "tracks"],
+  "deckOffsetY": { "wheels": 0, "offroad_wheels": 0.05, "tracks": 0 },
+  "scaleMmPerRenderUnit": 100
 }
 ```
 
-- `printedParts`: the ids of the `print_` nodes in that file. The game and the Workshop use it to know what can be tapped before the file has loaded.
-- `deckOffsetY` (optional): how far the game lifts every non-locomotion module for each locomotion id. Omit it if all modules already sit right at the common origin.
+What the game reads:
+
+- `version`: must be `2`, or the whole MK-II is skipped.
+- `modules`: **the list of what exists.** A module is loaded if and only if it has an entry here; `file` is its file name in the folder.
+- `deckOffsetY` (optional): how far, in render units, the game lifts every non-locomotion module for each locomotion id.
+
+Everything else is for people and tools: `deferred` (not exported yet), `printedParts` (ids of the `print_` nodes in the file; must match the nodes), `scaleMmPerRenderUnit` (the scale baked into the module roots), counts, status and notes.
 
 ## What the game does (for reference)
 
-- Loads the module files for the current `Build` plus the fixed modules, in parallel, from the folder above.
-- Mounts them at the origin under one root and drives the pivots from the existing `RobotDrive` (wheel spin, winch, thrusting, airborne). Body wobble on slip and squash on landing are applied to the root.
+- Reads `manifest.json`, then loads the files it lists for the current `Build` plus the fixed modules, in parallel.
+- **Rolling base rule:** the MK-II is used only if the manifest has both `chassis` and the build's locomotion module. An MK-II chassis on procedural wheels does not fit, so without both the whole robot is procedural. (Today that means builds on `wheels` get the MK-II; `offroad_wheels` and `tracks` builds stay procedural until those modules are exported.)
+- **Per-module fallback:** any other module of the build that is not in the manifest is drawn with its procedural model on the MK-II deck: parts that bolt to the chassis at plate height, the controller board (and what sits on it: IMU, waterproof case) stacked above the battery. No procedural face is drawn on an MK-II.
+- Mounts the exported modules at the origin under one root and drives the pivots from the existing `RobotDrive` (wheel spin, winch, thrusting, airborne). Body wobble on slip and squash on landing are applied to the root.
 - On DNF each `module_` root is thrown off and bounces; nothing inside a module separates.
 - In the Workshop a tap outlines the tapped part and emits `{ partId }` or `{ printedPartId }`; the ui session opens the sheet.
-- **Fallback:** if any file fails to load, is not there within 3 s, or breaks a rule above that the game checks at load (missing `module_` root), the procedural robot is drawn instead. The MK-II never blocks a run.
+- **Whole-robot fallback:** if the manifest or any file it lists fails to load, is not there within 3 s, or has no `module_<id>` root, the procedural robot is drawn instead. The MK-II never blocks a run.
 
 ## Validation (extend `verify_rover.py`)
 
-1. Every catalog id and both fixed ids have a file; no `face.glb`.
+1. Every id in `manifest.modules` has its file; every catalog id and both fixed ids are in either `modules` or `deferred`; no `face.glb`.
 2. Exactly one `module_<id>` root per file, named after the file.
 3. Every node name matches `^[a-z0-9_]+$`.
 4. Every `print_<id>` id exists in `docs/inputs/printed-parts.json`; `manifest.printedParts` matches the nodes in the file.
