@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Build, Conditions, Mission, RunEvent } from '@rivetrun/contracts';
-import { MISSIONS, PRESETS, capacityFactor, createRun, gustAt, heuristicBrain, observe, runController, runHeadless, step } from './index';
+import { MISSIONS, PARTS, PRESETS, capacityFactor, createRun, gustAt, heuristicBrain, observe, runController, runHeadless, step, partWeatherNotes, weatherEffects } from './index';
 
 const withWeather = (mission: Mission, conditions: Conditions): Mission => ({ ...mission, conditions });
 const speedster = PRESETS.speedster.build;
@@ -112,5 +112,29 @@ describe('weather: snow', () => {
     const hill: Mission = { ...MISSIONS.M1, scanZones: [], track: { segments: [{ terrain: 'asphalt', lengthM: 5, slopeDeg: 0 }, { terrain: 'snow', lengthM: 15, slopeDeg: 10 }] } };
     expect((await outcome(hill, speedster)).finished).toBe(false);
     expect((await outcome(hill, PRESETS.mud_crawler.build)).finished).toBe(true);
+  });
+});
+
+describe('weather: what it does to a build, in words', () => {
+  it('is empty on a calm clear mission and lists each active effect with the build\'s numbers otherwise', () => {
+    expect(weatherEffects(allRounder, MISSIONS.M1)).toEqual([]);
+    expect(weatherEffects(allRounder, MISSIONS.M5).map((e) => e.id)).toEqual(['rain_grip', 'camera_range', 'ranger_ok']);
+
+    const storm = withWeather(MISSIONS.M4, { windMps: 6, gustMps: 8, visibility: 'night', temperatureC: -12 });
+    const effects = weatherEffects(allRounder, storm);
+    expect(effects.map((e) => e.id)).toEqual(['cold_ice', 'cold_capacity', 'headwind', 'gusts', 'camera_range', 'ranger_ok']);
+    const byId = Object.fromEntries(effects.map((e) => [e.id, e]));
+    expect(byId.cold_capacity!.detail).toContain('×0.7');
+    expect(byId.camera_range!.detail).toBe('Camera range 1.5 m instead of 6 m');
+    expect(byId.gusts!.detail).toContain('No IMU');
+    expect(effects.every((e) => e.label.length > 0 && e.detail.length > 0)).toBe(true);
+  });
+
+  it('part sheets: notes only where weather changes what the part does', () => {
+    expect(partWeatherNotes('lidar_rplidar_c1')[0]).toBe('Night: keeps its full range');
+    expect(partWeatherNotes('camera')).toContain('Night: range ×0.25');
+    expect(partWeatherNotes('ultrasonic')).toEqual(['Fog, rain, snow and darkness do not change its range']);
+    expect(partWeatherNotes('tracks')).toEqual(['Snow: grip ×1.6']);
+    for (const part of PARTS.filter((p) => p.slot === 'motor' || p.slot === 'extra')) expect(partWeatherNotes(part.id), part.id).toEqual([]);
   });
 });

@@ -30,7 +30,7 @@ const round = (value: number, digits: number): number => {
 function cameraRangeM(state: RunState): number | undefined {
   const range = state.spec.sensorRangeM.camera;
   if (range === undefined) return undefined;
-  return range * cameraFactor(state.environment);
+  return range * cameraFactor(state.environment, { nightVision: state.spec.nightVision === true });
 }
 
 /** The drone flies above the rain; fog, snow and darkness still shorten what its camera sees. */

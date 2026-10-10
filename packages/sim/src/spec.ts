@@ -42,6 +42,8 @@ export interface RobotSpec {
   readonly sources: readonly SensorSource[];
   /** The obstacle ranger with the longest reach, if any. */
   readonly rangerSource?: SensorSource;
+  /** The longest-range camera on the build sees in the dark. */
+  readonly nightVision?: boolean;
   readonly extras: readonly ExtraKind[];
   readonly impactDamageFactor: number;
   readonly waterproof: boolean;
@@ -108,6 +110,7 @@ export function deriveSpec(build: Build): RobotSpec {
     // Two parts of one kind (ultrasonic + lidar are both obstacle rangers): the longer range wins.
     if (sensor.effects.sensor) sensorRangeM[sensor.effects.sensor] = Math.max(sensorRangeM[sensor.effects.sensor] ?? 0, sensor.effects.rangeM ?? 0);
   }
+  const cameras = sensors.filter((p) => p.effects.sensor === 'camera').sort((a, b) => (b.effects.rangeM ?? 0) - (a.effects.rangeM ?? 0));
   const rangers = sensors.filter((p) => p.effects.sensor === 'ultrasonic').sort((a, b) => (b.effects.rangeM ?? 0) - (a.effects.rangeM ?? 0));
   // Cells scale the pack (capacity, mass, cost) and the voltage (speed, power, a little force).
   const cells = (build.batteryCells ?? BUILD_TUNING.stockCells) / BUILD_TUNING.stockCells;
@@ -147,6 +150,7 @@ export function deriveSpec(build: Build): RobotSpec {
     sensorRangeM,
     sources: ['core', ...new Set(sensors.map(sourceOf)), ...(extras.some((p) => p.effects.extra === 'bumper') ? (['bumper'] as const) : [])],
     rangerSource: rangers[0] ? sourceOf(rangers[0]) : undefined,
+    ...(cameras[0]?.effects.nightVision ? { nightVision: true } : {}),
     extras: extras.flatMap((p) => (p.effects.extra ? [p.effects.extra] : [])),
     impactDamageFactor: extras.reduce((factor, p) => factor * (p.effects.impactDamageFactor ?? 1), 1),
     waterproof: extras.some((p) => p.effects.waterproof === true),

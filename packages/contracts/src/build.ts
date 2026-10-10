@@ -51,6 +51,8 @@ export const PartEffectsSchema = z.object({
   cooldownS: z.number().min(0).optional(),
   /** Deepest water the part lets a sealed robot cross by swimming, cm. */
   maxSwimDepthCm: z.number().positive().optional(),
+  /** A camera that keeps its range in the dark (no IR filter, with IR lamps). */
+  nightVision: z.boolean().optional(),
 });
 export type PartEffects = z.infer<typeof PartEffectsSchema>;
 
