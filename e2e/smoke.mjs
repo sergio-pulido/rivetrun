@@ -2,7 +2,7 @@
 // Headless Chromium against QA_BASE_URL. scripts/qa.sh points it at a production build of the commit under test;
 // on its own it defaults to the dev server. It starts no server and writes nothing outside e2e/screens.
 //   node e2e/smoke.mjs                 all steps
-//   QA_ONLY=drive node e2e/smoke.mjs   one step group: pages | drive | jev | m5 | lab | missions | race | desktop
+//   QA_ONLY=drive node e2e/smoke.mjs   one step group: pages | drive | jev | m5 | lab | missions | fallback | race | desktop
 // Env: QA_BASE_URL (default http://localhost:3000), QA_SCREENS (output directory), QA_HEADED=1 to watch.
 // Exit code: 0 when no step failed (skips are allowed), 1 otherwise. A summary lands in <QA_SCREENS>/summary.json.
 import { mkdirSync, writeFileSync } from 'node:fs';
@@ -571,6 +571,47 @@ try {
   if (seen.consoleErrors.length > 0) warnings.push(`phone: ${seen.consoleErrors.length} console error(s), first: ${seen.consoleErrors[0]}`);
   await phone.close();
 
+  // ---- Jev unavailable: the heuristic drives, the HUD says FALLBACK, the run finishes (docs/DEMO_PLAN.md) -----------
+  // [BRAIN]'s switch (bb08914): a cookie makes /api/decide and /api/ghost fail for this browser context only.
+  if (wants('fallback')) {
+    const down = await browser.newContext({ viewport: PHONE, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
+    await down.addCookies([{ name: 'rr_jev_fault', value: 'fail', url: BASE }]);
+    const downPage = await down.newPage();
+    const downSeen = watch(downPage, 'jev-down');
+    await step('jev down · fallback', async () => {
+      await go(downPage, '/');
+      await downPage.getByRole('button', { name: 'Jev drives' }).click();
+      await visibleText(downPage, '· Jev drives ·');
+      await downPage.getByRole('link', { name: /PLAY NOW/ }).click();
+      const coachStart = downPage.locator('button.rr-btn-primary').first();
+      if (await coachStart.waitFor({ state: 'visible', timeout: 4000 }).then(() => true, () => false)) await coachStart.click();
+      await downPage.waitForURL('**/run/M1', { timeout: NAV_MS });
+      let fallback = false;
+      let midRun = false;
+      const deadline = Date.now() + 150_000;
+      while (Date.now() < deadline && new URL(downPage.url()).pathname !== '/result') {
+        const text = await downPage.locator('body').innerText().catch(() => '');
+        if (/FALLBACK/.test(text)) fallback = true;
+        if (!midRun && fallback && /00:(0[6-9]|1\d)\.\d/.test(text)) {
+          midRun = true;
+          await shot(downPage, 'phone-15-run-fallback');
+        }
+        await sleep(500);
+      }
+      await downPage.waitForURL('**/result', { timeout: 10_000 });
+      const headline = (await downPage.locator('h1').first().innerText()).trim();
+      await sleep(2000);
+      await shot(downPage, 'phone-16-result-fallback');
+      const body = await downPage.locator('body').innerText();
+      if (downSeen.pageErrors.length > 0) throw new Error(`uncaught: ${downSeen.pageErrors[0]}`);
+      if (!/finished/i.test(headline)) throw new Error(`with Jev down the result headline is "${headline}"`);
+      if (!fallback) throw new Error('with the Jev fault cookie set the HUD never said FALLBACK (a production server honours the cookie only with RIVETRUN_JEV_FAULT_SWITCH=1)');
+      const said = body.match(/[^\n]*fallback[^\n]*/i)?.[0] ?? 'the Result does not mention the fallback';
+      return `Finished with FALLBACK on the HUD; Result: "${said.trim().slice(0, 80)}"`;
+    }, downPage);
+    await down.close();
+  }
+
   // ---- Big screen, 1280×720: Room Race with two JEV bots to the results --------------------------------------------
   const desktop = await browser.newContext({ viewport: DESKTOP, deviceScaleFactor: 1 });
   const screen = await desktop.newPage();
@@ -591,6 +632,9 @@ try {
     await step('room race · lobby', async () => {
       await screen.getByRole('button', { name: 'Start a Room Race' }).click();
       await screen.waitForURL(/\/screen\?room=/, { timeout: NAV_MS });
+      // Nobody on the grid yet: the attract loop replays the track.
+      await sleep(6000);
+      await shot(screen, 'screen-01b-attract');
       await screen.getByRole('radio', { name: /^M1\b/ }).first().click();
       const addBot = screen.getByRole('button', { name: '+ JEV bot' });
       await addBot.waitFor({ state: 'visible', timeout: 20_000 });

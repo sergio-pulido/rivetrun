@@ -109,7 +109,9 @@ smoke_build() {
     key="$(grep -E '^JEV_API_KEY=' "$ROOT/apps/web/.env.local" | head -n 1 | cut -d= -f2- | sed -e 's/^"//' -e 's/"$//' -e "s/^'//" -e "s/'$//")"
   fi
   [ -n "$key" ] || echo "note: no JEV_API_KEY, the heuristic will drive (FALLBACK)"
-  (cd "$QA_TREE/apps/web" && JEV_API_KEY="$key" exec node node_modules/next/dist/bin/next start -H 127.0.0.1 -p "$QA_PORT") >"$OUT/server.log" 2>&1 &
+  # RIVETRUN_JEV_FAULT_SWITCH=1 lets the smoke ask this server (and only this one) to fail Jev for one browser
+  # context, to drive the FALLBACK path. The demo build never sets it.
+  (cd "$QA_TREE/apps/web" && JEV_API_KEY="$key" RIVETRUN_JEV_FAULT_SWITCH=1 exec node node_modules/next/dist/bin/next start -H 127.0.0.1 -p "$QA_PORT") >"$OUT/server.log" 2>&1 &
   local server=$!
   trap 'kill "$server" 2>/dev/null' EXIT
   local waited=0

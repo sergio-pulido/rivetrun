@@ -26,6 +26,9 @@ Written by [MASTER] for the human. Newest status first. Program: docs/OVERNIGHT.
 
 ## Status log
 
+### 05:00 · fifth tag
+`demo-good-0500` → 5bf1572. In it: Lab Missions on screen at `/scenarios` (five grid scenarios; the e2e plays the Maze to "Scenario complete", score 732), linked from `/lab` only; race ranking includes the 10 s per missed scan; v3 alerts on race phones; no stuck clock before the first touch. Every screen the program's e2e list names is now covered by the gate.
+
 ### 04:52 · fourth tag
 `demo-good-0452` → 537c721. In it: Jev now scans on M1 (26.9 s, was 33.4 s with the penalty); a first-timer at full throttle on M5 is told "STUCK IN 6 s · TAP CLIMB" and finishes in 62.9 s by doing only that; the arena's Lab track and the Lab Missions tab on /lab; `docs/SIM_MODEL.md`. Sim's 3-seed table with the fix: Jev is within 40 points of the fixed rules on every mission with the default build, scans as often, and is ahead by 82 on Deep Water with the Deep Diver. After the tag, on main: /scenarios (five Lab Missions on screen), race ranking that includes the 10 s per missed scan, v3 alerts on race phones, no stuck clock before the first touch.
 
