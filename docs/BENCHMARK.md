@@ -2,6 +2,8 @@
 
 Generated 2026-10-10T02:22:09.394Z by `packages/brain/scripts/benchmark.ts`. Every number below is measured from headless runs of the game sim; nothing is estimated.
 
+**Row groups and the commit each was measured on.** Jev rows (all four briefings), the Jev section and the totals in Setup: commit `17ba1ac` (gameplay version 4), with real Jev calls. Heuristic and Random rows in every table: recomputed at commit `125bda4` with no Jev calls, same missions, builds and seeds. Between the two the rule-based driver gained approach planning for rough ground (`1a808a5`); the physics the brains are asked about did not change in a way that moved any balance row.
+
 ## Setup
 - Missions: M1, M2, M3, M4, M5, M6, M7, M8, M9 · Builds: speedster, mud_crawler, all_rounder, deep_diver, scout · Seeds per mission × build: 3 (1001, 1002, 1003)
 - Rows: Jev (no briefing), Jev + Daredevil, Jev + Careful, Jev + Eco, Heuristic, Random · Player priority: 0.5 (balanced)
@@ -23,7 +25,7 @@ Generated 2026-10-10T02:22:09.394Z by `packages/brain/scripts/benchmark.ts`. Eve
 | Jev + Daredevil | 135 | 62 % | 41.5 | 25.0 | 31.6 | 419 |
 | Jev + Careful | 135 | 61 % | 69.9 | 16.8 | 26.9 | 395 |
 | Jev + Eco | 135 | 63 % | 52.8 | 17.8 | 24.7 | 436 |
-| Heuristic | 135 | 64 % | 42.1 | 19.3 | 30.1 | 441 |
+| Heuristic | 135 | 63 % | 42.5 | 18.7 | 30.4 | 441 |
 | Random | 135 | 10 % | 67.8 | 4.8 | 13.4 | 93 |
 
 ## Per mission
@@ -51,7 +53,7 @@ Generated 2026-10-10T02:22:09.394Z by `packages/brain/scripts/benchmark.ts`. Eve
 | M4 Frozen Pass | Jev + Daredevil | 15 | 87 % | 31.4 | 40.9 | 30.5 | 481 |
 | M4 Frozen Pass | Jev + Careful | 15 | 87 % | 66.7 | 11.1 | 31.9 | 544 |
 | M4 Frozen Pass | Jev + Eco | 15 | 100 % | 46.2 | 18.9 | 29.3 | 603 |
-| M4 Frozen Pass | Heuristic | 15 | 100 % | 37.9 | 29.4 | 31.9 | 568 |
+| M4 Frozen Pass | Heuristic | 15 | 100 % | 39.8 | 23.1 | 34.6 | 593 |
 | M4 Frozen Pass | Random | 15 | 13 % | 67.5 | 0.5 | 15.0 | 115 |
 | M5 Room Challenge | Jev (no briefing) | 15 | 60 % | 44.4 | 15.6 | 37.1 | 385 |
 | M5 Room Challenge | Jev + Daredevil | 15 | 60 % | 42.0 | 17.0 | 41.3 | 380 |
@@ -63,7 +65,7 @@ Generated 2026-10-10T02:22:09.394Z by `packages/brain/scripts/benchmark.ts`. Eve
 | M6 Deep Water | Jev + Daredevil | 15 | 20 % | 87.7 | 71.9 | 13.2 | 126 |
 | M6 Deep Water | Jev + Careful | 15 | 20 % | 145.6 | 67.0 | 12.4 | 92 |
 | M6 Deep Water | Jev + Eco | 15 | 20 % | 132.5 | 66.8 | 11.4 | 107 |
-| M6 Deep Water | Heuristic | 15 | 20 % | 94.3 | 72.3 | 14.4 | 118 |
+| M6 Deep Water | Heuristic | 15 | 20 % | 94.3 | 72.3 | 14.1 | 118 |
 | M6 Deep Water | Random | 15 | 0 % | — | 22.5 | 7.8 | 35 |
 | M7 Earthquake Rescue | Jev (no briefing) | 15 | 0 % | — | 40.6 | 14.5 | 97 |
 | M7 Earthquake Rescue | Jev + Daredevil | 15 | 0 % | — | 40.9 | 15.0 | 96 |
@@ -75,7 +77,7 @@ Generated 2026-10-10T02:22:09.394Z by `packages/brain/scripts/benchmark.ts`. Eve
 | M8 Storm Ridge | Jev + Daredevil | 15 | 67 % | 52.1 | 24.6 | 52.2 | 367 |
 | M8 Storm Ridge | Jev + Careful | 15 | 60 % | 70.5 | 10.5 | 43.9 | 403 |
 | M8 Storm Ridge | Jev + Eco | 15 | 60 % | 62.8 | 8.6 | 35.7 | 417 |
-| M8 Storm Ridge | Heuristic | 15 | 67 % | 52.4 | 17.7 | 47.8 | 409 |
+| M8 Storm Ridge | Heuristic | 15 | 60 % | 54.1 | 18.4 | 48.2 | 379 |
 | M8 Storm Ridge | Random | 15 | 0 % | — | 2.7 | 20.5 | 46 |
 | M9 Polar Night | Jev (no briefing) | 15 | 67 % | 61.8 | 6.1 | 60.0 | 399 |
 | M9 Polar Night | Jev + Daredevil | 15 | 67 % | 58.7 | 8.3 | 62.2 | 394 |
@@ -91,7 +93,7 @@ Generated 2026-10-10T02:22:09.394Z by `packages/brain/scripts/benchmark.ts`. Eve
 | Speedster | Jev + Daredevil | 27 | 30 % | 24.8 | 26.0 | 54.5 | 283 |
 | Speedster | Jev + Careful | 27 | 26 % | 39.0 | 25.1 | 51.4 | 253 |
 | Speedster | Jev + Eco | 27 | 33 % | 34.2 | 21.2 | 44.9 | 305 |
-| Speedster | Heuristic | 27 | 37 % | 24.7 | 21.7 | 49.7 | 305 |
+| Speedster | Heuristic | 27 | 33 % | 26.5 | 18.9 | 51.2 | 300 |
 | Speedster | Random | 27 | 7 % | 49.0 | 5.8 | 26.7 | 76 |
 | Mud Crawler | Jev (no briefing) | 27 | 78 % | 37.9 | 36.9 | 22.0 | 446 |
 | Mud Crawler | Jev + Daredevil | 27 | 78 % | 38.1 | 36.9 | 22.3 | 445 |
@@ -109,7 +111,7 @@ Generated 2026-10-10T02:22:09.394Z by `packages/brain/scripts/benchmark.ts`. Eve
 | Deep Diver | Jev + Daredevil | 27 | 48 % | 49.9 | 12.2 | 28.4 | 348 |
 | Deep Diver | Jev + Careful | 27 | 48 % | 83.4 | 6.4 | 20.6 | 314 |
 | Deep Diver | Jev + Eco | 27 | 48 % | 68.0 | 10.2 | 18.2 | 317 |
-| Deep Diver | Heuristic | 27 | 48 % | 51.5 | 6.8 | 22.6 | 364 |
+| Deep Diver | Heuristic | 27 | 48 % | 51.5 | 6.4 | 22.7 | 366 |
 | Deep Diver | Random | 27 | 0 % | — | 1.3 | 7.9 | 36 |
 | Scout | Jev (no briefing) | 27 | 78 % | 46.6 | 18.3 | 27.7 | 526 |
 | Scout | Jev + Daredevil | 27 | 78 % | 44.4 | 22.4 | 28.1 | 500 |
@@ -137,7 +139,7 @@ Generated 2026-10-10T02:22:09.394Z by `packages/brain/scripts/benchmark.ts`. Eve
 | M4 · All-rounder | Jev + Daredevil | 3 | 100 % | 27.9 | 33.8 | 19.2 | 606 |
 | M4 · All-rounder | Jev + Careful | 3 | 100 % | 60.4 | 13.1 | 18.6 | 602 |
 | M4 · All-rounder | Jev + Eco | 3 | 100 % | 45.4 | 21.7 | 17.2 | 613 |
-| M4 · All-rounder | Heuristic | 3 | 100 % | 38.5 | 1.9 | 24.2 | 745 |
+| M4 · All-rounder | Heuristic | 3 | 100 % | 37.6 | 1.8 | 23.4 | 751 |
 | M4 · All-rounder | Random | 3 | 0 % | — | 0.0 | 7.2 | 35 |
 
 Scout = All-rounder with the Scout drone instead of the camera; the sim then simulates each option further ahead and Jev is told the longer window.
