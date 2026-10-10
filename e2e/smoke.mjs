@@ -134,8 +134,8 @@ async function robotOnScreen(page, waitMs = 40_000) {
   return seen;
 }
 
-/** QA_MK2=enforce makes the procedural robot a failure; until [GAME]'s hooks are on main it is a warning. */
-const MK2_ENFORCED = process.env.QA_MK2 === 'enforce';
+/** The procedural robot on screen is a failure since [GAME]'s marker landed (ab798f4). QA_MK2=warn relaxes it. */
+const MK2_ENFORCED = process.env.QA_MK2 !== 'warn';
 function judgeRobot(where, seen) {
   if (seen?.robot === 'mk2') return `${where}: MK-II kit on screen`;
   const what = seen === null ? 'no data-robot marker on this build' : `data-robot="${seen.robot}"${seen.reason ? ` (${seen.reason})` : ''}`;
