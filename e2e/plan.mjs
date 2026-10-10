@@ -121,8 +121,8 @@ async function openPlay(page) {
   await page.locator(id('play')).first().waitFor({ state: 'visible', timeout: 30_000 }).catch(() => {
     throw new Error('no element with data-testid="play" on /play');
   });
-  const reached = await waitForStep(page, ['vehicle', 'wait', 'unavailable'], 20_000);
-  if (reached !== 'vehicle') throw new Error(`not matched: step "${reached}" · ${(await text(page.locator(id('play-wait')))) || (await text(page.locator(id('play'))).then((t) => t.slice(0, 120)))}`);
+  const reached = await waitForStep(page, ['mission', 'vehicle', 'wait', 'unavailable'], 20_000);
+  if (reached !== 'vehicle' && reached !== 'mission') throw new Error(`not matched: step "${reached}" · ${(await text(page.locator(id('play-wait')))) || (await text(page.locator(id('play'))).then((t) => t.slice(0, 120)))}`);
 }
 
 /** Taps the card for one step and returns its test id. */
@@ -201,25 +201,36 @@ async function playSteps(browser) {
     return `room ${room || '(no play-room)'}, countdown ${countdown}`;
   }, a.page);
 
-  await step('/play · 3 taps', async () => {
+  await step('/play · taps', async () => {
     if (!joined) throw new Skip('no room joined');
     const startedAt = Date.now();
+    // Amendment 14:00 (docs/PLAY_AND_PLAN.md): mission → vehicle → driver, no strategy step. The page may still be
+    // the earlier vehicle → driver → strategy: each step is taken only if the page shows it.
+    let mission = '';
+    if ((await playStep(a.page)) === 'mission') {
+      mission = `${await tap(a.page, id('play-mission-M7'), 'M7 mission')} → `;
+      await waitForStep(a.page, ['vehicle'], 5000);
+      await shot(a.page, 'play-01b-vehicle');
+    }
     const vehicle = await tap(a.page, id('play-vehicle-all_rounder'), 'All-rounder vehicle');
     await waitForStep(a.page, ['agent'], 5000);
     await shot(a.page, 'play-02-agent');
     const agents = await a.page.locator('[data-testid^="play-agent-"]').evaluateAll((cards) => cards.map((card) => card.getAttribute('data-testid').replace('play-agent-', '')));
     const agent = await tap(a.page, id('play-agent-human'), '"You drive" agent');
-    await waitForStep(a.page, ['strategy'], 5000);
-    await shot(a.page, 'play-03-strategy');
-    const strategies = await a.page.locator('[data-testid^="play-strategy-"]').evaluateAll((cards) => cards.map((card) => card.getAttribute('data-testid').replace('play-strategy-', '')));
-    const strategy = await tap(a.page, id('play-strategy-plan'), 'plan strategy');
+    let strategy = '';
+    let strategies = 'no strategy step';
+    if ((await waitForStep(a.page, ['strategy', 'waiting'], 5000)) === 'strategy') {
+      await shot(a.page, 'play-03-strategy');
+      strategies = `strategies: ${(await a.page.locator('[data-testid^="play-strategy-"]').evaluateAll((cards) => cards.map((card) => card.getAttribute('data-testid').replace('play-strategy-', '')))).join(', ')}`;
+      strategy = ` → ${await tap(a.page, id('play-strategy-plan'), 'plan strategy')}`;
+    }
     const tookMs = Date.now() - startedAt;
     await waitForStep(a.page, ['waiting'], 5000);
     await sleep(500);
     await shot(a.page, 'play-04-waiting');
     await assertHealthy(a.page, a.seen);
     tapped = true;
-    return `${vehicle} → ${agent} → ${strategy} in ${(tookMs / 1000).toFixed(1)} s; agents offered: ${agents.join(', ')}; strategies: ${strategies.join(', ')}`;
+    return `${mission}${vehicle} → ${agent}${strategy} in ${(tookMs / 1000).toFixed(1)} s; ${mission ? 'mission step shown; ' : 'no mission step; '}agents offered: ${agents.join(', ')}; ${strategies}`;
   }, a.page);
 
   await step('/play · "You drive" → result', async () => {
