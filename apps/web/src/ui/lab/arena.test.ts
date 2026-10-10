@@ -96,3 +96,26 @@ describe('arenaLine', () => {
     expect(arenaLine(parseArena(FILE)!)).toBe('Our sim, our prompts, 126 runs, 2026-10-10. Not a general model ranking.');
   });
 });
+
+describe('Lab Missions track', () => {
+  const lab = { date: '2026-10-10', runs: 45, promptHash: 'lab123', scenarios: ['maze', 'warehouse'], contestants: [FILE.contestants[0], FILE.contestants[1]] };
+
+  it('is null until the file has a lab section', () => {
+    expect(parseArena(FILE)!.lab).toBeNull();
+    expect(parseArena({ ...FILE, lab: { runs: 3 } })!.lab).toBeNull();
+  });
+
+  it('reads the lab section in the same shape as the rail arena', () => {
+    const arena = parseArena({ ...FILE, lab })!;
+    expect(arena.lab).toMatchObject({ runs: 45, scenarios: ['maze', 'warehouse'], promptHash: 'lab123' });
+    expect(arenaRows(arena.lab!).map((row) => row.label)).toEqual(['Jev', 'Heuristic']);
+    expect(arenaLine(arena.lab!)).toBe('Our sim, our prompts, 45 runs, 2026-10-10. Not a general model ranking.');
+  });
+
+  it('knows when costs come from published prices', () => {
+    expect(parseArena(FILE)!.priced).toBe(false);
+    const priced = parseArena({ ...FILE, priceSources: { anthropic: 'https://example.com/pricing' }, lab })!;
+    expect(priced.priced).toBe(true);
+    expect(priced.lab!.priced).toBe(true);
+  });
+});

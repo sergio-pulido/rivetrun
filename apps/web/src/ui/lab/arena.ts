@@ -30,10 +30,14 @@ const ContestantSchema = z.object({
 });
 export type Contestant = z.infer<typeof ContestantSchema>;
 
-const FileSchema = z.object({
+const SectionSchema = z.object({
   date: z.string().min(1),
   runs: z.number().int().min(0),
   promptHash: z.string().nullish(),
+  /** Lab Missions: the scenarios that were run. */
+  scenarios: z.array(z.string()).nullish(),
+  /** Where the prices behind costPerRunUsd come from, per provider. Present = the costs are computed from published prices. */
+  priceSources: z.record(z.string(), z.string()).nullish(),
   contestants: z.array(z.unknown()),
   /** Brains that are set up but were not run, with the reason. */
   notRun: z.array(z.unknown()).nullish(),
@@ -42,17 +46,26 @@ const FileSchema = z.object({
 const NotRunSchema = z.object({ id: z.string().min(1), label: z.string().min(1), reason: z.string().min(1) });
 export type NotRun = z.infer<typeof NotRunSchema>;
 
-export interface Arena {
+/** One set of arena results: the rail missions, or the Lab Missions track. */
+export interface ArenaSection {
   readonly date: string;
   readonly runs: number;
   readonly promptHash: string | null;
+  readonly scenarios: readonly string[];
+  /** Costs are computed from the providers' published prices and the tokens they reported. */
+  readonly priced: boolean;
   readonly contestants: readonly Contestant[];
   readonly notRun: readonly NotRun[];
 }
 
-/** The results file as the page uses it, or null when there is none to use. A malformed contestant is skipped. */
-export function parseArena(raw: unknown): Arena | null {
-  const file = FileSchema.safeParse(raw);
+export interface Arena extends ArenaSection {
+  /** The same brains on Lab Missions (a grid simulation); null until that track has run. */
+  readonly lab: ArenaSection | null;
+}
+
+/** One section of the file; null when it is not there or not readable. A malformed contestant is skipped. */
+function parseSection(raw: unknown): ArenaSection | null {
+  const file = SectionSchema.safeParse(raw);
   if (!file.success) return null;
   const contestants = file.data.contestants.flatMap((entry) => {
     const parsed = ContestantSchema.safeParse(entry);
@@ -62,7 +75,24 @@ export function parseArena(raw: unknown): Arena | null {
     const parsed = NotRunSchema.safeParse(entry);
     return parsed.success ? [parsed.data] : [];
   });
-  return { date: file.data.date, runs: file.data.runs, promptHash: file.data.promptHash ?? null, contestants, notRun };
+  return {
+    date: file.data.date,
+    runs: file.data.runs,
+    promptHash: file.data.promptHash ?? null,
+    scenarios: file.data.scenarios ?? [],
+    priced: Object.keys(file.data.priceSources ?? {}).length > 0,
+    contestants,
+    notRun,
+  };
+}
+
+/** The results file as the page uses it, or null when there is none to use. Its `lab` key holds the Lab Missions track. */
+export function parseArena(raw: unknown): Arena | null {
+  const rail = parseSection(raw);
+  if (!rail) return null;
+  const lab = parseSection((raw as { readonly lab?: unknown }).lab);
+  // The lab track is priced the same way as the rail one unless it says otherwise.
+  return { ...rail, lab: lab ? { ...lab, priced: lab.priced || rail.priced } : null };
 }
 
 export interface ArenaRow {
@@ -94,7 +124,7 @@ const thousands = (count: number): string => (count < 1000 ? `${Math.round(count
 const NO_FIGURES = { finish: MISSING, score: MISSING, decisions: MISSING, p50: MISSING, p95: MISSING, lateCrashes: MISSING, cost: MISSING } as const;
 
 /** One table row per contestant, every figure as text; then the brains that were not run, with the reason. */
-export function arenaRows(arena: Arena): readonly ArenaRow[] {
+export function arenaRows(arena: ArenaSection): readonly ArenaRow[] {
   const measured = arena.contestants.map((entry): ArenaRow => {
     if (entry.status !== 'ok') return { id: entry.id, label: entry.label, kind: entry.kind, configured: false, detail: 'not configured', ...NO_FIGURES };
     const runs = entry.runs ?? null;
@@ -150,7 +180,7 @@ function tidyCeiling(value: number): number {
 }
 
 /** Median latency against mean score, one point per brain that has both. Null with fewer than two: one dot compares nothing. */
-export function scatter(arena: Arena, box: PlotBox): Scatter | null {
+export function scatter(arena: ArenaSection, box: PlotBox): Scatter | null {
   const measured = arena.contestants.flatMap((entry) =>
     entry.status === 'ok' && typeof entry.latencyP50Ms === 'number' && typeof entry.meanScore === 'number' ? [{ entry, ms: entry.latencyP50Ms, score: entry.meanScore }] : [],
   );
@@ -173,4 +203,4 @@ export function scatter(arena: Arena, box: PlotBox): Scatter | null {
 }
 
 /** The caveat that goes with every arena figure. */
-export const arenaLine = (arena: Arena): string => `Our sim, our prompts, ${arena.runs} ${arena.runs === 1 ? 'run' : 'runs'}, ${arena.date}. Not a general model ranking.`;
+export const arenaLine = (arena: ArenaSection): string => `Our sim, our prompts, ${arena.runs} ${arena.runs === 1 ? 'run' : 'runs'}, ${arena.date}. Not a general model ranking.`;

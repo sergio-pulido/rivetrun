@@ -1,4 +1,7 @@
-import { arenaLine, arenaRows, scatter, type Arena, type ContestantKind } from './arena';
+'use client';
+
+import { useState } from 'react';
+import { arenaLine, arenaRows, scatter, type Arena, type ArenaSection, type ContestantKind } from './arena';
 
 const PLOT = { width: 334, height: 210, padding: 30 } as const;
 
@@ -13,7 +16,7 @@ const DOT: Readonly<Record<ContestantKind, string>> = {
 
 const COLUMNS = ['Finish', 'Score', 'Dec. / run', 'p50', 'p95', 'Late crashes', 'Cost / run'] as const;
 
-function Table({ arena }: { readonly arena: Arena }) {
+function Table({ arena }: { readonly arena: ArenaSection }) {
   return (
     <div className="rr-scroll-x -mx-4 px-4">
       <table className="w-full min-w-[620px] border-collapse text-right font-mono text-xs tabular-nums">
@@ -34,9 +37,9 @@ function Table({ arena }: { readonly arena: Arena }) {
           {arenaRows(arena).map((row) => (
             <tr key={row.id} className={`border-t border-tag ${row.configured ? '' : 'text-faint'}`}>
               <th scope="row" className="sticky left-0 max-w-[150px] bg-panel py-2 pr-3 text-left font-normal">
-                <span className="flex items-center gap-1.5">
-                  <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: row.configured ? DOT[row.kind] : 'transparent', border: row.configured ? undefined : '1px dashed var(--color-line-3)' }} />
-                  <span className={`font-display text-[13px] font-semibold ${row.configured ? 'truncate text-text' : 'leading-tight'}`}>{row.label}</span>
+                <span className="flex items-start gap-1.5">
+                  <span className="mt-1 h-2 w-2 shrink-0 rounded-full" style={{ background: row.configured ? DOT[row.kind] : 'transparent', border: row.configured ? undefined : '1px dashed var(--color-line-3)' }} />
+                  <span className={`font-display text-[13px] font-semibold leading-tight ${row.configured ? 'text-text' : ''}`}>{row.label}</span>
                 </span>
                 <span className={`block pl-3.5 text-[10px] text-muted ${row.configured ? 'truncate' : 'whitespace-normal leading-tight'}`}>{row.detail}</span>
               </th>
@@ -53,7 +56,7 @@ function Table({ arena }: { readonly arena: Arena }) {
   );
 }
 
-function Scatter({ arena }: { readonly arena: Arena }) {
+function Scatter({ arena }: { readonly arena: ArenaSection }) {
   const plot = scatter(arena, PLOT);
   if (!plot) return null;
   const { width, height, padding } = PLOT;
@@ -108,11 +111,51 @@ function Scatter({ arena }: { readonly arena: Arena }) {
   );
 }
 
+type Track = 'rail' | 'lab';
+
+const TRACKS: readonly { readonly id: Track; readonly label: string }[] = [
+  { id: 'rail', label: 'Rail missions' },
+  { id: 'lab', label: 'Lab Missions' },
+];
+
+const EMPTY: Readonly<Record<Track, { readonly title: string; readonly text: string }>> = {
+  rail: { title: 'No arena results yet', text: 'The table and the latency-vs-score plot appear here once the arena has run. Nothing is shown until there are real runs to show.' },
+  lab: { title: 'No Lab Missions results yet', text: 'The same brains on the grid scenarios appear here once that track has run. Nothing is shown until there are real runs to show.' },
+};
+
+function Results({ section }: { readonly section: ArenaSection }) {
+  return (
+    <>
+      {section.scenarios.length > 0 ? (
+        <div className="flex flex-wrap gap-1.5">
+          {section.scenarios.map((scenario) => (
+            <span key={scenario} className="rr-chip">
+              {scenario.replaceAll('_', ' ')}
+            </span>
+          ))}
+        </div>
+      ) : null}
+      <Table arena={section} />
+      {section.priced ? <p className="-mt-1.5 text-[11px] leading-snug text-muted">Cost per run: each provider&apos;s published price × the tokens it reported. A token count is shown where no price is set.</p> : null}
+      <Scatter arena={section} />
+      <p className="border-t border-line pt-3 text-xs leading-snug text-text-2">
+        {arenaLine(section)}
+        {section.promptHash ? <span className="ml-1.5 font-mono text-[10px] text-faint">prompt {section.promptHash}</span> : null}
+      </p>
+    </>
+  );
+}
+
 /**
- * /lab "Brain Arena": same robot, same seed, same sensors, same question, different brains.
- * Shows the brain session's results file; until it exists, says so and shows no figures.
+ * /lab "Brain Arena": same robot, same seed, same sensors, same question, different brains, on two tracks:
+ * the rail missions and Lab Missions (a grid simulation). Shows the brain session's results file; a track with
+ * no results says so and shows no figures.
  */
 export function BrainArena({ arena }: { readonly arena: Arena | null }) {
+  const [track, setTrack] = useState<Track>('rail');
+  const section: ArenaSection | null = track === 'rail' ? arena : (arena?.lab ?? null);
+  const hasResults = section !== null && section.contestants.length + section.notRun.length > 0;
+
   return (
     <section className="rr-card flex flex-col gap-3.5 p-4" aria-labelledby="brain-arena">
       <div className="flex flex-col gap-1">
@@ -122,21 +165,36 @@ export function BrainArena({ arena }: { readonly arena: Arena | null }) {
         <p className="text-[13px] leading-snug text-text-2">Same robot, same seed, same sensors, same question. Different brains. Their answers arrive with their real latency: the robot holds its last command until then.</p>
       </div>
 
-      {arena && arena.contestants.length + arena.notRun.length > 0 ? (
-        <>
-          <Table arena={arena} />
-          <Scatter arena={arena} />
-          <p className="border-t border-line pt-3 text-xs leading-snug text-text-2">
-            {arenaLine(arena)}
-            {arena.promptHash ? <span className="ml-1.5 font-mono text-[10px] text-faint">prompt {arena.promptHash}</span> : null}
-          </p>
-        </>
-      ) : (
-        <div className="flex flex-col gap-1.5 rounded-xl border border-dashed border-line-3 px-3.5 py-5 text-center">
-          <p className="font-display text-[15px] font-semibold">No arena results yet</p>
-          <p className="text-xs leading-snug text-muted">The table and the latency-vs-score plot appear here once the arena has run. Nothing is shown until there are real runs to show.</p>
-        </div>
-      )}
+      <div className="flex gap-1.5" role="tablist" aria-label="Arena track">
+        {TRACKS.map((entry) => {
+          const on = entry.id === track;
+          return (
+            <button
+              key={entry.id}
+              type="button"
+              role="tab"
+              aria-selected={on}
+              onClick={() => setTrack(entry.id)}
+              className={`h-11 flex-1 rounded-[10px] border font-display text-[13px] font-semibold transition-colors ${on ? 'border-cyan bg-cyan-deep text-cyan-soft' : 'border-line-2 bg-panel-2 text-text-2'}`}
+            >
+              {entry.label}
+            </button>
+          );
+        })}
+      </div>
+
+      {track === 'lab' ? <p className="-mt-1.5 text-[11px] leading-snug text-muted">Lab Missions use a grid simulation: top-down scenarios with the same parts, sensors, battery and brains.</p> : null}
+
+      <div role="tabpanel" className="flex flex-col gap-3.5">
+        {hasResults ? (
+          <Results section={section} />
+        ) : (
+          <div className="flex flex-col gap-1.5 rounded-xl border border-dashed border-line-3 px-3.5 py-5 text-center">
+            <p className="font-display text-[15px] font-semibold">{EMPTY[track].title}</p>
+            <p className="text-xs leading-snug text-muted">{EMPTY[track].text}</p>
+          </div>
+        )}
+      </div>
     </section>
   );
 }
