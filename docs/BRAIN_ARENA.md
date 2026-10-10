@@ -5,9 +5,25 @@ Marker: RR-ARENA
 Goal: same robot, same seed, same sensors, same question, different brains. Measure decision quality and decision speed. Builds on docs/BRAIN_V3_SENSING.md (RR-BRAIN-V3).
 
 ## Contestants
-- Jev (TypeSafe), the heuristic driver, random.
-- LLM adapters. Anthropic first: claude-haiku-5-5, claude-sonnet-5-5, claude-opus-5-5. OpenAI, DeepSeek or others only when the human adds a key and gives the exact model IDs; no model ID is guessed.
+Model IDs checked on the providers' official model pages on 2026-10-10. Verify each against the provider's models endpoint at startup and skip any the account cannot use.
+
+| Tier | Contestant | Provider model ID | Mode |
+|---|---|---|---|
+| Fast | Jev | TypeSafe systemone | as today |
+| Fast | Claude Haiku | claude-haiku-5-5 | no extended thinking |
+| Fast | GPT-5 nano | gpt-5-nano | lowest reasoning effort the model accepts |
+| Fast | GPT-6 Luna | gpt-6-luna | lowest reasoning effort the model accepts |
+| Fast | DeepSeek Flash | deepseek-flash (V4.1-Flash) | non-thinking |
+| Mid | Claude Sonnet | claude-sonnet-5-5 | no extended thinking |
+| Mid | GPT-5.6 Luna | gpt-5.6-luna | lowest reasoning effort the model accepts |
+| Reasoning | Claude Opus | claude-opus-5-5 | extended thinking on, labelled "(reasoning)" |
+| Reasoning | GPT-6.1 Sol | gpt-6.1-sol | default reasoning, labelled "(reasoning)" |
+| Reasoning | DeepSeek V4 Pro | deepseek-v4-pro | thinking, labelled "(reasoning)" |
+| Baseline | Heuristic, random | — | — |
+
+- Record the exact mode parameters used per contestant in the results JSON.
 - Humans: from logged Drive-mode runs on the same mission, build and seed.
+- Run the fast and mid tiers on all seeds. Run the reasoning tier on 1 seed first and report time and cost before the rest.
 
 ## Fairness rules
 - Same Observation (RR-BRAIN-V3), same options, same question text. Each provider gets it as plain text plus a JSON schema for the answer: { choice, confidence 0..1 }.
