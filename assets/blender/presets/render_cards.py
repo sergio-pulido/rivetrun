@@ -32,6 +32,9 @@ for preset in data['presets']:
 # Same camera direction as default_build_hero_side_3q; a common centre and orthographic scale for every card.
 lo=[min(r['bounds'][0][i] for r in records) for i in range(3)];hi=[max(r['bounds'][1][i] for r in records) for i in range(3)];centre=Vector(tuple((lo[i]+hi[i])/2 for i in range(3)))
 cd=bpy.data.cameras.new('preset_shared_camera');cam=bpy.data.objects.new(cd.name,cd);scene.collection.objects.link(cam);cam.location=centre+Vector((1.6,-5.5,2.6));cam.rotation_euler=(centre-cam.location).to_track_quat('-Z','Y').to_euler();cd.type='ORTHO';scene.camera=cam;bpy.context.view_layer.update();view=cam.matrix_world.inverted();points=[view@Vector((x,y,z)) for x in [lo[0],hi[0]] for y in [lo[1],hi[1]] for z in [lo[2],hi[2]]];cd.ortho_scale=max(max(p[i] for p in points)-min(p[i] for p in points) for i in [0,1])/.83
+studio=json.loads((HERE/'studio.json').read_text()) if (HERE/'studio.json').exists() else None
+if studio:
+ centre=Vector(studio['cameraTarget']);cam.location=centre+Vector(studio['cameraDirection']);cam.rotation_euler=(centre-cam.location).to_track_quat('-Z','Y').to_euler();cd.ortho_scale=studio['orthoScale']
 world=bpy.data.worlds.new('shared_bright_studio');world.use_nodes=True;world.node_tree.nodes['Background'].inputs[1].default_value=.35;scene.world=world
 for name,p,power in [('key',(3,-3,5),900),('rim',(-3,3,3.5),1200),('fill',(3,3,2),450)]:
  d=bpy.data.lights.new(name,'AREA');d.energy=power;d.size=3.5;d.color=(1,1,1);o=bpy.data.objects.new(name,d);scene.collection.objects.link(o);o.location=centre+Vector(p);o.rotation_euler=(centre-o.location).to_track_quat('-Z','Y').to_euler()
@@ -40,5 +43,6 @@ for c in groups.values():c.hide_render=False
 bpy.ops.wm.save_as_mainfile(filepath=str(HERE/'preset_cards.blend'))
 (HERE/'assembly-manifest.json').write_text(json.dumps({'author':data['author'],'records':records,'cameraDirection':[1.6,-5.5,2.6],'cameraTarget':list(centre),'orthoScale':cd.ortho_scale,'lights':'Exact default hero studio rig: white key/rim/fill 900/1200/450 W, 3.5 m area lights','sameCameraAndScale':True,'libraryPlacements':data['libraryPlacement'],'missingPartsPolicy':data['missingPartsPolicy']},indent=2)+'\n')
 for preset in data['presets']:
+ if preset['id'] not in ['speedster','mud_crawler']:continue
  for key,c in groups.items():c.hide_render=key!=preset['id']
  scene.render.filepath=str(HERE/(preset['id']+'.png'));bpy.ops.render.render(write_still=True);print('PRESET MASTER',preset['id'],flush=True)

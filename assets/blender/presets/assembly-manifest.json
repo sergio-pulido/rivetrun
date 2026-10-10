@@ -5,14 +5,14 @@
       "id": "speedster",
       "bounds": [
         [
-          -1.0499999523162842,
+          -1.129995346069336,
           -0.6854767203330994,
           0.0
         ],
         [
           1.0499999523162842,
           0.6854767203330994,
-          1.1344527006149292
+          1.5800000429153442
         ]
       ],
       "renderedParts": [
@@ -22,7 +22,8 @@
         "motor_light",
         "battery_small",
         "camera",
-        "ultrasonic"
+        "ultrasonic",
+        "ducted_fan"
       ],
       "missingParts": []
     },
@@ -49,7 +50,9 @@
         "imu",
         "waterproof_case"
       ],
-      "missingParts": []
+      "missingParts": [
+        "piston_jump"
+      ]
     },
     {
       "id": "all_rounder",

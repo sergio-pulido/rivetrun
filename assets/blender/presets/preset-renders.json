@@ -1,6 +1,6 @@
 {
   "author": "sergio.pulido@alodai.com",
-  "presetSource": "packages/sim/src/data/parts.ts PRESETS",
+  "presetSource": "packages/sim/src/data/parts.ts PRESETS + human requested ducted_fan/piston_jump additions",
   "order": [
     "speedster",
     "mud_crawler",
@@ -13,7 +13,7 @@
       "master": "assets/blender/presets/speedster.png",
       "file": "apps/web/public/renders/presets/speedster.webp",
       "url": "/renders/presets/speedster.webp",
-      "sizeBytes": 67626,
+      "sizeBytes": 73940,
       "resolutionPx": [
         768,
         768
@@ -26,7 +26,8 @@
         "motor_light",
         "battery_small",
         "camera",
-        "ultrasonic"
+        "ultrasonic",
+        "ducted_fan"
       ],
       "missingParts": []
     },
@@ -50,7 +51,9 @@
         "imu",
         "waterproof_case"
       ],
-      "missingParts": []
+      "missingParts": [
+        "piston_jump"
+      ]
     },
     {
       "id": "all_rounder",
@@ -105,7 +108,7 @@
   "lineup": {
     "file": "apps/web/public/renders/presets/lineup.webp",
     "url": "/renders/presets/lineup.webp",
-    "sizeBytes": 193372,
+    "sizeBytes": 199568,
     "resolutionPx": [
       2400,
       900
@@ -126,7 +129,7 @@
   },
   "og": {
     "file": "apps/web/public/og.png",
-    "sizeBytes": 208247,
+    "sizeBytes": 214937,
     "resolutionPx": [
       1200,
       630
@@ -134,5 +137,13 @@
     "background": "#0e1013, app ground token",
     "title": "RIVETRUN",
     "tagline": "Build a real robot. Let the AI drive."
+  },
+  "presetOverrides": {
+    "speedster": [
+      "ducted_fan"
+    ],
+    "mud_crawler": [
+      "piston_jump"
+    ]
   }
 }

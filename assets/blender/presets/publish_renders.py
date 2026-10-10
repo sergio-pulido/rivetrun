@@ -4,6 +4,7 @@ from pathlib import Path
 from PIL import Image,ImageDraw,ImageFont
 HERE=Path(__file__).resolve().parent;ROOT=HERE.parents[2];OUT=ROOT/'apps/web/public/renders/presets';OUT.mkdir(parents=True,exist_ok=True);data=json.loads((HERE/'render-inputs.json').read_text());manifest_path=HERE/'preset-renders.json'
 step=sys.argv[1];manifest=json.loads(manifest_path.read_text()) if manifest_path.exists() else {'author':data['author'],'presetSource':data['presetSource'],'order':[p['id'] for p in data['presets']],'cards':[],'sameCameraAndScale':True}
+manifest['presetSource']=data['presetSource'];manifest['presetOverrides']=data.get('presetOverrides',{})
 def webp(image,path,budget):
  for q in [95,92,89,86,82,78]:
   image.save(path,'WEBP',quality=q,method=6)

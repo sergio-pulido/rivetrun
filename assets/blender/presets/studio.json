@@ -1,0 +1,14 @@
+{
+  "cameraDirection": [
+    1.6,
+    -5.5,
+    2.6
+  ],
+  "cameraTarget": [
+    0.0,
+    0.0,
+    0.5877910852432251
+  ],
+  "orthoScale": 2.983341693878174,
+  "lights": "Exact default hero studio rig: white key/rim/fill 900/1200/450 W, 3.5 m area lights"
+}

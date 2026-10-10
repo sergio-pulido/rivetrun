@@ -1,6 +1,14 @@
 {
   "author": "sergio.pulido@alodai.com",
-  "presetSource": "packages/sim/src/data/parts.ts PRESETS",
+  "presetSource": "packages/sim/src/data/parts.ts PRESETS + human requested ducted_fan/piston_jump additions",
+  "presetOverrides": {
+    "speedster": [
+      "ducted_fan"
+    ],
+    "mud_crawler": [
+      "piston_jump"
+    ]
+  },
   "presets": [
     {
       "id": "speedster",
@@ -12,7 +20,9 @@
           "camera",
           "ultrasonic"
         ],
-        "extras": []
+        "extras": [
+          "ducted_fan"
+        ]
       },
       "parts": [
         "chassis",
@@ -21,7 +31,8 @@
         "motor_light",
         "battery_small",
         "camera",
-        "ultrasonic"
+        "ultrasonic",
+        "ducted_fan"
       ],
       "renderedParts": [
         "chassis",
@@ -30,7 +41,8 @@
         "motor_light",
         "battery_small",
         "camera",
-        "ultrasonic"
+        "ultrasonic",
+        "ducted_fan"
       ],
       "missingParts": []
     },
@@ -44,7 +56,8 @@
           "imu"
         ],
         "extras": [
-          "waterproof_case"
+          "waterproof_case",
+          "piston_jump"
         ]
       },
       "parts": [
@@ -54,7 +67,8 @@
         "motor_torque",
         "battery_large",
         "imu",
-        "waterproof_case"
+        "waterproof_case",
+        "piston_jump"
       ],
       "renderedParts": [
         "chassis",
@@ -65,7 +79,9 @@
         "imu",
         "waterproof_case"
       ],
-      "missingParts": []
+      "missingParts": [
+        "piston_jump"
+      ]
     },
     {
       "id": "all_rounder",
@@ -187,6 +203,12 @@
       "kind": "mk2_module",
       "scale": 1
     },
+    "ducted_fan": {
+      "file": "/tmp/rr-preset-render-inputs/ducted_fan.glb",
+      "source": "apps/web/public/models/mk2/ducted_fan.glb",
+      "kind": "mk2_module",
+      "scale": 1
+    },
     "tracks": {
       "file": "/tmp/rr-preset-render-inputs/tracks.glb",
       "source": "apps/web/public/models/mk2/tracks.glb",
@@ -236,5 +258,5 @@
     "tracks": -0.205
   },
   "missingPartsPolicy": "Omit absent models; never use procedural or invented geometry.",
-  "libraryPlacement": "Existing component meshes only; metres \u00d710 = MK-II render units. Enclosure sits on chassis deck; controller and IMU are inside it, external sensors lifted onto enclosure. This is render placement, no new rover module or manufactured mount."
+  "libraryPlacement": "Existing component meshes only; metres ×10 = MK-II render units. Enclosure sits on chassis deck; controller and IMU are inside it, external sensors lifted onto enclosure. This is render placement, no new rover module or manufactured mount."
 }
