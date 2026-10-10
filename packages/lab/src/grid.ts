@@ -86,7 +86,10 @@ export function roomCells(map: LabMap, from: Cell): number[] {
   return [...seen].sort((a, b) => a - b);
 }
 
-/** Bresenham line of sight: true when no cell strictly between the two is opaque. */
+/**
+ * Bresenham line of sight: true when no cell strictly between the two is opaque, and the line does not squeeze
+ * diagonally between two opaque cells that touch at a corner.
+ */
 export function lineOfSight(from: Cell, to: Cell, opaque: (cell: Cell) => boolean): boolean {
   const dx = Math.abs(to.x - from.x);
   const dy = Math.abs(to.y - from.y);
@@ -97,8 +100,11 @@ export function lineOfSight(from: Cell, to: Cell, opaque: (cell: Cell) => boolea
   let y = from.y;
   for (;;) {
     const twice = 2 * error;
-    if (twice > -dy) { error -= dy; x += sx; }
-    if (twice < dx) { error += dx; y += sy; }
+    const stepX = twice > -dy;
+    const stepY = twice < dx;
+    if (stepX && stepY && opaque({ x: x + sx, y }) && opaque({ x, y: y + sy })) return false;
+    if (stepX) { error -= dy; x += sx; }
+    if (stepY) { error += dx; y += sy; }
     if (x === to.x && y === to.y) return true;
     if (opaque({ x, y })) return false;
   }

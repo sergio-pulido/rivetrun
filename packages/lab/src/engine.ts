@@ -42,6 +42,8 @@ const hurt = (agent: AgentState, pct: number): AgentState => ({ ...agent, damage
 /** How the robot learns of a contact: the bumper, the IMU, or the encoders noticing it did not move. */
 const contactSource = (agent: AgentState): SensorSource => (agent.robot.suite.bumper ? 'bumper' : agent.robot.suite.imu ? 'imu' : 'core');
 
+const hasEyes = (agent: AgentState): boolean => agent.robot.suite.cameraM > 0 || agent.robot.suite.droneM > 0;
+
 const isBlind = (agent: AgentState): boolean => {
   const { suite } = agent.robot;
   return !suite.ultrasonic && suite.tofM === 0 && suite.lidarM === 0 && suite.cameraM === 0 && suite.droneM === 0;
@@ -79,8 +81,7 @@ function bumpWall(d: Draft, agent: AgentState, to: Cell): AgentState {
   const blind = isBlind(agent);
   const source = contactSource(agent);
   d.events.push({ type: 'bump', t: d.t, agentId: agent.id, at: to, into: 'wall', damagePct, blind });
-  // The edge of the map is on the plan already; a wall inside it is news.
-  const known: KnownMap = inside(map, to) ? learnTile(agent.known, indexOf(map, to), { blocked: true, kind: 'wall', via: source }) : agent.known;
+  const known: KnownMap = learnTile(agent.known, indexOf(map, to), { blocked: true, kind: 'wall', via: source });
   return fire(
     { ...hurt(agent, damagePct), known, command: IDLE, carryM: 0, busy: { kind: 'bump', untilT: d.t + LAB_TUNING.bumpS }, stats: { ...agent.stats, bumps: agent.stats.bumps + 1 } },
     { kind: 'body', cause: 'bumped', source, label: blind ? 'BLIND · hit a wall: no distance sensor' : `${SOURCE_LABEL[source]} · hit a wall` },
@@ -92,8 +93,8 @@ function bumpRobot(d: Draft, agent: AgentState, rivalIndex: number, to: Cell): A
   const source = contactSource(agent);
   d.events.push({ type: 'bump', t: d.t, agentId: agent.id, at: to, into: 'robot', damagePct: 0, blind: isBlind(agent) });
   const bumped = { ...agent, command: IDLE, carryM: 0, busy: { kind: 'bump' as const, untilT: d.t + LAB_TUNING.bumpS }, stats: { ...agent.stats, bumps: agent.stats.bumps + 1 } };
-  if (!d.base.scenario.tagSteals || rival.carrying.length === 0 || d.t < rival.safeUntilT) {
-    return fire(bumped, { kind: 'body', cause: 'bumped', source, label: `${SOURCE_LABEL[source]} · bumped into ${rival.label}` });
+  if (!d.base.scenario.tagSteals || rival.carrying.length === 0 || d.t < rival.safeUntilT || rival.move !== undefined) {
+    return fire(bumped, { kind: 'body', cause: 'bumped', source, label: `${SOURCE_LABEL[source]} · bumped into ${hasEyes(agent) ? rival.label : 'something'}` });
   }
   // Tagged: the carrier is stunned and loses what it holds, to the tagger as far as the tagger can carry it.
   const room = Math.max(0, d.base.scenario.carryLimit - agent.carrying.length);
@@ -125,7 +126,7 @@ function collide(d: Draft, agent: AgentState, moverId: string, at: Cell): AgentS
       ...hurt(agent, damagePct), move: undefined, command: IDLE, carryM: 0, speedMps: 0,
       busy: { kind: 'stun', untilT: d.t + LAB_TUNING.collisionS }, stats: { ...agent.stats, collisions: agent.stats.collisions + 1 },
     },
-    { kind: 'body', cause: 'collision', source, label: `${SOURCE_LABEL[source]} · hit by ${def.label.toLowerCase()}` },
+    { kind: 'body', cause: 'collision', source, label: `${SOURCE_LABEL[source]} · hit by ${hasEyes(agent) ? def.label.toLowerCase() : 'something moving'}` },
   );
 }
 
@@ -151,6 +152,11 @@ function tryMove(d: Draft, moving: AgentState, dir: Dir): AgentState {
   // Turning re-aims the camera and the ToF beam.
   const agent = moving.heading === dir ? moving : look(d, { ...moving, heading: dir });
   const to = stepCell(agent.cell, dir);
+  // The edge of the map is on the plan: nothing to drive onto, nothing to hit.
+  if (!inside(map, to)) {
+    const stayed = { ...agent, command: IDLE, carryM: 0 };
+    return agent.command.type === 'step' ? stayed : fire(stayed, { kind: 'perception', cause: 'wall_ahead', source: 'core', label: 'CORE · the edge of the map' });
+  }
   const tile = tileAt(map, to);
   const index = indexOf(map, to);
   const known = agent.known[index];
@@ -175,9 +181,12 @@ function tryMove(d: Draft, moving: AgentState, dir: Dir): AgentState {
     const why = { grip: 'the wheels spin', torque: 'the motor stalls', tip: 'too steep for this locomotion' }[motion.reason];
     const what = tile.kind === 'ramp' ? `ramp of ${tile.slopeDeg}°` : tile.terrain;
     d.events.push({ type: 'blocked', t: d.t, agentId: agent.id, at: to, reason: `${what}: ${why}` });
+    // The robot knows it did not get there. What stopped it, only a camera or an IMU can say.
+    const told = hasEyes(agent) || (agent.robot.suite.imu && tile.kind === 'ramp');
+    const learned = told ? { blocked: false, kind: tile.kind, slopeDeg: tile.slopeDeg, noGo: true, via: 'core' as const } : { blocked: false, noGo: true, via: 'core' as const };
     return fire(
-      { ...agent, command: IDLE, carryM: 0, known: learnTile(agent.known, index, { blocked: false, kind: tile.kind, slopeDeg: tile.slopeDeg, noGo: true, via: 'core' }) },
-      { kind: 'body', cause: 'blocked', source: 'core', label: `CORE · cannot get onto the ${what}: ${why}` },
+      { ...agent, command: IDLE, carryM: 0, known: learnTile(agent.known, index, learned) },
+      { kind: 'body', cause: 'blocked', source: 'core', label: told ? `CORE · cannot get onto the ${what}: ${why}` : 'CORE · cannot get onto the tile ahead: the drive stalls or spins' },
     );
   }
   return {
@@ -212,13 +221,13 @@ function energyCheck(d: Draft, agent: AgentState): AgentState {
   const state = view(d);
   const energy = energyView(state, agent, navigate(navContextOf(state, agent), agent.cell));
   const way = energy.returnPct !== undefined ? ` after the ${energy.returnPct} % the way to the end costs` : '';
-  if (!agent.memory.energyLow && energy.marginPct < LAB_TUNING.energy.lowPct) {
-    return fire({ ...agent, memory: { ...agent.memory, energyLow: true } }, { kind: 'energy', cause: 'energy_low', source: 'core', label: `ENERGY · ${energy.marginPct} % to spare${way}` });
-  }
-  if (agent.memory.energyLow && energy.marginPct > LAB_TUNING.energy.okPct) {
-    return fire({ ...agent, memory: { ...agent.memory, energyLow: false } }, { kind: 'energy', cause: 'energy_ok', source: 'core', label: `ENERGY · ${energy.marginPct} % to spare${way}` });
-  }
-  return agent;
+  const low = !agent.memory.energyLow && energy.marginPct < LAB_TUNING.energy.lowPct;
+  const ok = agent.memory.energyLow && energy.marginPct > LAB_TUNING.energy.okPct;
+  if (!low && !ok) return agent;
+  const trigger: LabTrigger = { kind: 'energy', cause: low ? 'energy_low' : 'energy_ok', source: 'core', label: `ENERGY · ${energy.marginPct} % to spare${way}` };
+  const fired = fire(agent, trigger);
+  // Something more urgent went out this step: the energy line is checked again on the next tile.
+  return fired.trigger === trigger ? { ...fired, memory: { ...fired.memory, energyLow: low } } : agent;
 }
 
 function arrive(d: Draft, agent: AgentState, to: Cell): AgentState {
@@ -302,30 +311,29 @@ function traffic(d: Draft, agent: AgentState): AgentState {
   const rival = seen.visibleRivals.find((r) => !agent.memory.rivalsInView.includes(r.id));
   if (mover === undefined && rival === undefined) return seen;
   const where = (cell: Cell): string => `${manhattan(cell, seen.cell)} tiles ${bearing(seen.cell, cell)}`;
-  const told = {
-    ...seen,
-    memory: {
-      ...seen.memory,
-      moversInView: mover ? [...seen.memory.moversInView, mover.id] : seen.memory.moversInView,
-      rivalsInView: rival ? [...seen.memory.rivalsInView, rival.id] : seen.memory.rivalsInView,
-    },
-  };
+  // Each mover and each robot is announced once, the first time a sensor picks it up; one announcement per step.
   if (mover !== undefined) {
     const name = mover.labelled ? d.base.scenario.movers.find((m) => m.id === mover.id)!.label.toLowerCase() : 'something moving';
+    const told = { ...seen, memory: { ...seen.memory, moversInView: [...seen.memory.moversInView, mover.id] } };
     return fire(told, { kind: 'perception', cause: 'mover_seen', source: mover.via, label: `${SOURCE_LABEL[mover.via]} · ${name}, ${where(mover.cell)}` });
   }
   const name = rival!.labelled ? d.agents.find((a) => a.id === rival!.id)!.label : 'something moving';
+  const told = { ...seen, memory: { ...seen.memory, rivalsInView: [...seen.memory.rivalsInView, rival!.id] } };
   return fire(told, { kind: 'perception', cause: 'rival_seen', source: rival!.via, label: `${SOURCE_LABEL[rival!.via]} · ${name}, ${where(rival!.cell)}` });
 }
 
-/** A robot with no command, not moving and not busy asks again every so often. */
+/** A robot standing still asks again every so often: with no command, or held up by traffic that has not cleared. */
 function idleCheck(d: Draft, agent: AgentState): AgentState {
-  const idle = agent.command.type === 'idle' && agent.move === undefined && agent.busy === undefined;
-  if (!idle) return agent.memory.idleSinceT < 0 ? agent : { ...agent, memory: { ...agent.memory, idleSinceT: -1 } };
+  const still = agent.move === undefined && agent.busy === undefined;
+  const held = still && agent.memory.heldForMover && agent.command.type !== 'idle';
+  if (!still || (agent.command.type !== 'idle' && !held)) return agent.memory.idleSinceT < 0 ? agent : { ...agent, memory: { ...agent.memory, idleSinceT: -1 } };
   const since = agent.memory.idleSinceT < 0 || agent.trigger !== undefined ? d.t : agent.memory.idleSinceT;
   const waiting = { ...agent, stats: { ...agent.stats, idleS: agent.stats.idleS + DT }, memory: { ...agent.memory, idleSinceT: since } };
-  if (d.t - since < LAB_TUNING.idleRetriggerS) return waiting;
-  return fire({ ...waiting, memory: { ...waiting.memory, idleSinceT: d.t } }, { kind: 'actuator', cause: 'idle', label: 'CORE · standing still with no command' });
+  if (d.t - since < (held ? LAB_TUNING.heldRetriggerS : LAB_TUNING.idleRetriggerS)) return waiting;
+  const again: LabTrigger = held
+    ? { kind: 'perception', cause: 'mover_ahead', label: 'CORE · still held up by traffic' }
+    : { kind: 'actuator', cause: 'idle', label: 'CORE · standing still with no command' };
+  return fire({ ...waiting, memory: { ...waiting.memory, idleSinceT: d.t } }, again);
 }
 
 function tickAgent(d: Draft, i: number): void {
@@ -457,9 +465,14 @@ export function createLab(config: LabConfig): LabState {
       const seen = senseTraffic(placed, senseTiles(placed, agent).agent);
       const index = indexOf(scenario.map, seen.cell);
       const zone = scenario.zones.find((z) => z.cells.includes(index));
+      const eyes: SensorSource | undefined = seen.robot.suite.cameraM > 0 ? 'camera' : seen.robot.suite.droneM > 0 ? 'scout_drone' : undefined;
       return {
         ...seen, trigger: START, visitedZones: zone ? [zone.id] : [],
-        memory: { ...seen.memory, moversInView: seen.visibleMovers.map((m) => m.id), rivalsInView: seen.visibleRivals.map((r) => r.id) },
+        memory: {
+          ...seen.memory, moversInView: seen.visibleMovers.map((m) => m.id), rivalsInView: seen.visibleRivals.map((r) => r.id),
+          // Weather already in force is what the robot has always seen: not a change to announce.
+          visibility: eyes ? weatherFactor(placed, eyes) : 1,
+        },
       };
     }),
   };
@@ -493,7 +506,7 @@ export function retire(state: LabState, agentId: string, dnfReason: LabDnfReason
     ...state,
     agents,
     objects: state.objects.map((o) => (o.status === 'carried' && o.by === agentId ? { id: o.id, at: agent.cell, status: 'idle' } : o)),
-    events: [...state.events, { type: 'ended', t: state.t, agentId, status: 'dnf', dnfReason }],
+    events: [{ type: 'ended', t: state.t, agentId, status: 'dnf', dnfReason }],
     done: agents.every((a) => a.status !== 'running'),
   };
 }

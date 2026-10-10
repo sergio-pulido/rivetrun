@@ -83,6 +83,9 @@ export interface LabRunResult {
 export interface LabDriver {
   readonly state: LabState;
   readonly done: boolean;
+  /** The decisions applied so far, oldest first. */
+  readonly decisions: readonly LabDecisionLog[];
+  readonly misses: readonly LabMiss[];
   /** Questions due now: one per brain-driven robot that has a trigger and no answer outstanding. Each is handed out once. */
   questions(): { agentId: string; question: LabQuestion }[];
   /** The answer to a question from `questions()`. `undefined` or an option not on offer = no decision: the last command holds. */
@@ -134,24 +137,33 @@ export function createLabDriver(scenario: LabScenario, seed: number, entries: re
   const events: LabEvent[] = [];
   const frames: LabFrame[] = frameEvery > 0 ? [frameOf(state)] : [];
 
+  /** A trigger lasts one step in the sim. Keep the most urgent one per robot until it has been asked about. */
+  const latch = (): void => {
+    for (const agent of state.agents) {
+      const held = queued.get(agent.id);
+      if (agent.trigger !== undefined && (held === undefined || RANK[agent.trigger.kind] > RANK[held.kind])) queued.set(agent.id, agent.trigger);
+    }
+  };
+  latch();
+
   const questions = (): { agentId: string; question: LabQuestion }[] => {
     const out: { agentId: string; question: LabQuestion }[] = [];
     for (const entry of entries) {
       const agent = state.agents.find((a) => a.id === entry.agentId);
       if (!agent || agent.status !== 'running' || entry.brain === undefined) continue;
-      const waiting = asked.has(agent.id) || due.has(agent.id);
-      if (agent.trigger !== undefined && waiting) {
-        const held = queued.get(agent.id);
-        if (held === undefined || RANK[agent.trigger.kind] > RANK[held.kind]) queued.set(agent.id, agent.trigger);
-      }
-      const trigger = waiting ? undefined : (agent.trigger ?? queued.get(agent.id));
+      // One question at a time: a robot waiting for an answer is asked about what has piled up once that answer is in.
+      if (asked.has(agent.id) || due.has(agent.id)) continue;
+      const trigger = queued.get(agent.id);
       if (trigger === undefined || (count.get(agent.id) ?? 0) >= maxDecisions) continue;
       queued.delete(agent.id);
       const question = buildLabQuestion(state, agent.id, trigger, entry.briefing);
       if (question === undefined) {
         // Standing still with no move on offer, and nobody else on the map to change that: this robot's run is over.
         const alone = state.agents.every((other) => other.id === agent.id || other.status !== 'running');
-        if (alone && agent.command.type === 'idle' && agent.move === undefined && agent.busy === undefined) state = retire(state, agent.id, 'stuck');
+        if (alone && agent.command.type === 'idle' && agent.move === undefined && agent.busy === undefined) {
+          state = retire(state, agent.id, 'stuck');
+          events.push(...state.events);
+        }
         continue;
       }
       asked.set(agent.id, { question, askedT: state.t });
@@ -189,6 +201,7 @@ export function createLabDriver(scenario: LabScenario, seed: number, entries: re
   };
 
   const advance = (): void => {
+    if (state.done) return;
     for (const [agentId, pending] of due) {
       if (state.t + 1e-9 < pending.applyT) continue;
       state = applyOption(state, agentId, pending.option);
@@ -196,6 +209,7 @@ export function createLabDriver(scenario: LabScenario, seed: number, entries: re
       due.delete(agentId);
     }
     state = stepLab(state);
+    latch();
     events.push(...state.events);
     if (frameEvery > 0 && (state.tick % frameEvery === 0 || state.done)) frames.push(frameOf(state));
   };
@@ -203,6 +217,8 @@ export function createLabDriver(scenario: LabScenario, seed: number, entries: re
   return {
     get state() { return state; },
     get done() { return state.done; },
+    get decisions() { return decisions; },
+    get misses() { return misses; },
     questions,
     answer,
     command: (agentId, next) => { state = command(state, agentId, next); },

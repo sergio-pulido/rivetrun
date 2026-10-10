@@ -62,15 +62,16 @@ export function seeCell(state: LabState, agent: AgentState, cell: Cell): Seen {
 }
 
 /** What a sighting says about a tile. Rangers cannot tell a ramp or a drop from flat floor. */
-function report(tile: Tile, open: boolean, seen: Seen, eyes: boolean): KnownTile | undefined {
+function report(tile: Tile, open: boolean, seen: Seen, eyes: boolean, imu: boolean): KnownTile | undefined {
   const via = seen.label ?? seen.geometry;
   if (via === undefined) return undefined;
   if (tile.kind === 'wall') return { blocked: true, kind: 'wall', via };
   if (tile.kind === 'door') return { blocked: !open, kind: 'door', via };
   if (seen.label === undefined) return { blocked: false, via };
-  // The tile under the robot: it knows what it stands on, but the ground type only with a camera or a drone.
-  const terrain = seen.label !== 'core' || eyes ? { terrain: tile.terrain } : {};
-  return { blocked: false, kind: tile.kind, ...terrain, ...(tile.kind === 'ramp' ? { slopeDeg: tile.slopeDeg } : {}), via };
+  // The tile under the robot: the ground type only with a camera or a drone, the slope only with those or an IMU.
+  const looked = seen.label !== 'core' || eyes;
+  if (!looked && !imu) return { blocked: false, kind: tile.kind === 'ramp' ? 'floor' : tile.kind, via };
+  return { blocked: false, kind: tile.kind, ...(looked ? { terrain: tile.terrain } : {}), ...(tile.kind === 'ramp' ? { slopeDeg: tile.slopeDeg } : {}), via };
 }
 
 const merge = (old: KnownTile | undefined, next: KnownTile): KnownTile => ({
@@ -108,7 +109,7 @@ export function senseTiles(state: LabState, agent: AgentState): SenseResult {
       if (!inside(map, cell)) continue;
       const seen = seeCell(state, agent, cell);
       const index = indexOf(map, cell);
-      const tile = report(map.tiles[index]!, doorOpen(state, cell), seen, eyes);
+      const tile = report(map.tiles[index]!, doorOpen(state, cell), seen, eyes, suite.imu);
       if (tile === undefined) continue;
       known[index] = merge(known[index], sameCell(cell, agent.cell) ? { ...tile, visited: true } : tile);
       if (seen.label !== undefined) labelled.set(index, seen.label);

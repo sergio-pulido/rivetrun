@@ -17,6 +17,7 @@
     "@rivetrun/brain": "workspace:*",
     "@rivetrun/contracts": "workspace:*",
     "@rivetrun/db": "workspace:*",
+    "@rivetrun/lab": "workspace:*",
     "@rivetrun/sim": "workspace:*",
     "next": "^16.4.0",
     "qrcode-generator": "^2.0.4",

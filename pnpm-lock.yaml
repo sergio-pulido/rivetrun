@@ -41,6 +41,9 @@ importers:
       '@rivetrun/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@rivetrun/lab':
+        specifier: workspace:*
+        version: link:../../packages/lab
       '@rivetrun/sim':
         specifier: workspace:*
         version: link:../../packages/sim

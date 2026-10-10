@@ -165,7 +165,9 @@ export function frontiers(ctx: NavContext, nav: Nav, search = false): Frontier[]
     if (!Number.isFinite(timeS)) return;
     const cell = cellAt(ctx.map, index);
     const open = DIRS.filter((dir) => { const next = stepCell(cell, dir); return inside(ctx.map, next) && ctx.known[indexOf(ctx.map, next)] === undefined; });
-    const unlooked = search && index !== nav.from && ctx.known[index]?.kind === undefined;
+    // Looked at = driven over, or seen by a camera or a drone (they give the ground type). A floor plan and a ranger give neither.
+    const tile = ctx.known[index];
+    const unlooked = search && index !== nav.from && tile !== undefined && !tile.visited && tile.terrain === undefined;
     if (open.length === 0 && !unlooked) return;
     const path = pathTo(nav, ctx.map, cell) ?? [];
     const first = path[0] ? dirBetween(cellAt(ctx.map, nav.from), path[0]) : undefined;

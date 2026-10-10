@@ -42,6 +42,10 @@ describe('grid', () => {
     expect(lineOfSight({ x: 0, y: 0 }, { x: 4, y: 0 }, wall)).toBe(false);
     expect(lineOfSight({ x: 0, y: 0 }, { x: 2, y: 0 }, wall)).toBe(true);
     expect(lineOfSight({ x: 0, y: 0 }, { x: 0, y: 5 }, wall)).toBe(true);
+    // Two walls touching at a corner leave no gap to look through.
+    const corner = (cell: Cell): boolean => (cell.x === 1 && cell.y === 0) || (cell.x === 0 && cell.y === 1);
+    expect(lineOfSight({ x: 0, y: 0 }, { x: 2, y: 2 }, corner)).toBe(false);
+    expect(lineOfSight({ x: 0, y: 0 }, { x: 2, y: 2 }, (cell) => cell.x === 1 && cell.y === 0)).toBe(true);
   });
 });
 
@@ -221,8 +225,14 @@ describe('moving through the grid', () => {
     const scenario = scenarioOf(['######', '#S.^.#', '######'], {}, 22);
     const wheels = drive(start(scenario, { ...BASE, locomotion: 'wheels' }), { type: 'heading', dir: 'E' });
     expect(you(last(wheels)).cell).toEqual({ x: 2, y: 1 });
-    expect(triggers(wheels).find((t) => t.cause === 'blocked')?.label).toMatch(/ramp of 22°: too steep for this locomotion/);
-    expect(knownAt(last(wheels), { x: 3, y: 1 })).toMatchObject({ noGo: true, kind: 'ramp' });
+    // Without a camera or an IMU the robot only knows it did not get there, not that it was a ramp.
+    expect(triggers(wheels).find((t) => t.cause === 'blocked')?.label).toBe('CORE · cannot get onto the tile ahead: the drive stalls or spins');
+    expect(knownAt(last(wheels), { x: 3, y: 1 })).toMatchObject({ noGo: true });
+    expect(knownAt(last(wheels), { x: 3, y: 1 })?.kind).toBeUndefined();
+    // With a camera the ramp is on its map before it gets there: it does not try.
+    const sighted = drive(start(scenario, { ...BASE, locomotion: 'wheels', sensors: ['camera'] }), { type: 'heading', dir: 'E' });
+    expect(knownAt(last(sighted), { x: 3, y: 1 })).toMatchObject({ kind: 'ramp', slopeDeg: 22 });
+    expect(you(last(sighted)).cell).toEqual({ x: 2, y: 1 });
     expect(you(last(drive(start(scenario, { ...BASE, locomotion: 'tracks' }), { type: 'heading', dir: 'E' }))).cell).toEqual({ x: 4, y: 1 });
   });
 

@@ -25,6 +25,8 @@ export const LAB_TUNING = {
   energy: { lowPct: 10, okPct: 30 },
   /** A robot with nothing to do asks again after this long. */
   idleRetriggerS: 1,
+  /** A robot held up by traffic that has not cleared asks again after this long. */
+  heldRetriggerS: 3,
 } as const;
 
 export type Pace = 'full' | 'eco';
