@@ -13,6 +13,7 @@ import { SavedBuilds } from '@/ui/builds/SavedBuilds';
 import { BUDGET_EUR, buildStats, sameBuild } from '@/ui/buildStats';
 import { Icon } from '@/ui/Icon';
 import { LockedCard, type LockedPart } from '@/ui/real/LockedCard';
+import { SensePanel } from '@/ui/sensing/SensePanel';
 import { Shell } from '@/ui/Shell';
 import { TestRun } from '@/ui/strategy/TestRun';
 import { useTestRun } from '@/ui/strategy/useTestRun';
@@ -208,6 +209,9 @@ export function Workshop({ makers, locked, printedIds }: WorkshopProps) {
       ))}
 
       <Tuning slot={slot} build={build} onChange={setBuild} />
+
+      {/* On the shelf where it can be changed: what the fitted sensors tell the brain, and what stays unknown. */}
+      {slot === 'sensor' ? <SensePanel build={build} /> : null}
 
       {partsIn(slot).some((part) => !isUnlocked(unlocked, part.id)) ? (
         <p className="flex items-center justify-between font-mono text-[10px] font-medium tracking-[1px] text-muted">

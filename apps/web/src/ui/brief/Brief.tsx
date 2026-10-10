@@ -12,6 +12,7 @@ import { SavedBuilds } from '@/ui/builds/SavedBuilds';
 import { PlayLink } from '@/ui/coach/PlayLink';
 import { Icon } from '@/ui/Icon';
 import { MODE_NOTE, ModeSwitch } from '@/ui/ModeSwitch';
+import { SensePanel } from '@/ui/sensing/SensePanel';
 import { Shell } from '@/ui/Shell';
 import { scenarioSegments } from '@/ui/strategy/scenario';
 import { ScenarioStrip } from '@/ui/strategy/ScenarioStrip';
@@ -169,6 +170,8 @@ export function Brief({ missionId }: { readonly missionId: MissionId }) {
       </div>
 
       <TestRun mission={mission} result={testRun} />
+
+      <SensePanel build={build} />
 
       <section className="rr-rise flex flex-col gap-1.5" style={{ ['--i' as string]: 2 }}>
         <ModeSwitch />

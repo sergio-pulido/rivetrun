@@ -2,9 +2,9 @@
 // the screens show less when the sim cannot answer for a build, and never fall over because of it.
 import type { Build, Mission } from '@rivetrun/contracts';
 import * as sim from '@rivetrun/sim';
-import type { BuildAssessment, CapabilityId, CapabilityItem, DemandTest, SegmentDemand } from '@rivetrun/sim';
+import type { BuildAssessment, Capabilities, CapabilityId, CapabilityItem, DemandTest, SegmentDemand } from '@rivetrun/sim';
 
-export type { BuildAssessment, CapabilityId, CapabilityItem, DemandTest, SegmentAssessment, SegmentDemand, SegmentVerdict } from '@rivetrun/sim';
+export type { BuildAssessment, Capabilities, CapabilityId, CapabilityItem, DemandTest, SegmentAssessment, SegmentDemand, SegmentVerdict } from '@rivetrun/sim';
 
 /** Runs a sim function that may throw on a build it does not expect: the screen carries on without the answer. */
 function attempt<T>(run: () => T): T | null {
@@ -14,6 +14,9 @@ function attempt<T>(run: () => T): T | null {
     return null;
   }
 }
+
+/** Everything the sim says a build can do, as figures. */
+export const capabilities = (build: Build): Capabilities | null => attempt(() => sim.capabilities(build));
 
 /** A build's capabilities as a flat list with the sim's labels, for showing and for comparing two builds. */
 export const capabilityList = (build: Build): readonly CapabilityItem[] | null => attempt(() => sim.capabilityList(build));
