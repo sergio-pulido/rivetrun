@@ -32,7 +32,6 @@ Owner of: `packages/brain`, `apps/web/app/api`, `apps/web/app/race`, `apps/web/a
 - The fault switch, the live Arena race and the ghost warm-up on the production build.
 - A signal loss exactly at the finish line (the 18 s retry was read, not exercised).
 - The polling fallback through the Cloudflare tunnel after tonight's changes to it.
-- A run submitted from the Result page being replayed (only a race run and the route tests were).
 - `/lab` rendering of the facts-only column and the human rows (UI's page).
 
 ## If this breaks at the demo
