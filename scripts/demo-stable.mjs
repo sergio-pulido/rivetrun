@@ -129,7 +129,8 @@ if (flags.has('--build-only')) {
   console.log(`\n${ref} (${sha.slice(0, 7)}) builds. Nothing was started.`);
   process.exit(0);
 }
-const env = { ...process.env, NEXT_PUBLIC_SITE_URL: siteUrl, NEXT_DIST_DIR: LIVE };
+// The server reads these at run time (/api/version); `served` is the commit of the build actually being served.
+const env = { ...process.env, NEXT_PUBLIC_SITE_URL: siteUrl, NEXT_PUBLIC_DEMO_COMMIT: served, NEXT_PUBLIC_DEMO_REF: served === sha ? ref : 'last good build', NEXT_DIST_DIR: LIVE };
 
 console.log(`\nStable demo of ${served.slice(0, 7)} on http://localhost:${port}${siteUrl ? `  ·  public: ${siteUrl}  ·  big screen: ${siteUrl}/screen` : ''}\n`);
 const server = spawn('pnpm', ['exec', 'next', 'start', '-H', '0.0.0.0', '-p', port], { cwd: web, env, stdio: 'inherit' });
