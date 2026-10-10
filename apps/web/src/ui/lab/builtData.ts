@@ -3,6 +3,7 @@
 import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
+import { parseHowBuilt, parseTokenReport, type HowBuilt, type TokenReport } from './accounting';
 import { LOG_FORMAT, commitsOverTime, parseGitLog, parseMarkdownTable, parseSessions, parseTokens, type CommitChart, type MarkdownTable, type Session, type TokenRow } from './built';
 
 const REPO = path.join(process.cwd(), '..', '..');
@@ -37,23 +38,34 @@ export interface Built {
   readonly commits: CommitChart | null;
   /** The benchmark's overall table, and the line that says how it was produced. */
   readonly benchmark: { readonly table: MarkdownTable; readonly generated: string | null } | null;
+  /** Token counts in the older, simpler shape of docs/tokens.json. Used only when the file is not the measured report. */
   readonly tokens: readonly TokenRow[];
+  /** docs/tokens.json as scripts/tokens.py writes it: the measured tokens, and what was not measured. */
+  readonly tokenReport: TokenReport | null;
+  /** docs/how-built.json: models and tools per session, the other agents, what agents and the human did. */
+  readonly facts: HowBuilt | null;
 }
+
+/** A docs file as JSON, or undefined when it is missing or not JSON: its block is then left out. */
+const json = (name: string): unknown => {
+  try {
+    return JSON.parse(doc(name) ?? '');
+  } catch {
+    return undefined;
+  }
+};
 
 export function howItWasBuilt(): Built {
   const benchmarkDoc = doc('BENCHMARK.md');
   const table = benchmarkDoc ? parseMarkdownTable(benchmarkDoc, 'Overall') : null;
-  const tokensDoc = doc('tokens.json');
-  let tokens: readonly TokenRow[] = [];
-  try {
-    tokens = tokensDoc ? parseTokens(JSON.parse(tokensDoc)) : [];
-  } catch {
-    tokens = []; // Not JSON: shown as not provided.
-  }
+  const tokensFile = json('tokens.json');
+  const tokenReport = parseTokenReport(tokensFile);
   return {
     sessions: parseSessions(doc('OVERNIGHT.md') ?? ''),
     commits: commitChart(),
     benchmark: table ? { table, generated: benchmarkDoc?.split('\n').find((line) => line.startsWith('Generated ')) ?? null } : null,
-    tokens,
+    tokens: tokenReport ? [] : parseTokens(tokensFile),
+    tokenReport,
+    facts: parseHowBuilt(json('how-built.json')),
   };
 }

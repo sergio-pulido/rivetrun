@@ -1,3 +1,4 @@
+import { BuiltFacts, BuiltTokens } from './BuiltAccounting';
 import { OWNERS, type CommitChart, type Owner } from './built';
 import type { Built } from './builtData';
 
@@ -71,7 +72,9 @@ const compact = (value: number): string => (value >= 1_000_000 ? `${(value / 1_0
 
 /** /lab "How it was built": the sessions and their roles, when the commits landed, the benchmark, and tokens when they are provided. */
 export function HowItWasBuilt({ built }: { readonly built: Built }) {
-  const { sessions, commits, benchmark, tokens } = built;
+  const { sessions, commits, benchmark, tokens, tokenReport, facts } = built;
+  // With the facts file, each session is listed there with its model and tools: the program's shorter list is not repeated.
+  const roles = facts && facts.sessions.length > 0 ? [] : sessions;
   return (
     <section className="rr-card flex flex-col gap-4 p-4 lg:grid lg:grid-cols-2 lg:items-start lg:gap-x-8 lg:p-6" aria-labelledby="how-built">
       <div className="flex flex-col gap-1 lg:col-span-2">
@@ -81,11 +84,13 @@ export function HowItWasBuilt({ built }: { readonly built: Built }) {
         <p className="text-[13px] leading-snug text-text-2 lg:text-base">Parallel AI coding sessions on one repository, each with its own files, one human setting the direction. Everything below is read from the repository.</p>
       </div>
 
-      {sessions.length > 0 ? (
+      {facts ? <BuiltFacts facts={facts} /> : null}
+
+      {roles.length > 0 ? (
         <div className="flex flex-col gap-1.5">
           <h3 className="rr-label">Sessions and roles</h3>
           <ul className="flex flex-col">
-            {sessions.map((session) => (
+            {roles.map((session) => (
               <li key={session.name} className="flex items-baseline gap-2.5 border-t border-tag py-1.5 first:border-t-0">
                 <span className="w-[92px] shrink-0 font-mono text-[11px] font-semibold tracking-[1px] text-orange-soft lg:w-[108px] lg:text-[13px]">{session.name.toUpperCase()}</span>
                 <span className="min-w-0 text-xs leading-snug text-text-2 lg:text-sm">{session.role}</span>
@@ -95,7 +100,12 @@ export function HowItWasBuilt({ built }: { readonly built: Built }) {
         </div>
       ) : null}
 
-      {commits && commits.total > 0 ? <Commits chart={commits} /> : <p className="text-xs leading-snug text-muted lg:text-sm">The commit history is not available on this server.</p>}
+      {/* Alone on its row the chart would grow with the card: it keeps a readable size instead. */}
+      <div className={roles.length > 0 ? '' : 'lg:col-span-2 lg:max-w-[760px]'}>
+        {commits && commits.total > 0 ? <Commits chart={commits} /> : <p className="text-xs leading-snug text-muted lg:text-sm">The commit history is not available on this server.</p>}
+      </div>
+
+      {tokenReport ? <BuiltTokens report={tokenReport} /> : null}
 
       {benchmark ? (
         <div className="flex flex-col gap-1.5 lg:col-span-2">
@@ -135,24 +145,26 @@ export function HowItWasBuilt({ built }: { readonly built: Built }) {
         </div>
       ) : null}
 
-      <div className="flex flex-col gap-1.5 lg:col-span-2">
-        <h3 className="rr-label">Tokens</h3>
-        {tokens.length > 0 ? (
-          <ul className="flex flex-col">
-            {tokens.map((row) => (
-              <li key={row.name} className="flex items-baseline justify-between gap-2 border-t border-tag py-1.5 text-xs first:border-t-0">
-                <span className="font-display text-[13px] font-semibold">{row.name}</span>
-                <span className="font-mono tabular-nums text-text-2">
-                  {row.input !== null && row.output !== null ? `${compact(row.input)} in · ${compact(row.output)} out · ` : ''}
-                  <span className="font-semibold text-text">{compact(row.total)}</span>
-                </span>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="text-xs leading-snug text-muted lg:text-sm">Token counts have not been added yet. They appear here from docs/tokens.json.</p>
-        )}
-      </div>
+      {tokenReport ? null : (
+        <div className="flex flex-col gap-1.5 lg:col-span-2">
+          <h3 className="rr-label">Tokens</h3>
+          {tokens.length > 0 ? (
+            <ul className="flex flex-col">
+              {tokens.map((row) => (
+                <li key={row.name} className="flex items-baseline justify-between gap-2 border-t border-tag py-1.5 text-xs first:border-t-0">
+                  <span className="font-display text-[13px] font-semibold">{row.name}</span>
+                  <span className="font-mono tabular-nums text-text-2">
+                    {row.input !== null && row.output !== null ? `${compact(row.input)} in · ${compact(row.output)} out · ` : ''}
+                    <span className="font-semibold text-text">{compact(row.total)}</span>
+                  </span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-xs leading-snug text-muted lg:text-sm">Token counts have not been added yet. They appear here from docs/tokens.json.</p>
+          )}
+        </div>
+      )}
     </section>
   );
 }
