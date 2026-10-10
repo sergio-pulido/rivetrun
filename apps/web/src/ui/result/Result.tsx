@@ -9,14 +9,14 @@ import { AppHeader } from '@/ui/AppHeader';
 import { buildStats } from '@/ui/buildStats';
 import { formatSeconds } from '@/ui/format';
 import { LOCKED_PARTS, isUnlocked, useProgressStore } from '@/state/progress';
-import { useRunStore, type GhostResult, type RunResult } from '@/state/run';
+import { useRunStore, type RunResult } from '@/state/run';
 import { Icon, type IconName } from '@/ui/Icon';
 import { Shell } from '@/ui/Shell';
 import { Stars } from '@/ui/Stars';
 import { decisionSummary } from './decisions';
 import { DuelTable } from './DuelTable';
 import { ReactionDuel } from './ReactionDuel';
-import { parseReactions, reactionDuel } from './reactions';
+import { pairWithGhost, parseReactions, reactionDuel } from './reactions';
 import { ScoreBreakdown } from './ScoreBreakdown';
 import { downloadEpisode, share, type ShareResult } from './share';
 import { SubmitRun } from './SubmitRun';
@@ -83,11 +83,12 @@ function Summary({ result }: { readonly result: RunResult }) {
   const next = MISSION_IDS[MISSION_IDS.indexOf(mission.id) + 1];
   // What the brain was asked along the way, over the distance the robot covered.
   const decisions = decisionSummary(episode.decisions, outcome.progressFraction * compileTrack(mission.track).lengthM);
-  // The sim's reaction metric (Drive mode): the player's thumbs against Jev's latency, which the ghost carries when the server sent it.
+  // The sim's reaction metric (Drive mode): the player's thumbs against Jev's latency on the same events, paired by event id
+  // through the Jev ghost's decision log; an event the ghost did not answer itself falls back to its median for the run.
   const duel = useMemo(() => {
-    const jevGhost = result.ghosts.find((ghost) => ghost.policy === 'jev') as (GhostResult & { readonly medianLatencyMs?: unknown }) | undefined;
-    const ghostMedianMs = typeof jevGhost?.medianLatencyMs === 'number' && jevGhost.medianLatencyMs >= 0 ? jevGhost.medianLatencyMs : null;
-    return reactionDuel(parseReactions(outcome.breakdown?.reactions) ?? [], ghostMedianMs);
+    const jevGhost = result.ghosts.find((ghost) => ghost.policy === 'jev');
+    const events = pairWithGhost(parseReactions(outcome.breakdown?.reactions) ?? [], jevGhost?.log ?? []);
+    return reactionDuel(events, jevGhost?.medianLatencyMs ?? null);
   }, [result.ghosts, outcome.breakdown]);
   const headline = outcome.finished ? 'Finished' : outcome.dnfReason ? DNF_LABEL[outcome.dnfReason] : 'Did not finish';
 

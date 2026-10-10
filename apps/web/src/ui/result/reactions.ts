@@ -3,6 +3,8 @@
 import { z } from 'zod';
 
 const ReactionEventSchema = z.object({
+  /** The event's stable id: the same string in the player's run and the ghost's, so the two can be paired. */
+  id: z.string().optional(),
   /** Sim time and track position of the event. */
   t: z.number().min(0),
   xM: z.number(),
@@ -32,6 +34,8 @@ export interface ReactionRow {
   readonly you: string;
   /** "0.34 s", or "—" when Jev made no decision on it. */
   readonly jev: string;
+  /** True when `jev` is Jev's median for the run because its ghost logged no decision of its own on this event. */
+  readonly jevIsMedian: boolean;
   readonly faster: 'you' | 'jev' | null;
 }
 
@@ -43,8 +47,29 @@ export interface ReactionDuel {
   /** How the headline was worked out, and how many events went unanswered. */
   readonly note: string;
   readonly rows: readonly ReactionRow[];
-  /** Whether any event carries Jev's own latency: without one, the list has no Jev column to show. */
+  /** Whether the list has a Jev figure to show per event: its own latency for some, or at least the run median. */
   readonly jevPerEvent: boolean;
+}
+
+/** What the pairing needs from one entry of the ghost's decision log. */
+export interface GhostDecision {
+  readonly trigger: { readonly eventId?: string | undefined };
+  readonly latencyMs: number;
+  /** The heuristic answered because Jev did not: not Jev's latency. */
+  readonly fallback: boolean;
+}
+
+/**
+ * Jev's latency for each event the player faced: the ghost's own decision on the event with the same id.
+ * An event with no id, or one the ghost made no decision of its own on, is left without a time.
+ */
+export function pairWithGhost(events: readonly ReactionEvent[], log: readonly GhostDecision[]): readonly ReactionEvent[] {
+  const latencyById = new Map<string, number>();
+  for (const decision of log) {
+    const id = decision.trigger.eventId;
+    if (id !== undefined && !decision.fallback && !latencyById.has(id)) latencyById.set(id, decision.latencyMs);
+  }
+  return events.map((event) => (event.id !== undefined && latencyById.has(event.id) ? { ...event, jevMs: latencyById.get(event.id)! } : event));
 }
 
 const seconds = (value: number): string => `${value.toFixed(2)} s`;
@@ -57,15 +82,16 @@ function median(values: readonly number[]): number | null {
 }
 
 /**
- * The duel for a run's events: each side's median reaction, and the list event by event. Jev's side is the median of its
- * per-event latencies when the events carry them, otherwise the ghost's median decision latency when the run knows it.
+ * The duel for a run's events: each side's median reaction, and the list event by event. Jev's side of an event is its
+ * own latency when the event carries one (see pairWithGhost); otherwise the ghost's median for the run, marked as such.
  * Null when there were no events.
  */
 export function reactionDuel(events: readonly ReactionEvent[], ghostMedianMs: number | null = null): ReactionDuel | null {
   if (events.length === 0) return null;
   const jevTimes = events.flatMap((event) => (typeof event.jevMs === 'number' ? [event.jevMs / 1000] : []));
+  const runMedianS = ghostMedianMs === null ? null : ghostMedianMs / 1000;
   const yourS = median(events.flatMap((event) => (event.humanS === null ? [] : [event.humanS])));
-  const jevS = median(jevTimes) ?? (ghostMedianMs === null ? null : ghostMedianMs / 1000);
+  const jevS = median(jevTimes) ?? runMedianS;
   const missed = events.filter((event) => event.humanS === null).length;
   const count = `${events.length} ${events.length === 1 ? 'event' : 'events'}`;
   return {
@@ -73,17 +99,19 @@ export function reactionDuel(events: readonly ReactionEvent[], ghostMedianMs: nu
     yourS,
     jevS,
     note: `Median of ${count}${missed > 0 ? ` · you did not react to ${missed}` : ''}`,
-    jevPerEvent: jevTimes.length > 0,
+    jevPerEvent: jevTimes.length > 0 || runMedianS !== null,
     rows: events.map((event, index) => {
-      const theirs = typeof event.jevMs === 'number' ? event.jevMs / 1000 : null;
+      const own = typeof event.jevMs === 'number' ? event.jevMs / 1000 : null;
+      const theirs = own ?? runMedianS;
       return {
         key: `${index}:${event.t}`,
         label: event.label,
         atM: Math.round(event.xM),
         you: event.humanS === null ? 'no reaction' : seconds(event.humanS),
         jev: theirs === null ? '—' : seconds(theirs),
-        // A side with no time cannot be the faster one; with neither, nobody is.
-        faster: theirs === null ? (event.humanS === null || jevTimes.length === 0 ? null : 'you') : event.humanS === null || theirs <= event.humanS ? 'jev' : 'you',
+        jevIsMedian: own === null && runMedianS !== null,
+        // Only Jev's own time on this event makes a winner; a median is not an answer to this event.
+        faster: own === null ? null : event.humanS === null || own <= event.humanS ? 'jev' : 'you',
       };
     }),
   };

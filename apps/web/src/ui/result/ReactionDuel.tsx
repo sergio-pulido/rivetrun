@@ -3,7 +3,7 @@ import type { ReactionDuel as Duel } from './reactions';
 /** Rows shown before the rest folds away: a long run can log dozens of events. */
 const ROWS_OPEN = 5;
 
-const GRID_BOTH = 'grid-cols-[1fr_76px_52px]';
+const GRID_BOTH = 'grid-cols-[1fr_76px_58px]';
 const GRID_YOU = 'grid-cols-[1fr_76px]';
 
 function Rows({ rows, jev }: { readonly rows: Duel['rows']; readonly jev: boolean }) {
@@ -16,7 +16,11 @@ function Rows({ rows, jev }: { readonly rows: Duel['rows']; readonly jev: boolea
             {row.label}
           </span>
           <span className={`text-right font-mono text-[11px] tabular-nums ${row.you === 'no reaction' ? 'text-faint' : row.faster === 'you' ? 'font-semibold text-orange-soft' : 'text-text-2'}`}>{row.you}</span>
-          {jev ? <span className={`text-right font-mono text-[11px] tabular-nums ${row.faster === 'jev' ? 'font-semibold text-cyan' : 'text-text-2'}`}>{row.jev}</span> : null}
+          {jev ? (
+            <span className={`text-right font-mono text-[11px] tabular-nums ${row.faster === 'jev' ? 'font-semibold text-cyan' : row.jevIsMedian ? 'text-faint' : 'text-text-2'}`} title={row.jevIsMedian ? 'Jev’s median for the run' : undefined}>
+              {row.jevIsMedian ? `~${row.jev}` : row.jev}
+            </span>
+          ) : null}
         </li>
       ))}
     </>
@@ -65,7 +69,10 @@ export function ReactionDuel({ duel }: { readonly duel: Duel }) {
           </ul>
         </details>
       ) : null}
-      <p className="text-[11px] leading-snug text-faint">Your time is your first control change within 3 s of what the robot detected. Jev&apos;s is how long its answers took.</p>
+      <p className="text-[11px] leading-snug text-faint">
+        Your time is your first control change within 3 s of what the robot detected. Jev&apos;s is how long its answer to the same event took
+        {duel.rows.some((row) => row.jevIsMedian) ? '; a time marked ~ is its median for the run, where its ghost made no decision of its own on that event' : ''}.
+      </p>
     </section>
   );
 }
