@@ -5,6 +5,7 @@ import { WHEEL_RADIUS_M, deriveSpec } from './spec';
 import type { AirEvent, RunConfig, RunState, RunStats, StepDamage } from './types';
 import { DROP_APPROACH_M, compileTrack, obstacleHeightAt, segmentIndexAt, waterDepthCmAt } from './world';
 import type { World, WorldFeature } from './world';
+import { airDragN, capacityFactor, gustAt, hasWind, headwindMps } from './weather';
 
 const G = 9.81;
 const DT_S = TUNING.dtMs / 1000;
@@ -120,6 +121,7 @@ function createEnvironment(config: RunConfig, seed: number): Environment {
     weather: config.mission.weather,
     frictionJitter: config.mission.fixedSeed === undefined ? 1 + (jitterRoll * 2 - 1) * jitter : 1,
     sensorNoiseSeed: mixSeed(seed, 2),
+    ...(config.mission.conditions ? { conditions: config.mission.conditions } : {}),
   };
 }
 
@@ -160,7 +162,7 @@ export function createRun(config: RunConfig): RunState {
     scans: { done: [], missed: [], holdS: 0, centred: 0 },
     brain: {
       hazardSeenX: -1, hazardReachedX: -1, gapSeenX: -1, gapReachedX: -1, terrainSeenX: -1, zonesSeen: [], zonesReached: [],
-      slipping: false, tiltBand: 0, energyLow: false, stallMark: 0, stopTold: false, jumpReady: true, damageStep: 0,
+      slipping: false, gusting: false, tiltBand: 0, energyLow: false, stallMark: 0, stopTold: false, jumpReady: true, damageStep: 0,
     },
     finished: false,
     stats: { slipSByTerrain: {}, slipLostS: 0, landingDamage: 0, fallDamage: 0, damageByCause: {}, lastTerrain: first.terrain },
@@ -221,14 +223,16 @@ function driveMotion(state: RunState, action: Action, terrain: TerrainId, slopeD
   const target = profile.speed * spec.topSpeedMps;
   const motorMax = spec.motorForceN * profile.force;
   const direction = target !== 0 ? Math.sign(target) : Math.sign(v);
-  const requested = clamp((m * (target - v)) / (PHYSICS.throttleTauS * spec.throttleLag) + gravity + direction * resistance, -motorMax, motorMax);
+  // Wind: drag on the air speed over the body. Zero on missions without wind.
+  const air = airDragN(state.environment, state.sim.t, v);
+  const requested = clamp((m * (target - v)) / (PHYSICS.throttleTauS * spec.throttleLag) + gravity + air + direction * resistance, -motorMax, motorMax);
   // Past the limit the wheels spin: the ground gives back only the kinetic share of its grip.
   // Climb mode is the crawl gear with traction control: it never asks for more than the ground gives.
   const spinning = Math.abs(requested) > traction * PHYSICS.spinMargin && action !== 'climb_mode';
   const limit = spinning ? traction * PHYSICS.kineticGripFactor : traction;
   const drive = clamp(requested, -limit, limit);
   const slipPct = Math.abs(requested) > traction && Math.abs(requested) > 1e-6 ? (1 - traction / Math.abs(requested)) * 100 : 0;
-  const push = drive - gravity;
+  const push = drive - gravity - air;
   let next: number;
   if (Math.abs(v) < 1e-3) {
     next = Math.abs(push) <= resistance ? 0 : ((push - Math.sign(push) * resistance) / m) * DT_S;
@@ -478,8 +482,7 @@ export function step(state: RunState, action: Action): RunState {
   }
   damage = Math.min(100, damage);
 
-  const capacityFactor = state.environment.weather === 'cold' ? TUNING.weather.cold.batteryCapacityFactor : 1;
-  const capacityJ = spec.capacityWh * capacityFactor * 3600;
+  const capacityJ = spec.capacityWh * capacityFactor(state.environment) * 3600;
   const drawJ = (wasAirborne ? spec.basePowerW : powerW(state, action, motion.load, motion.swimming === true)) * DT_S + jumpJ;
   const battery = Math.max(0, sim.battery - (drawJ / capacityJ) * 100);
   const touched = world.obstacles.find((o) => hit?.obstacle !== undefined && sim.x < o.xM && o.xM - sim.x < 1);
@@ -562,6 +565,7 @@ export function step(state: RunState, action: Action): RunState {
       effects: effectsFor(nextSegment.terrain, airborne ? 0 : v, motion.slipPct, damage, action, t < sparksUntilT, submergedDepthM),
       ...(shownHeightM > 0 || airborne ? { heightM: shownHeightM, vy: airborne ? vy : 0, airborne } : {}),
       ...(blockedBy ? { blockedBy } : {}),
+      ...(hasWind(state.environment) ? { windMps: Math.round(headwindMps(state.environment, t) * 10) / 10, gust: gustAt(state.environment, t) > 0 } : {}),
       ...(scanning ? { scan: scanning } : {}),
       ...((state.config.mission.scanZones ?? []).length > 0 ? { scansDone: scans.done.length, scansMissed: scans.missed.length } : {}),
       ...(nextDepthM > 0 ? { waterDepthM: nextDepthM, submergedDepthM, thrusting: motion.swimming === true && Math.abs(v) > 0.05, ...(nextSegment.currentMps ? { waterCurrentMps: nextSegment.currentMps } : {}) } : {}),

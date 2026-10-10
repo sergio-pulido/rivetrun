@@ -1,7 +1,7 @@
 // Brain v3 (docs/BRAIN_V3_SENSING.md, RR-BRAIN-V3): what a brain knows and why it is asked.
 // Rule 1: the brain knows only what its sensors report. Rule 2: it decides when something changes.
 import { z } from 'zod';
-import { ObstacleSchema, TerrainIdSchema } from './world';
+import { ConditionsSchema, ObstacleSchema, TerrainIdSchema } from './world';
 
 /** Bumped when the physics or the question change in a way that makes cached answers stale. */
 export const GAMEPLAY_VERSION = 3;
@@ -78,6 +78,10 @@ export const ObservationSchema = z.object({
   lastContact: unknownOr(z.object({ source: SensorSourceSchema, atM: z.number(), agoS: z.number().min(0), kind: ObstacleSchema.optional() }).nullable()),
   /** Part actions and their readiness, e.g. the piston re-arming. */
   actuators: z.object({ jumpReadyInS: unknownOr(z.number().min(0)), winch: z.boolean(), climbMode: z.boolean() }),
+  /** The mission plan's weather, known to every build. Absent on missions without any. */
+  conditions: ConditionsSchema.optional(),
+  /** A gust is pushing the robot right now: felt by the IMU. Absent on missions without gusts. */
+  gusting: unknownOr(z.boolean()).optional(),
   /** Plain statements of what this build cannot know, for the question and the HUD. */
   unknown: z.array(z.string()),
   /** One display line per source with what it reports right now, e.g. "LIDAR · obstacle 11 m". */
@@ -94,6 +98,7 @@ export const TriggerCauseSchema = z.enum([
   // perception: something enters sensor range, or a known thing is reached
   'hazard_seen', 'hazard_reached', 'gap_seen', 'gap_reached', 'terrain_seen', 'terrain_reached', 'zone_seen', 'zone_reached',
   // body
+  'gust_start', 'gust_stop',
   'slip_start', 'slip_stop', 'tilt_10', 'tilt_20', 'tilt_level', 'impact', 'damage', 'landing', 'blocked', 'fell',
   // energy (hysteresis: low below 10 % projected at the finish, ok again above 30 %)
   'energy_low', 'energy_ok',

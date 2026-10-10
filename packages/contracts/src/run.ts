@@ -59,6 +59,10 @@ export const SimStateSchema = z.object({
   waterCurrentMps: z.number().min(0).optional(),
   /** True while the thruster kit is propelling the robot under water. */
   thrusting: z.boolean().optional(),
+  /** Headwind over the robot right now, m/s (negative = tailwind), on missions with wind. Ground truth for the renderer. */
+  windMps: z.number().optional(),
+  /** True while a gust is blowing. */
+  gust: z.boolean().optional(),
 });
 export type SimState = z.infer<typeof SimStateSchema>;
 
@@ -223,6 +227,8 @@ export const RunEventSchema = z.discriminatedUnion('type', [
   }),
   z.object({ type: z.literal('airborne'), t: z.number(), x: z.number(), v: z.number(), vy: z.number(), cause: z.enum(['ramp', 'jump', 'drop']) }),
   z.object({ type: z.literal('landed'), t: z.number(), x: z.number(), impactMps: z.number().min(0), airtimeS: z.number().min(0), damagePct: z.number().min(0) }),
+  /** A gust starts (`on`) or dies down. `windMps` is the headwind including it. */
+  z.object({ type: z.literal('gust'), t: z.number(), on: z.boolean(), windMps: z.number() }),
   z.object({ type: z.literal('fell'), t: z.number(), x: z.number(), falls: z.number().int().min(1), respawnX: z.number() }),
   /** Telemetry: what the robot's sensors report right now, about 5 times a second. In Drive mode, also the control in force. */
   z.object({

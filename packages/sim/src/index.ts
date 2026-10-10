@@ -7,6 +7,7 @@ export { BUILD_TUNING, buildIssues, deriveSpec } from './spec';
 export { predictStats } from './stats';
 export type { PredictedStats } from './stats';
 export type { RobotSpec } from './spec';
+export { WEATHER, airDragN, cameraFactor, capacityFactor, conditionsOf, gustAt, headwindMps, rangerFactor } from './weather';
 export { createRun, step, withAction, markDecision, jumpAirtimeS, safeContactSpeedMps, PHYSICS, ACTION_PROFILES, SCAN_RULES } from './physics';
 export { GAMEPLAY_VERSION } from '@rivetrun/contracts';
 export {

@@ -229,6 +229,7 @@ function emitStepEvents(
   if (state.segmentIndex !== prev.segmentIndex) {
     emit({ type: 'terrainEnter', t: state.sim.t, terrain: state.sim.terrain, segmentIndex: state.segmentIndex });
   }
+  if (state.sim.gust !== undefined && state.sim.gust !== (prev.sim.gust ?? false)) emit({ type: 'gust', t: state.sim.t, on: state.sim.gust, windMps: state.sim.windMps ?? 0 });
   const air = state.lastAir;
   if (air?.type === 'airborne') emit({ type: 'airborne', t: state.sim.t, x: state.sim.x, v: state.sim.v, vy: state.vy, cause: air.cause });
   if (air?.type === 'landed') emit({ type: 'landed', t: state.sim.t, x: state.sim.x, impactMps: air.impactMps, airtimeS: air.airtimeS, damagePct: air.damagePct });

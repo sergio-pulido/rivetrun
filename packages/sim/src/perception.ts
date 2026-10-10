@@ -3,6 +3,7 @@ import type {
   Action, BrainQuestion, Build, DecisionTrigger, LookaheadEntry, Observation, Obstacle, Perception, SensorSource, TerrainId, Trigger, TriggerCause,
 } from '@rivetrun/contracts';
 import { TUNING } from './data';
+import { cameraFactor, capacityFactor, gustAt, headwindMps, rangerFactor } from './weather';
 import { mixSeed, mulberry32 } from './rng';
 import { ACTION_PROFILES, PHYSICS, SCAN_RULES, safeContactSpeedMps, step } from './physics';
 import { deriveSpec } from './spec';
@@ -29,13 +30,24 @@ const round = (value: number, digits: number): number => {
 function cameraRangeM(state: RunState): number | undefined {
   const range = state.spec.sensorRangeM.camera;
   if (range === undefined) return undefined;
-  return state.environment.weather === 'rain' ? range * TUNING.weather.rain.cameraRangeFactor : range;
+  return range * cameraFactor(state.environment);
+}
+
+/** The drone flies above the rain; fog, snow and darkness still shorten what its camera sees. */
+function droneRangeM(state: RunState): number | undefined {
+  const range = state.spec.sensorRangeM.scout_drone;
+  return range === undefined ? undefined : range * cameraFactor(state.environment, { aboveRain: true });
+}
+
+/** The ranger's reach in this weather: lidar and ToF lose range in fog, heavy rain and snow; ultrasonic does not. */
+function rangerRangeM(state: RunState): number | undefined {
+  const range = state.spec.sensorRangeM.ultrasonic;
+  return range === undefined ? undefined : range * rangerFactor(state.environment, state.spec.rangerSource);
 }
 
 /** How far ahead the build can make out ramps, gaps and drops: its longest forward sensor. 0 = blind. */
 function featureSightM(state: RunState): number {
-  const { sensorRangeM } = state.spec;
-  return Math.max(sensorRangeM.scout_drone ?? 0, cameraRangeM(state) ?? 0, sensorRangeM.ultrasonic ?? 0);
+  return Math.max(droneRangeM(state) ?? 0, cameraRangeM(state) ?? 0, rangerRangeM(state) ?? 0);
 }
 
 /** What the build's sensors report, with seeded noise. Never ground truth. */
@@ -48,7 +60,7 @@ export function perceive(state: RunState): Perception {
   let terrainAhead: Perception['terrainAhead'] = 'unknown';
   let terrainAheadDistanceM: Perception['terrainAheadDistanceM'] = 'unknown';
   let terrainAheadSource: Perception['terrainAheadSource'];
-  const droneRange = spec.sensorRangeM.scout_drone;
+  const droneRange = droneRangeM(state);
   // The drone flies above the rain; when both are fitted it wins on range.
   const cameraRange = droneRange ?? cameraRangeM(state);
   if (cameraRange !== undefined) {
@@ -64,7 +76,7 @@ export function perceive(state: RunState): Perception {
   }
 
   let obstacleAheadM: Perception['obstacleAheadM'] = 'unknown';
-  const ultrasonicRange = spec.sensorRangeM.ultrasonic;
+  const ultrasonicRange = rangerRangeM(state);
   if (ultrasonicRange !== undefined) {
     // Under water the ultrasonic is degraded: shorter range, noisier echo.
     const submerged = (sim.submergedDepthM ?? 0) > 0;
@@ -110,7 +122,7 @@ const SOURCE_LABEL: Readonly<Record<SensorSource, string>> = {
 const paceMps = (state: RunState): number => Math.max(Math.abs(state.sim.v), ACTION_PROFILES.slow_down.speed * state.spec.topSpeedMps);
 
 const capacityJoules = (state: RunState): number =>
-  state.spec.capacityWh * (state.environment.weather === 'cold' ? TUNING.weather.cold.batteryCapacityFactor : 1) * 3600;
+  state.spec.capacityWh * capacityFactor(state.environment) * 3600;
 
 /** Contact speed at or below which this build takes no damage from an obstacle. */
 export function safeSpeedMps(state: RunState, kind: Obstacle): number {
@@ -126,9 +138,9 @@ export function observe(state: RunState): Observation {
   const perceived = perceive(state);
   const has = (source: SensorSource): boolean => spec.sources.includes(source);
   const terrainSource: SensorSource | undefined = has('scout_drone') ? 'scout_drone' : has('camera') ? 'camera' : undefined;
-  const terrainRangeM = Math.max(spec.sensorRangeM.scout_drone ?? 0, cameraRangeM(state) ?? 0);
-  const rangerRangeM = spec.sensorRangeM.ultrasonic ?? 0;
-  const forwardRangeM = Math.max(terrainRangeM, rangerRangeM);
+  const terrainRangeM = Math.max(droneRangeM(state) ?? 0, cameraRangeM(state) ?? 0);
+  const rangerReachM = rangerRangeM(state) ?? 0;
+  const forwardRangeM = Math.max(terrainRangeM, rangerReachM);
   const blind = forwardRangeM === 0;
   const current = world.segments[state.segmentIndex]!;
 
@@ -141,7 +153,7 @@ export function observe(state: RunState): Observation {
   } else if (named && terrainSource) {
     hazard = { source: terrainSource, distanceM: round(named.xM - sim.x, 1), kind: named.kind, safeSpeedMps: safeSpeedMps(state, named.kind) };
   }
-  const forwardSource: SensorSource | undefined = rangerRangeM >= terrainRangeM ? (spec.rangerSource ?? terrainSource) : terrainSource;
+  const forwardSource: SensorSource | undefined = rangerReachM >= terrainRangeM ? (spec.rangerSource ?? terrainSource) : terrainSource;
   const gap: Observation['gap'] = blind || !forwardSource ? 'unknown'
     : typeof perceived.gapAheadM === 'number' && perceived.gapWidthM !== undefined ? { source: forwardSource, distanceM: perceived.gapAheadM, widthM: perceived.gapWidthM }
     : null;
@@ -181,6 +193,12 @@ export function observe(state: RunState): Observation {
   if (typeof lastContact === 'object' && lastContact !== null && lastContact.agoS < 3) lines.push(`${SOURCE_LABEL[lastContact.source]} · contact ${lastContact.agoS} s ago`);
   for (const zone of scanZones) if (!zone.done && !zone.missed && zone.distanceM > -1 && zone.distanceM < 10) lines.push(`PLAN · scan zone "${zone.label}" in ${zone.distanceM} m${zone.canScan ? '' : ' (no sensor for it)'}`);
   if (blind) lines.push('BLIND · no forward sensor');
+  const conditions = state.environment.conditions;
+  const gusty = (conditions?.gustMps ?? 0) > 0;
+  const gusting = !gusty ? undefined : has('imu') ? gustAt(state.environment, sim.t) > 0 : ('unknown' as const);
+  if (conditions?.windMps) lines.push(`PLAN · ${conditions.windMps > 0 ? 'headwind' : 'tailwind'} ${Math.abs(conditions.windMps)} m/s`);
+  if (gusting === true) lines.push('IMU · gust pushing back');
+  if (gusty && gusting === 'unknown') unknown.push('gusts: no IMU to feel them');
 
   return {
     sources: [...spec.sources],
@@ -208,6 +226,8 @@ export function observe(state: RunState): Observation {
       winch: spec.extras.includes('winch'),
       climbMode: true,
     },
+    ...(conditions ? { conditions } : {}),
+    ...(gusting !== undefined ? { gusting } : {}),
     unknown,
     lines,
   };
@@ -287,7 +307,13 @@ export function lookahead(state: RunState, actions: readonly Action[], seen: Obs
   const believed: RunState = {
     ...state,
     world: perceivedWorld(state, seen),
-    environment: { ...state.environment, frictionJitter: 1 },
+    // The plan gives the steady wind. A gust is believed only while the IMU feels it, and then as if it stays.
+    environment: {
+      ...state.environment, frictionJitter: 1,
+      ...(state.environment.conditions
+        ? { conditions: { ...state.environment.conditions, gustMps: 0, windMps: (state.environment.conditions.windMps ?? 0) + (seen.gusting === true ? gustAt(state.environment, state.sim.t) : 0) } }
+        : {}),
+    },
     segmentIndex: 0,
     done: false,
     lastProgressT: state.sim.t,
@@ -353,7 +379,7 @@ const LEGACY_TRIGGER: Readonly<Record<TriggerCause, DecisionTrigger>> = {
   start: 'start',
   hazard_seen: 'obstacle', hazard_reached: 'obstacle', gap_seen: 'obstacle', gap_reached: 'obstacle',
   terrain_seen: 'terrain_ahead', terrain_reached: 'terrain_enter', zone_seen: 'obstacle', zone_reached: 'obstacle',
-  slip_start: 'slip', slip_stop: 'slip', tilt_10: 'slip', tilt_20: 'slip', tilt_level: 'slip',
+  gust_start: 'slip', gust_stop: 'slip', slip_start: 'slip', slip_stop: 'slip', tilt_10: 'slip', tilt_20: 'slip', tilt_level: 'slip',
   impact: 'damage', damage: 'damage', landing: 'damage', blocked: 'damage', fell: 'damage',
   energy_low: 'energy', energy_ok: 'energy',
   jump_ready: 'actuator', winch_done: 'actuator', scan_done: 'actuator', stopped: 'actuator',
@@ -395,6 +421,12 @@ export function advanceBrain(next: RunState): { readonly trigger: Trigger | null
   if (damageStep > memory.damageStep) {
     remember({ damageStep });
     if (fired.length === 0) fired.push(fire('body', 'damage', `CORE · damage ${Math.round(next.sim.damage)} %`, 'core'));
+  }
+  if (typeof seen.gusting === 'boolean' && seen.gusting !== memory.gusting) {
+    remember({ gusting: seen.gusting });
+    fired.push(seen.gusting
+      ? fire('body', 'gust_start', `IMU · gust, headwind ${Math.round(headwindMps(next.environment, next.sim.t))} m/s`, 'imu')
+      : fire('body', 'gust_stop', 'IMU · gust over', 'imu'));
   }
   if (seen.slipping !== 'unknown' && typeof seen.slipPct === 'number') {
     if (!memory.slipping && seen.slipping) {

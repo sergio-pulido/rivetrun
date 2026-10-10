@@ -37,6 +37,7 @@ export interface BrainMemory {
   readonly zonesSeen: readonly string[];
   readonly zonesReached: readonly string[];
   readonly slipping: boolean;
+  readonly gusting: boolean;
   /** 0 = under 10°, 1 = 10–20°, 2 = over 20°. */
   readonly tiltBand: number;
   readonly energyLow: boolean;

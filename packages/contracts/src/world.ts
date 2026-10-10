@@ -55,6 +55,22 @@ export type Track = z.infer<typeof TrackSchema>;
 export const WeatherSchema = z.enum(['clear', 'rain', 'cold']);
 export type Weather = z.infer<typeof WeatherSchema>;
 
+/**
+ * Weather beyond the `weather` label (overnight program). Every field is optional; absent = calm, clear and mild.
+ * Known to every brain from the mission plan. Gusts and the real sensing range are felt through the build's sensors.
+ */
+export const ConditionsSchema = z.object({
+  /** Steady wind along the track, m/s. Positive = headwind, negative = tailwind. */
+  windMps: z.number().min(-30).max(30).optional(),
+  /** Peak extra headwind in gusts, m/s. Gusts come and go during the run. */
+  gustMps: z.number().min(0).max(30).optional(),
+  precipitation: z.enum(['none', 'rain', 'heavy_rain', 'snow']).optional(),
+  visibility: z.enum(['clear', 'fog', 'night']).optional(),
+  /** Air temperature, °C. Cold lowers the usable battery capacity. */
+  temperatureC: z.number().min(-40).max(50).optional(),
+});
+export type Conditions = z.infer<typeof ConditionsSchema>;
+
 export const MissionIdSchema = z.enum(['M1', 'M2', 'M3', 'M4', 'M5', 'M6', 'M7']);
 export type MissionId = z.infer<typeof MissionIdSchema>;
 
@@ -85,6 +101,8 @@ export const MissionSchema = z.object({
   /** Set for the Room Challenge: every player gets the same seed. */
   fixedSeed: SeedSchema.optional(),
   leaderboard: z.boolean(),
+  /** Wind, precipitation, visibility and temperature. Absent = calm and clear. */
+  conditions: ConditionsSchema.optional(),
   /** Gameplay v3 objectives. Absent = none. */
   scanZones: z.array(ScanZoneSchema).optional(),
 });
@@ -96,5 +114,7 @@ export const EnvironmentSchema = z.object({
   /** Multiplier applied to terrain friction (1 = no jitter; practice missions use 0.9–1.1). */
   frictionJitter: z.number().positive(),
   sensorNoiseSeed: SeedSchema,
+  /** Copied from the mission. */
+  conditions: ConditionsSchema.optional(),
 });
 export type Environment = z.infer<typeof EnvironmentSchema>;
