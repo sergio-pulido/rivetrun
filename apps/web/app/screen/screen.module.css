@@ -872,3 +872,25 @@
   color: var(--faint);
   flex-shrink: 0;
 }
+
+/* The race's weather, one line under the header. */
+.weather {
+  margin: 0;
+  font-family: var(--data);
+  font-size: calc(var(--u) * 13);
+  letter-spacing: calc(var(--u) * 1);
+  color: #c9ced6;
+  text-transform: uppercase;
+  flex-shrink: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.weather span {
+  margin-right: calc(var(--u) * 8);
+  padding: calc(var(--u) * 2) calc(var(--u) * 8);
+  border-radius: calc(var(--u) * 6);
+  border: 1px solid #1f5a63;
+  background: #0c1a1d;
+  color: #bfeff5;
+}

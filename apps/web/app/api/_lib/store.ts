@@ -88,6 +88,10 @@ function observationKey(o: Observed): unknown[] {
     bucket(o.waterDepthCm, 5),
     seen(o.lastContact, (c) => [c.source, c.kind ?? null, bucket(c.agoS, 1)]),
     [bucket(o.actuators.jumpReadyInS, 0.5), o.actuators.winch, o.actuators.climbMode],
+    // Weather: the plan is the same for a whole mission; a gust in progress changes the answer.
+    o.conditions ?? null,
+    o.gusting ?? null,
+    bucket(o.forwardRangeM, 1),
   ];
 }
 

@@ -221,6 +221,8 @@ function observationState(observation: Observation, cause: string | undefined): 
     unknown: observation.unknown,
     forwardRangeM: observation.forwardRangeM,
     actuators: observation.actuators,
+    ...(observation.conditions ? { weather: observation.conditions } : {}),
+    ...(observation.gusting === undefined ? {} : { gusting: observation.gusting }),
     ...(cause ? { askedBecause: cause } : {}),
   };
 }
@@ -240,6 +242,34 @@ function scanLine(question: BrainQuestion, observation: Observation): string {
     : 'No scannable zone is under the robot right now, so `scan` is not correct yet. ';
 }
 
+/**
+ * The mission plan's weather as one sentence, plus what the IMU feels right now. Every build knows the plan;
+ * a gust in progress is only known with an IMU, and a future gust is known to nobody.
+ */
+function weatherLine(observation: Observation): string {
+  const c = observation.conditions;
+  if (!c && observation.gusting === undefined) return '';
+  const parts: string[] = [];
+  if (c?.windMps) parts.push(`${c.windMps > 0 ? 'headwind' : 'tailwind'} ${round(Math.abs(c.windMps), 1)} m/s`);
+  if (c?.gustMps) parts.push(`gusts adding up to ${round(c.gustMps, 1)} m/s of headwind that come and go`);
+  if (c?.precipitation && c.precipitation !== 'none') parts.push(c.precipitation.replace('_', ' '));
+  if (c?.visibility && c.visibility !== 'clear') parts.push(c.visibility);
+  if (c?.temperatureC !== undefined) parts.push(`${round(c.temperatureC, 0)} °C`);
+  const gust =
+    observation.gusting === undefined
+      ? ''
+      : observation.gusting === 'unknown'
+        ? 'The robot has no IMU, so it cannot feel whether a gust is pushing it right now. '
+        : observation.gusting
+          ? 'The IMU feels a gust pushing against the robot right now; it will pass. '
+          : 'The IMU feels no gust right now. ';
+  return (
+    (parts.length > 0
+      ? `Weather, known from the mission plan: ${parts.join(', ')}. A headwind costs speed and energy, more the faster the robot drives; rain and snow lower grip; cold lowers the usable battery; fog, night and heavy precipitation shorten what the sensors see (the forward range stated here is already the reduced one). The predictions include the steady wind and a gust only while it is felt; no prediction sees a future gust. `
+      : '') + gust
+  );
+}
+
 /** The sentences only a v3 question has: why it is asked, what is unknown, the energy line, scanning. */
 function observationLines(question: BrainQuestion, observation: Observation): string {
   const cause = question.cause?.label;
@@ -251,6 +281,7 @@ function observationLines(question: BrainQuestion, observation: Observation): st
     'The robot knows only what its own sensors report (`sensors`, `readings`). ' +
     (observation.blind ? 'It has NO forward sensor: it cannot see obstacles or gaps and only learns of them by hitting them. ' : `Its forward sensors reach ${round(observation.forwardRangeM, 1)} m. `) +
     (unknown ? `Unknown to this robot, so no prediction accounts for it: ${unknown}. ` : '') +
+    weatherLine(observation) +
     'Where a prediction says it runs past what the sensors know, treat it as a guess that the track continues unchanged. ' +
     `Energy: the battery is at ${round(observation.batteryPct, 0)} %, drawing ${round(observation.drawW, 0)} W; at the current pace the charge at the finish would be ${charge} % (${finishChargeLevel(observation.projectedFinishPct)}), with ${round(observation.remainingM, 0)} m to go. ` +
     'Each option states the charge at the finish if its pace holds. An option that runs out before the finish loses the race: when the fast options run out or are critical, pick the fastest option that still finishes with charge left. ' +

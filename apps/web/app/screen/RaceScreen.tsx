@@ -1,6 +1,6 @@
 'use client';
 
-import type { MissionId } from '@rivetrun/contracts';
+import type { Mission, MissionId } from '@rivetrun/contracts';
 import { compileTrack, MISSION_IDS, MISSIONS, PRESETS } from '@rivetrun/sim';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
@@ -23,12 +23,28 @@ interface RaceScreenProps {
 const STATUS_TITLE = { lobby: 'LOBBY', build: 'BUILD', countdown: 'GET READY', racing: 'LIVE', finished: 'FINISH' } as const;
 /** Lane height budget (design px) when the decision chips share the column. */
 const LANES_WITH_CHIPS = 380;
+const LANES_FULL = 500;
+/** Design px the weather line takes from the lanes. */
+const WEATHER_LINE = 34;
 const ORDER_ROW_MAX = 30;
 const ORDER_ROW_MIN = 20;
 /** A full room does not fit the panel: it lists the front of the field and counts the rest. */
 const ORDER_ROWS_MAX = 12;
 /** Height the order rows may share on the 720-high board. */
 const ORDER_HEIGHT = 330;
+
+/** The mission's weather as the big screen words it, or null on a calm, clear mission. */
+function weatherText(mission: Mission): string | null {
+  const c = mission.conditions;
+  const parts = [
+    c?.precipitation && c.precipitation !== 'none' ? c.precipitation.replace('_', ' ') : mission.weather !== 'clear' && !c ? mission.weather : null,
+    c?.visibility && c.visibility !== 'clear' ? c.visibility : null,
+    c?.windMps ? `${c.windMps > 0 ? 'headwind' : 'tailwind'} ${Math.abs(c.windMps)} m/s` : null,
+    c?.gustMps ? `gusts +${c.gustMps} m/s` : null,
+    c?.temperatureC !== undefined ? `${c.temperatureC} °C` : null,
+  ].filter((part): part is string => part !== null);
+  return parts.length > 0 ? parts.join(' · ') : null;
+}
 
 /** 00:41.2 */
 function clock(ms: number): string {
@@ -188,6 +204,7 @@ export function RaceScreen({ code, siteUrl }: RaceScreenProps) {
   const buildLeftS = Math.max(0, Math.ceil(((snapshot.buildEndsAt ?? now) - now) / 1000));
   const closesInS = snapshot.closesAt === null ? null : Math.max(0, Math.ceil((snapshot.closesAt - now) / 1000));
   const verdict = status === 'finished' ? duelVerdict(snapshot.players) : null;
+  const weather = weatherText(mission);
   // The last three decisions of the JEV bots as chips (docs/BRAIN_V3_SENSING.md); the side panel has the full thread.
   const showChips = racing && hasJev && bots.thread.length > 0;
   const chips: DecisionChip[] = bots.thread
@@ -259,6 +276,11 @@ export function RaceScreen({ code, siteUrl }: RaceScreenProps) {
             </p>
           ) : null}
 
+          {weather ? (
+            <p className={styles.weather}>
+              <span>Weather</span> {weather}
+            </p>
+          ) : null}
           {verdict ? (
             <p className={`${styles.verdict} ${verdict.winner === 'jev' ? styles.verdictJev : ''}`}>
               <strong>{verdict.headline}</strong> · {verdict.detail}
@@ -275,7 +297,7 @@ export function RaceScreen({ code, siteUrl }: RaceScreenProps) {
               </div>
             ) : (
               <div className={styles.main}>
-                <RaceTrack mission={mission} players={snapshot.players} status={status} heightBudget={showChips ? LANES_WITH_CHIPS : undefined} />
+                <RaceTrack mission={mission} players={snapshot.players} status={status} heightBudget={(showChips ? LANES_WITH_CHIPS : LANES_FULL) - (weather ? WEATHER_LINE : 0)} />
               </div>
             )}
             {status === 'countdown' ? (

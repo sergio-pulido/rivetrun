@@ -133,6 +133,19 @@ describe('brain', () => {
       expect(criteria.cruise).toContain('The obstacle is then 8.9 m ahead');
     });
 
+    it('states the weather from the mission plan and a gust only as the IMU feels it', () => {
+      expect(request.questions.action.instructions).not.toContain('Weather, known from the mission plan');
+      const storm = buildJevRequest({ ...v3, observation: { ...observation, conditions: { windMps: 5, gustMps: 9, precipitation: 'heavy_rain', temperatureC: 8 }, gusting: 'unknown' } });
+      const text = storm.questions.action.instructions;
+      expect(text).toContain('headwind 5 m/s, gusts adding up to 9 m/s of headwind that come and go, heavy rain, 8 °C');
+      expect(text).toContain('no IMU, so it cannot feel whether a gust');
+      expect(text).toContain('no prediction sees a future gust');
+      expect(storm.state.weather).toEqual({ windMps: 5, gustMps: 9, precipitation: 'heavy_rain', temperatureC: 8 });
+      const felt = buildJevRequest({ ...v3, observation: { ...observation, conditions: { visibility: 'night', precipitation: 'snow', temperatureC: -20, windMps: -3 }, gusting: true } });
+      expect(felt.questions.action.instructions).toContain('tailwind 3 m/s, snow, night, -20 °C');
+      expect(felt.questions.action.instructions).toContain('The IMU feels a gust pushing against the robot right now');
+    });
+
     it('tells a blind robot that it is blind', () => {
       const blind = buildJevRequest({ ...v3, observation: { ...observation, blind: true, forwardRangeM: 0, hazard: 'unknown' } });
       expect(blind.questions.action.instructions).toContain('NO forward sensor');

@@ -36,7 +36,7 @@ describe('API routes', () => {
   it('POST /api/decide: 400 on invalid JSON or shape, 503 without JEV_API_KEY', async () => {
     delete process.env.JEV_API_KEY;
     await expectError(await decide(post('/api/decide', '{not json')), 400, 'bad_request');
-    await expectError(await decide(post('/api/decide', JSON.stringify({ missionId: 'M9' }))), 400, 'bad_request');
+    await expectError(await decide(post('/api/decide', JSON.stringify({ missionId: 'M99' }))), 400, 'bad_request');
     await expectError(await decide(post('/api/decide', JSON.stringify(question))), 503, 'upstream_error');
   });
 
@@ -45,7 +45,7 @@ describe('API routes', () => {
   });
 
   it('GET /api/leaderboard: 400 on an unknown mission, entries otherwise (default M5)', async () => {
-    await expectError(await leaderboard(new Request('http://localhost/api/leaderboard?mission=M9')), 400, 'bad_request');
+    await expectError(await leaderboard(new Request('http://localhost/api/leaderboard?mission=M99')), 400, 'bad_request');
     const response = await leaderboard(new Request('http://localhost/api/leaderboard'));
     expect(await response.json()).toEqual({ missionId: 'M5', entries: [] });
   });
