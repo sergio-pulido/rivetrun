@@ -8,8 +8,9 @@ import { TERRAIN_LOOK } from '../palette';
 import { clamp, damp, lerp } from '../rng';
 import { restDrive, type RobotDrive } from '../robot/drive';
 import { RobotModel } from '../robot/RobotModel';
-import { layoutTrack, rideOffset, sampleTrack, type TrackLayout } from '../track';
+import { layoutTrack, type TrackLayout } from '../track';
 import { Particles, type ParticleEmitter } from './Particles';
+import { restRide, rideOver, stanceFor } from './ride';
 import { EFFECT_PARTICLES, Tag, swimLift } from './shared';
 import { World } from './World';
 
@@ -62,7 +63,9 @@ interface ReplayProps {
 function Replay({ entry, z, layout, clock, slot, speed, particles }: ReplayProps) {
   const group = useRef<Group>(null);
   const drive = useRef<RobotDrive>(restDrive());
-  const memo = useRef({ frame: 0, decision: 0, pitch: 0, swim: 0, celebrated: false, lastT: 0 });
+  const memo = useRef({ frame: 0, decision: 0, swim: 0, celebrated: false, lastT: 0, shown: false });
+  const riding = useRef(restRide());
+  const stance = useMemo(() => stanceFor(entry.build.locomotion), [entry.build.locomotion]);
   const owed = useRef<Partial<Record<SimEffect, number>>>({});
   const frames = entry.trace.frames;
   const endT = frames[frames.length - 1]?.t ?? 0;
@@ -87,15 +90,21 @@ function Replay({ entry, z, layout, clock, slot, speed, particles }: ReplayProps
     const k = b.t > a.t ? clamp((t - a.t) / (b.t - a.t), 0, 1) : 1;
     const ended = t >= endT;
     const finished = entry.trace.outcome.finished;
-    const s = lerp(a.x, b.x, k);
-    const sample = sampleTrack(layout, s);
-    const wanted = (lerp(a.pitch, b.pitch, k) * Math.PI) / 180 + clamp((rideOffset(sample.segment, s + 0.25) - rideOffset(sample.segment, s - 0.25)) * 1.1, -0.45, 0.45);
-    m.pitch = restarted ? wanted : damp(m.pitch, wanted, 9, dt);
+    const flying = a.airborne === true && !ended;
+    const ride = riding.current;
+    const input = {
+      nose: lerp(a.x, b.x, k),
+      airM: flying ? lerp(a.heightM ?? 0, b.heightM ?? 0, k) : null,
+      pitchDeg: flying ? a.pitch : lerp(a.pitch, b.pitch, k),
+      slopeDeg: flying ? a.slopeDeg : lerp(a.slopeDeg, b.slopeDeg, k),
+    };
+    rideOver(layout, stance, input, restarted || !m.shown || Math.abs(input.nose - stance.nose - ride.s) > 3, dt, ride);
+    m.shown = true;
     m.swim = damp(m.swim, a.thrusting && !ended ? 1 : 0, 2.5, dt);
-    const x = sample.x;
-    const y = sample.y + rideOffset(sample.segment, s) + m.swim * swimLift(sample.segment, s, wall.elapsedTime + z);
+    const x = ride.x;
+    const y = ride.y + m.swim * swimLift(ride.segment!, ride.s, wall.elapsedTime + z);
     node.position.set(x, y, z);
-    node.rotation.z = m.pitch;
+    node.rotation.z = ride.pitch;
     slot.x = x;
     slot.y = y;
     slot.endedAt = ended ? endT : null;
@@ -109,6 +118,7 @@ function Replay({ entry, z, layout, clock, slot, speed, particles }: ReplayProps
     d.dnf = wrecked;
     d.winch = a.effects.includes('winch') && !ended;
     d.thrusting = a.thrusting === true && !ended;
+    d.airborne = flying;
     d.expression = wrecked ? 'dnf' : ended ? 'finish' : slipping ? 'slip' : (entry.decisions[m.decision]?.selected ?? 'cruise');
 
     const emitter = particles.current;

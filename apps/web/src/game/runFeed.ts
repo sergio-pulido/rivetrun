@@ -6,9 +6,11 @@ import type {
   BrainQuestion,
   DamageCause,
   DnfReason,
+  Obstacle,
   Outcome,
   RunEvent,
   SimState,
+  TerrainId,
 } from '@rivetrun/contracts';
 
 /** Everything the renderer and the HUD know about the run, reduced from RunEvents. */
@@ -24,7 +26,15 @@ export interface RunView {
     readonly at: number;
   } | null;
   readonly decisionCount: number;
-  readonly lastDamage: { readonly cause: DamageCause; readonly amountPct: number; readonly at: number } | null;
+  readonly lastDamage: {
+    readonly cause: DamageCause;
+    readonly amountPct: number;
+    readonly at: number;
+    /** What the sim says was hit: an obstacle (and whether it stopped the robot) or rough ground entered too fast. */
+    readonly obstacle?: Obstacle;
+    readonly blocked?: boolean;
+    readonly roughEntry?: TerrainId;
+  } | null;
   /** Last touchdown after airtime (gameplay v2): drives landing dust, shake and haptics. */
   readonly lastLanding: { readonly impactMps: number; readonly airtimeS: number; readonly damagePct: number; readonly at: number } | null;
   /** Last fall into a gap: the robot respawns at `respawnX`. */
@@ -72,7 +82,10 @@ function reduce(view: RunView, event: RunEvent): RunView {
         decisionCount: view.decisionCount + 1,
       };
     case 'damage':
-      return { ...view, lastDamage: { cause: event.cause, amountPct: event.amountPct, at: now() } };
+      return {
+        ...view,
+        lastDamage: { cause: event.cause, amountPct: event.amountPct, at: now(), obstacle: event.obstacle, blocked: event.blocked, roughEntry: event.roughEntry },
+      };
     case 'finish':
       return { ...view, pending: null, outcome: event.outcome, done: true };
     case 'dnf':

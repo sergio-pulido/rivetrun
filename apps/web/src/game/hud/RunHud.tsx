@@ -1,13 +1,13 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import type { Build, GhostTrace, Mission, SimState } from '@rivetrun/contracts';
+import type { Build, GhostTrace, Mission, Obstacle, SimState } from '@rivetrun/contracts';
 import { isMuted, toggleMute } from '../audio/sfx';
 import { DriveControls } from '../drive/DriveControls';
 import type { DriveInput } from '../drive/driveInput';
 import { useRunHaptics } from '../drive/haptics';
-import { DNF_LABEL, POLICY_LABEL, UI } from '../palette';
-import { useRunView, type RunFeed } from '../runFeed';
+import { DNF_LABEL, POLICY_LABEL, TERRAIN_LOOK, UI } from '../palette';
+import { useRunView, type RunFeed, type RunView } from '../runFeed';
 import { BrainHud } from './BrainHud';
 import { FpsBadge } from './FpsBadge';
 import styles from './hud.module.css';
@@ -154,6 +154,41 @@ function FallToast({ fall }: { fall: { readonly falls: number; readonly at: numb
   );
 }
 
+const OBSTACLE_NAME: Readonly<Record<Obstacle, string>> = { rock: 'ROCK', log: 'LOG', step: 'STEP' };
+
+/** What the robot just ran into, in the sim's own words: an obstacle, or rough ground taken too fast. */
+function ContactToast({ hit }: { hit: NonNullable<RunView['lastDamage']> }) {
+  const [shown, setShown] = useState(true);
+  useEffect(() => {
+    setShown(true);
+    const id = window.setTimeout(() => setShown(false), 1600);
+    return () => window.clearTimeout(id);
+  }, [hit.at]);
+  const what = hit.obstacle ? `HIT ${OBSTACLE_NAME[hit.obstacle]}` : hit.roughEntry ? `TOO FAST ONTO ${TERRAIN_LOOK[hit.roughEntry].label.toUpperCase()}` : null;
+  if (!shown || !what || hit.amountPct < 0.5) return null;
+  return (
+    <div className="absolute inset-x-0 flex justify-center" style={{ top: '26%' }}>
+      <span className="rounded-lg px-3 py-2 font-mono text-[12px] font-semibold tracking-[1px]" style={{ border: `2px solid ${UI.warn}`, background: 'rgb(14 16 19 / 0.88)', color: UI.warn }}>
+        {what} · −{hit.amountPct.toFixed(0)}%
+      </span>
+    </div>
+  );
+}
+
+/** Stopped against an obstacle the robot cannot roll over: stays up for as long as the sim says so. */
+function BlockedChip({ kind }: { kind: Obstacle }) {
+  return (
+    <div className="absolute inset-x-0 flex justify-center" style={{ top: '26%' }}>
+      <span className="rounded-lg px-3 py-2 text-center font-mono text-[12px] font-semibold leading-snug tracking-[1px]" style={{ border: `2px solid ${UI.bad}`, background: 'rgb(14 16 19 / 0.88)', color: UI.bad }}>
+        BLOCKED BY {OBSTACLE_NAME[kind]}
+        <span className="block text-[10px] font-normal" style={{ color: UI.text }}>
+          too tall to roll over
+        </span>
+      </span>
+    </div>
+  );
+}
+
 /** DOM overlay for the run view: top bar, slow-mo pill + cyan frame, end stamp and the Brain sheet. */
 export function RunHud({ mission, feed, ghosts = [], drive, build }: RunHudProps) {
   const view = useRunView(feed);
@@ -193,6 +228,11 @@ export function RunHud({ mission, feed, ghosts = [], drive, build }: RunHudProps
       </div>
 
       {view.lastFall && !view.done ? <FallToast fall={view.lastFall} /> : null}
+      {view.done ? null : view.state?.blockedBy ? (
+        <BlockedChip kind={view.state.blockedBy} />
+      ) : view.lastDamage ? (
+        <ContactToast hit={view.lastDamage} />
+      ) : null}
 
       {view.done && (
         <div className="absolute inset-x-0 flex justify-center" style={{ top: '24%' }}>

@@ -16,7 +16,7 @@ import {
 } from 'three';
 import { LANES, UI } from '../palette';
 import { mulberry32 } from '../rng';
-import { OBSTACLE_HEIGHT, basinDepthAt, obstacleS, sampleTrack, type LaidSegment, type TrackLayout } from '../track';
+import { basinDepthAt, sampleTrack, type LaidObstacle, type TrackLayout } from '../track';
 import { checkerTexture, hazardTexture, labelTexture } from './textures';
 
 interface Item {
@@ -236,63 +236,67 @@ function dress(layout: TrackLayout, lanes: readonly number[]): Dressed {
   return out;
 }
 
-const ROCK_COLORS = ['#6a6f77', '#868b94', '#585c64'] as const;
 
-function ObstacleProp({ layout, segment }: { layout: TrackLayout; segment: LaidSegment }) {
+/** Darker than the rock terrain, so the ridge reads on it. */
+const RIDGE_COLORS = ['#3d4148', '#4c5058', '#33363c'] as const;
+
+/** Boulders across the lanes: each one stays inside the sim's footprint, under the mound the robots ride. */
+const BOULDERS = 12;
+
+function ObstacleProp({ layout, obstacle }: { layout: TrackLayout; obstacle: LaidObstacle }) {
   const hazard = useMemo(() => {
     const texture = hazardTexture().clone();
     texture.needsUpdate = true;
     texture.repeat.set(1, 14);
     return new MeshStandardMaterial({ map: texture, roughness: 0.7 });
   }, []);
-  const kind = segment.obstacle;
+  const { kind, height: h } = obstacle;
+  const length = obstacle.s1 - obstacle.s0;
+  const middle = (obstacle.s0 + obstacle.s1) / 2;
   const boulders = useMemo(() => {
-    const rand = mulberry32(Math.round(segment.s0 * 31) + 3);
-    return Array.from({ length: 9 }, (_, i) => ({
-      z: LANES.zBack + 0.5 + (i / 8) * (LANES.zFront - LANES.zBack - 1.2),
-      x: (rand() - 0.5) * 0.5,
-      r: 0.2 + rand() * 0.16,
-      yaw: rand() * 6,
-      color: ROCK_COLORS[i % 3]!,
+    const rand = mulberry32(Math.round(obstacle.s0 * 31) + 3);
+    return Array.from({ length: BOULDERS }, (_, i) => ({
+      z: LANES.zBack + 0.35 + (i / (BOULDERS - 1)) * (LANES.zFront - LANES.zBack - 0.7),
+      // Narrow along the track so a turned boulder still fits the footprint.
+      rx: length * (0.34 + rand() * 0.04),
+      ry: h * (0.84 + rand() * 0.16),
+      rz: 0.27 + rand() * 0.06,
+      yaw: (rand() - 0.5) * 0.6,
+      color: RIDGE_COLORS[i % 3]!,
     }));
-  }, [segment.s0]);
-  if (!kind) return null;
-  const sample = sampleTrack(layout, obstacleS(segment));
+  }, [obstacle.s0, length, h]);
+  const sample = sampleTrack(layout, middle);
   // Debris in a water segment lies on the bed, under the surface.
-  const bed = basinDepthAt(segment, obstacleS(segment));
+  const bed = basinDepthAt(sample.segment, middle);
   const depth = LANES.zFront - LANES.zBack;
   const midZ = (LANES.zFront + LANES.zBack) / 2;
-  const h = OBSTACLE_HEIGHT[kind];
   return (
-    <group position={[sample.x, sample.y - bed, 0]} rotation={[0, 0, segment.slopeRad]}>
+    <group position={[sample.x, sample.y - bed, 0]} rotation={[0, 0, sample.slopeRad]}>
       {kind === 'step' && (
         <>
-          <mesh geometry={BOX} position={[0, h / 2, midZ]} scale={[0.55, h, depth - 0.1]} castShadow receiveShadow>
+          <mesh geometry={BOX} position={[0, h / 2, midZ]} scale={[length, h, depth - 0.1]} castShadow receiveShadow>
             <meshStandardMaterial color="#9aa0a8" roughness={0.9} />
           </mesh>
-          <mesh geometry={BOX} material={hazard} position={[-0.285, h / 2, midZ]} scale={[0.02, h, depth - 0.1]} />
-          <mesh geometry={BOX} material={hazard} position={[0, h / 2, LANES.zFront - 0.04]} scale={[0.56, h, 0.02]} />
+          <mesh geometry={BOX} material={hazard} position={[-length / 2 - 0.004, h / 2, midZ]} scale={[0.008, h, depth - 0.1]} />
+          <mesh geometry={BOX} material={hazard} position={[0, h / 2, LANES.zFront - 0.045]} scale={[length + 0.004, h, 0.01]} />
         </>
       )}
       {kind === 'log' && (
         <>
-          <mesh geometry={LOG} position={[0, h * 0.85, midZ]} rotation={[Math.PI / 2, 0, 0]} scale={[h, depth - 0.2, h]} castShadow receiveShadow>
+          <mesh geometry={LOG} position={[0, h / 2, midZ]} rotation={[Math.PI / 2, 0, 0]} scale={[length / 2, depth - 0.2, h / 2]} castShadow receiveShadow>
             <meshStandardMaterial color="#6b4527" roughness={1} flatShading />
           </mesh>
-          <mesh geometry={LOG} position={[0, h * 0.85, LANES.zFront - 0.09]} rotation={[Math.PI / 2, 0, 0]} scale={[h * 0.86, 0.03, h * 0.86]}>
+          <mesh geometry={LOG} position={[0, h / 2, LANES.zFront - 0.09]} rotation={[Math.PI / 2, 0, 0]} scale={[(length / 2) * 0.86, 0.03, (h / 2) * 0.86]}>
             <meshStandardMaterial color="#d9b382" roughness={1} />
           </mesh>
-          <mesh geometry={LOG} position={[0, h * 0.85, LANES.zFront - 0.085]} rotation={[Math.PI / 2, 0, 0]} scale={[h * 0.5, 0.03, h * 0.5]}>
+          <mesh geometry={LOG} position={[0, h / 2, LANES.zFront - 0.085]} rotation={[Math.PI / 2, 0, 0]} scale={[(length / 2) * 0.5, 0.03, (h / 2) * 0.5]}>
             <meshStandardMaterial color="#b98d5c" roughness={1} />
-          </mesh>
-          <mesh geometry={LOG} position={[0.1, h * 1.5, -1.4]} rotation={[0.4, 0, -0.5]} scale={[0.06, 0.4, 0.06]} castShadow>
-            <meshStandardMaterial color="#5a3a20" roughness={1} />
           </mesh>
         </>
       )}
       {kind === 'rock' &&
         boulders.map((boulder) => (
-          <mesh key={boulder.z} geometry={ICO} position={[boulder.x, boulder.r * 0.55, boulder.z]} rotation={[boulder.yaw, boulder.yaw, 0]} scale={[boulder.r * 1.25, boulder.r, boulder.r * 1.1]} castShadow receiveShadow>
+          <mesh key={boulder.z} geometry={ICO} position={[0, 0, boulder.z]} rotation={[0, boulder.yaw, 0]} scale={[boulder.rx, boulder.ry, boulder.rz]} castShadow receiveShadow>
             <meshStandardMaterial color={boulder.color} roughness={0.9} flatShading />
           </mesh>
         ))}
@@ -355,7 +359,9 @@ export function Dressing({ layout, lanes = DEFAULT_LANES }: DressingProps) {
       <Scatter geometry={BOX} material={PAINT} items={dressed.paint} />
       <Scatter geometry={DISC} material={PUDDLE} items={dressed.puddles} />
       <Scatter geometry={CONE} material={FLAT} items={dressed.trees} />
-      {layout.segments.map((segment) => (segment.obstacle ? <ObstacleProp key={segment.s0} layout={layout} segment={segment} /> : null))}
+      {layout.obstacles.map((obstacle) => (
+        <ObstacleProp key={obstacle.s0} layout={layout} obstacle={obstacle} />
+      ))}
 
       <mesh geometry={BOX} position={[0, 0.006, midZ]} scale={[0.14, 0.012, depth]}>
         <meshStandardMaterial color="#f1f3f5" roughness={0.7} />

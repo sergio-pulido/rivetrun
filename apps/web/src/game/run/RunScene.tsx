@@ -11,9 +11,10 @@ import { restDrive, type Expression, type RobotDrive } from '../robot/drive';
 import { RobotModel } from '../robot/RobotModel';
 import type { DriveInput } from '../drive/driveInput';
 import type { RunFeed } from '../runFeed';
-import { HEIGHT_SCALE, PIT_DEPTH, basinDepthAt, layoutTrack, rideOffset, sampleTrack, type TrackLayout } from '../track';
+import { PIT_DEPTH, basinDepthAt, layoutTrack, sampleTrack, type TrackLayout } from '../track';
 import { Particles, type ParticleEmitter } from './Particles';
 import { restPose, type Pose } from './pose';
+import { restRide, rideOver, stanceFor } from './ride';
 import { ScoutDroneRig } from './ScoutDroneRig';
 import { EFFECT_PARTICLES, Tag, swimLift } from './shared';
 import { World } from './World';
@@ -36,7 +37,8 @@ interface PlayerProps {
 function Player({ feed, build, layout, pose, timeScale, particles, hands }: PlayerProps) {
   const group = useRef<Group>(null);
   const drive = useRef<RobotDrive>(restDrive());
-  const pitch = useRef(0);
+  const riding = useRef(restRide());
+  const stance = useMemo(() => stanceFor(build.locomotion), [build.locomotion]);
   const budget = useRef<Partial<Record<SimEffect, number>>>({});
   const lastDamageAt = useRef(0);
   const celebrated = useRef(false);
@@ -88,22 +90,20 @@ function Player({ feed, build, layout, pose, timeScale, particles, hands }: Play
     p.t = state.t + ahead;
     p.v = state.v;
     p.thinking = view.pending !== null;
-    const sample = sampleTrack(layout, p.s);
-    p.x = sample.x;
     swim.current = damp(swim.current, state.thrusting ? 1 : 0, 2.5, dt);
-    // Airtime: height above the track comes from the sim; between ticks it follows vy.
+    // The sim's x is the nose. On the ground the axles ride the sim's solid ground (ramps, decks,
+    // obstacles); in the air the height comes from the sim and follows vy between ticks.
     const airborne = state.airborne === true;
-    const air = Math.max(0, (state.heightM ?? 0) + (airborne ? (state.vy ?? 0) * ahead : 0)) * HEIGHT_SCALE;
-    p.y = sample.y + rideOffset(sample.segment, p.s) + swim.current * swimLift(sample.segment, p.s, clock.elapsedTime) + air;
+    const airM = airborne ? Math.max(0, (state.heightM ?? 0) + (state.vy ?? 0) * ahead) : null;
+    const ride = riding.current;
+    rideOver(layout, stance, { nose: p.s, airM, pitchDeg: state.pitch, slopeDeg: state.slopeDeg }, jump, dt, ride);
+    const under = ride.segment!;
+    p.x = ride.x;
+    p.y = ride.y + swim.current * swimLift(under, ride.s, clock.elapsedTime);
     p.ready = true;
-
-    // In the air the body keeps the pitch the sim gives it; on the ground it also follows the bumps.
-    const hop = airborne ? 0 : (rideOffset(sample.segment, p.s + 0.25) - rideOffset(sample.segment, p.s - 0.25)) * 1.1;
-    const wanted = (state.pitch * Math.PI) / 180 + clamp(hop, -0.45, 0.45);
-    pitch.current = jump ? wanted : damp(pitch.current, wanted, 9, dt);
     node.visible = true;
     node.position.set(p.x, p.y, LANES.player);
-    node.rotation.z = pitch.current;
+    node.rotation.z = ride.pitch;
 
     // Touchdown: dust from both axles, sparks if it hurt, a camera kick and a quick squash.
     if (view.lastLanding && view.lastLanding.at !== landedAt.current) {
@@ -124,7 +124,8 @@ function Player({ feed, build, layout, pose, timeScale, particles, hands }: Play
     if (view.lastDamage && view.lastDamage.at !== lastDamageAt.current) {
       lastDamageAt.current = view.lastDamage.at;
       p.shakeUntil = now + 380;
-      particles.current?.emit('sparks', p.x + 0.7, p.y + 0.3, LANES.player, 26, 1);
+      // Contact is at the nose: that is where the sim stopped or slowed the robot.
+      particles.current?.emit('sparks', p.x + stance.nose, p.y + 0.3, LANES.player, 26, 1);
     }
     const won = view.done && !wrecked;
     if (won && !celebrated.current) particles.current?.emit('confetti', p.x, p.y + 1.2, LANES.player, 90, 1);
@@ -179,8 +180,8 @@ function Player({ feed, build, layout, pose, timeScale, particles, hands }: Play
     }
     // A current: specks streaming past the robot through the water column.
     if ((state.waterCurrentMps ?? 0) > 0 && !view.done && Math.random() < simDt * 22 * (state.waterCurrentMps ?? 0)) {
-      const column = basinDepthAt(sample.segment, p.s);
-      emitter.emit('current', p.x + 1 + Math.random() * 3.5, sample.y - Math.random() * column * 0.9, LANES.zFront - Math.random() * 3, 1, 1);
+      const column = basinDepthAt(under, ride.s);
+      emitter.emit('current', p.x + 1 + Math.random() * 3.5, sampleTrack(layout, ride.s).y - Math.random() * column * 0.9, LANES.zFront - Math.random() * 3, 1, 1);
     }
     // A little kick-up even when the sim reports no effect, so fast driving reads as fast.
     if (active.length === 0 && !airborne && Math.abs(state.v) > 1.4 && !view.done && Math.random() < simDt * 9) {
@@ -211,7 +212,9 @@ function Ghost({ trace, build, layout, pose, timeScale, driving }: GhostProps) {
   const group = useRef<Group>(null);
   const drive = useRef<RobotDrive>(restDrive());
   const cursor = useRef(0);
-  const pitch = useRef(0);
+  const riding = useRef(restRide());
+  const stance = useMemo(() => stanceFor(build.locomotion), [build.locomotion]);
+  const shown = useRef(false);
   const swim = useRef(0);
   const policy: Policy = trace.policy;
   const z = driving ? LANES.heuristic : laneZ(policy);
@@ -223,6 +226,7 @@ function Ghost({ trace, build, layout, pose, timeScale, driving }: GhostProps) {
     const first = frames[0];
     if (!pose.current.ready || !first) {
       node.visible = false;
+      shown.current = false;
       return;
     }
     const t = pose.current.t;
@@ -235,17 +239,24 @@ function Ghost({ trace, build, layout, pose, timeScale, driving }: GhostProps) {
     const respawn = b.x < a.x - 1;
     const k = respawn ? 0 : span > 0 ? clamp((t - a.t) / span, 0, 1) : 1;
     const ended = t >= frames[frames.length - 1]!.t;
-    const s = lerp(a.x, b.x, k);
-    const air = lerp(a.heightM ?? 0, b.heightM ?? 0, k) * HEIGHT_SCALE;
-    const sample = sampleTrack(layout, s);
-    const wanted = (lerp(a.pitch, b.pitch, k) * Math.PI) / 180;
-    pitch.current = damp(pitch.current, wanted, 9, Math.min(rawDt, 0.5));
+    const dt = Math.min(rawDt, 0.5);
+    const flying = a.airborne === true;
+    const ride = riding.current;
+    const input = {
+      nose: lerp(a.x, b.x, k),
+      airM: flying ? lerp(a.heightM ?? 0, b.heightM ?? 0, k) : null,
+      pitchDeg: flying ? a.pitch : lerp(a.pitch, b.pitch, k),
+      slopeDeg: flying ? a.slopeDeg : lerp(a.slopeDeg, b.slopeDeg, k),
+    };
+    // First frame, a respawn or a replay starting over: place it, do not ease it there.
+    rideOver(layout, stance, input, !shown.current || Math.abs(input.nose - stance.nose - ride.s) > 3, dt, ride);
+    shown.current = true;
     node.visible = true;
-    swim.current = damp(swim.current, a.thrusting ? 1 : 0, 2.5, Math.min(rawDt, 0.5));
-    node.position.set(sample.x, sample.y + rideOffset(sample.segment, s) + swim.current * swimLift(sample.segment, s, clock.elapsedTime + 1.3) + air, z);
-    node.rotation.z = pitch.current;
+    swim.current = damp(swim.current, a.thrusting ? 1 : 0, 2.5, dt);
+    node.position.set(ride.x, ride.y + swim.current * swimLift(ride.segment!, ride.s, clock.elapsedTime + 1.3), z);
+    node.rotation.z = ride.pitch;
     const d = drive.current;
-    const airborne = a.airborne === true && !ended;
+    const airborne = flying && !ended;
     const slipping = a.effects.includes('slip') && !airborne;
     d.wheelSpin = ended ? 0 : a.wheelSpin * (timeScale.current ?? 1);
     d.speed = a.v;
