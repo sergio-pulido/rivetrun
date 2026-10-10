@@ -1,0 +1,14 @@
+{
+  "author": "sergio.pulido@alodai.com",
+  "insertOuterDiameterMm": 4.6,
+  "insertHoleMm": 4.2,
+  "insertHoleStatus": "hole size: calibrate",
+  "couponHoleMm": [
+    3.8,
+    4.0,
+    4.2,
+    4.4
+  ],
+  "source": "official ruthex STEP: maximum circular/cylindrical surface radius 2.3 mm; external diameter 4.6 mm",
+  "stepUrl": "https://cdn.shopify.com/s/files/1/0567/7019/9760/files/ruthex_RX-M3x5_7.stp?v=1621261355"
+}

@@ -1,0 +1,154 @@
+{
+  "author": "sergio.pulido@alodai.com",
+  "status": "provisional_fit_test_required",
+  "reference": "docs/inputs/bom-mk2.json",
+  "parts": [
+    {
+      "id": "insert_test_coupon",
+      "name": "M3 heat-set insert calibration coupon",
+      "stl": "assets/print/mk2/insert_test_coupon.stl",
+      "qty": 1,
+      "material": "PETG",
+      "grams": null,
+      "hours": null,
+      "layerMm": 0.2,
+      "infillPct": 15,
+      "supports": false,
+      "source": "pending_slicer",
+      "volumeMm3": 7730.311,
+      "dimensionsMm": [
+        56.0,
+        18.0,
+        8.0
+      ],
+      "notes": "Left-to-right: 3.8, 4.0, 4.2, 4.4 mm blind holes; measured STEP outer diameter 4.6 mm. Calibrate insertHoleMm before making insert bosses.",
+      "author": "sergio.pulido@alodai.com"
+    },
+    {
+      "id": "chassis_base",
+      "name": "PETG chassis base",
+      "stl": "assets/print/mk2/chassis_base.stl",
+      "qty": 1,
+      "material": "PETG",
+      "grams": null,
+      "hours": null,
+      "layerMm": 0.2,
+      "infillPct": 15,
+      "supports": false,
+      "source": "pending_slicer",
+      "volumeMm3": 60507.652,
+      "dimensionsMm": [
+        160.0,
+        100.0,
+        4.0
+      ],
+      "notes": "160x100x4 mm. M3 clearance grid 20x24 mm; four N20 mount stations x +/-65, y +/-36. Printed flat. Hardware fit awaits final BOM; do not heat-set inserts into clearance holes.",
+      "author": "sergio.pulido@alodai.com"
+    },
+    {
+      "id": "motor_saddle",
+      "name": "N20 motor saddle",
+      "stl": "assets/print/mk2/motor_saddle.stl",
+      "qty": 4,
+      "material": "PETG",
+      "grams": null,
+      "hours": null,
+      "layerMm": 0.2,
+      "infillPct": 15,
+      "supports": false,
+      "source": "pending_slicer",
+      "volumeMm3": 8118.162,
+      "dimensionsMm": [
+        30.0,
+        27.0,
+        15.0
+      ],
+      "notes": "10x12x25 mm N20 envelope +0.3 mm clearance per side. Cap sockets are hole size: calibrate; insertHoleMm from mechanical-parameters.json, 5.7 mm depth; must match the chosen M3 insert datasheet before printing this part. Two base M3 through holes.",
+      "author": "sergio.pulido@alodai.com"
+    },
+    {
+      "id": "motor_cap",
+      "name": "N20 clamp cap",
+      "stl": "assets/print/mk2/motor_cap.stl",
+      "qty": 4,
+      "material": "PETG",
+      "grams": null,
+      "hours": null,
+      "layerMm": 0.2,
+      "infillPct": 15,
+      "supports": false,
+      "source": "pending_slicer",
+      "volumeMm3": 2309.041,
+      "dimensionsMm": [
+        30.0,
+        27.0,
+        3.0
+      ],
+      "notes": "Flat cap for motor_saddle. Four M3 clearance holes. The cap acts on the saddle walls; final clamp height must be confirmed against the selected motor, not tightened onto a loose motor.",
+      "author": "sergio.pulido@alodai.com"
+    },
+    {
+      "id": "battery_tray",
+      "name": "LiPo retaining tray",
+      "stl": "assets/print/mk2/battery_tray.stl",
+      "qty": 1,
+      "material": "PETG",
+      "grams": null,
+      "hours": null,
+      "layerMm": 0.2,
+      "infillPct": 15,
+      "supports": false,
+      "source": "pending_slicer",
+      "volumeMm3": 14506.262,
+      "dimensionsMm": [
+        113.0,
+        41.0,
+        8.0
+      ],
+      "notes": "Fits the BOM largest 4S large 107x35x27 mm battery with 1 mm lateral clearance. Two 3x19 mm strap passages. Floor mounting matches chassis grid. Strap model awaits the BOM.",
+      "author": "sergio.pulido@alodai.com"
+    },
+    {
+      "id": "board_standoff",
+      "name": "M3 board standoff",
+      "stl": "assets/print/mk2/board_standoff.stl",
+      "qty": 4,
+      "material": "PETG",
+      "grams": null,
+      "hours": null,
+      "layerMm": 0.2,
+      "infillPct": 15,
+      "supports": false,
+      "source": "pending_slicer",
+      "volumeMm3": 467.18,
+      "dimensionsMm": [
+        7.0,
+        7.0,
+        16.0
+      ],
+      "notes": "16 mm stand-off, 7 mm outer diameter, 3.4 mm through hole. No assumed controller hole pattern; final board fixture awaits the BOM.",
+      "author": "sergio.pulido@alodai.com"
+    },
+    {
+      "id": "cable_clip",
+      "name": "Open cable routing clip",
+      "stl": "assets/print/mk2/cable_clip.stl",
+      "qty": 4,
+      "material": "PETG",
+      "grams": null,
+      "hours": null,
+      "layerMm": 0.2,
+      "infillPct": 15,
+      "supports": false,
+      "source": "pending_slicer",
+      "volumeMm3": 1111.057,
+      "dimensionsMm": [
+        18.0,
+        10.0,
+        8.0
+      ],
+      "notes": "Open 5 mm routing channel with one M3 screw; structural cable restraint, not decorative wiring. Print flat without supports.",
+      "author": "sergio.pulido@alodai.com"
+    }
+  ]
+}

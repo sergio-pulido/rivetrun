@@ -1,0 +1,169 @@
+{
+  "author": "sergio.pulido@alodai.com",
+  "status": "partial_not_release_ready",
+  "stls": {
+    "chassis_base": {
+      "triangles": 3102,
+      "dimensionsMm": [
+        160.0,
+        100.0,
+        4.0
+      ],
+      "manifold": true,
+      "volumeMm3": 60507.644,
+      "grams": 40.28,
+      "hours": 1.536389
+    },
+    "motor_saddle": {
+      "triangles": 620,
+      "dimensionsMm": [
+        30.0,
+        27.0,
+        15.0
+      ],
+      "manifold": true,
+      "volumeMm3": 8146.83,
+      "grams": 5.56,
+      "hours": 0.352778
+    },
+    "motor_cap": {
+      "triangles": 464,
+      "dimensionsMm": [
+        30.0,
+        27.0,
+        3.0
+      ],
+      "manifold": true,
+      "volumeMm3": 2309.04,
+      "grams": 2.07,
+      "hours": 0.107222
+    },
+    "battery_tray": {
+      "triangles": 492,
+      "dimensionsMm": [
+        110.0,
+        40.5,
+        8.0
+      ],
+      "manifold": true,
+      "volumeMm3": 13985.52,
+      "grams": 13.69,
+      "hours": 0.489444
+    },
+    "board_standoff": {
+      "triangles": 160,
+      "dimensionsMm": [
+        7.0,
+        7.0,
+        8.0
+      ],
+      "manifold": true,
+      "volumeMm3": 233.59,
+      "grams": 0.37,
+      "hours": 0.062222
+    },
+    "cable_clip": {
+      "triangles": 296,
+      "dimensionsMm": [
+        18.0,
+        10.0,
+        8.0
+      ],
+      "manifold": true,
+      "volumeMm3": 1111.055,
+      "grams": 1.06,
+      "hours": 0.146667
+    }
+  },
+  "modules": {
+    "chassis": {
+      "triangles": 2156,
+      "primitives": 1,
+      "bytes": 119884,
+      "printedParts": [
+        "chassis_base"
+      ]
+    },
+    "wheels": {
+      "triangles": 5352,
+      "primitives": 12,
+      "bytes": 286276,
+      "printedParts": [
+        "motor_cap",
+        "motor_saddle"
+      ]
+    },
+    "motor_light": {
+      "triangles": 48,
+      "primitives": 1,
+      "bytes": 5020,
+      "printedParts": []
+    },
+    "motor_torque": {
+      "triangles": 48,
+      "primitives": 1,
+      "bytes": 5024,
+      "printedParts": []
+    },
+    "battery_small": {
+      "triangles": 504,
+      "primitives": 2,
+      "bytes": 32292,
+      "printedParts": [
+        "battery_tray"
+      ]
+    },
+    "battery_large": {
+      "triangles": 504,
+      "primitives": 2,
+      "bytes": 32312,
+      "printedParts": [
+        "battery_tray"
+      ]
+    },
+    "ultrasonic": {
+      "triangles": 196,
+      "primitives": 2,
+      "bytes": 10952,
+      "printedParts": []
+    },
+    "camera": {
+      "triangles": 104,
+      "primitives": 2,
+      "bytes": 7204,
+      "printedParts": []
+    }
+  },
+  "missingModules": [
+    "offroad_wheels",
+    "controller",
+    "tracks",
+    "imu",
+    "moisture_probe",
+    "scout_drone",
+    "winch",
+    "waterproof_case",
+    "bumper",
+    "thruster_kit",
+    "piston_jump"
+  ],
+  "limitations": [
+    "No physical test print or assembly fit check.",
+    "Full contract coverage and phone FPS gate are pending.",
+    "Sensor GLBs are component envelopes awaiting printed mounting parts.",
+    "Motor bodies use the earlier real-parts reference; selected voltage variants need dimensional confirmation."
+  ],
+  "materials": [
+    "pcb",
+    "petg",
+    "polymer",
+    "rubber_and_chip",
+    "steel"
+  ],
+  "totalGlbBytes": 498964,
+  "availableAssembly": {
+    "triangles": 8360,
+    "primitives": 20,
+    "bytes": 461652
+  }
+}
