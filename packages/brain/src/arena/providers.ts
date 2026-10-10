@@ -34,6 +34,8 @@ export interface Contestant {
   /** USD per million tokens and the official page it comes from. */
   readonly price?: { readonly in: number; readonly out: number };
   readonly priceSource?: string;
+  /** LLMs only: one raw call (system + user text in, answer text and token counts out), for other question kinds. */
+  readonly send?: Send;
   /** A fresh decide function per run (the random policy is seeded per run). Throws on error or timeout. */
   readonly forRun: (seed: number) => (question: BrainQuestion) => Promise<ArenaDecision>;
 }
@@ -134,7 +136,7 @@ const BASE_URL: Readonly<Record<Provider, string>> = { anthropic: 'https://api.a
 const authHeaders = (provider: Provider, apiKey: string): Record<string, string> =>
   provider === 'anthropic' ? { 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' } : { Authorization: `Bearer ${apiKey}` };
 
-type Send = (system: string, user: string) => Promise<{ text: string; usage?: ArenaDecision['usage'] }>;
+export type Send = (system: string, user: string) => Promise<{ text: string; usage?: ArenaDecision['usage'] }>;
 
 /** One request in the provider's own format. Only the text of the answer and the token counts are read back. */
 function sender(spec: LlmSpec, apiKey: string, mode: Record<string, unknown>): Send {
@@ -208,7 +210,7 @@ async function configureLlm(spec: LlmSpec, listings: Map<Provider, Set<string> |
       try {
         const send = sender(spec, apiKey, params);
         parseArenaAnswer((await send(PROBE.system, PROBE.user)).text, ['cruise', 'brake']);
-        return { ...base, status: 'ok', params: { ...params, [spec.provider === 'openai' ? 'max_completion_tokens' : 'max_tokens']: spec.maxTokens }, forRun: () => (question) => askLlm(question, send) };
+        return { ...base, status: 'ok', send, params: { ...params, [spec.provider === 'openai' ? 'max_completion_tokens' : 'max_tokens']: spec.maxTokens }, forRun: () => (question) => askLlm(question, send) };
       } catch (error) {
         lastError = error instanceof Error ? error.message.slice(0, 160) : 'error';
       }
