@@ -8,6 +8,11 @@ export const dynamic = 'force-dynamic';
 
 const jev = createJevBrain();
 
+// Calls to Jev that are in flight, by question key. In a full room many phones reach the same decision point
+// in the same state within a few hundred ms: they share one call instead of each making their own.
+const holder = globalThis as typeof globalThis & { __rivetrunDecideInFlight?: Map<string, Promise<DecideResponse>> };
+const inFlight: Map<string, Promise<DecideResponse>> = (holder.__rivetrunDecideInFlight ??= new Map());
+
 // POST /api/decide — BrainQuestion → BrainDecision (policy 'jev'). The key never leaves the server.
 // On any Jev failure this returns an error; the client brain falls back to the heuristic.
 export async function POST(request: Request): Promise<Response> {
@@ -23,9 +28,21 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   try {
-    const decision: DecideResponse = await jev.decide(parsed.data);
-    cacheDecision(key, decision);
-    return Response.json(decision, { headers: { 'x-rivetrun-cache': 'miss' } });
+    const joined = inFlight.get(key);
+    const call =
+      joined ??
+      jev
+        .decide(parsed.data)
+        .then((decision) => {
+          cacheDecision(key, decision);
+          return decision;
+        })
+        .finally(() => inFlight.delete(key));
+    if (!joined) inFlight.set(key, call);
+    const decision = await call;
+    // A request that joined a call already under way waited only for the rest of it: it reports its own wait.
+    const answer: DecideResponse = joined ? { ...decision, latencyMs: Math.round(performance.now() - started) } : decision;
+    return Response.json(answer, { headers: { 'x-rivetrun-cache': joined ? 'joined' : 'miss' } });
   } catch (error) {
     if (error instanceof JevError) {
       console.error(`[decide] jev ${error.code}: ${error.message}`);
