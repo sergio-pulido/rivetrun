@@ -47,6 +47,8 @@ const jev = createJevBrain();
 const keyOf = (request: GhostRequest): string =>
   JSON.stringify([
     CACHE_VERSION,
+    // Bumped when the shape of a stored trace changes: v2 = log entries carry the trigger's stable eventId.
+    'trace-v2',
     request.missionId,
     request.seed,
     { ...request.build, sensors: [...request.build.sensors].sort(), extras: [...request.build.extras].sort() },

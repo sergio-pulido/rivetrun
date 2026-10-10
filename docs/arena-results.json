@@ -1,6 +1,6 @@
 {
   "date": "2026-10-10",
-  "runs": 216,
+  "runs": 223,
   "promptHash": "9a0e9a761a",
   "gameplayVersion": 3,
   "missions": [
@@ -13,13 +13,10 @@
     "M7"
   ],
   "seeds": [
-    1001,
-    1002,
-    1003
+    1001
   ],
   "builds": [
-    "all_rounder",
-    "deep_diver"
+    "all_rounder"
   ],
   "timeoutMs": 10000,
   "priceSources": {
@@ -300,6 +297,47 @@
         "out": 1.2
       },
       "priceSource": "https://developers.openai.com/api/docs/models"
+    },
+    {
+      "id": "claude-opus-5-5",
+      "modelId": "claude-opus-5-5",
+      "label": "Claude Opus 5.5 (reasoning)",
+      "kind": "llm",
+      "tier": "reasoning",
+      "status": "ok",
+      "params": {
+        "thinking": {
+          "type": "adaptive"
+        },
+        "max_tokens": 4096
+      },
+      "seeds": [
+        1001
+      ],
+      "runs": 7,
+      "finishPct": 71,
+      "meanScore": 480,
+      "meanTimeS": 39.8,
+      "meanDamagePct": 34.3,
+      "scansDone": 0,
+      "decisionsPerRun": 10.6,
+      "noDecisions": 5,
+      "latencyP50Ms": 1682,
+      "latencyP95Ms": 2937,
+      "lateCrashes": 4,
+      "lateCrashRule": "impact|blocked|fell",
+      "simCommit": "fbd325e",
+      "inputTokens": 20235,
+      "outputTokens": 759,
+      "costPerRunUsd": 0.09612,
+      "totalCostUsd": 0.6728,
+      "priceUsdPerMTok": {
+        "in": 4,
+        "out": 20
+      },
+      "priceSource": "https://claude.com/pricing",
+      "capUsd": 10,
+      "stoppedAtCap": false
     },
     {
       "id": "heuristic",
