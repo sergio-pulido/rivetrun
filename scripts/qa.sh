@@ -101,8 +101,8 @@ echo "QA $STAMP · commit $SHORT ($(git -C "$ROOT" log -1 --format=%s "$SHA" | c
 
 if run worktree "$ROOT" sync_tree && run install "$QA_TREE" pnpm install --frozen-lockfile --prefer-offline; then
   run typegen "$QA_TREE/apps/web" pnpm exec next typegen
-  run typecheck "$QA_TREE" pnpm -s typecheck
-  run unit-tests "$QA_TREE" pnpm -s test
+  run typecheck "$QA_TREE" pnpm -s exec turbo run typecheck --continue
+  run unit-tests "$QA_TREE" pnpm -s exec turbo run test --continue
   if run determinism "$QA_TREE" determinism; then
     run balance "$QA_TREE" balance
     if [ -f "$ROOT/e2e/out/balance-last.txt" ] && ! cmp -s "$OUT/balance.txt" "$ROOT/e2e/out/balance-last.txt"; then

@@ -1,7 +1,7 @@
 // RivetRun e2e smoke (owner: [MASTER], docs/OVERNIGHT.md).
 // Headless Chromium against the running dev server. Starts no server and writes nothing outside e2e/screens.
 //   node e2e/smoke.mjs                 all steps
-//   QA_ONLY=drive node e2e/smoke.mjs   one step group: pages | drive | race | lab | desktop
+//   QA_ONLY=drive node e2e/smoke.mjs   one step group: pages | drive | lab | missions | race | desktop
 // Env: QA_BASE_URL (default http://localhost:3000), QA_SCREENS (output directory), QA_HEADED=1 to watch.
 // Exit code: 0 when no step failed (skips are allowed), 1 otherwise. A summary lands in <QA_SCREENS>/summary.json.
 import { mkdirSync, writeFileSync } from 'node:fs';
@@ -32,16 +32,21 @@ const record = (step, status, detail, startedAt) => {
 
 class Skip extends Error {}
 
-/** Runs one step; a throw is a failure, a Skip is a skip. Later steps still run. */
-async function step(name, body) {
+/** Runs one step; a throw is a failure, a Skip is a skip. Later steps still run. A failure leaves a screenshot of `page`. */
+async function step(name, body, page) {
   const startedAt = Date.now();
   try {
     const detail = await body();
     record(name, 'pass', detail ?? '', startedAt);
     return true;
   } catch (error) {
-    if (error instanceof Skip) record(name, 'skip', error.message, startedAt);
-    else record(name, 'fail', String(error?.message ?? error).split('\n')[0].slice(0, 300), startedAt);
+    if (error instanceof Skip) {
+      record(name, 'skip', error.message, startedAt);
+      return false;
+    }
+    const file = `fail-${name.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}`;
+    const saved = page ? await shot(page, file).then(() => ` · see ${file}.png`, () => '') : '';
+    record(name, 'fail', `${String(error?.message ?? error).split('\n')[0].slice(0, 300)}${saved}`, startedAt);
     return false;
   }
 }
@@ -51,7 +56,7 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /** Collects uncaught page errors and console errors per page; uncaught errors fail the step that checks them. */
 function watch(page, label) {
-  const seen = { pageErrors: [], consoleErrors: [] };
+  const seen = { pageErrors: [], consoleErrors: [], checked: 0 };
   page.on('pageerror', (error) => seen.pageErrors.push(String(error.message).slice(0, 240)));
   page.on('console', (message) => {
     if (message.type() === 'error') seen.consoleErrors.push(message.text().slice(0, 240));
@@ -90,7 +95,10 @@ async function go(page, route) {
 async function assertHealthy(page, seen, { sideways = true } = {}) {
   const overlay = await devOverlayError(page);
   if (overlay) throw new Error(`dev overlay: ${overlay}`);
-  if (seen.pageErrors.length > 0) throw new Error(`uncaught: ${seen.pageErrors[0]}`);
+  // Only errors since the last check: one early error must not fail every later step.
+  const fresh = seen.pageErrors.slice(seen.checked);
+  seen.checked = seen.pageErrors.length;
+  if (fresh.length > 0) throw new Error(`uncaught: ${fresh[0]}`);
   if (sideways) {
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
     if (overflow > 2) warnings.push(`${new URL(page.url()).pathname}: page is ${overflow}px wider than the viewport`);
@@ -136,14 +144,32 @@ async function driveM1(page) {
     held.delete(key);
     await page.keyboard.up(key);
   };
-  const log = { scanned: false, missed: false, sawZone: false, sawPad: false, brakedAtM: null, creeps: 0, shots: [] };
+  const log = { scanned: false, missed: false, sawZone: false, sawPad: false, brakedAtM: null, creeps: 0, reloads: 0, repressed: 0, shots: [] };
   let phase = 'approach';
   let lastX = null;
   let stillSince = null;
-  const deadline = Date.now() + 150_000;
+  let deadline = Date.now() + 150_000;
+  // The dev server reloads the page when a session saves a file the run imports. The new page has no key held,
+  // so the script lets go of everything and drives the restarted run from the start line.
+  let reloaded = false;
+  const onLoad = () => {
+    reloaded = true;
+  };
+  page.on('load', onLoad);
 
   while (Date.now() < deadline) {
     if (new URL(page.url()).pathname === '/result') break;
+    if (reloaded) {
+      reloaded = false;
+      log.reloads += 1;
+      for (const key of [...held]) await release(key);
+      if (!log.scanned && !log.missed) phase = 'approach';
+      lastX = null;
+      stillSince = null;
+      if (log.reloads <= 2) deadline = Date.now() + 150_000;
+      await sleep(500);
+      continue;
+    }
     const hud = await readHud(page).catch(() => null);
     if (!hud) {
       await sleep(100);
@@ -159,6 +185,12 @@ async function driveM1(page) {
     const stoppedMs = Date.now() - stillSince;
 
     if ((log.scanned || log.missed) && phase !== 'finish') phase = 'finish';
+    // Throttle held and nothing moving for 4 s: the page lost the key (focus, a soft refresh). Press it again.
+    if ((phase === 'approach' || phase === 'finish') && stoppedMs > 4000 && held.has('ArrowUp')) {
+      log.repressed += 1;
+      await release('ArrowUp');
+      stillSince = Date.now();
+    }
 
     if (phase === 'approach') {
       await press('ArrowUp');
@@ -197,6 +229,7 @@ async function driveM1(page) {
     }
     await sleep(60);
   }
+  page.off('load', onLoad);
   for (const key of [...held]) await release(key);
   return log;
 }
@@ -226,7 +259,7 @@ try {
       await shot(page, 'phone-01-home');
       await assertHealthy(page, seen);
       return 'Play Now, Workshop and Room Race visible';
-    });
+    }, page);
 
     await step('workshop', async () => {
       await page.getByRole('link', { name: 'Workshop' }).first().click();
@@ -238,7 +271,7 @@ try {
       const words = (await page.locator('body').innerText()).length;
       if (words < 200) throw new Error(`Workshop rendered only ${words} characters of text`);
       return 'opened from Home';
-    });
+    }, page);
 
     await step('brief M1', async () => {
       const status = await go(page, '/brief/M1');
@@ -250,7 +283,7 @@ try {
       await assertHealthy(page, seen);
       const body = await page.locator('body').innerText();
       return /scan/i.test(body) ? 'objectives list a scan zone' : 'no scan zone text on the Brief';
-    });
+    }, page);
   }
 
   if (wants('drive')) {
@@ -275,7 +308,7 @@ try {
       const hud = await readHud(page);
       if (hud.unavailable) warnings.push('run: "3D VIEW UNAVAILABLE" fallback shown in headless Chromium');
       return `${coached ? 'coach marks shown, ' : 'no coach marks, '}clock running`;
-    });
+    }, page);
 
     await step('drive M1 · finish', async () => {
       if (new URL(page.url()).pathname !== '/run/M1') throw new Error('the run never started');
@@ -291,15 +324,16 @@ try {
       await assertHealthy(page, seen);
       if (!/finished/i.test(headline)) throw new Error(`result headline is "${headline}"`);
       const time = (await page.locator('body').innerText()).match(/(\d+\.\d)\s*s/)?.[1];
+      if (drive.reloads > 0) warnings.push(`run: the dev server reloaded the page ${drive.reloads} time(s) mid-run; the script restarted the run`);
       return `Finished${time ? ` in ${time} s` : ''}`;
-    });
+    }, page);
 
     await step('drive M1 · scan', async () => {
       if (!drive) throw new Error('no run to judge');
       if (!drive.sawZone && !drive.sawPad) throw new Error('the HUD never announced the scan zone');
       if (!drive.scanned) throw new Error(`scan not completed (missed=${drive.missed}, braked at ${drive.brakedAtM} m, creeps=${drive.creeps})`);
-      return `braked at ${drive.brakedAtM} m from the pad, ${drive.creeps} creep(s), SCANNED`;
-    });
+      return `braked at ${drive.brakedAtM} m from the pad, ${drive.creeps} creep(s), SCANNED${drive.reloads ? ` · ${drive.reloads} dev reload(s) during the run` : ''}`;
+    }, page);
   }
 
   if (wants('lab')) {
@@ -311,7 +345,7 @@ try {
       await shot(page, 'phone-08-lab');
       await assertHealthy(page, seen);
       return 'Brain Arena visible';
-    });
+    }, page);
 
     await step('lab mission', async () => {
       const status = await go(page, '/scenarios');
@@ -321,8 +355,62 @@ try {
       await shot(page, 'phone-09-scenarios');
       await assertHealthy(page, seen);
       throw new Skip('/scenarios exists; the start-to-finish script is added when OVN-LAB-3 reports');
-    });
+    }, page);
   }
+  // ---- Every mission opens: its Brief, and its run scene for a few seconds (terrain, weather, lights) ---------------
+  if (wants('missions')) {
+    const missions = [];
+    for (let n = 1; n <= 20; n += 1) {
+      const status = await go(page, `/brief/M${n}`).catch(() => 0);
+      if (status !== 200) break;
+      missions.push(`M${n}`);
+    }
+    await step(`briefs M1–M${missions.length}`, async () => {
+      if (missions.length < 7) throw new Error(`only ${missions.length} mission Brief(s) answer 200`);
+      const bad = [];
+      for (const id of missions) {
+        const before = seen.pageErrors.length;
+        await go(page, `/brief/${id}`);
+        await page.getByRole('link', { name: /^(Drive|Deploy)$/ }).first().waitFor({ state: 'visible', timeout: 20_000 }).catch(() => bad.push(`${id}: no Drive button`));
+        await sleep(700);
+        await shot(page, `brief-${id}`);
+        const overlay = await devOverlayError(page);
+        if (overlay) bad.push(`${id}: ${overlay}`);
+        if (seen.pageErrors.length > before) bad.push(`${id}: ${seen.pageErrors[before]}`);
+      }
+      seen.checked = seen.pageErrors.length;
+      if (bad.length > 0) throw new Error(bad.join('; '));
+      return `${missions.length} Briefs render`;
+    }, page);
+
+    await step(`run scenes M2–M${missions.length}`, async () => {
+      const bad = [];
+      // M1's scene is covered by the Drive run above.
+      for (const id of missions.slice(1)) {
+        const before = seen.pageErrors.length;
+        await go(page, `/run/${id}`);
+        const strip = await page.locator(`[aria-label^="${id} "]`).waitFor({ state: 'visible', timeout: NAV_MS }).then(
+          () => true,
+          () => false,
+        );
+        if (!strip) bad.push(`${id}: the HUD never appeared`);
+        // Long enough for the first frames and for the clock to start; the robot stays on the start line.
+        await sleep(6000);
+        await shot(page, `run-${id}`);
+        const text = await page.locator('body').innerText().catch(() => '');
+        if (/3D VIEW UNAVAILABLE|could not start/i.test(text)) bad.push(`${id}: ${text.match(/3D VIEW UNAVAILABLE[^\n]*|The run could not start[^\n]*/i)?.[0]}`);
+        const overlay = await devOverlayError(page);
+        if (overlay) bad.push(`${id}: ${overlay}`);
+        if (seen.pageErrors.length > before) bad.push(`${id}: ${seen.pageErrors[before]}`);
+      }
+      // Leave the last run page before the next step so its timers stop.
+      await go(page, '/');
+      seen.checked = seen.pageErrors.length;
+      if (bad.length > 0) throw new Error(bad.join('; '));
+      return `${missions.length - 1} run scenes load without an error`;
+    }, page);
+  }
+
   if (seen.consoleErrors.length > 0) warnings.push(`phone: ${seen.consoleErrors.length} console error(s), first: ${seen.consoleErrors[0]}`);
   await phone.close();
 
@@ -341,7 +429,7 @@ try {
       await shot(screen, 'screen-01-leaderboard');
       await assertHealthy(screen, screenSeen, { sideways: false });
       return 'leaderboard view';
-    });
+    }, screen);
 
     await step('room race · lobby', async () => {
       await screen.getByRole('button', { name: 'Start a Room Race' }).click();
@@ -357,7 +445,7 @@ try {
       await shot(screen, 'screen-02-lobby');
       opened = true;
       return `room ${new URL(screen.url()).searchParams.get('room')}, M1, 2 JEV bots`;
-    });
+    }, screen);
 
     await step('room race · results', async () => {
       if (!opened) throw new Error('no room to race in');
@@ -378,7 +466,7 @@ try {
       const timed = (text.match(/\b\d{1,2}:\d\d\.\d\b|\b\d+\.\d s\b/g) ?? []).length;
       if (timed === 0 && !/DNF|did not finish/i.test(text)) throw new Error('FINISH shown but no time or DNF on the board');
       return verdict ? `verdict: ${verdict.slice(0, 80)}` : 'finished, both bots listed';
-    });
+    }, screen);
   }
 
   // ---- 1280×720 stills of the phone screens ------------------------------------------------------------------------
@@ -399,9 +487,10 @@ try {
         if (overlay) failed.push(`${route}: ${overlay}`);
       }
       if (failed.length > 0) throw new Error(failed.join('; '));
-      if (screenSeen.pageErrors.length > 0) throw new Error(`uncaught: ${screenSeen.pageErrors[0]}`);
+      const fresh = screenSeen.pageErrors.slice(screenSeen.checked);
+      if (fresh.length > 0) throw new Error(`uncaught: ${fresh[0]}`);
       return 'Home, Workshop, Brief M1, /lab';
-    });
+    }, screen);
   }
   if (screenSeen.consoleErrors.length > 0) warnings.push(`screen: ${screenSeen.consoleErrors.length} console error(s), first: ${screenSeen.consoleErrors[0]}`);
   await desktop.close();

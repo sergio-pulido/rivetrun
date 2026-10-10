@@ -51,25 +51,30 @@ e2e smoke (Playwright, headless Chromium from /opt or the local install): Home, 
 ## Queues
 Items are in priority order. IDs are OVN-<owner>-<n>.
 
-### Board (kept by [MASTER], updated 04:00)
-"Reported" is the owner's word; "QA" is what the gate or the e2e screens showed.
+### Board (kept by [MASTER], updated 04:07)
+"Reported" is the owner's word; "QA" is what the gate or the e2e screens showed. Workers are ahead of the wave clock: Wave 1 was reported done by 04:03.
 
 | Item | State | Commit | QA |
 |---|---|---|---|
-| OVN-SIM-1 | no report yet (asked 03:57) | d966fc9 and earlier | Sim unit tests green in the gate. |
+| OVN-SIM-1 | committed, no report (asked 03:57, 04:04) | d966fc9 and earlier | Sim unit tests green in the gate. |
 | OVN-GAME-1 | reported done | 7947a69 | e2e: keyboard run on M1 brakes into the scan zone, "SCANNING · SURVIVOR", finishes. SLIP and the red speedometer not seen by anyone yet. |
-| OVN-UI-1 | reported done | 5eaa447 | Brief M1 objectives seen in the e2e screens. Inventory not retested by QA. |
+| OVN-UI-1 | reported done | 5eaa447, 2889433 | Brief M1 objectives seen in the e2e screens. Inventory not retested by QA. |
 | OVN-BRAIN-0 | reported done | 7b2bd6a | `--ref --build-only` run by brain. Serving a tag is untested until the human does it. |
-| OVN-BRAIN-1 | in progress | fbd325e, 0b617e9 | — |
-| OVN-SIM-2 | in progress (wind, gusts, cold, snow, weatherEffects in) | 9d3db6c, c9f6f27, 4c97762 | Broke typecheck in game and brain paths (Q1, Q2 in docs/QA.md); both fixed. |
-| OVN-UI-2 | reported done | 573ff51 | Wind, fog, night and snow cards cannot be seen until M8/M9 exist. |
-| OVN-GAME-2 | in progress | — | — |
-| OVN-LAB-1 | [LAB] session started 03:50 | — | — |
+| OVN-BRAIN-1 | reported done | 6ddf495 | 12 arena rows on one prompt hash; reasoning rows are 1 seed / 7 runs. /lab rendering of the new fields not checked. |
+| OVN-SIM-2 | committed, no report | 9d3db6c, c9f6f27, 4c97762 | Broke typecheck in game and brain paths (Q1, Q2); fixed. |
+| OVN-SIM-3 | committed, no report | e8e60f5, 1410a8a | Balance: M8 and M9 solved by mud_crawler, all_rounder, drone_sprinter, scrap_jumper. Broke two tests that used M9 as "unknown" (Q3 fixed, Q4 open). |
+| OVN-UI-2 | reported done | 573ff51, c737082 | To be seen on M8/M9 in the next e2e screens. |
+| OVN-GAME-2 | reported done | 86692f3, 8b62be1 | Frame rate on a phone, fog, gust word, /screen with weather: not verified by game. |
+| OVN-BRAIN-2 | reported done | 4ae2d81 | Jev trails the heuristic on M8 by ~80 points (untuned). Weather line on /screen and bots on M8/M9 not verified. |
+| OVN-UI-3 | reported done (empty state) | 20cec76 | Lab tab has no data until OVN-BRAIN-3. |
+| OVN-LAB-1 | in progress ([LAB] started 03:50) | — | — |
 
-Re-prioritised 03:58:
-- [UI] is two waves ahead: OVN-UI-4, then OVN-UI-5. OVN-UI-3 waits for the "lab" block of docs/arena-results.json (OVN-BRAIN-3 ← OVN-LAB-1/2).
-- [SIM]: a new union member (terrain, RunEvent type, trigger) is announced to [GAME], [BRAIN] and [UI] before it is committed. M8/M9 enter `MISSION_IDS` only after game and brain confirm `snow` and `gust` are handled.
-- [LAB]: /scenarios stays off the Home screen until [MASTER] has seen it green; `data-testid` hooks for the e2e (see the message of 03:58).
+Now: [SIM] Q4 then OVN-SIM-4 · [GAME] OVN-GAME-4 (OVN-GAME-3 waits for OVN-SIM-4) · [UI] OVN-UI-4 · [BRAIN] OVN-BRAIN-4 (OVN-BRAIN-3 waits for [LAB]) · [LAB] OVN-LAB-1.
+
+Standing rules added by [MASTER]:
+- Before every push: `pnpm typecheck` and `pnpm test` from the repo root, not only in your package. The gate checks committed HEAD in a clean worktree.
+- [SIM]: a new union member or mission id is announced to [GAME], [BRAIN] and [UI] before it is committed.
+- [LAB]: /scenarios stays off the Home screen until [MASTER] has seen it green; `data-testid` hooks for the e2e.
 
 ### Wave 0 — finish what is in flight (now → 05:30)
 - OVN-SIM-1: RR-GAMEPLAY-V3 P1 physics: analog input, traction and wheelspin, grip-limited braking, safe speeds and impact damage, scan zones. Accept: tests for each; a full-throttle run on M3 mud is slower than a feathered one.

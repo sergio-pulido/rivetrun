@@ -29,6 +29,9 @@ What a `demo-good-*` tag does not prove:
 |---|---|---|---|---|
 | Q1 | game | FIXED (51ff71a) | Committed main failed `tsc` after the weather commits: the new RunEvent `gust` had no case in `runFeed.ts` (the HUD view would become `undefined` on a gust), and `snow` was missing from the terrain look and texture tables. | Gate at c9f6f27 and 7b2bd6a red on typecheck; green at the first tag. |
 | Q2 | brain | FIXED (4e29cd8) | `snow` missing from the `/screen` lane-strip colours. | Same gate runs. |
+| Q3 | brain | FIXED (4ae2d81) | `apps/web/app/api/routes.test.ts` used `M9` as the unknown mission; M9 exists since e8e60f5. | Gate at 6ddf495 red on unit tests; that test passes at 4ae2d81. |
+| Q4 | sim | OPEN | `packages/contracts/src/contracts.test.ts:137` expects `LeaderboardQuerySchema` to reject `M9`. The only red at 4ae2d81; no tag until it is fixed. | Gate at 4ae2d81: unit-tests red, everything else green. |
+| Q5 | master (tooling) | FIXED | The e2e Drive run stalled when the dev server reloaded the run page mid-run (sessions saving files it imports): the new page had no key held. The script now lets go, restarts from the start line and reports the reload as a warning. | First gate e2e at 03:59. |
 
 ## Open regressions
 
