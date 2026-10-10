@@ -1,0 +1,124 @@
+{
+  "author": "sergio.pulido@alodai.com",
+  "records": [
+    {
+      "id": "speedster",
+      "bounds": [
+        [
+          -1.0499999523162842,
+          -0.6854767203330994,
+          0.0
+        ],
+        [
+          1.0499999523162842,
+          0.6854767203330994,
+          1.1344527006149292
+        ]
+      ],
+      "renderedParts": [
+        "chassis",
+        "controller",
+        "wheels",
+        "motor_light",
+        "battery_small",
+        "camera",
+        "ultrasonic"
+      ],
+      "missingParts": []
+    },
+    {
+      "id": "mud_crawler",
+      "bounds": [
+        [
+          -0.7999999523162842,
+          -0.6259999871253967,
+          -3.872811794281006e-05
+        ],
+        [
+          0.7999999523162842,
+          0.6259999871253967,
+          0.9294527769088745
+        ]
+      ],
+      "renderedParts": [
+        "chassis",
+        "controller",
+        "tracks",
+        "motor_torque",
+        "battery_large",
+        "imu",
+        "waterproof_case"
+      ],
+      "missingParts": []
+    },
+    {
+      "id": "all_rounder",
+      "bounds": [
+        [
+          -1.090000033378601,
+          -0.6254938244819641,
+          0.0
+        ],
+        [
+          1.090000033378601,
+          0.6254938244819641,
+          1.1744526624679565
+        ]
+      ],
+      "renderedParts": [
+        "chassis",
+        "controller",
+        "offroad_wheels",
+        "motor_torque",
+        "battery_large",
+        "camera",
+        "ultrasonic",
+        "bumper"
+      ],
+      "missingParts": []
+    },
+    {
+      "id": "deep_diver",
+      "bounds": [
+        [
+          -1.0499999523162842,
+          -0.6854767203330994,
+          0.0
+        ],
+        [
+          1.0499999523162842,
+          0.6854767203330994,
+          1.3000233173370361
+        ]
+      ],
+      "renderedParts": [
+        "chassis",
+        "controller",
+        "wheels",
+        "motor_torque",
+        "battery_large",
+        "ultrasonic",
+        "camera",
+        "waterproof_case"
+      ],
+      "missingParts": [
+        "thruster_kit"
+      ]
+    }
+  ],
+  "cameraDirection": [
+    1.6,
+    -5.5,
+    2.6
+  ],
+  "cameraTarget": [
+    0.0,
+    0.0,
+    0.6499922871589661
+  ],
+  "orthoScale": 2.983341693878174,
+  "lights": "Exact default hero studio rig: white key/rim/fill 900/1200/450 W, 3.5 m area lights",
+  "sameCameraAndScale": true,
+  "libraryPlacements": "Existing component meshes only; metres \u00d710 = MK-II render units. Enclosure sits on chassis deck, IMU inside it; external sensors lifted onto enclosure. This is render placement, no new rover module or manufactured mount.",
+  "missingPartsPolicy": "Omit absent models; never use procedural or invented geometry."
+}

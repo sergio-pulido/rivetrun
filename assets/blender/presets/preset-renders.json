@@ -1,0 +1,105 @@
+{
+  "author": "sergio.pulido@alodai.com",
+  "presetSource": "packages/sim/src/data/parts.ts PRESETS",
+  "order": [
+    "speedster",
+    "mud_crawler",
+    "all_rounder",
+    "deep_diver"
+  ],
+  "cards": [
+    {
+      "id": "speedster",
+      "master": "assets/blender/presets/speedster.png",
+      "file": "apps/web/public/renders/presets/speedster.webp",
+      "url": "/renders/presets/speedster.webp",
+      "sizeBytes": 67704,
+      "resolutionPx": [
+        768,
+        768
+      ],
+      "quality": 95,
+      "renderedParts": [
+        "chassis",
+        "controller",
+        "wheels",
+        "motor_light",
+        "battery_small",
+        "camera",
+        "ultrasonic"
+      ],
+      "missingParts": []
+    },
+    {
+      "id": "mud_crawler",
+      "master": "assets/blender/presets/mud_crawler.png",
+      "file": "apps/web/public/renders/presets/mud_crawler.webp",
+      "url": "/renders/presets/mud_crawler.webp",
+      "sizeBytes": 28788,
+      "resolutionPx": [
+        768,
+        768
+      ],
+      "quality": 95,
+      "renderedParts": [
+        "chassis",
+        "controller",
+        "tracks",
+        "motor_torque",
+        "battery_large",
+        "imu",
+        "waterproof_case"
+      ],
+      "missingParts": []
+    },
+    {
+      "id": "all_rounder",
+      "master": "assets/blender/presets/all_rounder.png",
+      "file": "apps/web/public/renders/presets/all_rounder.webp",
+      "url": "/renders/presets/all_rounder.webp",
+      "sizeBytes": 72572,
+      "resolutionPx": [
+        768,
+        768
+      ],
+      "quality": 95,
+      "renderedParts": [
+        "chassis",
+        "controller",
+        "offroad_wheels",
+        "motor_torque",
+        "battery_large",
+        "camera",
+        "ultrasonic",
+        "bumper"
+      ],
+      "missingParts": []
+    },
+    {
+      "id": "deep_diver",
+      "master": "assets/blender/presets/deep_diver.png",
+      "file": "apps/web/public/renders/presets/deep_diver.webp",
+      "url": "/renders/presets/deep_diver.webp",
+      "sizeBytes": 54244,
+      "resolutionPx": [
+        768,
+        768
+      ],
+      "quality": 95,
+      "renderedParts": [
+        "chassis",
+        "controller",
+        "wheels",
+        "motor_torque",
+        "battery_large",
+        "ultrasonic",
+        "camera",
+        "waterproof_case"
+      ],
+      "missingParts": [
+        "thruster_kit"
+      ]
+    }
+  ],
+  "sameCameraAndScale": true
+}
