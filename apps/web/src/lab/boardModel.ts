@@ -2,6 +2,12 @@
 import type { TerrainId } from '@rivetrun/contracts';
 import { cellAt, doorOpen, seeCell, type AgentState, type Cell, type KnownTile, type LabObjectKind, type LabScenario, type LabState, type TileKind } from '@rivetrun/lab';
 
+/** Drawing units per tile. On a 390 px phone a 15-tile map is about 24 px a tile, so one unit is one pixel. */
+export const TILE = 24;
+
+/** The last word or digit of an id: "parcel-2" → "2", "check-kitchen" → "K". */
+export const shortId = (id: string): string => (id.split('-').pop() ?? id).slice(0, 1).toUpperCase();
+
 export type TileLook = 'fog' | 'floor' | 'wall' | 'door' | 'door-open' | 'drop' | 'ramp';
 
 export interface TileView {

@@ -2,14 +2,13 @@
 
 import { memo, useMemo, type MouseEvent } from 'react';
 import type { TerrainId } from '@rivetrun/contracts';
-import { LAB_PLAYER, defOf, type AgentState, type Cell, type Dir, type LabObjectKind, type LabState } from '@rivetrun/lab';
+import { LAB_PLAYER, defOf, stepCell, tileAt, type AgentState, type Cell, type Dir, type LabObjectKind, type LabState } from '@rivetrun/lab';
 // The rover and the ground colours of the run view, so the board reads as the same game. From the module itself:
 // the game's index also exports its 3D scene.
 import { ROBOT_COLORS, RobotGlyph, terrainTile } from '@/game/glyph';
-import { inView, knownTiles, poseOf, trueTiles, type TileView } from './boardModel';
-
-/** Drawing units per tile. On a 390 px phone a 15-tile map is about 24 px a tile, so one unit is one pixel. */
-const T = 24;
+import { TILE as T, inView, knownTiles, poseOf, shortId as short, trueTiles, type TileView } from './boardModel';
+import { Plate, SpriteGlyph, SpriteMover, SpriteRover, SpriteTiles } from './LabSprites';
+import { floorSprite, objectSprite, roverSprite, useLabSprites, type SpriteId } from './sprites';
 
 /** Floor a ranger has mapped: free, ground type not known. */
 const FLOOR = '#1b212a';
@@ -59,9 +58,6 @@ const Tiles = memo(function Tiles({ tiles }: TilesProps) {
   );
 });
 
-/** The last word or digit of an id: "parcel-2" → "2", "check-kitchen" → "K". */
-const short = (id: string): string => (id.split('-').pop() ?? id).slice(0, 1).toUpperCase();
-
 interface GlyphProps {
   readonly kind: LabObjectKind;
   readonly id: string;
@@ -102,12 +98,24 @@ interface RobotProps {
   readonly agent: AgentState;
   readonly color: string;
   readonly name: string;
+  /** Draw the rover's top view for its locomotion instead of the glyph. */
+  readonly sprites: boolean;
+  /** With sprites: the picture of what it carries. */
+  readonly carried?: SpriteId;
 }
 
-function Robot({ agent, color, name }: RobotProps) {
+function Robot({ agent, color, name, sprites, carried }: RobotProps) {
   const pose = poseOf(agent);
   const cx = pose.x * T + T / 2;
   const cy = pose.y * T + T / 2;
+  if (sprites) {
+    return (
+      <g>
+        <SpriteRover cx={cx} cy={cy} headingDeg={HEADING_DEG[agent.heading]} sprite={roverSprite(agent.build.locomotion)} color={color} {...(carried ? { carried } : {})} />
+        <title>{name}</title>
+      </g>
+    );
+  }
   return (
     <g>
       <g transform={`rotate(${HEADING_DEG[agent.heading]} ${cx} ${cy})`}>
@@ -131,10 +139,22 @@ interface LabBoardProps {
 export function LabBoard({ state, reveal = false, onTile }: LabBoardProps) {
   const { map } = state.scenario;
   const me = state.agents.find((agent) => agent.id === LAB_PLAYER)!;
+  // The Blender agent's sprites once they have all loaded; this file's own SVG marks until then, or when one fails.
+  const sprites = useLabSprites();
   // `known` is a new array only when the robot has sensed something new, `doorsOpen` only when a door opens and
   // `weatherActive` only when the weather turns (the engine keeps unchanged arrays from step to step).
   const tiles = useMemo(() => (reveal ? trueTiles(state, me) : knownTiles(state, me)), [reveal, me.known, state.doorsOpen]); // eslint-disable-line react-hooks/exhaustive-deps
   const view = useMemo(() => (reveal ? [] : inView(state, me)), [reveal, me.cell, me.heading, me.known, state.weatherActive, state.doorsOpen]); // eslint-disable-line react-hooks/exhaustive-deps
+  // A door is drawn across its wall: turned when the wall runs north–south. The frame is part of the door itself,
+  // so this reads the map and shows nothing a sensor that reported the door would not have seen.
+  const turned = useMemo(
+    () => new Set(map.tiles.flatMap((tile, index) => {
+      const cell = { x: index % map.width, y: Math.floor(index / map.width) };
+      const closed = (dir: Dir): boolean => { const kind = tileAt(map, stepCell(cell, dir)).kind; return kind === 'wall' || kind === 'door'; };
+      return tile.kind === 'door' && closed('N') && closed('S') ? [index] : [];
+    })),
+    [map],
+  );
 
   const click = (event: MouseEvent<SVGSVGElement>): void => {
     const svg = event.currentTarget;
@@ -153,16 +173,25 @@ export function LabBoard({ state, reveal = false, onTile }: LabBoardProps) {
     const def = defOf(state.scenario, object.id);
     return [{ def, cell: reveal ? object.at : known!.at, done: object.status === 'scanned' }];
   });
+  /** With sprites: the picture of the first thing a robot carries; the flag takes the colour of whoever holds it. */
+  const carriedBy = (agent: AgentState): SpriteId | undefined => {
+    const first = agent.carrying[0];
+    if (!sprites || first === undefined) return undefined;
+    const kind = defOf(state.scenario, first).kind;
+    return kind === 'flag' && agent.id !== LAB_PLAYER ? 'flag_cyan' : objectSprite(kind);
+  };
   const movers = state.movers.flatMap((mover) => {
     const seen = me.visibleMovers.find((m) => m.id === mover.id);
     if (!reveal && seen === undefined) return [];
     const from = mover.route[mover.index]!;
     const to = mover.route[(mover.index + 1) % mover.route.length]!;
-    return [{ id: mover.id, x: from.x + (to.x - from.x) * mover.progress, y: from.y + (to.y - from.y) * mover.progress, named: reveal || seen!.labelled }];
+    const headingDeg = to.x > from.x ? 90 : to.x < from.x ? 270 : to.y > from.y ? 180 : 0;
+    return [{ id: mover.id, x: from.x + (to.x - from.x) * mover.progress, y: from.y + (to.y - from.y) * mover.progress, named: reveal || seen!.labelled, headingDeg }];
   });
   // A camera or a drone names the other robot; a ranger only reports something moving, as it does for a forklift.
   const named = (id: string): boolean => reveal || me.visibleRivals.some((r) => r.id === id && r.labelled);
   const rivals = state.agents.filter((agent) => agent.id !== LAB_PLAYER && named(agent.id));
+  const carriedMine = carriedBy(me);
   const blips = reveal ? [] : state.agents.filter((agent) => agent.id !== LAB_PLAYER && !named(agent.id) && me.visibleRivals.some((r) => r.id === agent.id)).map((agent) => ({ id: agent.id, ...poseOf(agent) }));
 
   return (
@@ -173,6 +202,7 @@ export function LabBoard({ state, reveal = false, onTile }: LabBoardProps) {
       aria-label={reveal ? 'The whole map, with what the robot never sensed hatched over' : 'Top-down map as your robot knows it'}
       onClick={click}
       data-testid="scenario-board"
+      data-sprites={sprites ? 'on' : 'off'}
     >
       <defs>
         <pattern id="lab-fog" width={6} height={6} patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
@@ -183,21 +213,30 @@ export function LabBoard({ state, reveal = false, onTile }: LabBoardProps) {
           <rect width={3} height={6} fill="#0a0c0f" opacity={0.62} />
         </pattern>
       </defs>
-      <Tiles tiles={tiles} />
+      {sprites ? <SpriteTiles tiles={tiles} floor={floorSprite(state.scenario)} usual={state.scenario.defaultTerrain} indoor={state.scenario.indoor} turned={turned} /> : <Tiles tiles={tiles} />}
       {view.map((index) => (
-        <rect key={index} x={(index % map.width) * T} y={Math.floor(index / map.width) * T} width={T} height={T} fill="#3fd0e0" opacity={0.09} pointerEvents="none" />
+        <rect key={index} x={(index % map.width) * T} y={Math.floor(index / map.width) * T} width={T} height={T} fill="#3fd0e0" opacity={sprites ? 0.2 : 0.09} pointerEvents="none" />
       ))}
-      {objects.map(({ def, cell, done }) => (
-        <Glyph key={def.id} kind={def.kind} id={def.id} cell={cell} done={done} rival={def.owner !== undefined && def.owner !== LAB_PLAYER} />
-      ))}
-      {[...movers, ...blips.map((blip) => ({ ...blip, named: false }))].map((mover) => (
+      {objects.map(({ def, cell, done }) => {
+        const glyph = <Glyph key={def.id} kind={def.kind} id={def.id} cell={cell} done={done} rival={def.owner !== undefined && def.owner !== LAB_PLAYER} />;
+        if (!sprites) return glyph;
+        if (objectSprite(def.kind) !== undefined) return <SpriteGlyph key={def.id} kind={def.kind} id={def.id} cell={cell} done={done} />;
+        // No sprite for this kind: the SVG mark, on a plate so it reads on the lighter floor.
+        return <g key={def.id}><Plate cell={cell} />{glyph}</g>;
+      })}
+      {[...movers, ...blips.map((blip) => ({ ...blip, named: false, headingDeg: 0 }))].map((mover) => sprites && mover.named ? (
+        <SpriteMover key={mover.id} cx={mover.x * T + T / 2} cy={mover.y * T + T / 2} headingDeg={mover.headingDeg} />
+      ) : (
         <g key={mover.id}>
           <rect x={mover.x * T + 3} y={mover.y * T + 3} width={T - 6} height={T - 6} rx={3} fill="#fbbf24" stroke="#160b03" />
           <text x={mover.x * T + T / 2} y={mover.y * T + T / 2 + 4} textAnchor="middle" fontSize={11} fontWeight={700} fontFamily="var(--font-mono)" fill="#160b03">{mover.named ? 'F' : '?'}</text>
         </g>
       ))}
-      {rivals.map((agent) => <Robot key={agent.id} agent={agent} color={ROBOT_COLORS.rival} name={agent.label} />)}
-      <Robot agent={me} color={ROBOT_COLORS.player} name="Your robot" />
+      {rivals.map((agent) => {
+        const carried = carriedBy(agent);
+        return <Robot key={agent.id} agent={agent} color={ROBOT_COLORS.rival} name={agent.label} sprites={sprites} {...(carried ? { carried } : {})} />;
+      })}
+      <Robot agent={me} color={ROBOT_COLORS.player} name="Your robot" sprites={sprites} {...(carriedMine ? { carried: carriedMine } : {})} />
     </svg>
   );
 }
