@@ -104,12 +104,12 @@ R. The review round: apps/web/app/api, apps/web/app/race, apps/web/app/screen an
 6. OVN-BRAIN-8 (new): a phone that drops off. Mid-race, a phone loses the network for 5 s (and, separately, reloads the page): it rejoins the same seat, its run continues or ends with a stated reason, and the final order on the big screen and on every phone is identical. Accept: headless run for both cases, the two orders in your report.
 7. OVN-BRAIN-6 (stretch, own route `/screen?arena=1`, nothing on the default /screen changes): the live Arena race — up to 4 brain bots on one seed, each lane labelled with its model and latest latency. "DNF · race closed" stays at 45 s; the human decides at rehearsal. Then the wake-up rule above.
 
-[LAB] (received: OVN-LAB-1…6 — the legend and the two-tap "End the mission" guard, fca3e98; good catch on the lander.)
-1. received.
-2. OVN-LAB-7 (new): the brain in "The brain drives" and Jev in Capture the flag are the lab heuristic at 400 ms, and the page says so. Make it the real Jev, live, the way the rail game does it: [BRAIN] owns the route and already has the Lab question builder and a generic Jev choice call (9e64a85, 133f77c); you own the page. Fallback to the lab heuristic after 1200 ms with FALLBACK shown, latency in the thread, and the honesty line changed to what is true ("Jev answers live; when it is slow the fixed rules decide"). Ask [BRAIN] for the endpoint. Accept: a CTF run where the thread shows Jev's real latencies; with [BRAIN]'s fault cookie the run still finishes and says FALLBACK.
-3. The result view at 1280×720 (laid out, never looked at), and Warehouse played by hand to the result at 390×844 after OVN-LAB-4's change (eight forklifts).
-R. The review round was yours first; run it once more on apps/web/src/lab and apps/web/app/scenarios (the page code, not the package).
-4. Bests for Lab Missions survive a reload and a "Retry" keeps the chosen robot and mode. Then the wake-up rule.
+[LAB] (received: OVN-LAB-1…7 (a0193a7): live Jev with FALLBACK, the 1280×720 result, Warehouse by hand, bests and retry.)
+1. R, the review round, once more on the page code: apps/web/src/lab and apps/web/app/scenarios.
+2. Q20 in docs/QA.md touches your page: the Lab question tells Jev which option the fixed rules rate as correct ("it is the correct job to start"), which is why its thread shows 97–100 %. When [BRAIN] has the sentence for the arena, put the same sentence in `scenario-brain-note`, and when the facts-only question exists offer it as a switch on the brief ("Jev decides from facts only"), so a visitor can watch the difference on Warehouse.
+3. The result view scrolls by 35 px at 1280×720: fit it.
+4. "The brain drives" with the real Jev through a whole Maze and a whole Warehouse at 390×844, with the decision count, the fallbacks and the score in your report.
+5. Then the wake-up rule.
 
 ## Guardrails
 - The human owns :3001, `pnpm demo:stable` serving and the tunnel. [MASTER] may restart the :3000 dev server only if it is down or reload-looping.
@@ -153,6 +153,9 @@ Items are in priority order. IDs are OVN-<owner>-<n>.
 | OVN-LAB-1 | reported done | 6d28f70 | 48 unit tests by lab. First judged by the gate after 927f411. |
 | OVN-LAB-2 | reported done | d2dbd53 | 69 unit tests by lab; five scenarios; no screen yet. |
 | OVN-LAB-3 | done, retested | 2561876 | e2e at 5bf1572: Maze by 59 key presses to "Scenario complete", score 732; the picker states the grid simulation. |
+| OVN-LAB-5…7 | reported done | d996866, fca3e98, a0193a7 | Lab Missions at 1280×720, legend, two-tap end; live Jev through /api/lab/decide with FALLBACK (CTF seen by lab). |
+| OVN-BRAIN-8 | reported done | 23bc724 | A phone offline for 5 s and a phone reloaded mid-race both finish; one order on server, screen and phones. Real phone not tested. |
+| OVN-SIM-21…23 | reported done | 04f0e02, 43f1d8e, 88f5fca | Leak test (one leak found and fixed, Q21); 98 why-lines audited; GAME_SPEC "What the game is now". |
 | OVN-LAB-4 | reported done | 9584eb8 | Heuristic beats random by more than 150 on every scenario (lab's test); Lab arena to be re-run by brain. |
 | OVN-BRAIN-5 | reported done | bb08914 | Jev fail and Jev slow: every run finished, FALLBACK shown, longest wait 1268 ms; 8-bot load: 0 dropped, end to end p95 109 ms on the dev server. In the gate from 05:03. |
 | OVN-SIM-17, 18 | reported done | 5bf1572 | Jev within 40 points of the heuristic on M1–M9 (3 seeds, default build); ahead by 82 on M6 with the Deep Diver. Warehouse: the decisions, not the scoring. |
