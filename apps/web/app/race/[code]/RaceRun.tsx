@@ -8,6 +8,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { DriveControls } from '@/game/drive/DriveControls';
 import { createDriveInput } from '@/game/drive/driveInput';
 import { useRunHaptics } from '@/game/drive/haptics';
+import { LaneProgress } from '@/game/hud/LaneProgress';
 import { RunAlerts } from '@/game/hud/RunHud';
 import { replayTrace } from '@/game/replayFeed';
 import RunCanvas from '@/game/RunCanvas';
@@ -16,7 +17,7 @@ import { AppHeader } from '@/ui/AppHeader';
 import { createRunFeed, useRunView } from '@/game/runFeed';
 import { startHumanRun } from '../_lib/humanRun';
 import { startJevRun } from '../_lib/jevRun';
-import { ARENA_DECIDE_TIMEOUT_MS, duelVerdict, formatRaceTime, penaltyNote, rankPlayers, resultShort, type RacePlayer, type RaceSnapshot } from '../_lib/protocol';
+import { ARENA_DECIDE_TIMEOUT_MS, duelVerdict, formatRaceTime, penaltyNote, playerColor, rankPlayers, resultShort, type RacePlayer, type RaceSnapshot } from '../_lib/protocol';
 import { Ranking } from '../_lib/Ranking';
 import type { RaceSeat } from '../_lib/report';
 
@@ -229,6 +230,23 @@ export default function RaceRun({ snapshot, seat, me, now, clockOffsetMs }: Race
                 <p className="text-ok">BAT {Math.round(state?.battery ?? 100)} %</p>
                 <p className="text-bad">DMG {Math.round(state?.damage ?? 0)} %</p>
               </div>
+            </div>
+            {/* [GAME] The whole room on one line: a dot per lane on the mission's terrain strip, gliding between snapshots.
+                It is part of the race bar, so it stays up after this phone's own finish, for as long as the room races. */}
+            <div className="mt-1.5">
+              <LaneProgress
+                mission={mission}
+                legend
+                lanes={snapshot.players.map((player) => ({
+                  id: player.id,
+                  label: player.nickname,
+                  agent: player.kind === 'jev' && player.model && player.model !== player.nickname ? player.model : undefined,
+                  color: playerColor(player, me.id),
+                  // Own lane while it runs: the local run's position, so the dot does not trail the robot on screen by a poll.
+                  xM: player.id === me.id && !me.done ? (state?.x ?? player.x) : player.x,
+                  me: player.id === me.id,
+                }))}
+              />
             </div>
             {closesInS !== null ? (
               <p className="mt-1.5 rounded-md bg-safety px-2 py-1 text-center font-mono text-xs font-black text-slate-deep">RACE CLOSES IN {closesInS} s</p>

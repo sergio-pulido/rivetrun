@@ -13,6 +13,8 @@ export interface LaneDot {
   readonly xM: number;
   /** This phone's own robot: drawn last, larger, with a ring. */
   readonly me?: boolean;
+  /** Who drives it when that is not the name itself (an AI model behind a player's lane). Shown in the legend. */
+  readonly agent?: string;
 }
 
 export interface LaneProgressProps {
@@ -20,6 +22,8 @@ export interface LaneProgressProps {
   lanes: readonly LaneDot[];
   /** How often the positions arrive, ms: each dot glides to its new place over this long. Default 1000 (a phone's poll). */
   everyMs?: number;
+  /** Under the strip: each lane's letters in its colour with its name and agent. */
+  legend?: boolean;
 }
 
 const initials = (label: string): string => {
@@ -32,12 +36,13 @@ const initials = (label: string): string => {
  * The room on one line: the mission's terrain strip with one dot per lane, from the room snapshot. Positions arrive
  * once per poll; each dot glides to the new one, so the race reads as movement, not as jumps. Plain DOM, no state.
  */
-export function LaneProgress({ mission, lanes, everyMs = 1000 }: LaneProgressProps) {
+export function LaneProgress({ mission, lanes, everyMs = 1000, legend = false }: LaneProgressProps) {
   const total = mission.track.segments.reduce((sum, segment) => sum + segment.lengthM, 0);
   const at = (x: number): string => `${Math.min(100, Math.max(0, (x / Math.max(1, total)) * 100))}%`;
   // Whoever is behind is drawn first, so the leader's dot stays on top; this phone's robot is always last.
   const order = [...lanes].sort((a, b) => Number(a.me === true) - Number(b.me === true) || a.xM - b.xM);
   return (
+    <div>
     <div className="relative h-5" aria-label={`${mission.id} ${mission.name}: ${lanes.length} robots`}>
       <div className="absolute inset-x-2 top-2 flex h-[3px] overflow-hidden rounded-[2px]">
         {mission.track.segments.map((segment, i) => (
@@ -66,6 +71,17 @@ export function LaneProgress({ mission, lanes, everyMs = 1000 }: LaneProgressPro
           </span>
         ))}
       </div>
+    </div>
+    {legend ? (
+      <div className="mt-1 flex flex-wrap gap-x-2.5 gap-y-0.5 font-mono text-[9px] leading-[12px]" style={{ color: UI.text }}>
+        {lanes.map((lane) => (
+          <span key={lane.id} className="whitespace-nowrap" style={{ fontWeight: lane.me ? 700 : 400 }}>
+            <span style={{ color: lane.color, fontWeight: 700 }}>{initials(lane.label)}</span> {lane.label}
+            {lane.agent ? <span style={{ color: UI.dim }}> · {lane.agent}</span> : null}
+          </span>
+        ))}
+      </div>
+    ) : null}
     </div>
   );
 }
