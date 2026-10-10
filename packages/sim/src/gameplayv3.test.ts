@@ -312,3 +312,11 @@ describe('a logged Drive run replays to the identical outcome', () => {
     }
   }, 30000);
 });
+
+describe('why line for a player', () => {
+  it('full throttle into deep mud until it bogs down: the line names the wheelspin and the way out', async () => {
+    const episode = await driveController({ mission: MISSIONS.M3, seed: driveSeed(MISSIONS.M3), build: allRounder, priority: 0.5 }, () => ({ throttle: 1, brake: 0 }), { onEvent: () => undefined, timeScale: 300, hints: false }).start();
+    expect(episode.outcome.finished).toBe(false);
+    expect(episode.outcome.why).toMatch(/^Spun the wheels to a standstill on mud — ease off the throttle or use climb mode$|slope/);
+  }, 20000);
+});

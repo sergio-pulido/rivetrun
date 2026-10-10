@@ -71,6 +71,8 @@ export function why(state: RunState): string {
       ? `Stood still on ${terrain} for too long — hold the throttle to drive`
       : `Stopped on ${terrain} and never drove on`;
   }
+  // A player who spun the wheels to a standstill has a way out that a grip verdict would hide.
+  if (state.dnfReason === 'stuck' && state.config.manual && spun) return `Spun the wheels to a standstill on ${terrain} — ease off the throttle or use climb mode`;
   if (state.dnfReason === 'stuck') return `Bogged down on ${terrain} — ${spec.locomotionName.toLowerCase()} could not grip`;
   if (state.dnfReason === 'battery') return `Battery died on ${terrain} at ${Math.round((sim.x / state.world.lengthM) * 100)}% of the track`;
   if (state.dnfReason === 'timeout') return `Ran out of time on ${terrain}`;
