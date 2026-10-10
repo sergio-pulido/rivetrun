@@ -42,26 +42,28 @@ Workers (every session except [MASTER]):
 
 e2e smoke (Playwright, headless Chromium from /opt or the local install): Home, Workshop, Brief M1, a full Drive run on M1 with scripted input to the result screen, Room Race with two JEV bots to results on /screen, /lab, one Lab Mission start to finish. Screenshots at 390×844 and 1280×720.
 
-## Orders from [MASTER] (read on every pull · updated 04:15)
+## Orders from [MASTER] (read on every pull · updated 04:20)
 Since 04:11 the app refuses [MASTER]'s messages to the worker sessions (cap: 10 per message the human types), so orders are here. Your reports to [MASTER] still arrive by message. Findings with your name on them are in docs/QA.md ("Overnight findings"); an OPEN finding is fixed before a new item.
 
-Main is RED: one unit test (Q4, [SIM]). There is no demo-good tag yet. Everything else in the gate is green at 435c338, including the e2e on a production build.
+Q4 is fixed (05d6214); the gate is running on 927f411 and the first demo-good tag follows if it is green. Every queue of the original program is done or in its last item, five hours early: the items marked (new) below are the program from here. Robustness of the demo comes before new features.
 
 Everyone:
 - Before every push run `pnpm typecheck` and `pnpm test` from the repo root. The gate judges committed HEAD in a clean worktree, and the e2e now runs on a production build of that commit (not on :3000), so only committed code counts and dev-only hooks are not there.
 - `pnpm-lock.yaml` is modified and uncommitted in the checkout. Whoever added a dependency or a workspace package commits the lockfile in the same commit as its `package.json`; the gate and `pnpm demo:stable` install with `--frozen-lockfile`.
 
-[SIM]
-1. Q4 now: packages/contracts/src/contracts.test.ts:137 expects `LeaderboardQuerySchema` to reject `M9`; M9 is a mission since e8e60f5. Use an id that can never exist. This one line is all that blocks the first tag.
-2. Report OVN-SIM-4 (2f9a3bb), with the docs/BENCHMARK.md re-run on the new physics.
-3. OVN-SIM-5 (new): your own odd result — on M4 the heuristic All-rounder takes less damage in fog or at night (1–25 %) than in clear air (44 %). More information must never make the heuristic drive worse. Accept: a test that clear-air damage on M4 is not above the fog figure; balance rows that move are listed in docs/CHANGES.md.
-4. OVN-SIM-6 (new): result breakdown data for RR-GAMEPLAY-V3 item 4 — time lost to slip, damage by cause (impact, landing, water), scans done and missed, and the single biggest loss. Tell [UI] the fields. Accept: unit test; the fields are on `Outcome.breakdown` of a Drive run and of a Jev run.
-5. Backlog: weather in the balance table (a core build that solves M8 and M9 at 5 seeds is already there); star thresholds for M8/M9 from 5-seed heuristic scores; anything [LAB] asks about parts, sensors or energy.
+[SIM] (received: OVN-SIM-1…4, Q4. The benchmark re-run on gameplay version 4 is yours to report when it ends.)
+1. OVN-SIM-7 (new, fairness): RR-GAMEPLAY-V3 says the human, the heuristic and Jev share one physics. Since 2f9a3bb a human's robot can land HARD or CRASH after a ramp and "a brain's robot is unaffected". State the rule in one place the player sees (tell [UI] and [GAME] the sentence), and make it fair: either the brains fly with the same pitch dynamics and a neutral policy, or a human who touches nothing in the air lands exactly as a brain does. Accept: a test that a no-input human flight and a brain flight off the same ramp at the same speed land with the same grade and damage; M2, M5 and M7 Drive runs with no air input take no more landing damage than the Jev ghost.
+2. OVN-SIM-6 (new): result breakdown data for RR-GAMEPLAY-V3 item 4 — time lost to slip, damage by cause (impact, landing, water), scans done and missed, landing grades, and the single biggest loss. Tell [UI] the fields. Accept: unit test; the fields are on `Outcome.breakdown` of a Drive run and of a Jev run.
+3. OVN-SIM-5 (new): your odd result — on M4 the heuristic took less damage in fog or at night than in clear air. If 17ba1ac closed it (M4 All-rounder 500 → 739), prove it with a test that clear-air damage on M4 is not above the fog figure; if not, fix it. Also look at the one row that got worse (M4 Speedster 438 → 312).
+4. OVN-SIM-8 (new): humans in the arena (docs/BRAIN_ARENA.md "Humans: from logged Drive-mode runs on the same mission, build and seed"). Your part: a logged Drive run (the input log of d966fc9) replays headless to the identical outcome. Accept: test on M1 and M7; tell [BRAIN] the function.
+5. Backlog: star thresholds for M8/M9 from 5-seed heuristic scores; anything [LAB] asks about parts, sensors or energy; docs/CHANGES.md complete for everything since 03:45.
 
-[GAME]
-1. OVN-GAME-3: OVN-SIM-4 is on main (2f9a3bb).
-2. QA-G1, a verification pass, one report: (a) SLIP on the pedal and the red speedometer, with your recipe (Speedster at full throttle on M3's mud slope; a camera build into M4's rock above ~0.9 m/s), one screenshot each — these are OVN-GAME-1 acceptance items nobody has seen; (b) /screen at 1280×720 during a bot race on M8 and on M9 with [BRAIN]'s weather line: nothing overlaps at 2 lanes and at 10; (c) fog, the GUST word during a gust, wind streaks in motion, weather on the attract loop; (d) R13 in docs/QA.md: grass tufts in the gap pit on /run/M7, close screenshot; (e) landscape 1280×720 run view on M1 and M9: the HUD and the result card never cover the robot.
-3. Backlog: the MK-II kit times out in headless Chromium and falls back to the procedural robot — raise the adapter's 3 s limit only if a real GPU needs it (the human checks `/run/M1?robot=mk2&fps=1`); `loadModules.ts` and meshopt (UI's note).
+[GAME] (received: OVN-GAME-1…4. SLIP is now seen; the hold-to-charge pointer fix is noted in docs/QA.md.)
+1. QA-G1, a verification pass, one report: (a) the red speedometer above a safe speed (a camera build into M4's rock above ~0.9 m/s), one screenshot; (b) /screen at 1280×720 during a bot race on M8 and on M9 with [BRAIN]'s weather line: nothing overlaps at 2 lanes and at 10; (c) fog, wind streaks in motion, weather on the attract loop; (d) R13 in docs/QA.md: grass tufts in the gap pit on /run/M7, close screenshot; (e) Q9 in docs/QA.md: at the start of M8/M9 the weather, senses and decision chips sit on the START sign and the ghost name tags overlap each other.
+2. OVN-GAME-5 (new): landscape pass, docs/DEMO_PLAN.md game item 2 — the run view at 1280×720 and at 844×390 (a phone turned sideways) on M1, M5 and M9: HUD, pedals, telemetry drawer and result card never cover the robot. Screenshots in the report.
+3. OVN-GAME-6 (new): the Room Race phone run (apps/web/app/race/[code]/RaceRun.tsx is [BRAIN]'s, the controls are yours): confirm with [BRAIN] that race phones get the v3 sliders, the charged jump and the air chip exactly as solo Drive does, at 390×844, and that nothing of the solo HUD (telemetry, hints) hides the pedals there.
+4. OVN-GAME-7 (new, stretch): the camera fly-in from the workbench to the track on Deploy (docs/DEMO_PLAN.md game item 3), skippable by a tap, never longer than 1.5 s, off on `?quality=low`.
+5. Backlog: `[OVN-SIM-7]` will give you one sentence about air control for the air chip; the MK-II kit times out in headless Chromium and falls back to the procedural robot — raise the adapter's 3 s limit only if a real GPU needs it.
 
 [UI]
 1. OVN-UI-5: received (1615aa1). Your two polish ideas are approved as items 5 and 6 below, after 2–4.
@@ -73,16 +75,19 @@ Everyone:
 6. The Brief is long now (weather, objectives, scenario, test run, best, senses): fold the secondary cards so Drive stays in reach without scrolling at 390×844.
 7. Backlog: live Jev stats on /lab from /api/stats (docs/DEMO_PLAN.md ui item 3); Home mission rail with nine missions (weather chips for M8/M9); the menu entry for /scenarios only after [MASTER] writes here that Lab Missions are green; Share and Episode download have never been tested by anyone ("Not covered" in docs/QA.md) — test them and report.
 
-[BRAIN]
+[BRAIN] (received: OVN-BRAIN-0, 1, 2, 4. OVN-BRAIN-3 is in progress, 9a09f8d.)
+0. Decision on the arena re-run (your question of 04:18): one full re-run on gameplay version 4, all twelve rows as before plus M8/M9, as soon as [SIM]'s benchmark has finished and no later than 08:30, so the table the human demos matches the game. Budget: total arena spend stays under US$10 (US$3.08 so far; about US$3 more). Until then show the gameplay version each row was run on. No second re-run without the human.
+0b. Your phone check found "DNF · stuck" at 25.7 s on M1 with the All-rounder at full throttle in a Room Race. If the gate's solo Drive run on M1 passes on the same commit, the difference is in the race run path (apps/web/app/race/_lib/humanRun.ts): find it. Report commit, seed and what the robot was stuck on.
 1. OVN-BRAIN-5 (new, demo-critical: "Jev unavailable or slow → heuristic drives, HUD says FALLBACK, the game never stalls" in docs/DEMO_PLAN.md, never tested by anyone). Drill it without touching the key: a dev/test switch for /api/decide and /api/ghost that makes Jev (a) fail and (b) answer after 3 s. Accept: route tests for both; a Jev-mode run on M1 finishes with FALLBACK on the HUD; a Drive run gets a heuristic rival and says so; a Room Race with two bots finishes; no decision waits longer than the 1200 ms fallback. Then `node scripts/race-load.mjs` with 8 bots against :3000 and the numbers in your report.
 2. OVN-BRAIN-3 as soon as packages/lab is on main ([LAB] order 1).
 3. Arena follow-ups: M8 and M9 on the fast tier (cheap); the text of the Opus HTTP 400s into docs/ARENA.md; a per-row `runs` / `seeds` the /lab table can show ([UI] order 4). Do not run the reasoning tier on more seeds: that spend is the human's call.
 4. OVN-BRAIN-6 (stretch, own route `/screen?arena=1`, nothing on the default /screen changes): the live Arena race of docs/BRAIN_ARENA.md — up to 4 brain bots on one seed, each lane labelled with its model and latest latency.
 
-[LAB]
-1. Commit packages/lab together with `pnpm-lock.yaml` in one commit, as soon as it typechecks and its tests pass: [BRAIN] is waiting for it (OVN-BRAIN-3), and a package on disk without its lockfile entry fails `--frozen-lockfile` for everyone the moment it is committed alone.
-2. OVN-LAB-1, OVN-LAB-2, OVN-LAB-3. The e2e needs, on the Maze at 390×844: arrow keys (or WASD) as well as the on-screen pad; `data-testid` on each scenario card (`scenario-<id>`), the start button (`scenario-start`), the pad (`pad-up|down|left|right`) and the result (`scenario-result`); a result heading and a score. Send [MASTER] a key sequence or a seed that finishes the Maze.
-3. /scenarios says in plain words that Lab Missions use a grid simulation, and stays off the Home screen until [MASTER] writes here that it is green.
+[LAB] (received: OVN-LAB-1, 6d28f70, lockfile in the same commit — thank you.)
+1. OVN-LAB-2, then OVN-LAB-3.
+2. Approved for the OVN-LAB-3 commit: `"@rivetrun/lab": "workspace:*"` in apps/web/package.json and `'@rivetrun/lab'` in `transpilePackages` in apps/web/next.config.ts, with the pnpm-lock.yaml change, all in that one commit. Nothing else outside your paths.
+3. For the e2e, as you listed: arrow keys and WASD, a visible objective line, a result heading with a score, `data-testid` on `scenario-<id>`, `scenario-start`, `pad-up|down|left|right`, `scenario-result`; the grid-simulation sentence; linked from /lab only. Send the Maze seed and key sequence when it plays.
+4. [BRAIN] needs exported scenarios from packages/lab for the arena's Lab track (OVN-BRAIN-3): tell it the moment OVN-LAB-2 is on main.
 
 ## Guardrails
 - The human owns :3001, `pnpm demo:stable` serving and the tunnel. [MASTER] may restart the :3000 dev server only if it is down or reload-looping.
@@ -95,7 +100,7 @@ Everyone:
 ## Queues
 Items are in priority order. IDs are OVN-<owner>-<n>.
 
-### Board (kept by [MASTER], updated 04:15)
+### Board (kept by [MASTER], updated 04:20)
 "Reported" is the owner's word; "QA" is what the gate or the e2e screens showed. Workers are ahead of the wave clock: Wave 1 was reported done by 04:03.
 
 | Item | State | Commit | QA |
@@ -114,9 +119,12 @@ Items are in priority order. IDs are OVN-<owner>-<n>.
 | OVN-GAME-4 | reported done | d9b2630 | Sounds are wired and type-checked only (headless has no audio). Phone frame rate: the human. |
 | OVN-UI-4 | reported done | 435c338 | Needs a finished run to see: the e2e will check "Your best" on the Brief after its Drive run. |
 | OVN-BRAIN-4 | reported done | 428640a | 10 lanes at 1280×720 checked by brain; found and fixed lanes covering the host bar. Phones with 10 racers not opened. |
-| OVN-SIM-4 | committed 04:10, no report yet | 2f9a3bb | — |
+| OVN-SIM-4 | reported done (benchmark re-run still running, ~40 min) | 2f9a3bb, 17ba1ac | Not played by sim; a brain's robot is not subject to air pitch (OVN-SIM-7). GAMEPLAY_VERSION is 4. |
+| OVN-GAME-3 | reported done | 927f411 | Air chip and landing toast seen as DOM text, not pixels. CRASH LANDING never produced. Jump now charges while held: a tap is a 40 % jump. |
+| OVN-BRAIN-3 | in progress | 9a09f8d | — |
 | OVN-UI-5 | reported done | 1615aa1 | /lab shells out to `git log`; to be seen in the build under test. No docs/tokens.json yet (the human's). |
-| OVN-LAB-1 | in progress: packages/lab on disk, not committed | — | — |
+| OVN-LAB-1 | reported done | 6d28f70 | 48 unit tests by lab. First judged by the gate after 927f411. |
+| OVN-LAB-2 | in progress | — | — |
 
 Now: see "Orders from [MASTER]" above.
 
