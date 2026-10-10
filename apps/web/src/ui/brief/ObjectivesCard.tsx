@@ -39,7 +39,9 @@ export function ObjectivesCard({ mission, build }: ObjectivesCardProps) {
               </span>
               <span className="block text-xs leading-snug text-text-2">
                 {row.canScan ? (
-                  <>Your {row.with?.toLowerCase() ?? 'sensor'} can scan it.</>
+                  <>Your {row.with?.toLowerCase() ?? 'sensors'} can scan it.</>
+                ) : row.blocked ? (
+                  <span className="text-warn">{row.blocked}</span>
                 ) : (
                   <>
                     Needs {row.needs}. <span className="text-warn">This build cannot scan it.</span>

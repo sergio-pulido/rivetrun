@@ -36,6 +36,17 @@ describe('objectives', () => {
     expect(structure({ ...BARE, sensors: ['lidar_rplidar_c1'] })).toMatchObject({ canScan: true, with: 'RPLIDAR C1' });
   });
 
+  it('takes the verdict of the sim at night: a plain camera cannot scan in the dark, and the row says why', () => {
+    const night = MISSIONS.M9;
+    const [beacon] = objectives(night, { ...BARE, sensors: ['camera'] });
+    expect(beacon).toMatchObject({ label: 'beacon', canScan: false, with: 'Camera' });
+    expect(beacon!.blocked).toBeTruthy();
+    const [seen] = objectives(night, { ...BARE, sensors: ['camera_module_3_noir'] });
+    expect(seen).toMatchObject({ canScan: true, blocked: null });
+    // No camera at all: nothing is "blocked", the build simply lacks the sensor.
+    expect(objectives(night, BARE)[0]).toMatchObject({ canScan: false, with: null, blocked: null });
+  });
+
   it('is empty for a mission with no objectives', () => {
     expect(objectives(MISSIONS.M2, BARE)).toEqual([]);
   });

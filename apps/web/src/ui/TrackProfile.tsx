@@ -21,8 +21,10 @@ export function TrackProfile({ mission }: { readonly mission: Mission }) {
   const low = Math.min(...heights);
   const span = Math.max(...heights) - low;
   const pxPerM = span === 0 ? 0 : Math.min((HEIGHT - LABEL_BAND - HEADROOM) / span, MAX_PX_PER_M);
-  const x = (m: number): number => 4 + (m / world.lengthM) * (WIDTH - 8);
-  const y = (h: number): number => HEIGHT - LABEL_BAND - (h - low) * pxPerM;
+  // Rounded: Math.tan differs in its last digit between the server and some browsers, which React reports as a hydration mismatch.
+  const px = (value: number): number => Math.round(value * 100) / 100;
+  const x = (m: number): number => px(4 + (m / world.lengthM) * (WIDTH - 8));
+  const y = (h: number): number => px(HEIGHT - LABEL_BAND - (h - low) * pxPerM);
   const heightAt = (m: number): number => {
     const segment = world.segments.find((s) => m <= s.endM) ?? world.segments[world.segments.length - 1]!;
     const t = (m - segment.startM) / (segment.endM - segment.startM);

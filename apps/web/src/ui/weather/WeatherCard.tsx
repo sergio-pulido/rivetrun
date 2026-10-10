@@ -25,8 +25,16 @@ export function WeatherCard({ mission, build }: WeatherCardProps) {
       <div className="flex items-center gap-2">
         <Icon name={icon} size={18} className="shrink-0 text-[#8FB8D6]" />
         <h3 className="rr-label !text-[#8FB8D6]">Weather</h3>
-        <span className="min-w-0 truncate text-[13px] font-semibold">{facts.join(' · ')}</span>
       </div>
+      {facts.length > 0 ? (
+        <div className="flex flex-wrap gap-1.5">
+          {facts.map((fact) => (
+            <span key={fact} className="rr-chip">
+              {fact}
+            </span>
+          ))}
+        </div>
+      ) : null}
       {lines.length > 0 ? (
         <ul className="flex flex-col">
           {lines.map((line) => (
