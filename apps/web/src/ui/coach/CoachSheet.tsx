@@ -2,6 +2,8 @@
 
 import type { ReactNode } from 'react';
 import { createPortal } from 'react-dom';
+// The game's index re-exports this, but it also pulls in the 3D scene: the value's own small module keeps this sheet light.
+import { TOUCH_START } from '@/game/drive/hazard';
 import type { PlayMode } from '@/state/build';
 import { scanRules } from '@/ui/brief/objectives';
 import { Icon } from '@/ui/Icon';
@@ -14,8 +16,8 @@ interface Mark {
   readonly body: string;
 }
 
-/** Share of full throttle or brake a plain touch gives before sliding: the run controls' starting value. */
-const TOUCH_PCT = 30;
+/** Share of full throttle or brake a plain touch gives before sliding: the run controls' own starting value. */
+const TOUCH_PCT = Math.round(TOUCH_START * 100);
 
 /** Three things a first-time player needs, per mode. Drive mode teaches the controls (gameplay v3: sliders, scan pads); Jev mode teaches what to watch. */
 function marks(mode: PlayMode): readonly Mark[] {
