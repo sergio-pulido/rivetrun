@@ -57,6 +57,9 @@ Written by [MASTER] for the human. Newest status first. Program: docs/OVERNIGHT.
 
 README.md and docs/SETUP.md were rewritten from the repo at 05:22 (commit 05915a1) by a sub-agent under [MASTER]; they are refreshed before 10:00. Disagreements it found between documents: docs/JEV.md gives Jev's latency as p50 376 ms where docs/BENCHMARK.md has 243 ms; docs/QA.md R6 says Careful fails M6 with the Deep Diver where the benchmark shows it finishing.
 
+### 06:50 · thirteenth tag
+`demo-good-0650` → 87385bf, 20 e2e steps, no warning (second gate in a row with no FALLBACK in the Jev run). It contains everything listed under 06:41 as "on main after it": the new HUD warnings (Q32), the race phone's result card (Q29), warm-up yielding to live decisions (Q31), the live Arena host bar, the runbook. This is the tag to build at 07:30 unless a later one exists.
+
 ### 06:41 · twelfth tag
 `demo-good-0641` → dc781e2, 20 e2e steps, no warning. On main after it, to be in the next tag: the HUD now warns before rough ground and before water, says "CANNOT SCAN" instead of inviting a stop on a pad the build cannot scan, and "NOT ON THE PAD · 1.8 m MORE" when stopped short (Q32); the race phone's result card (Q29); warm-up yields to live Jev decisions (Q31); `docs/DEMO_RUNBOOK.md` (read it before the venue); handover files from brain, game, sim and lab in `docs/reports/`.
 
