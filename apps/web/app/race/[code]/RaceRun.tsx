@@ -121,10 +121,9 @@ function useDrive(snapshot: RaceSnapshot, seat: RaceSeat, me: RacePlayer, clockO
  * What next, under the final result. The seat survives the race, so "Race again" needs no rejoin: this page
  * switches to the lobby by itself when the host reopens the room. If the room is gone, it goes to the code form.
  */
-function AfterRace({ code, auto }: { readonly code: string; /** An auto room of /play: no host, it closes by itself. */ readonly auto?: { readonly test: boolean } }) {
+/** Esc leaves for Home, unless the header's menu is open: then Esc closes that menu, as everywhere. */
+function useEscHome(): void {
   const router = useRouter();
-  const [waiting, setWaiting] = useState(false);
-  // Esc leaves the results for Home, unless the header's menu is open: then Esc closes that menu, as everywhere.
   useEffect(() => {
     const onKey = (event: KeyboardEvent): void => {
       if (event.key === 'Escape' && !document.querySelector('[role="menu"]')) router.push('/');
@@ -132,6 +131,36 @@ function AfterRace({ code, auto }: { readonly code: string; /** An auto room of 
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [router]);
+}
+
+/**
+ * This phone's result while others still race: a compact banner in the race bar, so the track and the lane dots stay
+ * in view. The player can watch, go back to the menu or play again; Esc leaves too.
+ */
+function ResultBanner({ line, finished, closesInS, auto }: { readonly line: string; readonly finished: boolean; readonly closesInS: number | null; readonly auto?: { readonly test: boolean } }) {
+  useEscHome();
+  return (
+    <div className="pointer-events-auto mt-1.5 rounded-xl border border-safety/60 bg-slate-ink/95 px-3 py-2 backdrop-blur" data-testid="race-result-banner">
+      <p className={`font-mono text-sm font-black ${finished ? 'text-ok' : 'text-bad'}`}>{line}</p>
+      <p className="mt-0.5 font-mono text-[11px] text-dim">Others still racing{closesInS !== null ? ` · results in at most ${closesInS} s` : ''}</p>
+      <div className={`mt-2 grid gap-2 ${auto ? 'grid-cols-2' : 'grid-cols-1'}`}>
+        <Link href="/" className="rr-btn rr-btn-secondary !min-h-10 !text-[13px]" data-testid="race-back-to-menu">
+          Back to menu
+        </Link>
+        {auto ? (
+          <Link href={auto.test ? '/play?test=1' : '/play'} className="rr-btn rr-btn-primary !min-h-10 !text-[13px]">
+            Play again
+          </Link>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+function AfterRace({ code, auto }: { readonly code: string; /** An auto room of /play: no host, it closes by itself. */ readonly auto?: { readonly test: boolean } }) {
+  const router = useRouter();
+  const [waiting, setWaiting] = useState(false);
+  useEscHome();
   // An auto room has no host to reopen it: "Play again" goes back to /play, which matches into the next room.
   if (auto) {
     return (
@@ -248,10 +277,16 @@ export default function RaceRun({ snapshot, seat, me, now, clockOffsetMs }: Race
                 }))}
               />
             </div>
-            {closesInS !== null ? (
-              <p className="mt-1.5 rounded-md bg-safety px-2 py-1 text-center font-mono text-xs font-black text-slate-deep">RACE CLOSES IN {closesInS} s</p>
-            ) : null}
           </div>
+          {/* This phone's result is in and others still race: the result as a banner, the track stays in view. */}
+          {(localDone || official) && !over ? (
+            <ResultBanner
+              line={official ? `P${place} of ${snapshot.players.length} · ${resultShort(me, trackLengthM)}` : 'Run complete · waiting for the official result'}
+              finished={!official || me.finished}
+              closesInS={closesInS}
+              auto={snapshot.auto ? { test: snapshot.auto.test } : undefined}
+            />
+          ) : null}
           <div className="mt-2 ml-auto w-44 rounded-lg border border-slate-line bg-slate-ink/85 p-1.5 backdrop-blur">
             <Ranking players={snapshot.players} trackLengthM={trackLengthM} meId={me.id} limit={3} />
           </div>
@@ -300,8 +335,8 @@ export default function RaceRun({ snapshot, seat, me, now, clockOffsetMs }: Race
 
       {/* Result card: flat, centred, and only ever the server's numbers. Above the 3D view's own failure panel
           (z-40): once the run is over, the result is what matters. */}
-      {localDone || official || over ? (
-        <div className={`absolute inset-0 z-50 flex items-center justify-center p-3 ${over ? 'pointer-events-none pt-16' : ''}`}>
+      {over ? (
+        <div className="pointer-events-none absolute inset-0 z-50 flex items-center justify-center p-3 pt-16">
           {/* Once the race is over the wrapper lets taps through, so the header's back arrow and menu above it answer. */}
           <div className="rr-panel pointer-events-auto max-h-full w-full max-w-md overflow-y-auto p-4">
             {!official ? (
@@ -325,9 +360,6 @@ export default function RaceRun({ snapshot, seat, me, now, clockOffsetMs }: Race
                 </div>
               </>
             )}
-            {closesInS !== null && !over ? (
-              <p className="mt-3 rounded-md bg-safety px-2 py-1 text-center font-mono text-xs font-black text-slate-deep">RACE CLOSES IN {closesInS} s</p>
-            ) : null}
             <div className="mt-3 max-h-[34vh] overflow-y-auto">
               <Ranking players={snapshot.players} trackLengthM={trackLengthM} meId={me.id} />
             </div>
