@@ -80,7 +80,7 @@ function zoneAhead(mission: Mission, build: Build, observation: Observation | nu
     // The build has a sensor the zone accepts and the sim still says no: at night an ordinary camera or the drone cannot scan
     // (the sim's canScan in weather.ts; those are its only two reasons).
     const cannot = needs.some((need) => carried.has(need))
-      ? mission.conditions?.visibility === 'night' ? 'too dark: needs a NoIR camera or a light sensor' : 'not in these conditions'
+      ? mission.conditions?.visibility === 'night' ? 'too dark: needs NoIR camera or light sensor' : 'not in these conditions'
       : `needs ${needs.map((need) => NEEDS_WORD[need] ?? need).join(' or ')}`;
     return { label: zone.label, distanceM: zone.distanceM, canScan: zone.canScan, onPad, shortM: !onPad && stopped && zone.distanceM > 0 ? zone.distanceM - reach : null, cannot };
   }
