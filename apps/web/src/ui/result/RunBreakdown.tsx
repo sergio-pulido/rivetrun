@@ -43,6 +43,12 @@ export function RunBreakdown({ view }: { readonly view: BreakdownView }) {
           </span>
         </li>
       </ul>
+      {view.unfinishedAtPct !== null ? (
+        <p className="border-t border-tag pt-2 text-xs leading-snug text-text-2">
+          <span className="font-mono text-[10px] font-medium tracking-[1.5px] text-bad">BIGGEST LOSS · </span>
+          <span className="font-semibold text-text">Not finishing.</span> The score counts only the {view.unfinishedAtPct} % of the track the robot covered.
+        </p>
+      ) : null}
       {view.losses.length > 0 ? (
         <p className="border-t border-tag pt-2 text-xs leading-snug text-text-2">
           <span className="font-mono text-[10px] font-medium tracking-[1.5px] text-warn">BIGGEST LOSS · </span>

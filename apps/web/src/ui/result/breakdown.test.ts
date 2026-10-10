@@ -56,6 +56,33 @@ describe('losses', () => {
   });
 });
 
+describe('a run that did not finish', () => {
+  const stuck = breakdown({ scansMissed: 1, scanPenaltyS: 10, losses: [{ kind: 'scans', points: 40 }, { kind: 'slip', points: 21 }], tryNext: 'Switch to climb mode before soft or steep ground' });
+
+  it('does not rank point losses: not finishing is the loss, with how far the robot got', () => {
+    const view = breakdownView(stuck, { finished: false, progressFraction: 0.22 })!;
+    expect(view.losses).toEqual([]);
+    expect(view.unfinishedAtPct).toBe(22);
+    expect(view.tryNext).toBe('Switch to climb mode before soft or steep ground');
+  });
+
+  it('ranks them as before on a finish', () => {
+    const view = breakdownView(stuck, { finished: true, progressFraction: 1 })!;
+    expect(view.losses.map((loss) => loss.label)).toEqual(['Missed scans', 'Wheelspin']);
+    expect(view.unfinishedAtPct).toBeNull();
+  });
+
+  it('says so on the card', async () => {
+    const { createElement } = await import('react');
+    const { renderToStaticMarkup } = await import('react-dom/server');
+    const { RunBreakdown } = await import('./RunBreakdown');
+    const shown = renderToStaticMarkup(createElement(RunBreakdown, { view: breakdownView(stuck, { finished: false, progressFraction: 0.22 })! })).replace(/<[^>]+>/g, '|').replace(/\|+/g, '|');
+    expect(shown).toContain('BIGGEST LOSS · |Not finishing.');
+    expect(shown).toContain('22 % of the track');
+    expect(shown).not.toContain('−40 pts');
+  });
+});
+
 describe('RunBreakdown', () => {
   it('renders the scans, the slip, the damage bars and the try-next line', async () => {
     const { createElement } = await import('react');

@@ -97,7 +97,7 @@ function Summary({ result }: { readonly result: RunResult }) {
     const events = pairWithGhost(parseReactions(outcome.breakdown?.reactions) ?? [], jevGhost?.log ?? []);
     return reactionDuel(events, jevGhost?.medianLatencyMs ?? null);
   }, [result.ghosts, outcome.breakdown]);
-  const breakdown = breakdownView(outcome.breakdown);
+  const breakdown = breakdownView(outcome.breakdown, outcome);
   const headline = outcome.finished ? 'Finished' : outcome.dnfReason ? DNF_LABEL[outcome.dnfReason] : 'Did not finish';
 
   // Pays the points once per episode; the store ignores an episode it has already paid.

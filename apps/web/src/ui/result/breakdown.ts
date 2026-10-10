@@ -12,8 +12,10 @@ export interface BreakdownView {
   /** Causes that did damage, biggest first. Empty for a clean run. */
   readonly damage: readonly { readonly cause: string; readonly pct: number }[];
   readonly tryNext: string | null;
-  /** Every loss in score points, biggest first, when the sim ranks them. The first is the biggest loss of the run. */
+  /** Every loss in score points, biggest first, when the sim ranks them. The first is the biggest loss of the run. Empty on a run that did not finish. */
   readonly losses: readonly { readonly label: string; readonly points: number }[];
+  /** Set on a run that did not finish: the share of the track it covered. Not finishing is then the loss that matters. */
+  readonly unfinishedAtPct: number | null;
 }
 
 const LOSS: Readonly<Record<string, string>> = { impact: 'Impacts', landing: 'Hard landings', fall: 'Falls', water: 'Water', slip: 'Wheelspin', scans: 'Missed scans' };
@@ -22,7 +24,11 @@ const CAUSE: Readonly<Record<keyof Breakdown['damageByCause'], string>> = { impa
 /** Below this, wheelspin cost nothing a player would notice. */
 const SLIP_NOTICEABLE_S = 0.05;
 
-export function breakdownView(breakdown: Outcome['breakdown']): BreakdownView | null {
+/**
+ * `run` says whether the run finished. On a DNF the score is a share of the track covered, so the point losses the sim
+ * ranks are not what the run lost: they are left out, and the view says how far the robot got instead.
+ */
+export function breakdownView(breakdown: Outcome['breakdown'], run: Pick<Outcome, 'finished' | 'progressFraction'> = { finished: true, progressFraction: 1 }): BreakdownView | null {
   if (!breakdown) return null;
   const zones = breakdown.scansDone + breakdown.scansMissed;
   const detail = [
@@ -37,6 +43,7 @@ export function breakdownView(breakdown: Outcome['breakdown']): BreakdownView | 
       .filter((entry) => entry.pct > 0)
       .sort((a, b) => b.pct - a.pct),
     tryNext: breakdown.tryNext.trim() || null,
-    losses: (breakdown.losses ?? []).map((loss) => ({ label: LOSS[loss.kind] ?? loss.kind, points: Math.round(loss.points) })).filter((loss) => loss.points > 0),
+    losses: run.finished ? (breakdown.losses ?? []).map((loss) => ({ label: LOSS[loss.kind] ?? loss.kind, points: Math.round(loss.points) })).filter((loss) => loss.points > 0) : [],
+    unfinishedAtPct: run.finished ? null : Math.round(run.progressFraction * 100),
   };
 }
