@@ -119,12 +119,12 @@ export default function RunCanvas({ mission = MISSIONS.M5, build = PRESETS[DEFAU
         camera={{ fov: 38, near: 0.5, far: 420, position: [0, 6, 20] }}
         canvasStyle={{ touchAction: 'none' }}
         onReady={onReady}
-        onCreated={({ gl, scene }) => {
+        onCreated={({ gl, scene, camera }) => {
           // Dev only: read draw calls and the sim state from the console (window.__rivetrun.info.render.calls, .state()).
-          if (dev) (window as unknown as { __rivetrun?: unknown }).__rivetrun = { info: gl.info, scene, state: () => activeFeed.get().state, pin: dev.pin };
+          if (dev) (window as unknown as { __rivetrun?: unknown }).__rivetrun = { info: gl.info, scene, camera, state: () => activeFeed.get().state, pin: dev.pin };
         }}
       >
-        {(plain) => <RunScene mission={mission} build={build} feed={dev?.feed ?? activeFeed} ghosts={activeGhosts} particleBudget={tier.particles} hands={drive} plain={plain} raise={telemetryOpen && hud} />}
+        {(plain) => <RunScene mission={mission} build={build} feed={dev?.feed ?? activeFeed} ghosts={activeGhosts} particleBudget={tier.particles} hands={drive} plain={plain} raise={telemetryOpen && hud} flyIn={!tier.weak && feed !== undefined} />}
       </SceneFrame>
       {hud && <RunHud mission={mission} feed={activeFeed} ghosts={activeGhosts} drive={drive} build={build} />}
     </div>

@@ -1,7 +1,7 @@
 'use client';
 
 import { useFrame, useThree } from '@react-three/fiber';
-import { useCallback, useMemo, useRef, type RefObject } from 'react';
+import { useCallback, useEffect, useMemo, useRef, type RefObject } from 'react';
 import { Vector3, type DirectionalLight, type Group, type PerspectiveCamera } from 'three';
 import type { Build, GhostTrace, Mission, Policy, SimEffect } from '@rivetrun/contracts';
 import { TUNING, deriveSpec } from '@rivetrun/sim';
@@ -307,10 +307,34 @@ interface RigProps {
   driving: boolean;
   /** A bottom sheet covers the lower screen in portrait after all (telemetry open while driving). */
   raise: boolean;
+  /** Open on the robot as it stood on the workbench and pull back to the track (off on weak devices and for reduced motion). */
+  flyIn: boolean;
 }
 
 /** Side-on follow camera, framed for portrait, with decision zoom and impact shake. */
-function CameraRig({ pose, light, startX, wide, driving, raise }: RigProps) {
+/** The fly-in from the workbench view lasts this long at most; any touch or key ends it at once. */
+const FLY_IN_MS = 1300;
+
+function CameraRig({ pose, light, startX, wide, driving, raise, flyIn }: RigProps) {
+  const intro = useRef({ startAt: 0, over: !flyIn });
+  const near = useMemo(() => ({ from: new Vector3(), look: new Vector3(), aim: new Vector3() }), []);
+  useEffect(() => {
+    if (!flyIn) return undefined;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      intro.current.over = true;
+      return undefined;
+    }
+    const skip = (): void => {
+      intro.current.over = true;
+    };
+    window.addEventListener('pointerdown', skip);
+    window.addEventListener('keydown', skip);
+    return () => {
+      window.removeEventListener('pointerdown', skip);
+      window.removeEventListener('keydown', skip);
+    };
+  }, [flyIn]);
+
   const camera = useThree((state) => state.camera) as PerspectiveCamera;
   const size = useThree((state) => state.size);
   const focus = useRef({ x: startX, y: 0, init: false });
@@ -348,7 +372,23 @@ function CameraRig({ pose, light, startX, wide, driving, raise }: RigProps) {
     const shake = performance.now() < p.shakeUntil ? 0.09 : 0;
     target.set(f.x + (Math.random() - 0.5) * shake, f.y + 0.75 - lift + (Math.random() - 0.5) * shake, -1);
     camera.position.set(target.x, target.y + Math.sin(ELEVATION) * distance, target.z + Math.cos(ELEVATION) * distance);
-    camera.lookAt(target);
+    // Deploy: start close on the robot from its front quarter, as it stood on the workbench, and pull back to the track.
+    const start = intro.current;
+    if (!start.over && p.ready) {
+      const now = performance.now();
+      if (start.startAt === 0) start.startAt = now;
+      const u = (now - start.startAt) / FLY_IN_MS;
+      if (u >= 1) start.over = true;
+      else {
+        const k = u < 0.5 ? 4 * u * u * u : 1 - (-2 * u + 2) ** 3 / 2;
+        near.from.set(p.x + 2.7, p.y + 1.3, LANES.player + 3.5);
+        near.look.set(p.x, p.y + 0.55, LANES.player);
+        camera.position.lerpVectors(near.from, camera.position, k);
+        near.aim.lerpVectors(near.look, target, k);
+        camera.lookAt(near.aim);
+      }
+    }
+    if (start.over) camera.lookAt(target);
 
     const sun = light.current;
     if (sun) {
@@ -375,10 +415,12 @@ export interface RunSceneProps {
   plain?: boolean;
   /** A bottom sheet is open over the lower part of a portrait screen (telemetry in Drive mode): frame the robot above it. */
   raise?: boolean;
+  /** Fly the camera in from a workbench-close view when the run starts. */
+  flyIn?: boolean;
 }
 
 /** The 2.5D run view. Mount inside an R3F <Canvas>. Reads sim state only: no physics here. */
-export function RunScene({ mission, build, feed, ghosts = [], particleBudget = 1, hands, plain = false, raise = false }: RunSceneProps) {
+export function RunScene({ mission, build, feed, ghosts = [], particleBudget = 1, hands, plain = false, raise = false, flyIn = false }: RunSceneProps) {
   const layout = useMemo(() => layoutTrack(mission.track), [mission.track]);
   const pose = useRef<Pose>(restPose());
   const hasDrone = build.sensors.includes('scout_drone');
@@ -404,7 +446,7 @@ export function RunScene({ mission, build, feed, ghosts = [], particleBudget = 1
       {hasDrone && <ScoutDroneRig feed={feed} layout={layout} pose={pose} />}
       <SpeedLines pose={pose} budget={particleBudget} />
       <Particles ref={particles} timeScale={timeScale} budget={particleBudget} />
-      <CameraRig pose={pose} light={sun} startX={0} wide={hasDrone} driving={hands !== undefined} raise={raise} />
+      <CameraRig pose={pose} light={sun} startX={0} wide={hasDrone} driving={hands !== undefined} raise={raise} flyIn={flyIn} />
     </>
   );
 }
