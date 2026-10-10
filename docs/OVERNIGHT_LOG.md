@@ -35,6 +35,9 @@ Written by [MASTER] for the human. Newest status first. Program: docs/OVERNIGHT.
 
 ## Status log
 
+### 07:54 · sixteenth tag (two-hour mark)
+`demo-good-0754` → 9aa449c, 21 e2e steps. Nothing has changed in the product since the 07:20 status except the one-line M8 note under the arena table. New in the gate: the Episode downloads and parses, and the share card saves as a 1200×630 PNG ("YOU 23.3 s · JEV 26.9 s · You beat the AI by 3.6 s"), so Share and Episode are no longer untested; the card still carries the old tagline "AI drives it" (Q34, low). All five worker sessions are idle on empty blocks or polling; nothing is being served on :3001 yet.
+
 ### 07:20 · status before the 07:30 build
 **Build this: `demo-good-0718`** (8bdc9b3). `pnpm demo:stable -- --ref "$(git tag -l 'demo-good-*' | sort | tail -1)"`. Fifteen tags since 04:26; 208 commits since 03:45. The last five gates were green with 20 e2e steps and no warning; `pnpm demo:stable -- --build-only` last passed at 07:09.
 
