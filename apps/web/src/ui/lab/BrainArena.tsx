@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { arenaLine, arenaRows, scatter, type Arena, type ArenaSection, type ContestantKind } from './arena';
+import { arenaLine, arenaRows, mostRuns, scatter, type Arena, type ArenaSection, type ContestantKind } from './arena';
 
 const PLOT = { width: 334, height: 230, padding: 30 } as const;
 
@@ -42,6 +42,7 @@ function Table({ arena }: { readonly arena: ArenaSection }) {
                   <span className={`font-display text-[13px] font-semibold leading-tight ${row.configured ? 'text-text' : ''}`}>{row.label}</span>
                 </span>
                 <span className={`block pl-3.5 text-[10px] text-muted ${row.configured ? 'truncate' : 'whitespace-normal leading-tight'}`}>{row.detail}</span>
+                {row.fewer ? <span className="block pl-3.5 text-[10px] font-medium text-warn">{row.fewer} only</span> : null}
               </th>
               {[row.finish, row.score, row.decisions, row.p50, row.p95, row.lateCrashes, row.cost].map((cell, index) => (
                 <td key={COLUMNS[index]} className="whitespace-nowrap px-2 py-2">
@@ -137,6 +138,7 @@ const EMPTY: Readonly<Record<Track, { readonly title: string; readonly text: str
 };
 
 function Results({ section }: { readonly section: ArenaSection }) {
+  const rows = arenaRows(section);
   return (
     <>
       {section.scenarios.length > 0 ? (
@@ -149,6 +151,9 @@ function Results({ section }: { readonly section: ArenaSection }) {
         </div>
       ) : null}
       <Table arena={section} />
+      {rows.some((row) => row.fewer) ? (
+        <p className="-mt-1.5 text-[11px] leading-snug text-warn">Rows marked in amber ran fewer runs than the others ({mostRuns(section)}): their figures rest on less and are not directly comparable.</p>
+      ) : null}
       {section.priced ? <p className="-mt-1.5 text-[11px] leading-snug text-muted">Cost per run: each provider&apos;s published price × the tokens it reported. A token count is shown where no price is set.</p> : null}
       <Scatter arena={section} />
       <p className="border-t border-line pt-3 text-xs leading-snug text-text-2">

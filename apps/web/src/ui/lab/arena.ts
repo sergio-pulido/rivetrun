@@ -24,6 +24,8 @@ const ContestantSchema = z.object({
   lateCrashes: z.number().int().min(0).nullish(),
   /** Only when a price is configured: providers report tokens, not money. */
   costPerRunUsd: z.number().min(0).nullish(),
+  /** The seeds this brain ran on. */
+  seeds: z.array(z.number()).nullish(),
   /** Tokens per run, as the provider reported them. */
   inputTokens: z.number().min(0).nullish(),
   outputTokens: z.number().min(0).nullish(),
@@ -102,6 +104,8 @@ export interface ArenaRow {
   readonly configured: boolean;
   /** Model id and run count, or why there are no figures: "not configured", "not run: …". */
   readonly detail: string;
+  /** Set when this brain ran fewer runs than the largest row: its figures rest on less, e.g. "7 runs · 1 seed". */
+  readonly fewer: string | null;
   readonly finish: string;
   readonly score: string;
   readonly decisions: string;
@@ -123,10 +127,14 @@ const thousands = (count: number): string => (count < 1000 ? `${Math.round(count
 
 const NO_FIGURES = { finish: MISSING, score: MISSING, decisions: MISSING, p50: MISSING, p95: MISSING, lateCrashes: MISSING, cost: MISSING } as const;
 
+/** How many runs the largest row has: rows with fewer are marked. */
+export const mostRuns = (arena: ArenaSection): number => Math.max(0, ...arena.contestants.map((entry) => (entry.status === 'ok' ? (entry.runs ?? 0) : 0)));
+
 /** One table row per contestant, every figure as text; then the brains that were not run, with the reason. */
 export function arenaRows(arena: ArenaSection): readonly ArenaRow[] {
+  const mostRuns = Math.max(0, ...arena.contestants.map((entry) => (entry.status === 'ok' ? (entry.runs ?? 0) : 0)));
   const measured = arena.contestants.map((entry): ArenaRow => {
-    if (entry.status !== 'ok') return { id: entry.id, label: entry.label, kind: entry.kind, configured: false, detail: 'not configured', ...NO_FIGURES };
+    if (entry.status !== 'ok') return { id: entry.id, label: entry.label, kind: entry.kind, configured: false, detail: 'not configured', fewer: null, ...NO_FIGURES };
     const runs = entry.runs ?? null;
     // A model id that only repeats the name adds nothing.
     const model = entry.modelId && entry.modelId.toLowerCase() !== entry.label.toLowerCase() ? entry.modelId : null;
@@ -137,6 +145,7 @@ export function arenaRows(arena: ArenaSection): readonly ArenaRow[] {
       kind: entry.kind,
       configured: true,
       detail: [model, runs === null ? null : `${runs} ${runs === 1 ? 'run' : 'runs'}`].filter(Boolean).join(' · '),
+      fewer: runs !== null && runs < mostRuns ? [`${runs} ${runs === 1 ? 'run' : 'runs'}`, entry.seeds ? `${entry.seeds.length} ${entry.seeds.length === 1 ? 'seed' : 'seeds'}` : null].filter(Boolean).join(' · ') : null,
       finish: shown(entry.finishPct, (value) => `${Math.round(value)}%`),
       score: shown(entry.meanScore, (value) => `${Math.round(value)}`),
       decisions: shown(entry.decisionsPerRun, (value) => value.toFixed(1)),
@@ -147,7 +156,7 @@ export function arenaRows(arena: ArenaSection): readonly ArenaRow[] {
       cost: typeof entry.costPerRunUsd === 'number' ? dollars(entry.costPerRunUsd) : tokens === null ? MISSING : `${thousands(tokens)} tok`,
     };
   });
-  const held = arena.notRun.filter((entry) => !arena.contestants.some((contestant) => contestant.id === entry.id)).map((entry): ArenaRow => ({ id: entry.id, label: entry.label, kind: 'llm', configured: false, detail: `not run: ${entry.reason}`, ...NO_FIGURES }));
+  const held = arena.notRun.filter((entry) => !arena.contestants.some((contestant) => contestant.id === entry.id)).map((entry): ArenaRow => ({ id: entry.id, label: entry.label, kind: 'llm', configured: false, detail: `not run: ${entry.reason}`, fewer: null, ...NO_FIGURES }));
   return [...measured, ...held];
 }
 

@@ -68,6 +68,14 @@ describe('rows without a price or without runs', () => {
   });
 });
 
+describe('rows that ran fewer runs', () => {
+  it('says how many runs and seeds a brain ran when that is fewer than the largest row', () => {
+    const brain = (id: string, runs: number, seeds: number[]) => ({ id, label: id, kind: 'llm', status: 'ok', runs, seeds, meanScore: 400 });
+    const rows = arenaRows(parseArena({ ...FILE, contestants: [brain('fast', 24, [1001, 1002, 1003]), brain('reasoning', 7, [1001])] })!);
+    expect(rows.map((row) => row.fewer)).toEqual([null, '7 runs · 1 seed']);
+  });
+});
+
 describe('scatter', () => {
   it('places each brain that has both figures, latency across and score up', () => {
     const plot = scatter(parseArena(FILE)!, { width: 300, height: 200, padding: 20 })!;
