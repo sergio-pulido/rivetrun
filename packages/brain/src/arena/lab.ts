@@ -1,7 +1,7 @@
 // Brain Arena, Lab track: the same contestants answering Lab Mission questions (grid decisions).
 // Heuristic and random come from the lab package itself; this file adapts Jev and the LLMs.
 import { askJevChoice } from '../index';
-import { buildLabJevRequest, buildLabTextPrompt, parseLabAnswer, type LabQuestionLike } from '../lab/question';
+import { buildLabJevRequest, buildLabTextPrompt, parseLabAnswer, type LabQuestionLike, type LabQuestionMode } from '../lab/question';
 import { ARENA_TIMEOUT_MS, type Contestant } from './providers';
 
 export interface LabArenaDecision {
@@ -17,10 +17,10 @@ export interface LabArenaDecision {
  * How a contestant answers a Lab question, or null for the local policies (the lab package supplies those).
  * Same rules as the rail arena: one call per trigger, no fallback, a 10 s deadline, a throw = no decision.
  */
-export function labDecider(contestant: Contestant): ((question: LabQuestionLike) => Promise<LabArenaDecision>) | null {
+export function labDecider(contestant: Contestant, mode: LabQuestionMode = 'verdict'): ((question: LabQuestionLike) => Promise<LabArenaDecision>) | null {
   if (contestant.kind === 'jev') {
     return async (question) => {
-      const request = buildLabJevRequest(question);
+      const request = buildLabJevRequest(question, undefined, mode);
       const answer = await askJevChoice(request, Object.keys(request.questions.action.criteria), { timeoutMs: ARENA_TIMEOUT_MS });
       return { choice: answer.choice, probabilities: answer.probabilities as Record<string, number>, latencyMs: answer.latencyMs };
     };
@@ -28,7 +28,7 @@ export function labDecider(contestant: Contestant): ((question: LabQuestionLike)
   const send = contestant.send;
   if (contestant.kind !== 'llm' || !send) return null;
   return async (question) => {
-    const prompt = buildLabTextPrompt(question);
+    const prompt = buildLabTextPrompt(question, mode);
     const started = performance.now();
     const reply = await send(prompt.system, prompt.user);
     const latencyMs = Math.round(performance.now() - started);

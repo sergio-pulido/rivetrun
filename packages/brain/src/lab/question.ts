@@ -45,6 +45,16 @@ export interface LabQuestionLike {
 /** Version of the Lab question wording; part of the arena's Lab prompt hash. */
 export const LAB_QUESTION_VERSION = 'lab-q3';
 
+/**
+ * Two wordings of the same question (docs/QA.md Q20):
+ * - 'verdict': each option also says where it stands by the lab's fixed rules ("the correct job to start").
+ * - 'facts': the same observation, options and predictions, and no judgement of any option anywhere.
+ */
+export type LabQuestionMode = 'verdict' | 'facts';
+export const labQuestionVersion = (mode: LabQuestionMode = 'verdict'): string => (mode === 'facts' ? `${LAB_QUESTION_VERSION}-facts` : LAB_QUESTION_VERSION);
+/** Words that would tell the reader which option to take; the facts-only question holds none of them (unit-tested). */
+export const VERDICT_WORDS = /\b(correct|must|should|ought|best|prefer|wrong)\b/i;
+
 const round = (value: number, digits = 0): number => {
   const factor = 10 ** digits;
   return Math.round(value * factor) / factor;
@@ -128,13 +138,14 @@ export interface LabPromptParts {
 }
 
 /** The Lab question in the three parts every contestant gets. */
-export function buildLabPromptParts(question: LabQuestionLike): LabPromptParts {
+export function buildLabPromptParts(question: LabQuestionLike, mode: LabQuestionMode = 'verdict'): LabPromptParts {
+  const facts = mode === 'facts';
   const open = question.objectives.filter((objective) => !objective.done);
   const briefing = cleanBriefing(question.briefing);
   const projected = question.energy.projectedPct;
   const instructions =
     `A small robot is on a mission in a grid world it has to discover with its own sensors. Mission: ${question.objective} ` +
-    'Which of the listed moves should it make now? ' +
+    (facts ? 'Choose one of the listed moves for it to make now. ' : 'Which of the listed moves should it make now? ') +
     `This decision is requested because something changed: ${question.trigger.label}. There is no clock: the chosen move stays in force until the next change. ` +
     'The robot knows only what its sensors have reported (`sensors`); everything else on the map is unexplored. ' +
     (question.observation.blind ? 'It has NO ranging sensor or camera: it finds walls only by driving into them. ' : '') +
@@ -145,10 +156,14 @@ export function buildLabPromptParts(question: LabQuestionLike): LabPromptParts {
     `Energy: the battery is at ${round(question.energy.batteryPct)} %, enough for about ${question.energy.rangeTiles} tiles at this pace` +
     (projected === undefined ? '; the robot knows no way to the end point yet. ' : `; after the known way to the end point it would have ${round(projected)} % left (${marginLevel(projected)}). `) +
     (question.energy.workPct !== undefined ? `The known work still to do would cost about ${round(question.energy.workPct)} % charge at this pace. ` : '') +
-    'A robot that runs out of charge before the end point fails the mission, so an option whose charge after driving on to the end point "would not get back" is only correct when no other option makes progress. ' +
+    (facts
+      ? 'A robot that runs out of charge before the end point fails the mission. The mission is scored on objectives done and on reaching the end point, then on time, damage and charge used; every tile driven costs time and charge. '
+      : 'A robot that runs out of charge before the end point fails the mission, so an option whose charge after driving on to the end point "would not get back" is only correct when no other option makes progress. ') +
     (briefing ? `The player gave the driver these instructions: "${briefing}" Follow them where the options allow. ` : '') +
-    'Rule: prefer doing a known open objective; explore when no open objective is reachable; return to the end point when every objective is done or when the charge is critical; wait only for moving traffic to pass; change pace only when the charge calls for it. ' +
-    'When several options start a job, the correct one is the one with the fewest tiles for all the known work if it goes first, not the nearest. ' +
+    (facts
+      ? ''
+      : 'Rule: prefer doing a known open objective; explore when no open objective is reachable; return to the end point when every objective is done or when the charge is critical; wait only for moving traffic to pass; change pace only when the charge calls for it. ' +
+        'When several options start a job, the correct one is the one with the fewest tiles for all the known work if it goes first, not the nearest. ') +
     'Each option states what the move is and what the simulation predicts for it; a prediction over unseen ground is a guess.';
   return {
     state: {
@@ -161,14 +176,14 @@ export function buildLabPromptParts(question: LabQuestionLike): LabPromptParts {
       askedBecause: question.trigger.label,
     },
     instructions,
-    criteria: Object.fromEntries(question.options.map((option) => [option.id, `${describeOption(option)}${standing(option, question)}`])),
+    criteria: Object.fromEntries(question.options.map((option) => [option.id, `${describeOption(option)}${facts ? '' : standing(option, question)}`])),
     optionIds: question.options.map((option) => option.id),
   };
 }
 
 /** The same question as a Jev System One request: one Choice over the option ids. */
-export function buildLabJevRequest(question: LabQuestionLike, model: string = JEV_MODEL_ID): JevRequest {
-  const parts = buildLabPromptParts(question);
+export function buildLabJevRequest(question: LabQuestionLike, model: string = JEV_MODEL_ID, mode: LabQuestionMode = 'verdict'): JevRequest {
+  const parts = buildLabPromptParts(question, mode);
   return { model, state: parts.state, questions: { action: { type: 'choice', instructions: parts.instructions, criteria: parts.criteria } } };
 }
 
@@ -178,8 +193,8 @@ export const LAB_SYSTEM =
   'No explanation, no code fence, no other keys.';
 
 /** The same question as plain text for an LLM. */
-export function buildLabTextPrompt(question: LabQuestionLike): { system: string; user: string; optionIds: readonly string[] } {
-  const parts = buildLabPromptParts(question);
+export function buildLabTextPrompt(question: LabQuestionLike, mode: LabQuestionMode = 'verdict'): { system: string; user: string; optionIds: readonly string[] } {
+  const parts = buildLabPromptParts(question, mode);
   const user = [
     'STATE (JSON):',
     JSON.stringify(parts.state),

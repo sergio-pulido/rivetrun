@@ -1,9 +1,12 @@
 import { createHash } from 'node:crypto';
 import { askJevChoice, JEV_MODEL_ID, JevError } from '@rivetrun/brain';
-import { buildLabJevRequest, LAB_QUESTION_VERSION } from '@rivetrun/brain/lab';
-import { LabQuestionSchema, type LabDecision } from '@rivetrun/lab';
+import { buildLabJevRequest, labQuestionVersion, type LabQuestionMode } from '@rivetrun/brain/lab';
+import { LabQuestionSchema, type LabDecision as LabDecisionBase } from '@rivetrun/lab';
 import { apiError, parseJsonBody } from '@/api/respond';
 import { decideFault, jevFaultOf } from '../../_lib/jevFault';
+
+/** The answer also says which wording of the question it answered. */
+type LabDecision = LabDecisionBase & { readonly question: string };
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -19,15 +22,18 @@ const holder = globalThis as typeof globalThis & { __rivetrunLabDecide?: LabDeci
 const state: LabDecideState = (holder.__rivetrunLabDecide ??= { cache: new Map(), inFlight: new Map() });
 
 /** Everything the answer depends on: the request Jev would get, the lab version and the wording version. */
-const keyOf = (labVersion: number, request: unknown): string =>
-  createHash('sha256').update(JSON.stringify([labVersion, LAB_QUESTION_VERSION, JEV_MODEL_ID, request])).digest('hex');
+const keyOf = (labVersion: number, wording: string, request: unknown): string =>
+  createHash('sha256').update(JSON.stringify([labVersion, wording, JEV_MODEL_ID, request])).digest('hex');
+
+/** `?verdicts=0` asks the facts-only question (docs/QA.md Q20); the default states the fixed rules' verdict per option. */
+const modeOf = (request: Request): LabQuestionMode => (new URL(request.url).searchParams.get('verdicts') === '0' ? 'facts' : 'verdict');
 
 // GET /api/lab/decide — tells the page the route is here and which model answers. No Jev call.
 export function GET(): Response {
-  return Response.json({ ok: true, model: JEV_MODEL_ID, configured: Boolean(process.env.JEV_API_KEY) }, { headers: { 'Cache-Control': 'no-store' } });
+  return Response.json({ ok: true, model: JEV_MODEL_ID, configured: Boolean(process.env.JEV_API_KEY), questions: [labQuestionVersion('verdict'), labQuestionVersion('facts')] }, { headers: { 'Cache-Control': 'no-store' } });
 }
 
-// POST /api/lab/decide — LabQuestion → LabDecision (policy 'jev'): Jev picks one of the question's option ids.
+// POST /api/lab/decide[?verdicts=0] — LabQuestion → LabDecision (policy 'jev'): Jev picks one of the question's option ids.
 // The key never leaves the server. On any Jev failure this returns an error and the page's fixed rules decide.
 export async function POST(request: Request): Promise<Response> {
   const parsed = await parseJsonBody(request, LabQuestionSchema);
@@ -35,9 +41,11 @@ export async function POST(request: Request): Promise<Response> {
   const question = parsed.data;
 
   const started = performance.now();
-  const jevRequest = buildLabJevRequest(question);
+  const mode = modeOf(request);
+  const wording = labQuestionVersion(mode);
+  const jevRequest = buildLabJevRequest(question, undefined, mode);
   const optionIds = question.options.map((option) => option.id);
-  const key = keyOf(question.labVersion, jevRequest);
+  const key = keyOf(question.labVersion, wording, jevRequest);
   // The test switch (jevFault.ts) comes before the cache, as on /api/decide.
   const fault = jevFaultOf(request);
   const cached = fault ? undefined : state.cache.get(key);
@@ -50,7 +58,7 @@ export async function POST(request: Request): Promise<Response> {
       joined ??
       askJevChoice(jevRequest, optionIds)
         .then((answer): LabDecision => {
-          const decision: LabDecision = { choice: answer.choice, probabilities: answer.probabilities as Record<string, number>, latencyMs: answer.latencyMs, policy: 'jev', model: answer.model };
+          const decision: LabDecision = { choice: answer.choice, probabilities: answer.probabilities as Record<string, number>, latencyMs: answer.latencyMs, policy: 'jev', model: answer.model, question: wording };
           if (state.cache.size >= MAX_CACHE) state.cache.delete(state.cache.keys().next().value as string);
           state.cache.set(key, decision);
           return decision;

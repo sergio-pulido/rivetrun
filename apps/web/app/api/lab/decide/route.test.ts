@@ -21,6 +21,8 @@ describe('POST /api/lab/decide', () => {
     const body = (await GET().json()) as { ok: boolean; model: string };
     expect(body.ok).toBe(true);
     expect(body.model).toMatch(/^jev-\d/);
+    // Two wordings on offer: the page shows its switch only then.
+    expect((body as unknown as { questions: string[] }).questions).toHaveLength(2);
   });
 
   it('400 on invalid JSON or a body that is not a LabQuestion', async () => {

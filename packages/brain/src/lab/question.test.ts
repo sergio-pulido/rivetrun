@@ -51,3 +51,29 @@ describe('lab question', () => {
     expect(() => parseLabAnswer('{"choice":"north","confidence":1}', prompt.optionIds)).toThrow();
   });
 });
+
+describe('facts-only Lab question (docs/QA.md Q20)', () => {
+  it('holds no verdict word on any question of any scenario, while the default wording does', async () => {
+    const { LAB_DEFAULT_BUILDS, LAB_SCENARIO_IDS, labHeuristicBrain, runLabHeadless } = await import('@rivetrun/lab');
+    const { buildLabJevRequest: jev, buildLabTextPrompt: text, VERDICT_WORDS, labQuestionVersion } = await import('./question');
+    let asked = 0;
+    let verdicts = 0;
+    for (const id of LAB_SCENARIO_IDS) {
+      await runLabHeadless(id, 1001, LAB_DEFAULT_BUILDS[id], {
+        decide: (question) => {
+          asked += 1;
+          const facts = jev(question, undefined, 'facts').questions.action;
+          const said = `${facts.instructions} ${Object.values(facts.criteria).join(' ')} ${text(question, 'facts').user}`;
+          expect(VERDICT_WORDS.exec(said)?.[0], `${id}: "${said.slice(Math.max(0, (VERDICT_WORDS.exec(said)?.index ?? 0) - 60), (VERDICT_WORDS.exec(said)?.index ?? 0) + 40)}"`).toBeUndefined();
+          // Same options, same order, and the predictions are still there.
+          expect(Object.keys(facts.criteria)).toEqual(question.options.map((option) => option.id));
+          if (VERDICT_WORDS.test(JSON.stringify(jev(question).questions.action))) verdicts += 1;
+          return labHeuristicBrain.decide(question);
+        },
+      });
+    }
+    expect(asked).toBeGreaterThan(30);
+    expect(verdicts).toBe(asked);
+    expect(labQuestionVersion('facts')).toBe(`${labQuestionVersion()}-facts`);
+  });
+});
