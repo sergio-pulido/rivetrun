@@ -33,4 +33,6 @@ export const SIMPLIFICATIONS: readonly Simplification[] = [
   { id: 'lab_lidar_all_round', screen: 'lab', partId: 'lidar_rplidar_c1', sentence: 'On the grid the lidar sees walls and moving things all round, in line of sight; on the track it is a forward ranger.' },
   { id: 'lab_ramp_both_ways', screen: 'lab', sentence: 'A ramp tile costs as a climb in both directions: the grid has no height, so it cannot tell which way is down.' },
   { id: 'lab_forklift', screen: 'lab', sentence: 'A forklift turns back for a robot standing in its way and only hits one that drives onto its tile or the tile it is heading for.' },
+  { id: 'lab_no_cold', screen: 'lab', sentence: 'On the grid the battery always holds its full capacity: no Lab Mission is cold, so the track\'s cold rule is not applied.' },
+  { id: 'lab_no_night', screen: 'lab', sentence: 'No Lab Mission is dark, so the NoIR camera and the light sensor add nothing on the grid.' },
 ];
