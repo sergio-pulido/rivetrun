@@ -1,0 +1,110 @@
+{
+  "version": 2,
+  "author": "sergio.pulido@alodai.com",
+  "status": "partial_missing_mechanical_dimensions",
+  "reference": [
+    "docs/inputs/real-parts.json",
+    "docs/inputs/bom-mk2.json"
+  ],
+  "fixed": [
+    "chassis",
+    "controller"
+  ],
+  "modules": {
+    "chassis": {
+      "file": "chassis.glb",
+      "slot": "fixed",
+      "triangles": 2156,
+      "meshes": 1,
+      "bytes": 119884,
+      "printedParts": [
+        "chassis_base"
+      ]
+    },
+    "wheels": {
+      "file": "wheels.glb",
+      "slot": "locomotion",
+      "triangles": 5352,
+      "meshes": 12,
+      "bytes": 286276,
+      "printedParts": [
+        "motor_cap",
+        "motor_saddle"
+      ]
+    },
+    "motor_light": {
+      "file": "motor_light.glb",
+      "slot": "motor",
+      "triangles": 48,
+      "meshes": 1,
+      "bytes": 5020,
+      "printedParts": []
+    },
+    "motor_torque": {
+      "file": "motor_torque.glb",
+      "slot": "motor",
+      "triangles": 48,
+      "meshes": 1,
+      "bytes": 5024,
+      "printedParts": []
+    },
+    "battery_small": {
+      "file": "battery_small.glb",
+      "slot": "battery",
+      "triangles": 504,
+      "meshes": 2,
+      "bytes": 32292,
+      "printedParts": [
+        "battery_tray"
+      ]
+    },
+    "battery_large": {
+      "file": "battery_large.glb",
+      "slot": "battery",
+      "triangles": 504,
+      "meshes": 2,
+      "bytes": 32312,
+      "printedParts": [
+        "battery_tray"
+      ]
+    },
+    "ultrasonic": {
+      "file": "ultrasonic.glb",
+      "slot": "sensor",
+      "triangles": 196,
+      "meshes": 2,
+      "bytes": 10952,
+      "printedParts": []
+    },
+    "camera": {
+      "file": "camera.glb",
+      "slot": "sensor",
+      "triangles": 104,
+      "meshes": 2,
+      "bytes": 7204,
+      "printedParts": []
+    }
+  },
+  "deckOffsetY": {
+    "wheels": 0,
+    "offroad_wheels": 0.05,
+    "tracks": 0
+  },
+  "deferred": [
+    "offroad_wheels",
+    "controller",
+    "tracks",
+    "imu",
+    "moisture_probe",
+    "scout_drone",
+    "winch",
+    "waterproof_case",
+    "bumper",
+    "thruster_kit",
+    "piston_jump"
+  ],
+  "scaleMmPerRenderUnit": 100,
+  "contractPath": "docs/MK2_ASSET_CONTRACT.md",
+  "pathOverride": "apps/web/public/models/mk2/ requested by human; contract currently names the v1 folder",
+  "manufacturingStatus": "Provisional. No physical fit test. Motor envelopes still use real-parts.json; electronic modules require printed mounts. Controller, insert pilot and wiring interfaces lack BOM dimensions. Not a validated complete build."
+}
