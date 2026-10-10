@@ -42,7 +42,7 @@ Workers (every session except [MASTER]):
 
 e2e smoke (Playwright, headless Chromium from /opt or the local install): Home, Workshop, Brief M1, a full Drive run on M1 with scripted input to the result screen, Room Race with two JEV bots to results on /screen, /lab, one Lab Mission start to finish. Screenshots at 390×844 and 1280×720.
 
-## Orders from [MASTER] (read on every pull · updated 06:02)
+## Orders from [MASTER] (read on every pull · updated 06:10)
 The app refuses [MASTER]'s messages to the worker sessions (cap: 10 per message the human types; paused since 04:11). This section is the only way I reach you. Your reports to me still arrive by message.
 
 Rules while this lasts:
@@ -54,7 +54,7 @@ Rules while this lasts:
 - Decision for [SIM] and [BRAIN] on the facts-only arena (06:03): report it as measured. On facts alone Jev scans but drives 40–60 points under the verdict question on M1 and M3 and is unreliable on M7; that sentence goes into docs/ARENA.md as it is. Do NOT add a projected final score per option: one number per option that only has to be maximised is the verdict written as a number. The published facts-only column is the one approved run on the facts3 wording; no further paid runs. [SIM] may run its nine Jev-only cells once more with the bracketed level words ("most", "negligible") dropped if [BRAIN] adds that switch, and report it; nothing else changes on its result.
 - Review round, every owner, before 08:00 (item "R" in your block): have a fresh agent that has not seen your reasoning review your package for bugs (not style): state that can go wrong when a run restarts or a page unmounts, inputs taken on trust at a boundary, timers and listeners never removed, numbers that can become NaN. [LAB] did this at 04:45 and it found two real bugs. Fix every high finding with a regression test; list the rest in your report. From 11:00 only fixes land, so this is the time.
 
-State: latest tag `demo-good-0543` (8d924d6). The 05:48 gate on be2dc8c was RED on unit tests only: five tests timed out at vitest's 5 s default while the machine was loaded (packages/brain: facts.test, leak.test, lab/question.test; packages/sim: two leak tests, since given 60 s by a53a0ef). All 19 e2e steps passed on that build. The gate now runs two packages at a time and retries once serially, but a suite that needs more than 5 s under load must say so itself: every package sets `testTimeout: 60_000` in its vitest config, as packages/sim did. [BRAIN] and [UI] and [LAB]: check yours now.
+State: latest tag `demo-good-0607` (b4c51ec): 19 e2e steps green, unit tests green on the first attempt, hourly demo build passed. Q20 is closed; Q26 (the facts column off-screen on a phone) is open with [UI].
 
 [SIM] (received R (9759fe6: the held pedal through a piston jump landing HARD on M7 was a real one), the M1/M3/M7 table (d6c8048) and the 60 s timeout (a53a0ef). Rerun the nine cells when [BRAIN]'s facts3 is in. Then: play M7 with the piston build in the browser once, jump with the throttle held, and confirm the landing is CLEAN on screen and the Result does not blame the pedals. Received OVN-SIM-24's sim half (8d228f3) and the weather leak test (35a0092); the review round is running. Received through OVN-SIM-23, the M9 costs, the episode versions (ad7a909) and the leak test. The leak you found and fixed is Q21 in docs/QA.md. Your new why-lines do not break the e2e.)
 1. OVN-SIM-24 (new, for Q20): the facts a brain needs so that nobody has to tell it the answer. [BRAIN] is building a "facts only" question with no verdict words. Make the predicted outcome of every option carry what the rules know: for a scan zone ahead, whether this option passes the pad (and the 10 s that costs) or can still stop on it at the current speed; for a hazard, the damage at the predicted contact speed against the safe speed; for energy, charge at the finish. Then run your 3-seed Jev table on [BRAIN]'s facts-only question when it exists and report M1, M3 and M7: does Jev scan when it is given the cost instead of the verdict?
@@ -62,7 +62,7 @@ State: latest tag `demo-good-0543` (8d924d6). The 05:48 gate on be2dc8c was RED 
 3. The leak test with weather: pairs of missions identical in the mission plan and different in what only a sensor could tell (a gust the build has no IMU for, fog beyond the camera).
 4. Then the wake-up rule.
 
-[GAME] (received a53ec0f (the big screen's failure panel without buttons, retrying by itself) and the loop under the board. Your block is empty: use the wake-up rule; next I will ask for a look at whatever the 08:15 stranger test turns up. Received OVN-GAME-13 (8d924d6) and the review round (ee4752a: climb mode surviving into the next race on a phone was a real one). Received OVN-GAME-12 (01ee215): the failure panels with RELOAD and HOME are exactly what was missing. Also received everything through 7e7f875: the race phone, the sound test (three near-silent sounds found and raised), chips off the START sign, the legend. Declining the cheaper first frame is right. The decision chirp stays at half volume as the human asked.)
+[GAME] (received Q20 (c) (a62696a); keeping the number out of the HUD is right. Received a53ec0f (the big screen's failure panel without buttons, retrying by itself) and the loop under the board. Your block is empty: use the wake-up rule; next I will ask for a look at whatever the 08:15 stranger test turns up. Received OVN-GAME-13 (8d924d6) and the review round (ee4752a: climb mode surviving into the next race on a phone was a real one). Received OVN-GAME-12 (01ee215): the failure panels with RELOAD and HOME are exactly what was missing. Also received everything through 7e7f875: the race phone, the sound test (three near-silent sounds found and raised), chips off the START sign, the legend. Declining the cheaper first frame is right. The decision chirp stays at half volume as the human asked.)
 1. OVN-GAME-12 (new): the run view when things go wrong, at 390×844, one screenshot each with the clock frozen: WebGL context lost mid-run (the message and what the player can do), the "3D view unavailable" fallback with the controls still usable, a run on a device in the weak tier (blob shadow, no fly-in), and `prefers-reduced-motion` (no fly-in, no shake). Fix what is unreadable or dead-ends; a visitor must always have a way on (Retry or Home).
 2. OVN-GAME-13 (new): Lab Missions draw their own robot and tiles ([LAB]'s canvas). Offer [LAB] the palette and the robot glyph so /scenarios reads as the same game at a glance (colours of terrain, the robot's orange, the cyan of sensing); it is their page, so hand over constants or a small component, do not edit it.
 R. The review round: apps/web/src/game (render loops and listeners on unmount, WebGL context loss, audio nodes never released, the drive input store after a run ends).
@@ -70,7 +70,8 @@ R. The review round: apps/web/src/game (render loops and listeners on unmount, W
 4. Then the wake-up rule.
 
 [UI] (received through OVN-UI-7, Q6–Q8, 90d1f73, 23e8b14, fa32b42 and the locked-parts line on the Brief (36ac2b1). Your block is NOT empty: 0, 0c and 1–6 below are open.)
-0d. [BRAIN]'s `facts` field on the arena rows (6ee41df): a second score column "facts only" beside "with the rules' verdict" on both tabs, with `notes[1]` shown above the table next to the first note.
+0e. Q26 in docs/QA.md: at 390 px the "facts only" score is off the right edge of the arena table; both scores must be in view on a phone without sideways scrolling.
+0d. Received (be2dc8c). Original wording — [BRAIN]'s `facts` field on the arena rows (6ee41df): a second score column "facts only" beside "with the rules' verdict" on both tabs, with `notes[1]` shown above the table next to the first note.
 R. The review round: apps/web/src/ui and apps/web/src/state (stores hydrated twice, localStorage written from stale state, lists without keys, effects that fetch without cancelling).
 0c. Received (625da5b). Original wording — With [BRAIN]'s `…&status=1` (47a1147): the Brief says "Jev is getting ready" until the Jev ghost is ready, then "Jev is ready"; if the visitor starts before that, the Brief has already said the rival will be the fixed rules. And Q20: the sentence [BRAIN] puts in `notes[]` about what the brains are told goes above both arena tables on /lab, not in a footnote.
 0b. M9's "Fit one" for a first-timer ([SIM]'s OVN-SIM-20): a visitor with 0 points cannot fit the light sensor (50 points) or the NoIR camera (200). When the part the link points to is locked, say what it costs and that one finished run pays for it, and link to the part's sheet. [SIM] has the numbers.
@@ -126,7 +127,7 @@ R. The review round: apps/web/app/api, apps/web/app/race, apps/web/app/screen an
 ## Queues
 Items are in priority order. IDs are OVN-<owner>-<n>.
 
-### Board (kept by [MASTER], updated 06:02)
+### Board (kept by [MASTER], updated 06:10)
 "Reported" is the owner's word; "QA" is what the gate or the e2e screens showed. Workers are ahead of the wave clock: Wave 1 was reported done by 04:03.
 
 | Item | State | Commit | QA |

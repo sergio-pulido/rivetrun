@@ -56,6 +56,9 @@ Written by [MASTER] for the human. Newest status first. Program: docs/OVERNIGHT.
 
 README.md and docs/SETUP.md were rewritten from the repo at 05:22 (commit 05915a1) by a sub-agent under [MASTER]; they are refreshed before 10:00. Disagreements it found between documents: docs/JEV.md gives Jev's latency as p50 376 ms where docs/BENCHMARK.md has 243 ms; docs/QA.md R6 says Careful fails M6 with the Deep Diver where the benchmark shows it finishing.
 
+### 06:07 · tenth tag
+`demo-good-0607` → b4c51ec, 19 e2e steps, unit tests green on the first attempt, `pnpm demo:stable -- --build-only` passed. In it: both arena columns on /lab with the sentence above them (on a phone the facts column is off the right edge: Q26), the review-round fixes of sim, game and lab, the loop under the board on the idle /screen, humans in the arena, a phone that drops off mid-race.
+
 ### 05:57 · gate red on a loaded machine, no tag
 be2dc8c: all 19 e2e steps passed, but five unit tests timed out at the 5 s default while the load average was above 20 (Q22). Not a broken commit. The gate now runs two packages at a time with one serial retry, and the packages are setting a 60 s test timeout. Review rounds so far, each by a fresh agent: sim 1 high (every piston jump with the throttle held landed HARD: Q23), game 1 (climb mode surviving into the next race on a phone: Q24), lab 4 high on the page (Q25) after 2 in the package; brain's is running.
 
