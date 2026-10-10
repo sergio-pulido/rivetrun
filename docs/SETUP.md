@@ -84,16 +84,64 @@ Commits are counted at the snapshot (Saturday 08:21) from the commit subject.
 | master (from Sat 03:45) | Orchestration and QA. Writes no feature code. | 45 |
 | asset agent (ChatGPT with Blender) | Models, renders and print files. The sessions cannot reach it; the human relays. | 14 with scope `mk2`, `parts`, `assets` or `lab` |
 
-The other 94 commits cannot be attributed from the subject: 19 are `docs:` commits and 75 carry no session marker, most of them sim and brain commits from before the overnight prefix convention. Sim and brain are therefore undercounted. Token counts per session were not recorded (docs/tokens.json does not exist).
+The other 94 commits cannot be attributed from the subject: 19 are `docs:` commits and 75 carry no session marker, most of them sim and brain commits from before the overnight prefix convention. Sim and brain are therefore undercounted. Token counts per session are in "Tokens" below.
 
 ### Models and tools
 
-- Claude Code for all implementation. The draft names Claude Opus 5.5 for the four original sessions (docs/inputs/SETUP-draft.md), and 198 of the 374 commits carry a `Co-Authored-By: Claude Opus 5.5` trailer (git log). The master, lab and overnight brain commits carry no trailer and no file states their model: not verified.
+- Claude Code (desktop app) for all implementation. Each session's local transcript records its model: `claude-opus-5-5` for the main conversation of all seven sessions (the Friday scaffold session and the six roles). The subagents of the scaffold, sim, brain and lab sessions ran on `claude-sonnet-5-5` and the master's on `claude-opus-5-5`; game and ui used no subagents (docs/tokens.json, `mainModels` and `subagentModels`). 198 of the 374 commits at the 08:21 snapshot carry a `Co-Authored-By: Claude Opus 5.5` trailer (git log).
 - A planning chat wrote the spec and the kickoff prompts; Claude Design produced the mockups in docs/design/v1; ChatGPT supplied terrain and part reference data and the sound module in docs/inputs (docs/inputs/SETUP-draft.md).
 - Jev, pinned to `jev-1.13.0`, called through the TypeSafe `systemone` endpoint with one Choice question per decision and a 1200 ms budget (docs/JEV.md).
 - Blender for the MK-II rover: 21 GLB files validated, the assembled rover at 37,016 triangles (docs/PROJECT_STATE.md). That is asset validation, not a frame-rate or integration test.
+- The asset agent (ChatGPT / Codex; its model and version are not recorded in this repository) drove Blender and the Bambu Studio command line, which slices the printable MK-II parts for a Bambu Lab A1 mini and reports print time and filament (assets/print/mk2/slice_parts.py, slicer-results.json).
 - Playwright (`playwright-core` 1.58.2, headless Chromium with software WebGL) for the gate (e2e/package.json).
 - Next.js 16, React 19, Tailwind 4, three.js with React Three Fiber, Zustand, Zod 4, Vitest, Turborepo (apps/web/package.json).
+
+### Tokens
+
+<!-- tokens:start -->
+Measured at 2026-10-10T12:43+02:00, counting from 2026-10-09T18:00+02:00 (docs/tokens.json, written by `python3 scripts/tokens.py`). The sessions were still running, so the figures keep growing until they stop.
+
+| Claude Code session | Model in its transcript | Total tokens | Input | Output | Cache write | Cache read | API responses |
+|---|---|---|---|---|---|---|---|
+| RivetRun monorepo scaffold | `claude-opus-5-5`; subagents `claude-sonnet-5-5` | 6,647,589 | 97 | 64,784 | 244,415 | 6,338,293 | 46 |
+| [BRAIN] | `claude-opus-5-5`; subagents `claude-sonnet-5-5` | 347,912,854 | 1,587 | 819,830 | 2,114,154 | 344,977,283 | 718 |
+| [SIM] | `claude-opus-5-5`; subagents `claude-sonnet-5-5` | 371,071,945 | 1,689 | 898,095 | 1,775,889 | 368,396,272 | 757 |
+| [GAME] | `claude-opus-5-5` | 525,787,435 | 1,895 | 1,259,690 | 3,587,812 | 520,938,038 | 872 |
+| [UI] | `claude-opus-5-5` | 432,819,982 | 1,697 | 1,068,595 | 3,063,334 | 428,686,356 | 786 |
+| [MASTER] | `claude-opus-5-5`; subagents `claude-opus-5-5` | 282,114,733 | 1,224 | 630,359 | 1,775,669 | 279,707,481 | 520 |
+| [LAB] | `claude-opus-5-5`; subagents `claude-sonnet-5-5` | 194,726,615 | 985 | 963,539 | 1,949,133 | 191,812,958 | 452 |
+| **All sessions** | | **2,161,081,153** | **9,174** | **5,704,892** | **14,510,406** | **2,140,856,681** | **4,151** |
+
+- Measured total: 2,167,500,190 tokens = 2,161,081,153 in Claude Code + 6,419,037 in the arena tables.
+- 99.1% of the Claude Code figure is cache reads: the conversation so far, re-read from the cache on every turn. Total = input + output + cache write + cache read, the sum `ccusage` reports.
+- Arena API: 6,331,971 input and 87,066 output tokens over the 12 paid rows of the published tables, US$3.65; the facts-only columns cost another US$0.53 and their tokens were not recorded.
+- Jev is counted in calls, not tokens: 10,101 in the last benchmark run and 1,687 in the published arena tables. Its tokens: not measured (the API returns usage with every answer, docs/JEV.md, but nothing recorded it).
+- Not measured, and not estimated: The asset agent (ChatGPT / Codex driving Blender and the Bambu Studio command line) (runs outside Claude Code; no token log reaches this repository); The orchestration chat that wrote the specs and the prompts the human pasted into the sessions (a separate chat; no token log reaches this repository); Claude Design (the mockups in docs/design/v1) (no token log reaches this repository); Any Claude Code session for this project that did not run from this checkout on this Mac (only this checkout's transcripts are read). Also: Tokens of the facts-only columns (their cost is recorded, their tokens are not), and every arena call that is not in the published tables: superseded arena runs and the live Arena races on the big screen. Jev calls made by the game itself (play, ghosts, Room Race bots, the QA gate, tuning tables): counted in server memory only and lost on restart.
+<!-- tokens:end -->
+
+How it was counted: Claude Code keeps a transcript of every session on the machine that ran it, and each API response in it carries its token usage. `scripts/tokens.py` sums those for this checkout's sessions and their subagents, once per response. The same files are what `npx ccusage` reads; the script was used instead so that no third-party package ran over the logs of every project on the machine. To cross-check, run `npx ccusage@latest session --json` and compare the rows for this project.
+
+### Agents did, human did by hand
+
+The same lists feed `/lab` (docs/how-built.json).
+
+Agents did:
+
+- The application code: simulator, 3D game, screens, brain integration, Room Race, Lab Missions.
+- The unit tests, the QA gate and the end-to-end smoke; every demo-good tag.
+- The benchmark and arena runs and their published tables.
+- The 3D model, printable parts, backdrops, props and sprites (the asset agent).
+- The overnight run from 03:46 to about 09:45 with the human away: order queues, gating, findings, status log.
+- README, docs/SETUP.md, the runbook, the handover reports and this accounting.
+
+Human did by hand:
+
+- Product decisions: what the game is, what to cut, what the demo shows.
+- The specs and the prompts for each session, written with the orchestration chat.
+- Relaying between sessions, and between the sessions and the asset agent, which cannot message each other.
+- Tests on a real phone.
+- Committing docs.
+- Kept the API keys and .env files; ran the demo server on :3001 and the tunnel.
 
 ### Arena contestants and results
 

@@ -7,6 +7,7 @@ Those are the files `ccusage` reads; this script reads only this project's and r
 
   python3 scripts/tokens.py                       print the table
   python3 scripts/tokens.py --write docs/tokens.json
+  python3 scripts/tokens.py --write docs/tokens.json --setup docs/SETUP.md    also rewrite the table in SETUP.md
 
 Every API response is one or more transcript lines with the same message id and request id, each carrying the
 response's usage: a response is counted once. The arena rows come from docs/arena-results.json and the Jev call
@@ -160,7 +161,7 @@ def arena_section(results: dict) -> dict:
 
 
 def jev_section(results: dict, benchmark: str) -> dict:
-    """Jev is counted in calls: its API answers with a choice and reports no tokens."""
+    """Jev is counted in calls: its API returns usage with every answer, but nothing in this repository recorded it."""
     arena_calls = []
     for track, block in (('rail', results), ('lab', results.get('lab') or {})):
         for contestant in block.get('contestants', []):
@@ -173,7 +174,8 @@ def jev_section(results: dict, benchmark: str) -> dict:
                                         'calls': round(figures['runs'] * figures['decisionsPerRun'])})
     asked = re.search(r'Decisions asked: (\d+)', benchmark)
     return {
-        'method': 'Calls, not tokens: the Jev API answers with a choice and its probabilities and reports no token count.',
+        'method': 'Calls, not tokens: the Jev API returns a usage field with every answer (docs/JEV.md), but the game, the '
+                  'benchmark and the arena runner did not record it.',
         'tokens': 'not measured',
         'benchmarkCalls': int(asked.group(1)) if asked else None,
         'benchmarkSource': 'docs/BENCHMARK.md, "Decisions asked", the last full benchmark run; earlier runs were overwritten',
@@ -198,9 +200,60 @@ def grand_total(claude_code: dict, arena: dict) -> dict:
     }
 
 
+SETUP_START = '<!-- tokens:start -->'
+SETUP_END = '<!-- tokens:end -->'
+
+
+def models_of(row: dict) -> str:
+    main = ', '.join(f'`{model}`' for model in row['mainModels'])
+    sub = ', '.join(f'`{model}`' for model in row['subagentModels'])
+    return f'{main}; subagents {sub}' if sub else main
+
+
+def setup_block(document: dict) -> str:
+    """The token table of docs/SETUP.md, from the document just written, so the two never disagree."""
+    claude, arena, jev = document['claudeCode'], document['arena'], document['jev']
+    cells = ('totalTokens', 'inputTokens', 'outputTokens', 'cacheWriteTokens', 'cacheReadTokens', 'apiResponses')
+    lines = [
+        SETUP_START,
+        f"Measured at {document['generatedAt']}, counting from {document['since']} (docs/tokens.json, written by "
+        '`python3 scripts/tokens.py`). The sessions were still running, so the figures keep growing until they stop.',
+        '',
+        '| Claude Code session | Model in its transcript | Total tokens | Input | Output | Cache write | Cache read | API responses |',
+        '|---|---|---|---|---|---|---|---|',
+        *(f"| {row['name']} | {models_of(row)} | " + ' | '.join(f'{row[cell]:,}' for cell in cells) + ' |' for row in claude['sessions']),
+        '| **All sessions** | | ' + ' | '.join(f"**{claude['total'][cell]:,}**" for cell in cells) + ' |',
+        '',
+        f"- Measured total: {document['total']['measuredTokens']:,} tokens = {document['total']['claudeCodeTokens']:,} in Claude Code "
+        f"+ {document['total']['arenaApiTokens']:,} in the arena tables.",
+        f"- {claude['total']['cacheReadTokens'] / claude['total']['totalTokens']:.1%} of the Claude Code figure is cache reads: the "
+        'conversation so far, re-read from the cache on every turn. Total = input + output + cache write + cache read, the sum '
+        '`ccusage` reports.',
+        f"- Arena API: {arena['total']['inputTokens']:,} input and {arena['total']['outputTokens']:,} output tokens over the "
+        f"{len(arena['rows'])} paid rows of the published tables, US${arena['total']['costUsd']}; the facts-only columns cost another "
+        f"US${arena['total']['factsColumnCostUsd']} and their tokens were not recorded.",
+        f"- Jev is counted in calls, not tokens: {jev['benchmarkCalls']:,} in the last benchmark run and "
+        f"{jev['arenaCallsTotal']:,} in the published arena tables. Its tokens: not measured (the API returns usage with every answer, docs/JEV.md, but nothing recorded it).",
+        '- Not measured, and not estimated: ' + '; '.join(f"{entry['what']} ({entry['why']})" for entry in document['notMeasured'])
+        + f". Also: {arena['notMeasured']} {jev['notMeasured']}",
+        SETUP_END,
+    ]
+    return '\n'.join(lines)
+
+
+def write_setup(target: Path, document: dict) -> None:
+    text = target.read_text()
+    if SETUP_START not in text or SETUP_END not in text:
+        sys.exit(f'{target} has no {SETUP_START} … {SETUP_END} block')
+    before, rest = text.split(SETUP_START, 1)
+    target.write_text(before + setup_block(document) + rest.split(SETUP_END, 1)[1])
+    print(f'rewrote the token table in {target}')
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument('--write')
+    parser.add_argument('--setup')
     args = parser.parse_args()
     if not PROJECT.is_dir():
         sys.exit(f'no Claude Code transcripts for this checkout under ~/.claude/projects/{PROJECT.name}')
@@ -240,6 +293,8 @@ def main() -> None:
         target = Path(args.write)
         target.write_text(json.dumps(document, indent=2, ensure_ascii=False) + '\n')
         print(f'wrote {target}')
+        if args.setup:
+            write_setup(Path(args.setup), document)
 
 if __name__ == '__main__':
     main()
