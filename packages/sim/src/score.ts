@@ -120,6 +120,7 @@ function breakdown(state: RunState, scanPenaltyS: number, scanBonus: number): No
     damageByCause,
     scansDone: state.scans.done.length,
     scansMissed: state.scans.missed.length,
+    landings: { ...stats.landings },
     decisions: {},
     ...(listed.length > 0 ? { losses: listed, biggestLoss: listed[0]! } : {}),
     tryNext: worst[1] >= 8 ? worst[2] : state.finished ? 'Clean run: try a faster build, or more throttle where the ground allows it' : 'Check the test run: the build is missing something this mission needs',

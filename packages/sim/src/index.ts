@@ -17,6 +17,7 @@ export {
 } from './perception';
 export { score, why, whyLine } from './score';
 export { heuristicBrain, heuristicDecide, randomBrain, utility } from './brains';
-export { controlToAction, decisionLog, driveController, runController, runHeadless, runHeuristicSync } from './controller';
+export { controlToAction, decisionLog, driveController, replayDrive, runController, runHeadless, runHeuristicSync } from './controller';
 export { assessBuild, capabilities, capabilityList, meetsDemand, missionDemands, partGives, partsProviding } from './strategy';
 export type { BuildAssessment, Capabilities, CapabilityId, CapabilityItem, DemandTest, SegmentAssessment, SegmentDemand, SegmentVerdict } from './strategy';
+export type { DriveLogEntry } from './controller';

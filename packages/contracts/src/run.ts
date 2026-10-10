@@ -90,6 +90,8 @@ export const OutcomeSchema = z.object({
     damageByCause: z.object({ impact: z.number().min(0), landing: z.number().min(0), water: z.number().min(0), tipOver: z.number().min(0), fall: z.number().min(0) }),
     scansDone: z.number().int().min(0),
     scansMissed: z.number().int().min(0),
+    /** Landings by grade: within 10° of level clean, 10–30° hard, over 30° nose-first a crash. */
+    landings: z.object({ clean: z.number().int().min(0), hard: z.number().int().min(0), crash: z.number().int().min(0) }).optional(),
     /** Decisions by trigger kind, e.g. { perception: 3, energy: 2, body: 2 }. */
     decisions: z.partialRecord(TriggerKindSchema, z.number().int().min(0)),
     /** One line on what to try next, from the biggest loss. */
@@ -107,8 +109,11 @@ export const OutcomeSchema = z.object({
       id: z.string().optional(),
       t: z.number(), xM: z.number(), label: z.string(), cause: TriggerCauseSchema, humanS: z.number().min(0).nullable(),
     })).optional(),
-    /** Drive mode: the player's controls, one entry per change, in sim time. */
-    inputLog: z.array(z.object({ t: z.number(), throttle: z.number().min(0).max(1), brake: z.number().min(0).max(1), special: ControlSpecialSchema.optional(), action: ActionSchema })).optional(),
+    /**
+     * Drive mode: the player's controls, one entry per change. `t` is the sim clock at the start of the step the input
+     * first applied to, so replaying the log step by step reproduces the run exactly (`replayDrive` in the sim).
+     */
+    inputLog: z.array(z.object({ t: z.number(), throttle: z.number().min(0).max(1), brake: z.number().min(0).max(1), special: ControlSpecialSchema.optional(), jumpHeld: z.boolean().optional(), action: ActionSchema })).optional(),
   }).optional(),
   /** One-line explanation derived by the sim from ground truth, e.g. "Slipped 6 s on ice — no IMU". */
   why: z.string().max(200).optional(),

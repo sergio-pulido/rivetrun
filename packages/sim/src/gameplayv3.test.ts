@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Action, Brain, Build, Mission, RunEvent } from '@rivetrun/contracts';
-import { MISSIONS, PRESETS, controlToAction, createRun, runController, driveController, driveSeed, heuristicBrain, heuristicDecide, jumpChargePower, runHeadless, safeSpeedMps, step } from './index';
+import { MISSIONS, PRESETS, controlToAction, createRun, replayDrive, runController, driveController, driveSeed, heuristicBrain, heuristicDecide, jumpChargePower, runHeadless, safeSpeedMps, step } from './index';
 
 const allRounder = PRESETS.all_rounder.build;
 /** The heuristic, with every throttle level replaced by one pace. */
@@ -261,6 +261,8 @@ describe('gameplay v3: result breakdown', () => {
     const losses = breakdown.losses ?? [];
     expect(losses.every((loss, i) => loss.points > 0 && (i === 0 || loss.points <= losses[i - 1]!.points))).toBe(true);
     expect(breakdown.biggestLoss).toEqual(losses[0]);
+    // M3 ends with a 0.6 m drop: every run that gets there lands once.
+    expect(breakdown.landings!.clean + breakdown.landings!.hard + breakdown.landings!.crash).toBeLessThanOrEqual(1);
   };
 
   it('a Jev-mode run and a Drive run both carry slip time, damage by cause, scans and the biggest loss', async () => {
@@ -270,5 +272,43 @@ describe('gameplay v3: result breakdown', () => {
     const driven = await driveController({ mission: MISSIONS.M3, seed: 3, build: allRounder, priority: 0.5 }, () => ({ throttle: 1, brake: 0 }), { onEvent: () => undefined, timeScale: 300, hints: false }).start();
     check(driven.outcome.breakdown!);
     expect(driven.outcome.breakdown!.inputLog).toBeDefined();
+  }, 30000);
+});
+
+describe('a logged Drive run replays to the identical outcome', () => {
+  /** A scripted player: throttle that varies, a brake dab, and the piston (charged and instant) when the build has one. */
+  const drive = async (mission: Mission, build: Build) => {
+    let t = 0;
+    const config = { mission, seed: driveSeed(mission), build, priority: 0.5 };
+    const controller = driveController(
+      config,
+      () => {
+        const phase = Math.floor(t / 1.3) % 5;
+        const brake = phase === 3 ? 0.4 : 0;
+        const throttle = brake > 0 ? 0 : [1, 0.6, 1, 0, 0.9][phase]!;
+        const jumping = Math.floor(t) % 6;
+        return { throttle, brake, ...(jumping === 2 ? { jumpHeld: true } : {}), ...(jumping === 5 && t % 1 < 0.1 ? { special: 'jump' as const } : {}) };
+      },
+      { hints: false, timeScale: 300, onEvent: (event) => { if (event.type === 'frame') t = event.state.t; } },
+    );
+    return { config, episode: await controller.start() };
+  };
+
+  it('on M1 with the All-rounder and on M7 with a piston build', async () => {
+    const cases: [Mission, Build][] = [[MISSIONS.M1, allRounder], [MISSIONS.M7, { ...allRounder, extras: ['piston_jump', 'bumper'] }]];
+    for (const [mission, build] of cases) {
+      const live = await drive(mission, build);
+      const log = live.episode.outcome.breakdown!.inputLog!;
+      expect(log.length).toBeGreaterThan(5);
+      const replayed = replayDrive(live.config, log);
+      const strip = ({ reactions: _reactions, inputLog: _inputLog, ...rest }: NonNullable<typeof live.episode.outcome.breakdown>) => rest;
+      expect(replayed.episode.outcome.timeS, mission.id).toBe(live.episode.outcome.timeS);
+      expect({ ...replayed.episode.outcome, breakdown: strip(replayed.episode.outcome.breakdown!) }, mission.id)
+        .toEqual({ ...live.episode.outcome, breakdown: strip(live.episode.outcome.breakdown!) });
+      expect(replayed.ghost.policy).toBe('human');
+      expect(replayed.ghost.frames.length).toBeGreaterThan(50);
+      // A different log is a different run.
+      expect(replayDrive(live.config, [{ t: 0, throttle: 0.6, brake: 0, action: 'cruise' }]).episode.outcome).not.toEqual(replayed.episode.outcome);
+    }
   }, 30000);
 });

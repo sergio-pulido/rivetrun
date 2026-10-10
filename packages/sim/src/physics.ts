@@ -171,7 +171,7 @@ export function createRun(config: RunConfig): RunState {
       slipping: false, gusting: false, tiltBand: 0, energyLow: false, stallMark: 0, stopTold: false, jumpReady: true, damageStep: 0,
     },
     finished: false,
-    stats: { slipSByTerrain: {}, slipLostS: 0, landingDamage: 0, fallDamage: 0, damageByCause: {}, lastTerrain: first.terrain },
+    stats: { slipSByTerrain: {}, slipLostS: 0, landingDamage: 0, fallDamage: 0, damageByCause: {}, lastTerrain: first.terrain, landings: { clean: 0, hard: 0, crash: 0 } },
   };
 }
 
@@ -567,6 +567,7 @@ export function step(state: RunState, action: Action): RunState {
     }
   }
   if (stats.lastTerrain !== terrainId) stats = { ...stats, lastTerrain: terrainId };
+  if (lastAir?.type === 'landed' && lastAir.grade) stats = { ...stats, landings: { ...stats.landings, [lastAir.grade]: stats.landings[lastAir.grade] + 1 } };
 
   const progressed = x > state.bestX + 0.02;
   const bestX = progressed ? x : state.bestX;

@@ -12,6 +12,7 @@ import type {
   Trigger,
   TriggerCause,
   Episode,
+  GhostTrace,
   Mission,
   Policy,
   RunEvent,
@@ -35,7 +36,8 @@ const MAX_DECISIONS = 2000;
 const OBSERVE_EVERY_STEPS = 4;
 /** Drive mode: a control change within this long of a trigger counts as the player's reaction to it. */
 const REACTION_WINDOW_S = 3;
-const MAX_INPUT_LOG = 2000;
+/** One entry per step at most: the longest run always fits, so a logged run can be replayed in full. */
+const MAX_INPUT_LOG = Math.ceil((TUNING.maxRunS * 1000) / TUNING.dtMs);
 const TICK_MS = 16;
 const MAX_FRAME_MS = 100;
 /** Continuous damage (water, tip-over) is reported in chunks of this size. */
@@ -275,6 +277,51 @@ export function controlToAction(input: ControlInput, build: Build): Action {
   return 'coast';
 }
 
+export interface DriveLogEntry {
+  readonly t: number;
+  readonly throttle: number;
+  readonly brake: number;
+  readonly special?: ControlInput['special'];
+  readonly jumpHeld?: boolean;
+  readonly action: Action;
+}
+
+/** One step of a player's run: the input as an action, the piston charging while the button is held and firing on release. */
+function driveStep(state: RunState, input: ControlInput, chargeS: number, build: Build): { state: RunState; action: Action; chargeS: number } {
+  const charging = input.jumpHeld === true && state.spec.jumpImpulseMps > 0 && state.sim.t >= state.jumpReadyT && !state.airborne;
+  const release = !charging && chargeS > 0;
+  const action = release ? 'jump' : controlToAction(input, build);
+  const held = charging ? chargeS + TUNING.dtMs / 1000 : chargeS;
+  const next = step({ ...state, jumpChargeS: charging ? held : undefined, ...(release ? { jumpPower: jumpChargePower(chargeS) } : {}) }, action);
+  return { state: next, action, chargeS: release ? 0 : held };
+}
+
+/**
+ * Replays a logged Drive run without a player or a clock: the same mission, seed, build and input log give the same
+ * run, step for step. For the Brain Arena's human rows and for checking a submitted run.
+ */
+export function replayDrive(config: RunConfig, inputLog: readonly DriveLogEntry[]): { episode: Episode; ghost: GhostTrace } {
+  let state = createRun({ ...config, manual: true });
+  let chargeS = 0;
+  let cursor = -1;
+  const frames: SimState[] = [state.sim];
+  const frameEvery = Math.max(1, Math.round(1000 / TUNING.ghostHz / TUNING.dtMs));
+  while (!state.done) {
+    while (cursor + 1 < inputLog.length && inputLog[cursor + 1]!.t <= state.sim.t + 1e-9) cursor += 1;
+    const entry = cursor >= 0 ? inputLog[cursor]! : undefined;
+    const input: ControlInput = entry
+      ? { throttle: entry.throttle, brake: entry.brake, ...(entry.special ? { special: entry.special } : {}), ...(entry.jumpHeld ? { jumpHeld: true } : {}) }
+      : { throttle: 0, brake: 0 };
+    const driven = driveStep(state, input, chargeS, config.build);
+    // The live loop runs the trigger detector after every step; its memory is part of the state, so the replay does too.
+    state = advanceBrain(driven.state).state;
+    chargeS = driven.chargeS;
+    if (state.stepCount % frameEvery === 0 || state.done) frames.push(state.sim);
+  }
+  const episode = toEpisode(state, [], 'human', `${config.mission.id}-${state.config.seed}-human-replay`);
+  return { episode, ghost: { policy: 'human', frames, outcome: episode.outcome } };
+}
+
 /**
  * Drive mode loop: every 50 ms step reads the player's input (20 Hz) and applies it. No decisions, no slow-mo.
  * Emits the same RunEvent stream as runController and resolves with an Episode whose policy is 'human'.
@@ -292,8 +339,8 @@ export function driveController(config: RunConfig, readInput: () => ControlInput
       let state = createRun({ ...config, manual: true });
       const pendingDamage: Partial<Record<DamageCause, number>> = {};
       const reactions: { id?: string; t: number; xM: number; label: string; cause: TriggerCause; humanS: number | null }[] = [];
-      const inputLog: { t: number; throttle: number; brake: number; special?: ControlInput['special']; action: Action }[] = [];
-      let lastInput: { throttle: number; brake: number; special?: ControlInput['special'] } = { throttle: -1, brake: -1 };
+      const inputLog: DriveLogEntry[] = [];
+      let lastInput: { throttle: number; brake: number; special?: ControlInput['special']; jumpHeld: boolean } = { throttle: -1, brake: -1, jumpHeld: false };
       let lastAction: Action | undefined;
       // Charged jump: seconds the button has been held; fires when it is let go.
       let chargeS = 0;
@@ -315,21 +362,21 @@ export function driveController(config: RunConfig, readInput: () => ControlInput
           accumulatedMs -= TUNING.dtMs;
           const prev = state;
           const input = readInput();
-          const charging = input.jumpHeld === true && state.spec.jumpImpulseMps > 0 && state.sim.t >= state.jumpReadyT && !state.airborne;
-          const release = !charging && chargeS > 0;
-          const action = release ? 'jump' : controlToAction(input, config.build);
-          if (charging) chargeS += TUNING.dtMs / 1000;
-          state = step({ ...state, jumpChargeS: charging ? chargeS : undefined, ...(release ? { jumpPower: jumpChargePower(chargeS) } : {}) }, action);
-          if (release) chargeS = 0;
+          const driven = driveStep(state, input, chargeS, config.build);
+          const action = driven.action;
+          state = driven.state;
+          chargeS = driven.chargeS;
           emitStepEvents(emit, prev, state, pendingDamage);
           if (state.stepCount % OBSERVE_EVERY_STEPS === 0) {
             emit({ type: 'observation', t: state.sim.t, observation: observe(state), control: { throttle: level(input.throttle), brake: level(input.brake), action } });
           }
           const throttle = level(input.throttle);
           const brake = level(input.brake);
-          if (throttle !== lastInput.throttle || brake !== lastInput.brake || input.special !== lastInput.special) {
-            lastInput = { throttle, brake, special: input.special };
-            if (inputLog.length < MAX_INPUT_LOG) inputLog.push({ t: state.sim.t, throttle, brake, ...(input.special ? { special: input.special } : {}), action });
+          const jumpHeld = input.jumpHeld === true;
+          if (throttle !== lastInput.throttle || brake !== lastInput.brake || input.special !== lastInput.special || jumpHeld !== lastInput.jumpHeld) {
+            lastInput = { throttle, brake, special: input.special, jumpHeld };
+            // Stamped with the clock the step started on: the replay looks inputs up by it.
+            if (inputLog.length < MAX_INPUT_LOG) inputLog.push({ t: prev.sim.t, throttle, brake, ...(input.special ? { special: input.special } : {}), ...(jumpHeld ? { jumpHeld } : {}), action });
           }
           // Reaction: the first change of command after something was detected.
           if (lastAction !== undefined && action !== lastAction) {

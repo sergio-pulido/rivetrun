@@ -80,6 +80,8 @@ export interface RunStats {
   readonly damageByCause: Partial<Record<DamageCause, number>>;
   readonly worstImpact?: { readonly obstacle?: Obstacle; readonly roughEntry?: TerrainId; readonly air?: 'landing' | 'fall'; readonly blocked?: boolean; readonly speedMps: number; readonly amountPct: number };
   readonly lastTerrain: TerrainId;
+  /** Landings by grade. */
+  readonly landings: { readonly clean: number; readonly hard: number; readonly crash: number };
 }
 
 /**
