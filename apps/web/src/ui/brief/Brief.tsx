@@ -147,13 +147,15 @@ export function Brief({ missionId }: { readonly missionId: MissionId }) {
     <Shell
       back="/workshop"
       title={`Mission 0${mission.id.slice(1)}`}
+      wide
+      bodyClassName="lg:grid lg:grid-cols-2 lg:items-start lg:gap-x-6 lg:gap-y-4"
       footer={
         overBudget ? (
           <Link href="/workshop" className="rr-btn rr-btn-secondary w-full !min-h-[60px] !rounded-2xl">
             Over budget by €{stats.overBudgetEur} · fix in Workshop
           </Link>
         ) : (
-          <div className="flex flex-col gap-1.5">
+          <div className="flex flex-col gap-1.5 lg:mx-auto lg:max-w-[560px]">
             {/* Never blocks: the button stays live. The line only says who the ghost will be if you start now. */}
             {mode === 'drive' && (rivalStatus === 'computing' || rivalStatus === 'unavailable') ? (
               <p role="status" className={`text-center text-[11px] font-medium leading-tight ${rivalStatus === 'computing' ? 'text-cyan-soft' : 'text-warn'}`}>
@@ -168,8 +170,8 @@ export function Brief({ missionId }: { readonly missionId: MissionId }) {
         )
       }
     >
-      <section className="rr-rise flex flex-col gap-2">
-        <h2 className="font-display text-4xl font-bold leading-none">{mission.name}</h2>
+      <section className="rr-rise flex flex-col gap-2 lg:col-span-2">
+        <h2 className="font-display text-4xl font-bold leading-none lg:text-6xl">{mission.name}</h2>
         <div className="flex flex-wrap gap-1.5">
           {conditionChips(mission).map((chip, index) => (
             <span key={chip} className="rr-chip">
@@ -180,6 +182,9 @@ export function Brief({ missionId }: { readonly missionId: MissionId }) {
         </div>
       </section>
 
+      {/* Wide screens: the mission on the left, the choice of driver on the right. On a phone these two wrappers have no
+          box, so the screen is one column in the same order as before. */}
+      <div className="contents lg:flex lg:flex-col lg:gap-3">
       <section className="rr-card rr-rise !rounded-2xl px-3 pb-2.5 pt-3" style={{ ['--i' as string]: 1 }}>
         <TrackProfile mission={mission} />
       </section>
@@ -187,7 +192,10 @@ export function Brief({ missionId }: { readonly missionId: MissionId }) {
       {/* A build that cannot finish goes above the fold, next to its fix; otherwise the robot is a footnote. */}
       {blocked ? robotCard : null}
 
-      <ObjectivesCard mission={mission} build={build} />
+      {/* On wide screens the objectives sit beside the sensing panel, further down. */}
+      <div className="contents lg:hidden">
+        <ObjectivesCard mission={mission} build={build} />
+      </div>
 
       <WeatherCard mission={mission} build={build} />
 
@@ -204,6 +212,9 @@ export function Brief({ missionId }: { readonly missionId: MissionId }) {
         </section>
       ) : null}
 
+      </div>
+
+      <div className="contents lg:flex lg:flex-col lg:gap-3">
       {/* Who drives comes before the detail: it is the one choice this screen asks for. */}
       <section className="rr-rise flex flex-col gap-1.5" style={{ ['--i' as string]: 2 }}>
         <ModeSwitch />
@@ -226,16 +237,27 @@ export function Brief({ missionId }: { readonly missionId: MissionId }) {
       )}
 
       <PersonalBestCard mission={mission} build={build} />
+      </div>
 
-      <div className="rr-rise" style={{ ['--i' as string]: 4 }}>
+      {/* Wide screens only: objectives and sensing side by side, both open. */}
+      <div className="hidden lg:col-span-2 lg:grid lg:grid-cols-2 lg:items-start lg:gap-6">
+        <ObjectivesCard mission={mission} build={build} />
+        <SensePanel build={build} />
+      </div>
+
+      <div className="rr-rise lg:col-span-2" style={{ ['--i' as string]: 4 }}>
         <ScenarioStrip segments={scenario} buildName={buildName(build)} />
       </div>
 
-      <TestRun mission={mission} result={testRun} />
+      <div className="contents lg:col-span-2 lg:block">
+        <TestRun mission={mission} result={testRun} />
+      </div>
 
-      <SensePanel build={build} folded />
+      <div className="contents lg:hidden">
+        <SensePanel build={build} folded />
+      </div>
 
-      {blocked ? null : robotCard}
+      {blocked ? null : <div className="contents lg:col-span-2 lg:block">{robotCard}</div>}
     </Shell>
   );
 }
