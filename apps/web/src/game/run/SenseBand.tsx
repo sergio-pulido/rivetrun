@@ -130,7 +130,7 @@ export function SenseBand({ layout, pose, feed, senses }: SenseBandProps) {
     <>
       <mesh ref={mesh} geometry={geometry} material={material} frustumCulled={false} renderOrder={2} visible={false} />
       <group ref={label} visible={false}>
-        <Tag text={blind ? 'BLIND' : observed !== null && senses.ranges[0] ? `${senses.ranges[0].label} ${observed} m` : senseLabel(senses)} color={blind ? UI.bad : UI.cyan} y={0.3} />
+        <Tag text={blind ? 'BLIND' : observed !== null && Math.abs(observed - senses.forwardM) > 0.25 ? `SENSES ${observed} m` : senseLabel(senses)} color={blind ? UI.bad : UI.cyan} y={0.3} />
       </group>
     </>
   );

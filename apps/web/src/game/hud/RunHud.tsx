@@ -227,8 +227,14 @@ function SenseChip({ senses, observedM }: { senses: Senses; observedM?: number }
       ) : (
         <>
           <span style={{ color: UI.dim }}>SENSES AHEAD · </span>
-          {senses.ranges.map((range) => `${range.label} ${Number.isInteger(range.rangeM) ? range.rangeM : range.rangeM.toFixed(1)} m`).join(' · ')}
-          {cut && <span style={{ color: UI.warn }}> · {observedM.toFixed(observedM < 10 ? 1 : 0)} m in this weather</span>}
+          {/* In bad weather the real reach comes first; the parts' rated ranges follow, dimmed. */}
+          {cut && (
+            <>
+              <span style={{ color: UI.warn, fontWeight: 600 }}>{observedM.toFixed(observedM < 10 ? 1 : 0)} m in this weather</span>
+              <span style={{ color: UI.dim }}> · rated </span>
+            </>
+          )}
+          <span style={cut ? { color: UI.dim } : undefined}>{senses.ranges.map((range) => `${range.label} ${Number.isInteger(range.rangeM) ? range.rangeM : range.rangeM.toFixed(1)} m`).join(' · ')}</span>
         </>
       )}
     </span>
