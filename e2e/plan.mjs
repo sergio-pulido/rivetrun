@@ -1,7 +1,7 @@
 // RivetRun e2e for RR-PLAN (owner: [MASTER], docs/PLAY_AND_PLAN.md): /play and the Lab Analyze panel.
 // These are the NEW flows. They never decide a tag: scripts/qa.sh prints their lines and tags on the old flows alone.
 //   QA_BASE_URL=http://127.0.0.1:3100 node e2e/plan.mjs      all steps
-//   QA_ONLY=play node e2e/plan.mjs                            one group: api | play | analyze
+//   QA_ONLY=play node e2e/plan.mjs                            one group: api | play | missions | analyze
 // Its rooms are test rooms (/play?test=1, { test: true }): the server keeps them off every board.
 // No model is called: POST /api/plan is answered inside the browser with a fixed plan (the "stubbed model").
 // Exit code: 0 when no step failed (skips are allowed), 1 otherwise. A summary lands in <QA_SCREENS>/plan-summary.json.
@@ -265,6 +265,49 @@ async function playSteps(browser) {
   await b.context.close();
 }
 
+/**
+ * The mission step of the 14:00 amendment, which [UI] ships behind a switch (/play?missions=1): no room is asked for
+ * before a mission is taken; the tap seats the phone in that mission's room. Checked up to the waiting step only.
+ */
+async function missionSteps(browser) {
+  const phone = await phoneOnPlay(browser, 'play-missions');
+  const matches = [];
+  phone.page.on('request', (request) => {
+    if (request.method() === 'POST' && /\/api\/race\/match$/.test(request.url())) matches.push(request.postDataJSON?.() ?? {});
+  });
+  await step('/play · mission step', async () => {
+    const status = await go(phone.page, '/play?test=1&missions=1');
+    if (status === 404) throw new Skip('/play is not built yet (404)');
+    await phone.page.locator(id('play')).first().waitFor({ state: 'visible', timeout: 30_000 });
+    const first = await waitForStep(phone.page, ['mission', 'vehicle', 'wait', 'unavailable'], 15_000);
+    if (first !== 'mission') throw new Skip(`no mission step behind ?missions=1 (the page opened on "${first}")`);
+    const offered = await phone.page.locator('[data-testid^="play-mission-M"]').evaluateAll((cards) => cards.map((card) => card.getAttribute('data-testid').replace('play-mission-', '')));
+    if (offered.length < 2) throw new Error(`the mission step offers ${offered.length} mission(s): ${offered.join(', ')}`);
+    const early = matches.length;
+    await sleep(600);
+    await shot(phone.page, 'play-08-missions');
+    // Not the first card: the room must be the tapped mission's, not the default one.
+    const wanted = offered[1];
+    await tap(phone.page, id(`play-mission-${wanted}`), `${wanted} mission`);
+    await waitForStep(phone.page, ['vehicle'], 15_000);
+    const asked = matches[matches.length - 1] ?? {};
+    if (asked.missionId !== wanted) throw new Error(`the match was asked with missionId ${JSON.stringify(asked.missionId)} after tapping ${wanted}`);
+    const room = await text(phone.page.locator(id('play-room')));
+    const shown = await text(phone.page.locator(id('play-mission')));
+    await tap(phone.page, '[data-testid^="play-vehicle-"]', 'a vehicle');
+    await waitForStep(phone.page, ['agent'], 5000);
+    await tap(phone.page, '[data-testid^="play-agent-jev"]', 'Jev driver');
+    await waitForStep(phone.page, ['waiting', 'strategy'], 5000);
+    await shot(phone.page, 'play-09-mission-waiting');
+    await assertHealthy(phone.page, phone.seen);
+    const snapshot = room ? await fetch(`${BASE}/api/race/${room}`).then((response) => response.json()).catch(() => null) : null;
+    const roomMission = payload(snapshot)?.missionId ?? payload(snapshot)?.room?.missionId ?? null;
+    if (roomMission && roomMission !== wanted) throw new Error(`room ${room} runs ${roomMission}, the phone tapped ${wanted}`);
+    return `missions offered: ${offered.join(', ')}; ${early === 0 ? 'no room asked for before the tap' : `${early} match call(s) BEFORE the tap`}; tapped ${wanted} → room ${room}${roomMission ? ` on ${roomMission}` : ''}; the page says "${shown.slice(0, 50)}"`;
+  }, phone.page);
+  await phone.context.close();
+}
+
 // ---- The match and pick routes, without a browser --------------------------------------------------------------------
 
 async function apiSteps() {
@@ -460,6 +503,7 @@ const browser = await chromium.launch({
 try {
   if (wants('analyze')) await analyzeSteps(browser);
   if (wants('play')) await playSteps(browser);
+  if (wants('missions')) await missionSteps(browser);
   // Last: its room stays in the lobby for 30 s, and the phones above must not be matched into it.
   if (wants('api')) await apiSteps();
 } finally {
