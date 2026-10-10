@@ -115,7 +115,8 @@ export function SceneFrame({ children, camera, label, tips = false, bare = false
       {phase !== 'failed' && (
         <SceneBoundary onError={fail}>
           <Canvas
-            shadows
+            // Weak devices (and ?quality=low) skip the shadow pass: it redraws every caster, about a quarter of the draw calls.
+            shadows={!tier.weak}
             dpr={[1, tier.maxDpr]}
             camera={camera}
             gl={{ antialias: true, alpha, powerPreference: 'high-performance' }}

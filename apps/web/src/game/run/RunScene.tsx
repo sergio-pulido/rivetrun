@@ -2,7 +2,7 @@
 
 import { useFrame, useThree } from '@react-three/fiber';
 import { useCallback, useEffect, useMemo, useRef, type RefObject } from 'react';
-import { Vector3, type DirectionalLight, type Group, type PerspectiveCamera } from 'three';
+import { CircleGeometry, MeshBasicMaterial, Vector3, type DirectionalLight, type Group, type PerspectiveCamera } from 'three';
 import type { Build, GhostTrace, Mission, Policy, SimEffect } from '@rivetrun/contracts';
 import { TUNING, deriveSpec } from '@rivetrun/sim';
 import { atmosphereOf, weatherOverride } from '../atmosphere';
@@ -40,9 +40,14 @@ interface PlayerProps {
   hands?: DriveInput;
   /** Night mission and a build whose lights switch themselves on. */
   lights?: boolean;
+  /** No shadow pass on this device: a soft blob under the robot stands in for its shadow. */
+  blob?: boolean;
 }
 
-function Player({ feed, build, layout, pose, timeScale, particles, hands, lights = false }: PlayerProps) {
+const BLOB = new CircleGeometry(1, 20).rotateX(-Math.PI / 2);
+const BLOB_MATERIAL = new MeshBasicMaterial({ color: '#000000', transparent: true, opacity: 0.26, depthWrite: false, fog: false });
+
+function Player({ feed, build, layout, pose, timeScale, particles, hands, lights = false, blob = false }: PlayerProps) {
   const group = useRef<Group>(null);
   const drive = useRef<RobotDrive>(restDrive());
   const riding = useRef(restRide());
@@ -202,6 +207,7 @@ function Player({ feed, build, layout, pose, timeScale, particles, hands, lights
     <group ref={group} visible={false}>
       <RobotModel build={build} drive={drive} droneAway />
       {lights && <Headlights nose={stance.nose} />}
+      {blob && <mesh geometry={BLOB} material={BLOB_MATERIAL} position={[0, 0.03, 0]} scale={[stance.nose * 1.15, 1, 0.62]} renderOrder={1} />}
       <Tag text={hands ? POLICY_LABEL.human : POLICY_LABEL.jev} color={UI.safety} y={1.95} />
     </group>
   );
@@ -440,7 +446,7 @@ export function RunScene({ mission, build, feed, ghosts = [], particleBudget = 1
       {ghosts.map((trace) => (
         <Ghost key={trace.policy} trace={trace} build={build} layout={layout} pose={pose} timeScale={timeScale} driving={hands !== undefined} />
       ))}
-      <Player feed={feed} build={build} layout={layout} pose={pose} timeScale={timeScale} particles={particles} hands={hands} lights={atmosphere.night && autoLights} />
+      <Player feed={feed} build={build} layout={layout} pose={pose} timeScale={timeScale} particles={particles} hands={hands} lights={atmosphere.night && autoLights} blob={particleBudget < 1} />
       <SenseBand layout={layout} pose={pose} feed={feed} senses={senses} />
       {mission.scanZones && mission.scanZones.length > 0 ? <ScanPads layout={layout} zones={mission.scanZones} build={build} feed={feed} /> : null}
       {hasDrone && <ScoutDroneRig feed={feed} layout={layout} pose={pose} />}
