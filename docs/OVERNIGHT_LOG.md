@@ -35,6 +35,28 @@ Written by [MASTER] for the human. Newest status first. Program: docs/OVERNIGHT.
 
 ## Status log
 
+### 07:20 · status before the 07:30 build
+**Build this: `demo-good-0718`** (8bdc9b3). `pnpm demo:stable -- --ref "$(git tag -l 'demo-good-*' | sort | tail -1)"`. Fifteen tags since 04:26; 208 commits since 03:45. The last five gates were green with 20 e2e steps and no warning; `pnpm demo:stable -- --build-only` last passed at 07:09.
+
+**Since the 05:45 status, in the tag**
+- The arena says what it measures and shows two columns: with the fixed rules' verdict in the question, and on facts alone (Q20). Read the item at the top of "What the human must do" before presenting it.
+- A live Brain Arena race on the big screen (`/screen?room=CODE&arena=1`): one lane per brain, each with its latest response time. Jev against the fixed rules is in the gate; the paid brains were raced by brain on the dev server only (about a cent a race, capped at US$1 per server start).
+- First-timers: the HUD warns before rough ground and before water, says when a pad cannot be scanned and why, says how far short of a pad the robot stopped; the Brief says what locked parts cost and whether Jev is ready; a run nobody touched for 30 s ends as "Never started" instead of "stuck".
+- Phones: one that loses the network for 5 s or reloads mid-race finishes, with one order on every screen; the race result card fits a missed-scan time; a second race on the same phone no longer starts in climb mode.
+- Review rounds by fresh agents found and fixed: every piston jump with the throttle held landed HARD on M7 (sim); Space could bypass the two-tap "End the mission" on Lab Missions and a sensorless robot "sensed 100 % of the map" (lab); an unverified score could reach the leaderboard through a race (brain).
+- Lab Missions: live Jev with FALLBACK, a "Jev decides from facts only" switch, failure cases (network cut, reload, back, sideways phone) all end with a stated result.
+- Docs: `docs/DEMO_RUNBOOK.md`, `docs/SETUP.md`, README, `docs/SIM_MODEL.md`, and a handover per session in `docs/reports/` (brain, game, sim, lab).
+
+**Broken or open**
+- [UI] has three open findings and an untouched block, because it only acts on messages and mine are capped: the arena's facts-only column is off the right edge on a phone (Q26); part names are cut to a few letters on Build it for real (Q27); tapping a Workshop slot tab shows nothing new without scrolling (Q28). Share and Episode on the Result have still never been tested by anyone.
+- Not in any gate and never seen by a session: a real phone (touch, frame rate, sound, the camera fly-in), the MK-II kit on a real GPU, the served demo with the tunnel, two real people in one race.
+- The three Claude rows of the arena are from the previous game version (no API credit).
+
+**Decisions since 05:45**: the facts-only column is reported as measured, with no projected score per option; one last paid arena run (total about US$7.6 of 10); brain's three unhardened findings stay open on purpose; the ghost warm-up is capped and yields to live decisions; only fixes for open findings between 06:46 and the build.
+
+**For you now**: (1) type one word in the [MASTER] session, then in [UI]; (2) build and serve the tag, check the `/screen` footer shows the commit; (3) `docs/DEMO_RUNBOOK.md`; (4) the list under "What the human must do", top to bottom; (5) after the 08:15 stranger test, paste what people stumbled on into the [MASTER] session and I will route it.
+
+
 ### 05:45 · two-hour status
 **Latest tag: `demo-good-0535`** (1a241f5). Eight tags since 04:26, each green on typecheck, unit tests, sim determinism, balance, a production build, and 18 e2e steps on that build. 146 commits since 03:45.
 
