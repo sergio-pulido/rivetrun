@@ -49,6 +49,12 @@ export const secondsLeft = (endsAt: number, now: number): number => Math.max(0, 
 /** How much of the ring is left, 1 → 0. */
 export const ringLeft = (endsAt: number, now: number): number => Math.min(1, Math.max(0, (endsAt - now) / LOBBY_MS));
 
+/**
+ * The AI drivers a phone may pick, by their arena contestant ids, in card order. "You drive" is always offered.
+ * The fallback "Jev and You drive only" is this list cut down to its first entry.
+ */
+export const PLAY_AI_AGENTS: readonly string[] = ['jev-1.13.0', 'gpt-6-luna', 'deepseek-flash'];
+
 /** The taps, in order. The mission tap comes first when the mission step is switched on. */
 export type Step = 'mission' | 'vehicle' | 'agent';
 export type Stage = Step | 'waiting';
