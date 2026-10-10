@@ -1,4 +1,4 @@
-import type { Action, Build, SimState } from '@rivetrun/contracts';
+import type { Action, Build, Outcome, SimState } from '@rivetrun/contracts';
 import { BuildSchema, OutcomeSchema, SimStateSchema } from '@rivetrun/contracts';
 import { replayDrive } from './controller';
 import type { DriveLogEntry } from './controller';
@@ -61,7 +61,7 @@ export interface FuzzResult {
 }
 
 /** `runs` random builds across M1–M9: even runs as a player (logged inputs), odd runs as a brain taking any action. */
-export function fuzz(seed: number, runs: number): FuzzResult {
+export function fuzz(seed: number, runs: number, onOutcome?: (outcome: Outcome, label: string, driver: 'player' | 'brain') => void): FuzzResult {
   const random = mulberry32(seed);
   const violations: string[] = [];
   let finished = 0;
@@ -80,6 +80,7 @@ export function fuzz(seed: number, runs: number): FuzzResult {
         for (const frame of ghost.frames) checkFrame(frame, lengthM, label);
         if (ghost.frames.length >= MAX_STEPS) throw new Error(`${label}: the run did not end`);
         if (!OutcomeSchema.safeParse(episode.outcome).success) throw new Error(`${label}: outcome does not match its schema`);
+        onOutcome?.(episode.outcome, label, 'player');
         if (episode.outcome.finished) finished += 1;
       } else {
         // A brain gone wild: any available action, reverse included, changed at random.
@@ -97,6 +98,7 @@ export function fuzz(seed: number, runs: number): FuzzResult {
         if (!SimStateSchema.safeParse(state.sim).success) throw new Error(`${label}: final state does not match its schema`);
         const outcome = score(state);
         if (!OutcomeSchema.safeParse(outcome).success) throw new Error(`${label}: outcome does not match its schema`);
+        onOutcome?.(outcome, label, 'brain');
         if (outcome.finished) finished += 1;
       }
     } catch (error: unknown) {

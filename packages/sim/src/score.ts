@@ -1,6 +1,7 @@
 import type { Episode, Outcome, TerrainId } from '@rivetrun/contracts';
 import { TERRAINS, TUNING } from './data';
-import { ACTION_PROFILES, PHYSICS, SCAN_RULES } from './physics';
+import { ACTION_PROFILES, PHYSICS, SCAN_RULES, safeContactSpeedMps } from './physics';
+import { canScan } from './weather';
 import type { RunState } from './types';
 
 const round1 = (value: number): number => Math.round(value * 10) / 10;
@@ -17,14 +18,19 @@ export function why(state: RunState): string {
   const impactTotal = stats.damageByCause.impact ?? 0;
   const tip = stats.damageByCause.tip_over ?? 0;
 
+  // A player sees the track: what they can change is their speed, not a sensor. A brain could only have known through one.
+  const driven = state.config.manual === true;
+  const badAngle = stats.landings.hard + stats.landings.crash > 0;
   const impactLine = (): string =>
     impact!.air === 'fall'
-      ? `Fell into a gap${state.falls > 1 ? ` ${state.falls} times` : ''}${spec.jumpImpulseMps > 0 ? '' : ' — no piston to jump it'}`
+      ? `Fell into a gap ${state.falls > 1 ? `${state.falls} times` : 'once'} (+${PHYSICS.fallPenaltyS} s and ${PHYSICS.fallDamagePct}% damage each)${spec.jumpImpulseMps > 0 ? '' : ' — no piston to jump it'}`
       : impact!.air === 'landing'
-      ? `Landed hard at ${round1(impact!.speedMps)} m/s${spec.impactDamageFactor < 1 ? '' : ' — no bumper'}`
+      ? driven && badAngle
+        ? `Landed ${stats.landings.crash > 0 ? 'nose-first' : 'at an angle'} — leave the pedals alone in the air and the robot levels itself`
+        : `Landed hard at ${round1(impact!.speedMps)} m/s${spec.impactDamageFactor < 1 ? '' : ' — no bumper'}`
       : impact!.obstacle === undefined
-      ? `Slammed onto ${TERRAINS[impact!.roughEntry ?? 'rock'].name.toLowerCase()} at ${round1(impact!.speedMps)} m/s${has('scout_drone') ? '' : ' — no scout drone to see it in time'}`
-      : `Hit the ${impact!.obstacle} at ${round1(impact!.speedMps)} m/s${has('ultrasonic') ? '' : ' — no ultrasonic to see it coming'}`;
+      ? `Slammed onto ${TERRAINS[impact!.roughEntry ?? 'rock'].name.toLowerCase()} at ${round1(impact!.speedMps)} m/s${driven ? ` — slow to ${PHYSICS.roughEntrySafeMps} m/s before rough ground` : has('scout_drone') ? '' : ' — no scout drone to see it in time'}`
+      : `Hit the ${impact!.obstacle} at ${round1(impact!.speedMps)} m/s${driven ? ` — brake first: this build takes it at ${safeContactSpeedMps(spec, impact!.obstacle)} m/s without damage` : has('ultrasonic') ? '' : ' — no ultrasonic to see it coming'}`;
   // Mud ingress is logged as water damage; name the thing the player actually drove through.
   const hasWater = state.world.segments.some((segment) => segment.terrain === 'water');
   const waterLine = (): string => `Took ${Math.round(water)}% ${hasWater ? 'water' : 'mud ingress'} damage — no waterproof case`;
@@ -75,8 +81,8 @@ export function why(state: RunState): string {
   // A player who spun the wheels to a standstill has a way out that a grip verdict would hide.
   if (state.dnfReason === 'stuck' && state.config.manual && spun) return `Spun the wheels to a standstill on ${terrain} — ease off the throttle or use climb mode`;
   if (state.dnfReason === 'stuck') return `Bogged down on ${terrain} — ${spec.locomotionName.toLowerCase()} could not grip`;
-  if (state.dnfReason === 'battery') return `Battery died on ${terrain} at ${Math.round((sim.x / state.world.lengthM) * 100)}% of the track`;
-  if (state.dnfReason === 'timeout') return `Ran out of time on ${terrain}`;
+  if (state.dnfReason === 'battery') return `Battery died on ${terrain} at ${Math.round((sim.x / state.world.lengthM) * 100)}% of the track — more cells, the larger pack or a steadier throttle`;
+  if (state.dnfReason === 'timeout') return `Ran out of time on ${terrain}: ${TUNING.maxRunS} s is the limit`;
   if (state.dnfReason === 'damage') {
     if (water >= impactTotal && water >= tip && water > 0) return `Drowned the electronics on ${terrain} — no waterproof case`;
     if (impact && impactTotal >= tip) return `Wrecked: ${impactLine().toLowerCase()}`;
@@ -86,6 +92,17 @@ export function why(state: RunState): string {
   if (water >= 3) return waterLine();
   if (worstSlip && worstSlip[1] >= 2) return slipLine();
   if (tip >= 3) return `Scraped ${Math.round(tip)}% off on a slope too steep for ${spec.locomotionName.toLowerCase()}`;
+  // A missed scan costs 10 s (40 points): more than a scratch, so it comes before light damage.
+  const missed = state.scans.missed.length;
+  const dark = state.environment.conditions?.visibility === 'night';
+  if (missed > 0) {
+    const zone = (state.config.mission.scanZones ?? []).find((z) => z.id === state.scans.missed[0]);
+    const able = zone ? canScan(spec, state.environment, zone) : true;
+    const what = missed > 1 ? `${missed} scan zones` : `the ${zone?.label ?? 'scan zone'}`;
+    return able
+      ? `Missed ${what}: +${SCAN_RULES.missPenaltyS} s${missed > 1 ? ' each' : ''} — stop on the pad for ${SCAN_RULES.holdS} s`
+      : `Could not scan ${what}: +${SCAN_RULES.missPenaltyS} s${missed > 1 ? ' each' : ''} — ${dark && (has('camera') || has('scout_drone')) ? 'a camera scan in the dark needs a NoIR camera or the light sensor' : 'this build has no sensor for it'}`;
+  }
   if (impact && impactTotal >= 0.5) return impactLine();
   if (sim.damage < 0.5) return `Clean run: no damage, ${Math.round(sim.battery)}% battery left`;
   return `Finished with ${Math.round(sim.damage)}% damage and ${Math.round(sim.battery)}% battery left`;
@@ -126,7 +143,10 @@ function breakdown(state: RunState, scanPenaltyS: number, scanBonus: number): No
     landings: { ...stats.landings },
     decisions: {},
     ...(listed.length > 0 ? { losses: listed, biggestLoss: listed[0]! } : {}),
-    tryNext: worst[1] >= 8 ? worst[2] : state.finished ? 'Clean run: try a faster build, or more throttle where the ground allows it' : 'Check the test run: the build is missing something this mission needs',
+    tryNext: state.neverStarted ? 'Hold the throttle on the right: the run waits 30 s for a first input'
+      : state.dnfReason === 'battery' ? 'Add battery cells or fit the larger pack, and hold a steadier throttle: per metre, steady costs about 70 % of full'
+      : state.dnfReason === 'timeout' ? 'Keep moving: a run ends after 180 s'
+      : worst[1] >= 8 ? worst[2] : state.finished ? 'Clean run: try a faster build, or more throttle where the ground allows it' : 'Check the test run: the build is missing something this mission needs',
     scanPenaltyS,
     scanBonus,
   };

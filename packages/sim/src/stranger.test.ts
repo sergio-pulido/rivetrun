@@ -10,7 +10,8 @@ describe('the stranger: full throttle and nothing else, on the default build', (
     const outcome = naiveDrive(allRounder, MISSIONS.M1);
     expect(outcome.finished).toBe(true);
     expect(outcome.stars).toBeGreaterThanOrEqual(1);
-    expect(outcome.why).toBe('Hit the step at 2 m/s');
+    // It never stops, so it misses the scan zone: the biggest thing it lost.
+    expect(outcome.why).toBe('Missed the survivor: +10 s — stop on the pad for 1.5 s');
   });
 
   it('never gets stuck on M1 at full throttle, whatever the preset or the drive train', () => {
