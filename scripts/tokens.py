@@ -101,6 +101,8 @@ def session_row(path: Path, since: datetime) -> dict | None:
         'title': title,
         'sessionId': path.stem,
         'models': models,
+        'mainModels': sorted({response['model'] for response in main.values()}),
+        'subagentModels': sorted({response['model'] for response in agents.values()}),
         'inputTokens': sums['input_tokens'],
         'outputTokens': sums['output_tokens'],
         'cacheWriteTokens': sums['cache_creation_input_tokens'],

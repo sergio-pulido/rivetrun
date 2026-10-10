@@ -1,0 +1,170 @@
+{
+  "generatedAt": "2026-10-10T12:36+02:00",
+  "note": "Facts for /lab \"How it was built\" and docs/SETUP.md. Token figures live in docs/tokens.json; commits per session come from the git log. Session models are the ones recorded in each session's local Claude Code transcript.",
+  "sessions": [
+    {
+      "name": "RivetRun monorepo scaffold",
+      "kind": "Claude Code session",
+      "model": "claude-opus-5-5 (subagents: claude-sonnet-5-5)",
+      "tools": [
+        "Claude Code (desktop app)",
+        "pnpm 10",
+        "Turborepo 2"
+      ],
+      "did": "The first half hour on Friday: the monorepo scaffold the six sessions then worked in."
+    },
+    {
+      "name": "[MASTER]",
+      "kind": "Claude Code session",
+      "model": "claude-opus-5-5 (subagents: claude-opus-5-5)",
+      "tools": [
+        "Claude Code (desktop app)",
+        "Playwright (playwright-core 1.58.2, headless Chromium)",
+        "git worktree and tags",
+        "bash",
+        "Python"
+      ],
+      "did": "Orchestrator and QA; wrote no feature code. Kept the order queues in docs/OVERNIGHT.md, wrote the gate (scripts/qa.sh) and the end-to-end smoke (e2e/), gated commits in a clean worktree, cut the demo-good-* tags, kept docs/QA.md and docs/OVERNIGHT_LOG.md, counted the tokens."
+    },
+    {
+      "name": "[SIM]",
+      "kind": "Claude Code session",
+      "model": "claude-opus-5-5 (subagents: claude-sonnet-5-5)",
+      "tools": [
+        "Claude Code (desktop app)",
+        "TypeScript",
+        "Vitest",
+        "scripts/balance.ts"
+      ],
+      "did": "The deterministic simulator in packages/sim: physics, terrain, weather, missions M1–M9, the fixed-rules driver, balance tables, and the run page integration."
+    },
+    {
+      "name": "[GAME]",
+      "kind": "Claude Code session",
+      "model": "claude-opus-5-5",
+      "tools": [
+        "Claude Code (desktop app)",
+        "three.js",
+        "React Three Fiber",
+        "headless Chromium for screenshots"
+      ],
+      "did": "The 3D run view: robot, controls, HUD, effects, sound, the MK-II kit loader, the Workshop stage, the M7 environment."
+    },
+    {
+      "name": "[UI]",
+      "kind": "Claude Code session",
+      "model": "claude-opus-5-5",
+      "tools": [
+        "Claude Code (desktop app)",
+        "Next.js 16",
+        "React 19",
+        "Tailwind CSS 4",
+        "headless Chromium for screenshots"
+      ],
+      "did": "Screens and layouts: Home, Workshop, Brief, Result, /lab, inventory, phone and desktop layouts."
+    },
+    {
+      "name": "[BRAIN]",
+      "kind": "Claude Code session",
+      "model": "claude-opus-5-5 (subagents: claude-sonnet-5-5)",
+      "tools": [
+        "Claude Code (desktop app)",
+        "Jev API (TypeSafe systemone)",
+        "OpenAI, Anthropic and DeepSeek APIs for the arena",
+        "curl"
+      ],
+      "did": "The Jev integration and its fallback to fixed rules, the brain benchmark, the model arena and its runner, Room Race, the big screen, the server APIs, the demo runbook."
+    },
+    {
+      "name": "[LAB]",
+      "kind": "Claude Code session",
+      "model": "claude-opus-5-5 (subagents: claude-sonnet-5-5)",
+      "tools": [
+        "Claude Code (desktop app)",
+        "TypeScript",
+        "Vitest"
+      ],
+      "did": "Lab Missions: the top-down grid scenarios in packages/lab and /scenarios, their arena track, the board drawn with the asset agent's sprites."
+    }
+  ],
+  "otherAgents": [
+    {
+      "name": "Asset agent",
+      "model": "ChatGPT / Codex (model and version not recorded in this repository)",
+      "tools": [
+        "Blender",
+        "Bambu Studio command line"
+      ],
+      "did": "The RIVET MK-II model and its printable parts (sliced with the Bambu Studio command line), the M7 and M9 backdrops and props, the lab sprites, the renders. It cannot be reached by the sessions: the human relays.",
+      "tokens": "not measured"
+    },
+    {
+      "name": "Orchestration chat",
+      "model": "not recorded in this repository",
+      "tools": [],
+      "did": "Wrote the specs and the prompts the human pasted into the sessions.",
+      "tokens": "not measured"
+    },
+    {
+      "name": "Claude Design",
+      "model": "not recorded in this repository",
+      "tools": [],
+      "did": "The first mockups, in docs/design/v1.",
+      "tokens": "not measured"
+    }
+  ],
+  "runtimeModels": [
+    {
+      "name": "Jev",
+      "model": "jev-1.13.0 (TypeSafe systemone)",
+      "use": "The robot's brain in the game: every driving decision in Jev mode, with a 1200 ms fallback to fixed rules."
+    },
+    {
+      "name": "Arena models",
+      "model": "GPT-5 nano (gpt-5-nano); GPT-6 Luna (gpt-6-luna); DeepSeek Flash (deepseek-flash); Claude Haiku 5.5 (claude-haiku-5-5); GPT-5.6 Luna (gpt-5.6-luna); Claude Sonnet 5.5 (claude-sonnet-5-5); GPT-6.1 Sol (reasoning) (gpt-6.1-sol); DeepSeek V4 Pro (reasoning) (deepseek-v4-pro); Claude Opus 5.5 (reasoning) (claude-opus-5-5)",
+      "use": "Benchmarked against Jev on the same robot, seeds, sensors and question (docs/ARENA.md, docs/ARENA_LAB.md). Not used to build the game."
+    }
+  ],
+  "tools": [
+    {
+      "name": "Claude Code",
+      "use": "Six sessions in one checkout on one branch, each owning its paths, committing with explicit pathspecs."
+    },
+    {
+      "name": "Blender",
+      "use": "The asset agent's 3D work: robot, parts, environments, sprites."
+    },
+    {
+      "name": "Bambu Studio command line",
+      "use": "Slices the printable MK-II parts and reports print time and filament (assets/print/mk2)."
+    },
+    {
+      "name": "Playwright",
+      "use": "The end-to-end smoke of the gate: playwright-core 1.58.2 driving headless Chromium at phone and desktop size against a production build."
+    },
+    {
+      "name": "scripts/qa.sh",
+      "use": "The gate: clean worktree, install, typecheck, unit tests, determinism, balance, production build, end-to-end smoke; tags demo-good-<HHMM> when green."
+    },
+    {
+      "name": "Stack",
+      "use": "pnpm 10, Turborepo 2, TypeScript 6, Next.js 16, React 19, three.js with React Three Fiber, Zustand, Zod 4, Tailwind CSS 4, Vitest 5."
+    }
+  ],
+  "agentsDid": [
+    "The application code: simulator, 3D game, screens, brain integration, Room Race, Lab Missions.",
+    "The unit tests, the QA gate and the end-to-end smoke; every demo-good tag.",
+    "The benchmark and arena runs and their published tables.",
+    "The 3D model, printable parts, backdrops, props and sprites (the asset agent).",
+    "The overnight run from 03:46 to about 09:45 with the human away: order queues, gating, findings, status log.",
+    "README, docs/SETUP.md, the runbook, the handover reports and this accounting."
+  ],
+  "humanDid": [
+    "Product decisions: what the game is, what to cut, what the demo shows.",
+    "The specs and the prompts for each session, written with the orchestration chat.",
+    "Relaying between sessions, and between the sessions and the asset agent, which cannot message each other.",
+    "Tests on a real phone.",
+    "Committing docs.",
+    "Kept the API keys and .env files; ran the demo server on :3001 and the tunnel."
+  ]
+}
