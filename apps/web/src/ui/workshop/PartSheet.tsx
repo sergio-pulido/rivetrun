@@ -12,6 +12,7 @@ import { Icon } from '@/ui/Icon';
 import { realForPart, type Bom } from '@/ui/real/bom';
 import type { PartMedia } from '@/ui/real/bomData';
 import { RealComponent } from '@/ui/real/RealComponent';
+import { GivesYourRover } from '@/ui/strategy/GivesYourRover';
 import { PartCanvas } from '@/ui/three';
 import { Stage3D } from '@/ui/three/Stage3D';
 import { PartGlyph } from './PartGlyph';
@@ -128,6 +129,8 @@ export function PartSheet({ part, bom, media }: PartSheetProps) {
         ))}
         <p className="text-xs leading-snug text-[#B8C0C9]">{gets.note}</p>
       </section>
+
+      <GivesYourRover part={part} build={build} />
 
       <section className="flex flex-col gap-1.5">
         <h2 className="rr-label">In the game</h2>
