@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Build, GhostTrace, Mission, SimState } from '@rivetrun/contracts';
 import { DEFAULT_PRESET_ID, MISSIONS, PRESETS } from '@rivetrun/sim';
 import { useRunAudio } from './audio/useRunAudio';
@@ -10,9 +10,14 @@ import { RunHud } from './hud/RunHud';
 import { UI } from './palette';
 import { quality } from './quality';
 import { SceneFrame } from './SceneFrame';
+import { mk2Requested } from './robot/mk2/flag';
+import { preloadMk2 } from './robot/mk2/Mk2Parts';
 import { RunScene } from './run/RunScene';
 import { createRunFeed, type RunFeed } from './runFeed';
 import { useTelemetryOpen } from './telemetry/telemetryStore';
+
+/** A run waits at most this long for the robot's kit before it starts anyway. */
+const KIT_WAIT_MS = 4000;
 
 /** Mobile performance budget from the spec. Weak devices drop to 1 (see quality.ts). */
 export const MAX_DPR = 1.5;
@@ -110,6 +115,33 @@ export default function RunCanvas({ mission = MISSIONS.M5, build = PRESETS[DEFAU
   const dev = useMemo(() => (process.env.NODE_ENV === 'production' ? null : pinnable(activeFeed)), [activeFeed]);
   const tier = quality();
   const telemetryOpen = useTelemetryOpen();
+  // The run starts (onReady) when the scene has drawn AND the robot's kit is in, so the robot is on the start line
+  // from the first moment. A kit that fails counts as in (the fallback robot is drawn); so does one that takes too long.
+  const [kitIn, setKitIn] = useState(false);
+  const [sceneIn, setSceneIn] = useState(false);
+  const told = useRef(false);
+  useEffect(() => {
+    if (!mk2Requested('run')) {
+      setKitIn(true);
+      return undefined;
+    }
+    let live = true;
+    const done = (): void => {
+      if (live) setKitIn(true);
+    };
+    void preloadMk2(build).then(done);
+    const late = window.setTimeout(done, KIT_WAIT_MS);
+    return () => {
+      live = false;
+      window.clearTimeout(late);
+    };
+  }, [build]);
+  const sceneReady = useCallback(() => setSceneIn(true), []);
+  useEffect(() => {
+    if (!kitIn || !sceneIn || told.current) return;
+    told.current = true;
+    onReady?.();
+  }, [kitIn, sceneIn, onReady]);
 
   return (
     <div className="relative h-full w-full overflow-hidden" style={{ background: UI.ink }}>
@@ -119,7 +151,7 @@ export default function RunCanvas({ mission = MISSIONS.M5, build = PRESETS[DEFAU
         tips
         camera={{ fov: 38, near: 0.5, far: 420, position: [0, 6, 20] }}
         canvasStyle={{ touchAction: 'none' }}
-        onReady={onReady}
+        onReady={sceneReady}
         onCreated={({ gl, scene, camera }) => {
           // Dev only: read draw calls and the sim state from the console (window.__rivetrun.info.render.calls, .state()).
           if (dev) (window as unknown as { __rivetrun?: unknown }).__rivetrun = { info: gl.info, scene, camera, state: () => activeFeed.get().state, pin: dev.pin };

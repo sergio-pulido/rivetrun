@@ -5,7 +5,11 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 /** The canonical MK-II v2 export (docs/MK2_ASSET_CONTRACT.md). Served by the app itself; the v1 folder is never read. */
 const BASE = '/models/mk2';
 /** The MK-II never blocks a robot from appearing: past this, the procedural robot is used. */
-const LOAD_TIMEOUT_MS = 3000;
+// The kit is given this long, counted in short ticks of the event loop rather than on the wall clock: on a slow
+// phone the first frames block the main thread for seconds at a time, and a kit that has in fact arrived must not
+// be thrown away because one long timer fired in that gap. Nothing is drawn while it loads.
+const LOAD_BUDGET_MS = 8000;
+const LOAD_TICK_MS = 250;
 
 /** The fields of manifest.json the game reads. Everything else in the file is for people. */
 interface Mk2Manifest {
@@ -120,8 +124,29 @@ async function loadKit(locomotion: string, others: readonly string[]): Promise<M
  * procedural robot.
  */
 export function loadMk2Kit(locomotion: string, others: readonly string[]): Promise<Mk2Kit> {
-  const timeout = new Promise<never>((_, reject) => {
-    setTimeout(() => reject(new Error('MK-II assets timed out')), LOAD_TIMEOUT_MS);
+  return new Promise<Mk2Kit>((resolve, reject) => {
+    let settled = false;
+    let ticksLeft = Math.ceil(LOAD_BUDGET_MS / LOAD_TICK_MS);
+    const tick = (): void => {
+      if (settled) return;
+      ticksLeft -= 1;
+      if (ticksLeft <= 0) {
+        settled = true;
+        reject(new Error('MK-II assets timed out'));
+      } else setTimeout(tick, LOAD_TICK_MS);
+    };
+    setTimeout(tick, LOAD_TICK_MS);
+    loadKit(locomotion, others).then(
+      (kit) => {
+        if (settled) return;
+        settled = true;
+        resolve(kit);
+      },
+      (cause: unknown) => {
+        if (settled) return;
+        settled = true;
+        reject(cause instanceof Error ? cause : new Error('MK-II assets failed to load'));
+      },
+    );
   });
-  return Promise.race([loadKit(locomotion, others), timeout]);
 }

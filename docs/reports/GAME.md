@@ -21,7 +21,7 @@ rendering unless it says otherwise. Nothing was seen on a real phone or heard th
 ## Simplified or assumed
 - The robot is drawn about 6× its real size on a track drawn 1:1; jump heights are drawn 2×. Obstacles use the 6× scale.
 - Obstacle shapes (block, round log, rock mound) are mine, inside the sim's footprint and height; the sim's own profile is a triangle.
-- Ghost robots are a cheaper model; the MK-II is behind `?robot=mk2` and falls back to the procedural robot per missing module or after 3 s.
+- The MK-II kit is the robot everywhere since 10:50 (`MK2_DEFAULT` in robot/mk2/flag.ts; `'workshop'` limits it to the Workshop). Ghosts stay procedural; so does any device where the kit fails or takes over 8 s. `?robot=procedural` overrides.
 - The sensor band shows the longest forward range only; it does not say which sensor reaches that far in bad weather.
 - Sounds are synthesised; the decision chirp is deliberately quiet (half volume, on request).
 - Wind, rain and snow are visual only here; what they do to the robot is the sim's.
@@ -47,7 +47,7 @@ rendering unless it says otherwise. Nothing was seen on a real phone or heard th
    (CLIMB, the round button); it appears about 2 s after the wheels stop making progress and the run ends 6 s later.
    If the prompt is missing the build has nothing that frees it: RETRY from the result and fit off-road wheels or tracks.
 Also useful: no sound until the first tap (browser rule) and the speaker button under the top bar mutes;
-the jump is hold-to-charge, a quick tap is a 40 % jump; `?robot=procedural` switches a device back from the MK-II.
+the jump is hold-to-charge, a quick tap is a 40 % jump; `?robot=procedural` puts a device on the old robot, `?robot=default` undoes that.
 
 ## Dev handles (not in production builds)
 `window.__rivetrun.state()` live SimState · `.pin({ x, v: 0 })` hold the drawn robot · `?weather=night,snow,wind:8` draw any weather.

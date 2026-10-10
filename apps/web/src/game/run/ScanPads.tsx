@@ -8,6 +8,7 @@ import { PARTS_BY_ID, SCAN_RULES } from '@rivetrun/sim';
 import { LANES, UI } from '../palette';
 import type { RunFeed } from '../runFeed';
 import { sampleTrack, type TrackLayout } from '../track';
+import { mk2Requested } from '../robot/mk2/flag';
 import { stanceFor } from './ride';
 import { Tag } from './shared';
 
@@ -84,7 +85,7 @@ interface ScanPadsProps {
 
 /** Scan zones (gameplay v3): where to stop. Cyan = this build can scan it, grey = it lacks the sensor, green / red once done or missed. */
 export function ScanPads({ layout, zones, build, feed }: ScanPadsProps) {
-  const nose = useMemo(() => stanceFor(build.locomotion).nose, [build.locomotion]);
+  const nose = useMemo(() => stanceFor(build.locomotion, mk2Requested('run')).nose, [build.locomotion]);
   const kinds = useMemo(() => new Set(build.sensors.map((id) => PARTS_BY_ID.get(id)?.effects.sensor)), [build.sensors]);
   // Done and missed come with the robot's Observation (5 Hz): repaint only when one of them changes.
   const [seen, setSeen] = useState('');

@@ -14,7 +14,17 @@ export interface Stance {
   readonly belt: boolean;
 }
 
-export function stanceFor(locomotion: string): Stance {
+/** The MK-II kit's own measures (public/models/mk2): its wheels are larger and sit further out than the procedural robot's. */
+const MK2_STANCE: Readonly<Record<string, Stance>> = {
+  wheels: { halfBase: 0.65, radius: 0.4, nose: 1.05, belt: false },
+  offroad_wheels: { halfBase: 0.65, radius: 0.44, nose: 1.09, belt: false },
+  // The belts are shorter than the chassis: the nose is the chassis plate.
+  tracks: { halfBase: 0.42, radius: 0.2, nose: 0.8, belt: true },
+};
+
+export function stanceFor(locomotion: string, mk2 = false): Stance {
+  const kit = mk2 ? MK2_STANCE[locomotion] : undefined;
+  if (kit) return kit;
   const geo = locomotionGeometry(locomotion);
   return { halfBase: geo.halfBase, radius: geo.radius, nose: geo.halfBase + geo.radius, belt: locomotion === 'tracks' };
 }

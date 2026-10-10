@@ -162,8 +162,23 @@ function FallToast({ fall }: { fall: { readonly falls: number; readonly at: numb
 }
 
 const NO_GHOSTS: readonly GhostTrace[] = [];
-/** Chips stay off the START sign until the robot has gone this far (or a second decision has arrived). */
-const CHIPS_AFTER_M = 1;
+/** Chips stay off the START sign and the name tags until the robot has gone this far: by then the camera has left the sign behind. */
+const CHIPS_AFTER_M = 2;
+
+const PHONE = '(orientation: portrait) and (max-width: 640px)';
+
+/** A phone held upright: room for two chips under the top bar, no more. */
+function usePhone(): boolean {
+  return useSyncExternalStore(
+    (listener) => {
+      const query = window.matchMedia(PHONE);
+      query.addEventListener('change', listener);
+      return () => query.removeEventListener('change', listener);
+    },
+    () => window.matchMedia(PHONE).matches,
+    () => false,
+  );
+}
 
 const SHORT_LANDSCAPE = '(orientation: landscape) and (max-height: 500px)';
 
@@ -232,19 +247,21 @@ function WeatherChip({ atmosphere, gust }: { atmosphere: Atmosphere; gust: boole
 }
 
 /** What the build senses ahead, or that it senses nothing: the same fact the band on the track shows. */
-function SenseChip({ senses, observedM }: { senses: Senses; observedM?: number }) {
+function SenseChip({ senses, observedM, weather }: { senses: Senses; observedM?: number; weather?: string }) {
   // Weather can cut the range the parts have on paper (fog, night, heavy rain): the sim's Observation has the real one.
   const cut = observedM !== undefined && observedM < senses.forwardM - 0.25;
   const color = senses.blind ? UI.bad : UI.cyanText;
   return (
     <span className="rounded-[7px] px-2 py-1 font-mono text-[10px] leading-[13px]" style={{ border: `1px solid ${senses.blind ? UI.bad : '#1f5a63'}`, background: senses.blind ? 'rgb(42 14 12 / 0.88)' : 'rgb(8 24 27 / 0.85)', color }}>
+      {/* On a phone the weather rides in this chip: two chips are all the start line has room for. */}
+      {weather ? <span style={{ color: UI.text }}>{weather} · </span> : null}
       {senses.blind ? (
         <>
           <span className="font-semibold">BLIND</span> · no forward sensor
         </>
       ) : (
         <>
-          <span style={{ color: UI.dim }}>SENSES AHEAD · </span>
+          <span style={{ color: UI.dim }}>{weather ? 'SENSES · ' : 'SENSES AHEAD · '}</span>
           {/* In bad weather the real reach comes first; the parts' rated ranges follow, dimmed. */}
           {cut && (
             <>
@@ -317,10 +334,11 @@ export function RunHud({ mission, feed, ghosts = NO_GHOSTS, drive, build }: RunH
   const telemetryOpen = useTelemetryOpen();
   const drawerOpen = telemetryOpen && build !== undefined && !view.done;
   const short = useShortLandscape();
-  // The first second belongs to the START sign and the robot: the chips come in once the robot has moved a metre
-  // or a decision after the start one has arrived, whichever is first, and then stay.
+  const phone = usePhone();
+  // The start line belongs to the START sign, the robots and their name tags: the chips come in once the robot
+  // has left it, and then stay.
   const [settled, setSettled] = useState(false);
-  const underWay = (view.state?.x ?? 0) >= CHIPS_AFTER_M || view.decisionCount >= 2;
+  const underWay = (view.state?.x ?? 0) >= CHIPS_AFTER_M;
   if (underWay && !settled) setSettled(true);
   if (!view.state && settled) setSettled(false);
   const alerts = alertsOf(view, mission, driving ? build : undefined);
@@ -362,11 +380,17 @@ export function RunHud({ mission, feed, ghosts = NO_GHOSTS, drive, build }: RunH
         {!view.done && settled && (
           <div className="mt-2 flex flex-col items-start gap-1">
             {/* On a short screen the standing facts give way: they are in the Brief and in the telemetry drawer. */}
-            {!short && <WeatherChip atmosphere={atmosphere} gust={view.state?.gust === true} />}
-            {!short && senses && <SenseChip senses={senses} observedM={view.observation?.value.forwardRangeM} />}
+            {!short && !phone && <WeatherChip atmosphere={atmosphere} gust={view.state?.gust === true} />}
+            {!short && senses && (
+              <SenseChip
+                senses={senses}
+                observedM={view.observation?.value.forwardRangeM}
+                weather={phone && atmosphere.labels.length > 0 ? `${view.state?.gust ? 'GUST · ' : ''}${atmosphere.labels.slice(0, 2).join(' · ')}` : undefined}
+              />
+            )}
             {/* With the drawer open the thread has the detail: one chip keeps the track in view. */}
             {/* A driver gets one hint at a time: the alerts below are what to act on. */}
-            <DecisionChips chips={telemetryOpen || driving || short ? chips.slice(-1) : chips} />
+            <DecisionChips chips={telemetryOpen || driving || short || phone ? chips.slice(-1) : chips} />
           </div>
         )}
         {/* Short screen: the alerts join the column instead of floating over the middle of the track. */}

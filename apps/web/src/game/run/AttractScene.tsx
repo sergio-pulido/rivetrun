@@ -7,6 +7,7 @@ import type { Action, Build, GhostTrace, Mission, SimEffect } from '@rivetrun/co
 import { TERRAIN_LOOK } from '../palette';
 import { clamp, damp, lerp } from '../rng';
 import { restDrive, type RobotDrive } from '../robot/drive';
+import { mk2Requested } from '../robot/mk2/flag';
 import { RobotModel } from '../robot/RobotModel';
 import { atmosphereOf } from '../atmosphere';
 import { layoutTrack, type TrackLayout } from '../track';
@@ -66,7 +67,7 @@ function Replay({ entry, z, layout, clock, slot, speed, particles }: ReplayProps
   const drive = useRef<RobotDrive>(restDrive());
   const memo = useRef({ frame: 0, decision: 0, swim: 0, celebrated: false, lastT: 0, shown: false });
   const riding = useRef(restRide());
-  const stance = useMemo(() => stanceFor(entry.build.locomotion), [entry.build.locomotion]);
+  const stance = useMemo(() => stanceFor(entry.build.locomotion, mk2Requested('run')), [entry.build.locomotion]);
   const owed = useRef<Partial<Record<SimEffect, number>>>({});
   const frames = entry.trace.frames;
   const endT = frames[frames.length - 1]?.t ?? 0;
@@ -146,7 +147,7 @@ function Replay({ entry, z, layout, clock, slot, speed, particles }: ReplayProps
   return (
     <group ref={group}>
       <RobotModel build={entry.build} drive={drive} droneAway />
-      <Tag text={entry.label} color={entry.color} y={2.05} />
+      <Tag text={entry.label} color={entry.color} y={mk2Requested('run') ? 1.7 : 2.05} />
     </group>
   );
 }

@@ -6,15 +6,11 @@ What the Blender asset must look like for the game to mount it, animate it, brea
 
 MK-II v2 is a **buildable rover**: every visible piece is either a catalog part (something the player buys in the Workshop) or a printed part (something the player would 3D-print). No face, no lettering, no decoration.
 
-## Gate
+## Where it is drawn
 
-The MK-II replaces the procedural robot only if a real phone holds **≥ 50 fps on `/run/M7`** by **Sat 12:00**. Otherwise the procedural robot stays for the demo and the MK-II is not enabled. Until then it is behind a flag and the procedural robot is the default and the fallback.
+Since Sat 10:50 the MK-II is the robot everywhere: Workshop, runs, Room Race phones and the big screen's replay (`MK2_DEFAULT = 'everywhere'` in `apps/web/src/game/robot/mk2/flag.ts`). The procedural robot is drawn only when the kit fails or times out on a device (8 s of event-loop time), for ghost robots (translucent, no face), and with the manual override `?robot=procedural` (remembered on the device; `?robot=default` forgets it, `?robot=mk2` forces the MK-II).
 
-### Running the gate test
-
-The adapter is in the game already, off by default. On the phone, open `/run/M7?robot=mk2&fps=1` once: `robot=mk2` switches that device to the MK-II (remembered; `?robot=procedural` switches back) and `fps=1` shows a frame-rate badge (`?fps=0` hides it). The badge shows the last second and the worst second after a 3 s warm-up, and turns green at ≥ 50. Play the mission through once in Drive mode; the gate is the **worst** value. Ghost robots stay on the cheap procedural model either way.
-
-If a module file is missing, slow (3 s) or broken, that robot is drawn procedurally and the badge says `MK-II not loaded: procedural`: a number taken in that state does not count. A first visit on a cold cache can hit the 3 s limit; reload once and the files come from cache.
+Phone check: open `/run/M7?fps=1` and play it through once; the badge shows the last second, the worst second after a 3 s warm-up, and `MK-II` or why it fell back. Under 45 fps: set `MK2_DEFAULT = 'workshop'` (one word) and the MK-II stays only on the Workshop turntable. A run waits up to 4 s for the kit before it starts, so the robot is on the start line from the first moment.
 
 ## Files
 

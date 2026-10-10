@@ -1,7 +1,7 @@
 'use client';
 
 import { useFrame } from '@react-three/fiber';
-import { useContext, useEffect, useMemo, useState } from 'react';
+import { useContext, useEffect, useMemo, useRef, useState } from 'react';
 import type { Object3D } from 'three';
 import type { Build } from '@rivetrun/contracts';
 import { RobotContext } from '../drive';
@@ -10,30 +10,51 @@ import { loadMk2Kit, type Mk2Kit } from './loadModules';
 
 const otherIds = (build: Build): string[] => [build.motor, build.battery, ...new Set(build.sensors), ...new Set(build.extras)];
 
+/** Starts loading a build's kit and resolves when it is ready or has failed: a run waits for this, so its robot is there at the start. */
+export function preloadMk2(build: Build): Promise<void> {
+  return loadMk2Kit(build.locomotion, otherIds(build)).then(
+    () => undefined,
+    () => undefined,
+  );
+}
+
+export interface Mk2State {
+  /** The kit to draw. While the next build's kit loads this is still the previous one, so a part swap never blanks the robot. */
+  readonly kit: Mk2Kit | null;
+  /** `loading`: nothing to draw yet (first load). `failed`: the caller draws the procedural robot. */
+  readonly status: 'off' | 'loading' | 'ready' | 'failed';
+}
+
+const OFF: Mk2State = { kit: null, status: 'off' };
+
 /**
- * Loads what the MK-II export has for a build. `null` while loading or after any failure:
- * the caller draws the procedural robot in both cases, so the MK-II can never leave a robot missing.
+ * Loads what the MK-II export has for a build. A failure or a timeout is `failed` and the caller draws the
+ * procedural robot instead, so the MK-II can never leave a robot missing.
  */
-export function useMk2Kit(build: Build, enabled: boolean): Mk2Kit | null {
+export function useMk2Kit(build: Build, enabled: boolean): Mk2State {
   const key = [build.locomotion, ...otherIds(build)].join('|');
-  const [loaded, setLoaded] = useState<{ key: string; kit: Mk2Kit } | null>(null);
+  const [state, setState] = useState<{ key: string; kit: Mk2Kit | null; failed: boolean } | null>(null);
   useEffect(() => {
     if (!enabled) return undefined;
     let cancelled = false;
     const [locomotion, ...others] = key.split('|');
     loadMk2Kit(locomotion!, others)
       .then((kit) => {
-        if (!cancelled) setLoaded({ key, kit });
+        if (!cancelled) setState({ key, kit, failed: false });
       })
       .catch((cause: unknown) => {
         mk2Live.reason = cause instanceof Error ? cause.message : 'load failed';
-        if (!cancelled) setLoaded(null);
+        if (!cancelled) setState({ key, kit: null, failed: true });
       });
     return () => {
       cancelled = true;
     };
   }, [key, enabled]);
-  return enabled && loaded?.key === key ? loaded.kit : null;
+  if (!enabled) return OFF;
+  if (!state) return { kit: null, status: 'loading' };
+  if (state.key === key) return { kit: state.kit, status: state.failed ? 'failed' : 'ready' };
+  // A newer build is loading: keep drawing the last kit that loaded (or stay on the fallback).
+  return { kit: state.kit, status: state.failed ? 'failed' : 'ready' };
 }
 
 /** How many MK-II robots are on screen right now: lets the frame-rate badge say what is really being measured. */
@@ -74,17 +95,25 @@ interface Mk2PartsProps {
 export function Mk2Parts({ kit, droneAway }: Mk2PartsProps) {
   const context = useContext(RobotContext);
   const shown = useMemo(() => kit.modules.filter((module) => !(droneAway && module.id === 'scout_drone')), [kit, droneAway]);
-  // One clone per robot: geometry and materials stay shared with the cached template.
+  // One clone per robot and module: geometry and materials stay shared with the cached template. Clones are kept
+  // across part swaps, so only the module that changed is rebuilt (and pops in); the rest stay exactly as they are.
+  const clones = useRef(new Map<Mk2Kit['modules'][number], Object3D>());
   const built = useMemo(() => {
     const pivots: Pivots = { wheels: [], props: [], drums: [], rotors: [], feet: [] };
+    const kept = new Map<Mk2Kit['modules'][number], Object3D>();
     const parts = shown.map((module) => {
-      const clone = module.root.clone(true);
-      // The part pivots about its own centre (it tumbles when thrown off), so the geometry is shifted back by it.
-      clone.position.sub(module.centre);
+      let clone = clones.current.get(module);
+      if (!clone) {
+        clone = module.root.clone(true);
+        // The part pivots about its own centre (it tumbles when thrown off), so the geometry is shifted back by it.
+        clone.position.sub(module.centre);
+      }
+      kept.set(module, clone);
       findPivots(clone, pivots);
       const lift = LOCOMOTION.has(module.id) ? 0 : kit.lift;
       return { module, clone, lift, pick: FIXED.has(module.id) ? undefined : { partId: module.id } };
     });
+    clones.current = kept;
     return { parts, pivots, kick: { value: 0, wasAirborne: false } };
   }, [shown, kit.lift]);
 

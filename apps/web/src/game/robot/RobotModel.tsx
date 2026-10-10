@@ -10,7 +10,7 @@ import { RobotContext, locomotionGeometry, restDrive, type Expression, type Robo
 import { Face } from './Face';
 import { Locomotion } from './Locomotion';
 import { MaterialsContext, ghostMaterials, robotMaterials } from './materials';
-import { mk2Requested } from './mk2/flag';
+import { mk2Requested, type Mk2Scope } from './mk2/flag';
 import { Mk2Parts, useMk2Kit } from './mk2/Mk2Parts';
 
 /** Procedural parts are modelled on a deck whose top is this far above the deck frame's origin. */
@@ -34,13 +34,16 @@ export interface RobotModelProps {
   popIn?: boolean;
   /** Run view: the scout drone flies ahead, so the pad on the robot stays empty. */
   droneAway?: boolean;
+  /** Which kind of view this robot is in: decides whether the MK-II is the default there (see mk2/flag.ts). */
+  scope?: Mk2Scope;
 }
 
 /**
- * Procedural low-poly maker robot. Origin = ground under the centre, +X = forward.
+ * The rover. Origin = ground under the centre, +X = forward. It is the MK-II kit (public/models/mk2); the
+ * procedural low-poly robot is the fallback when the kit fails or times out, and what ghosts are drawn with.
  * Every part is a detachable <Part>: swap the build and the model rebuilds live.
  */
-export function RobotModel({ build, drive, state, action, expression, dnf = false, ghostTint, popIn = false, droneAway = false }: RobotModelProps) {
+export function RobotModel({ build, drive, state, action, expression, dnf = false, ghostTint, popIn = false, droneAway = false, scope = 'run' }: RobotModelProps) {
   const own = useRef<RobotDrive>(restDrive());
   const active = drive ?? own;
   const sway = useRef<Group>(null);
@@ -65,9 +68,11 @@ export function RobotModel({ build, drive, state, action, expression, dnf = fals
   const lite = ghostTint !== undefined;
   const materials = useMemo(() => (ghostTint ? ghostMaterials(ghostTint) : robotMaterials()), [ghostTint]);
   const context = useMemo<RobotContextValue>(() => ({ drive: active, popIn, lite, droneAway }), [active, popIn, lite, droneAway]);
-  // The MK-II asset, when this device opted in and the export has a rolling base for this build. Ghosts stay
-  // on the cheap procedural model; so does any robot whose assets are missing, slow or broken.
-  const mk2 = useMk2Kit(build, !lite && mk2Requested());
+  // The MK-II kit. Ghosts stay on the cheap procedural model (translucent, no face when the MK-II is in use);
+  // so does any robot whose kit is missing, slow or broken. Nothing is drawn while the kit is still loading:
+  // a procedural robot flashing up for a moment would be worse than a short wait.
+  const wantsMk2 = mk2Requested(scope);
+  const { kit: mk2, status } = useMk2Kit(build, !lite && wantsMk2);
   const lacks = (id: string): boolean => mk2?.missing.includes(id) ?? false;
 
   useFrame(({ clock }) => {
@@ -109,7 +114,7 @@ export function RobotModel({ build, drive, state, action, expression, dnf = fals
                   />
                 </group>
               </>
-            ) : (
+            ) : status === 'loading' ? null : (
               <>
             <Locomotion key={build.locomotion} id={build.locomotion} />
             <group position={[0, geo.deckY, 0]}>
@@ -117,7 +122,8 @@ export function RobotModel({ build, drive, state, action, expression, dnf = fals
               {!lite && <Motors key={`${build.motor}-${build.locomotion}`} id={build.motor} geo={geo} floor={floor} />}
               <Battery key={build.battery} id={build.battery} floor={floor} />
               <Controller floor={floor} />
-              <Face floor={floor} />
+              {/* The MK-II has no face, so its ghosts have none either. */}
+              {!(lite && wantsMk2) && <Face floor={floor} />}
               <Attachments sensors={build.sensors} extras={build.extras} floor={floor} />
             </group>
               </>

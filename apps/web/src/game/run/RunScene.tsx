@@ -9,6 +9,7 @@ import { atmosphereOf, weatherOverride } from '../atmosphere';
 import { LANES, POLICY_LABEL, POLICY_TINT, TERRAIN_LOOK, UI, laneZ } from '../palette';
 import { clamp, damp, lerp } from '../rng';
 import { restDrive, type Expression, type RobotDrive } from '../robot/drive';
+import { mk2Requested } from '../robot/mk2/flag';
 import { RobotModel } from '../robot/RobotModel';
 import type { DriveInput } from '../drive/driveInput';
 import type { RunFeed } from '../runFeed';
@@ -25,7 +26,21 @@ import { SpeedLines } from './SpeedLines';
 import { EFFECT_PARTICLES, Tag, swimLift } from './shared';
 import { World } from './World';
 
+const ELEVATION_RAD = (15 * Math.PI) / 180;
 const SIM_DT = TUNING.dtMs / 1000;
+
+/** Name tag height over the player's robot: the MK-II has no head, so its tag sits lower. */
+const TAG_Y = { mk2: 1.6, procedural: 1.95 } as const;
+/** One tag above the next on screen, in world units (a tag is 0.31 tall). */
+const TAG_STEP = 0.56;
+/** How much higher on screen a robot one unit further back is drawn (the camera looks down 15°). */
+const RISE_PER_Z = Math.sin(ELEVATION_RAD);
+
+/** A ghost's tag height: its lane already lifts it on screen, so only the rest of a tag step is added. */
+function ghostTagY(z: number, mk2: boolean): number {
+  const lanesBack = Math.round((LANES.player - z) / (LANES.player - LANES.heuristic));
+  return (mk2 ? TAG_Y.mk2 : TAG_Y.procedural) + lanesBack * TAG_STEP - (LANES.player - z) * RISE_PER_Z;
+}
 /** How long the tumble into a gap plays before the robot is shown back at its respawn point. */
 const FALL_MS = 650;
 
@@ -51,7 +66,8 @@ function Player({ feed, build, layout, pose, timeScale, particles, hands, lights
   const group = useRef<Group>(null);
   const drive = useRef<RobotDrive>(restDrive());
   const riding = useRef(restRide());
-  const stance = useMemo(() => stanceFor(build.locomotion), [build.locomotion]);
+  const mk2 = mk2Requested('run');
+  const stance = useMemo(() => stanceFor(build.locomotion, mk2), [build.locomotion, mk2]);
   const budget = useRef<Partial<Record<SimEffect, number>>>({});
   const lastDamageAt = useRef(0);
   const celebrated = useRef(false);
@@ -208,7 +224,7 @@ function Player({ feed, build, layout, pose, timeScale, particles, hands, lights
       <RobotModel build={build} drive={drive} droneAway />
       {lights && <Headlights nose={stance.nose} />}
       {blob && <mesh geometry={BLOB} material={BLOB_MATERIAL} position={[0, 0.03, 0]} scale={[stance.nose * 1.15, 1, 0.62]} renderOrder={1} />}
-      <Tag text={hands ? POLICY_LABEL.human : POLICY_LABEL.jev} color={UI.safety} y={1.95} />
+      <Tag text={hands ? POLICY_LABEL.human : POLICY_LABEL.jev} color={UI.safety} y={mk2 ? TAG_Y.mk2 : TAG_Y.procedural} />
     </group>
   );
 }
@@ -287,8 +303,9 @@ function Ghost({ trace, build, layout, pose, timeScale, driving }: GhostProps) {
   return (
     <group ref={group} visible={false}>
       <RobotModel build={build} drive={drive} ghostTint={POLICY_TINT[policy]} droneAway />
-      {/* The far lane's tag rides a little higher, so three robots on the start line do not stack their names. */}
-      <Tag text={POLICY_LABEL[policy]} color={POLICY_TINT[policy]} y={!driving && policy === 'random' ? 2.3 : 2.05} />
+      {/* Each lane further back is drawn higher on screen, so the tags sit at heights that stack them one
+          above the other when the robots stand side by side on the start line. */}
+      <Tag text={POLICY_LABEL[policy]} color={POLICY_TINT[policy]} y={ghostTagY(z, mk2Requested('run'))} />
     </group>
   );
 }
@@ -299,7 +316,7 @@ const VIEW_WIDTH_DRONE_M = 6.7;
 /** Drive mode: more road ahead of the robot, since the player has to react to it. */
 const VIEW_WIDTH_DRIVE_M = 7.4;
 const MIN_VIEW_HEIGHT_M = 8.5;
-const ELEVATION = (15 * Math.PI) / 180;
+const ELEVATION = ELEVATION_RAD;
 /** Width of the Brain sheet in the HUD (max-w-[430px]): the camera keeps the robot clear of it in landscape. */
 const HUD_SHEET_WIDTH_PX = 430;
 
