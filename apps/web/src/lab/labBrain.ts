@@ -8,7 +8,9 @@ const CACHE_HEADER = 'x-rivetrun-cache';
 /** Jev's budget per decision, as on the rail: beyond it the fixed rules decide and the thread says FALLBACK. */
 export const LAB_DECIDE_TIMEOUT_MS = 1200;
 
-export const JEV_LIVE_NOTE = 'Jev answers live; when it is slow the fixed rules decide.';
+export const JEV_LIVE_NOTE = 'Jev answers live; when it is slow or does not answer, the fixed rules decide.';
+/** How long the page waits to learn whether Jev is reachable before it seats the fixed rules. */
+const PROBE_TIMEOUT_MS = 2500;
 /**
  * What Jev is asked (QA finding Q20): the question built in packages/brain/src/lab/question.ts adds, to each option,
  * where the lab's fixed rules place it ("it is the correct job to start", "exploring is not correct now").
@@ -17,7 +19,7 @@ export const JEV_VERDICT_NOTE = "The question Jev gets states which option the l
 export const STAND_IN_NOTE = `Jev is not reachable from this page right now: its seat is filled by the lab's fixed rules, answering in ${LAB_RIVAL_LATENCY_MS} ms. They read the same question Jev would get.`;
 
 /** The same seat with the verdicts left out of the question: Jev gets the facts and the options, nothing on which is correct. */
-export const JEV_FACTS_NOTE = 'Jev answers live from the facts alone: this question does not say which option the fixed rules rate as correct. When it is slow the fixed rules decide.';
+export const JEV_FACTS_NOTE = 'Jev answers live from the facts alone: this question does not say which option the fixed rules rate as correct. When it is slow or does not answer, the fixed rules decide.';
 
 export interface JevLabOptions {
   /** Ask the facts-only question: the options and their predictions, without the fixed rules' verdict on each. */
@@ -79,9 +81,11 @@ const NO_JEV: JevSeat = { live: false, factsOnly: false };
  * What the server's Lab decide route offers (`GET` answers `{ ok, model, configured, questions? }`). Without a
  * configured route the page says the fixed rules are in the seat instead of "live".
  */
-export async function jevSeat(fetchImpl: typeof fetch = fetch): Promise<JevSeat> {
+export async function jevSeat(fetchImpl: typeof fetch = fetch, timeoutMs: number = PROBE_TIMEOUT_MS): Promise<JevSeat> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const response = await fetchImpl(LAB_DECIDE_URL, { method: 'GET' });
+    const response = await fetchImpl(LAB_DECIDE_URL, { method: 'GET', signal: controller.signal });
     if (!response.ok) return NO_JEV;
     const body: unknown = await response.json();
     if (typeof body !== 'object' || body === null || (body as { configured?: unknown }).configured !== true) return NO_JEV;
@@ -89,6 +93,8 @@ export async function jevSeat(fetchImpl: typeof fetch = fetch): Promise<JevSeat>
     return { live: true, factsOnly: Array.isArray(questions) && questions.length > 1 };
   } catch {
     return NO_JEV;
+  } finally {
+    clearTimeout(timer);
   }
 }
 

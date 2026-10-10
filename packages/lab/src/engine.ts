@@ -23,8 +23,9 @@ interface Draft {
   agents: AgentState[];
   objects: LabObjectState[];
   movers: MoverState[];
-  doorsOpen: number[];
-  weatherActive: string[];
+  /** Replaced, never copied, when a door opens or the weather turns: unchanged, they are the same arrays as last step. */
+  doorsOpen: readonly number[];
+  weatherActive: readonly string[];
   events: LabEvent[];
 }
 
@@ -418,8 +419,8 @@ export function stepLab(state: LabState): LabState {
     agents: state.agents.map((agent) => (agent.trigger === undefined ? agent : { ...agent, trigger: undefined })),
     objects: [...state.objects],
     movers: [...state.movers],
-    doorsOpen: [...state.doorsOpen],
-    weatherActive: [...state.weatherActive],
+    doorsOpen: state.doorsOpen,
+    weatherActive: state.weatherActive,
     events: [],
   };
   tickWeather(d);

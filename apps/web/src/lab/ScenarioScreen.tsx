@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { LAB_PLAYER, LAB_SCENARIOS, LAB_SEEDS, deriveRobot, type LabScenarioId } from '@rivetrun/lab';
 import { useBuildStore } from '@/state/build';
 import { saveResult, useLabBests } from './bests';
@@ -42,16 +42,24 @@ export function ScenarioScreen({ id }: { readonly id: LabScenarioId }) {
     saveResult(id, { score: outcome.score, stars: outcome.stars, timeS: outcome.timeS });
   }, [result, id]);
 
+  // Counts every start on this page, also across "Change robot": a view from an earlier start never passes for this one.
+  const attempts = useRef(0);
   const start = (): void => {
+    attempts.current += 1;
     setBestBefore(bests[id]?.score ?? null);
-    setSetup({ scenarioId: id, seed: LAB_SEEDS[0], build: loadout.build, mode, jevLive: jevLive === true, jevFacts, attempt: (setup?.attempt ?? 0) + 1 });
+    setSetup({ scenarioId: id, seed: LAB_SEEDS[0], build: loadout.build, mode, jevLive: jevLive === true, jevFacts, attempt: attempts.current });
   };
+  // A brain seat is filled by whoever the probe finds: starting before it answers would seat the fixed rules unasked.
+  const needsBrain = mode === 'jev' || scenario.agents.length > 1;
+  const probing = needsBrain && seat === null;
 
   if (setup !== null && view !== null && result) {
     const score = result.outcomes[LAB_PLAYER]!.score;
     const newBest = score > 0 && (bestBefore === null || score > bestBefore);
-    return <LabResult result={result} mode={setup.mode} robot={robotLine} newBest={newBest} onRetry={start} onChangeBuild={() => setSetup(null)} />;
+    return <LabResult result={result} mode={setup.mode} robot={robotLine} jevLive={setup.jevLive} newBest={newBest} onRetry={start} onChangeBuild={() => setSetup(null)} />;
   }
+  // Between a start and its first frame: neither the brief nor the last run.
+  if (setup !== null && view === null) return <p className="rr-label py-10 text-center" role="status">Starting…</p>;
   if (setup !== null && view !== null) return <LabPlay view={view} controls={controls} mode={setup.mode} robot={robotLine} jevLive={setup.jevLive} jevFacts={setup.jevFacts} />;
 
   return (
@@ -95,7 +103,7 @@ export function ScenarioScreen({ id }: { readonly id: LabScenarioId }) {
           })}
         </div>
         <p className="text-xs leading-snug text-text-2">{loadout.note}</p>
-        <Link href="/workshop" className="self-start font-mono text-[11px] font-medium tracking-[1px] text-orange-soft underline underline-offset-2">CHANGE MY ROBOT IN THE WORKSHOP</Link>
+        <Link href="/workshop" className="flex min-h-11 items-center self-start font-mono text-[11px] font-medium tracking-[1px] text-orange-soft underline underline-offset-2">CHANGE MY ROBOT IN THE WORKSHOP</Link>
       </section>
 
       <section className="flex flex-col gap-2" aria-label="Driver">
@@ -131,7 +139,7 @@ export function ScenarioScreen({ id }: { readonly id: LabScenarioId }) {
 
       <Simplifications />
 
-      <button type="button" className="rr-btn rr-btn-primary !min-h-[60px] !rounded-2xl !text-xl !tracking-[2px]" onClick={start} data-testid="scenario-start">Start</button>
+      <button type="button" className="rr-btn rr-btn-primary !min-h-[60px] !rounded-2xl !text-xl !tracking-[2px]" onClick={start} disabled={probing} data-testid="scenario-start">{probing ? 'Checking Jev…' : 'Start'}</button>
     </div>
   );
 }

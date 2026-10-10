@@ -25,19 +25,34 @@ const listeners = new Set<() => void>();
 
 /** Records a result; returns true when it is a new best. */
 export function saveResult(scenarioId: string, result: { score: number; stars: number; timeS: number }): boolean {
-  const before = cached ?? readBests();
+  // Another tab may have saved since this one last read: judge and write against what is stored now.
+  const before = readBests();
   const after = withResult(before, scenarioId, result);
-  if (after === before) return false;
   cached = after;
+  if (after === before) return false;
   writeJson(KEY, after);
   listeners.forEach((listener) => listener());
   return true;
 }
 
+/** Another tab saved: drop this tab's copy and let the readers ask again. */
+const onStorage = (event: StorageEvent): void => {
+  if (event.key !== null && event.key !== KEY) return;
+  cached = undefined;
+  listeners.forEach((listener) => listener());
+};
+
 /** The bests on this device. Empty on the server and on the first client render, so the two match. */
 export function useLabBests(): LabBests {
   return useSyncExternalStore(
-    (listener) => { listeners.add(listener); return () => { listeners.delete(listener); }; },
+    (listener) => {
+      if (listeners.size === 0) window.addEventListener('storage', onStorage);
+      listeners.add(listener);
+      return () => {
+        listeners.delete(listener);
+        if (listeners.size === 0) window.removeEventListener('storage', onStorage);
+      };
+    },
     () => (cached ??= readBests()),
     () => NONE,
   );

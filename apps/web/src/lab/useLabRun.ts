@@ -43,8 +43,8 @@ export interface LabRunControls {
   readonly press: (dir: Dir) => void;
   /** Drive to a tile by the robot's own map. */
   readonly goTo: (cell: Cell) => void;
-  /** Pick up, deliver, scan or end the mission on this tile. */
-  readonly act: () => void;
+  /** Pick up, deliver, scan or end the mission on this tile: the one interaction the button showed, by its object. */
+  readonly act: (objectId: string) => void;
   readonly togglePace: () => void;
   /** Stop and forget the queued moves. */
   readonly halt: () => void;
@@ -78,11 +78,14 @@ export function useLabRun(setup: LabRunSetup | null): { view: LabRunView | null;
     let last = performance.now();
     let owed = 0;
 
+    // The player's run is over when their robot is: in a two-robot scenario the other may still be driving.
+    const over = (): boolean => driver.done || driver.state.agents.find((agent) => agent.id === LAB_PLAYER)?.status !== 'running';
+
     const publish = (): void => {
       if (driver.decisions.length !== decisions.length) decisions = [...driver.decisions];
       setView({
         attempt: setup.attempt, state: driver.state, decisions, ...(noticed ? { noticed } : {}), thinking: [...thinking], queued: queueRef.current.length,
-        ...(driver.done ? { result: driver.result() } : {}),
+        ...(over() ? { result: driver.result() } : {}),
       });
     };
 
@@ -100,12 +103,12 @@ export function useLabRun(setup: LabRunSetup | null): { view: LabRunView | null;
     const tick = (): void => {
       // The first tick puts the starting position on screen.
       if (!shown) { shown = true; publish(); }
-      if (driver.done) return;
+      if (over()) return;
       const now = performance.now();
       owed += Math.min(MAX_STEPS * STEP_MS, now - last);
       last = now;
       let stepped = false;
-      for (let steps = 0; owed >= STEP_MS && steps < MAX_STEPS && !driver.done; steps += 1) {
+      for (let steps = 0; owed >= STEP_MS && steps < MAX_STEPS && !over(); steps += 1) {
         owed -= STEP_MS;
         for (const { agentId, question } of driver.questions()) ask(agentId, question);
         const me = driver.state.agents.find((agent) => agent.id === LAB_PLAYER);
@@ -118,6 +121,8 @@ export function useLabRun(setup: LabRunSetup | null): { view: LabRunView | null;
         // "Standing still" is not news to the person holding the controls.
         const fresh = driver.state.agents.find((agent) => agent.id === LAB_PLAYER)?.trigger;
         if (fresh !== undefined && fresh.cause !== 'idle') noticed = fresh;
+        // A hit, a fall or a tile the robot cannot get onto: the moves queued behind it were planned for another situation.
+        if (fresh?.kind === 'body') queueRef.current = [];
         stepped = true;
       }
       if (stepped) publish();
@@ -137,9 +142,9 @@ export function useLabRun(setup: LabRunSetup | null): { view: LabRunView | null;
     queueRef.current = [];
     driverRef.current?.command(LAB_PLAYER, { type: 'goto', to: cell });
   }, []);
-  const act = useCallback(() => {
+  const act = useCallback((objectId: string) => {
     queueRef.current = [];
-    driverRef.current?.command(LAB_PLAYER, { type: 'interact' });
+    driverRef.current?.command(LAB_PLAYER, { type: 'interact', objectId });
   }, []);
   const halt = useCallback(() => {
     queueRef.current = [];

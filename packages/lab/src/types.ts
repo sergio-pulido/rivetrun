@@ -152,6 +152,8 @@ export interface KnownTile {
   readonly terrain?: TerrainId;
   readonly slopeDeg?: number;
   readonly visited?: boolean;
+  /** One of the robot's sensors, or contact, has reported it. Absent on a tile it knows only from the mission plan. */
+  readonly seen?: boolean;
   /** Learned the hard way that this build cannot enter it (too steep, bogs down). */
   readonly noGo?: boolean;
   /** The source that first reported it. */

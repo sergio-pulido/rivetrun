@@ -25,7 +25,7 @@ export const SCENARIO_BRIEFS: Readonly<Record<LabScenarioId, ScenarioBrief>> = {
     tip: 'You know where the exit is, not how to get there. The map fills in only where your sensors reach: with none, you find the walls by hitting them.',
   },
   warehouse: {
-    tagline: 'Three parcels, three bays, three forklifts.',
+    tagline: 'Three parcels, three bays, eight forklifts.',
     matters: ['Lidar', 'Large battery'],
     tip: 'One parcel at a time. Forklifts turn back for a robot that is standing still and hit one that drives in front of them. A camera only looks ahead.',
   },
@@ -37,23 +37,23 @@ export const SCENARIO_BRIEFS: Readonly<Record<LabScenarioId, ScenarioBrief>> = {
   house: {
     tagline: 'Four rooms, four checkpoints, and stairs.',
     matters: ['Camera'],
-    tip: 'Only a camera can scan a checkpoint, and only a camera sees a drop. Doors open when you drive into them.',
+    tip: 'Scanning a checkpoint takes a camera or a scout drone, and only those two see a drop. Doors open when you drive into them.',
   },
   ctf: {
     tagline: 'Your robot against Jev: first to bring the flag home.',
     matters: ['Fast motor', 'Camera'],
-    tip: 'Drive into the robot that holds the flag to take it: it is stunned for 2 s. A robot that has just taken the flag is safe for 2 s.',
+    tip: 'Drive into the robot that holds the flag to take it, while it stands still: it is stunned for 2 s. A robot that has just taken the flag is safe for 2 s, and one that is driving off cannot be tagged.',
   },
 };
 
-/** The result headline. The e2e matches on these. */
-export function resultHeading(outcome: Pick<LabOutcome, 'status' | 'dnfReason'>): string {
+/** The result headline. The e2e matches on these. `jevLive` false = the fixed rules drove the other robot, so the headline does not credit Jev. */
+export function resultHeading(outcome: Pick<LabOutcome, 'status' | 'dnfReason'>, jevLive = true): string {
   if (outcome.status === 'complete') return 'Scenario complete';
   if (outcome.status === 'partial') return 'Ended early';
   switch (outcome.dnfReason) {
     case 'battery': return 'Out of battery';
     case 'damage': return 'Robot wrecked';
-    case 'beaten': return 'Jev got the flag home';
+    case 'beaten': return jevLive ? 'Jev got the flag home' : 'The other robot got the flag home';
     case 'stuck': return 'Nothing left to do';
     default: return 'Out of time';
   }

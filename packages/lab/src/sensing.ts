@@ -83,9 +83,9 @@ const merge = (old: KnownTile | undefined, next: KnownTile): KnownTile => ({
   via: old?.via ?? next.via,
 });
 
-/** Records one tile in a map, e.g. a wall learned by driving into it. */
+/** Records one tile in a map, e.g. a wall learned by driving into it. Contact counts as having sensed it. */
 export function learnTile(known: KnownMap, index: number, tile: KnownTile): KnownMap {
-  return known.map((old, i) => (i === index ? merge(old, tile) : old));
+  return known.map((old, i) => (i === index ? merge(old, { ...tile, seen: true }) : old));
 }
 
 export interface SenseResult {
@@ -111,7 +111,7 @@ export function senseTiles(state: LabState, agent: AgentState): SenseResult {
       const index = indexOf(map, cell);
       const tile = report(map.tiles[index]!, doorOpen(state, cell), seen, eyes, suite.imu);
       if (tile === undefined) continue;
-      known[index] = merge(known[index], sameCell(cell, agent.cell) ? { ...tile, visited: true } : tile);
+      known[index] = merge(known[index], sameCell(cell, agent.cell) ? { ...tile, seen: true, visited: true } : { ...tile, seen: true });
       if (seen.label !== undefined) labelled.set(index, seen.label);
       if (seen.geometry !== undefined) ranged.set(index, seen.geometry);
     }
@@ -161,7 +161,7 @@ export function planKnown(state: Pick<LabState, 'scenario'>): KnownMap {
       : { blocked: false, kind: tile.kind, ...(tile.kind === 'ramp' ? { slopeDeg: tile.slopeDeg } : {}), via: 'core' });
 }
 
-/** Tiles the robot knows, as a share of the map. */
+/** Tiles the robot knows, as a share of the map: what its sensors have reported and what the mission plan gave it. */
 export function knownShare(agent: AgentState): number {
   return agent.known.filter((tile) => tile !== undefined).length / Math.max(1, agent.known.length);
 }

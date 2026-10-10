@@ -160,6 +160,20 @@ describe('fog of war is the sensor coverage', () => {
     expect(knownAt(state, at(2, 1))).toMatchObject({ blocked: true, kind: 'door' });
     expect(knownAt(state, at(3, 1))?.terrain).toBeUndefined();
   });
+
+  it('tells what a sensor reported from what was only on the plan', () => {
+    const planned = start(scenarioOf(['#####', '#S..#', '#####'], { planMap: true }), BASE);
+    // The tile under the robot is sensed; the rest of the plan is known, not seen.
+    expect(knownAt(planned, at(1, 1))?.seen).toBe(true);
+    expect(knownAt(planned, at(2, 1))).toMatchObject({ blocked: false });
+    expect(knownAt(planned, at(2, 1))?.seen).toBeUndefined();
+    expect(you(planned).known.filter((tile) => tile?.seen).length).toBe(1);
+    // A ranger's report and a wall found by driving into it both count.
+    const sonar = start(scenarioOf(['#####', '#S..#', '#####'], { planMap: true }), withSensors('ultrasonic'));
+    expect(knownAt(sonar, at(2, 1))?.seen).toBe(true);
+    const bumped = last(drive(start(scenarioOf(['####', '#S.#', '####']), BASE), { type: 'heading', dir: 'E' }));
+    expect(knownAt(bumped, at(3, 1))).toMatchObject({ blocked: true, seen: true });
+  });
 });
 
 describe('moving through the grid', () => {
@@ -275,6 +289,21 @@ describe('determinism', () => {
     const b = start(scenario, BASE, 2);
     expect(a.scenario.map).toBe(b.scenario.map);
     expect([a.movers[0]!.index, a.weather[0]!.atS]).not.toEqual([b.movers[0]!.index, b.weather[0]!.atS]);
+  });
+
+  it('keeps the arrays that did not change from one step to the next, so a view can memoise on them', () => {
+    const scenario = scenarioOf(['#######', '#S.+..#', '#######'], { weather: [{ id: 'fog', label: 'Fog', atS: 0.5, rangeFactor: { camera: 0.5 } }] });
+    let state = command(start(scenario, withSensors('camera')), 'you', { type: 'heading', dir: 'E' });
+    const first = stepLab(state);
+    const second = stepLab(first);
+    expect(second.doorsOpen).toBe(first.doorsOpen);
+    expect(second.weatherActive).toBe(first.weatherActive);
+    expect(you(second).known).toBe(you(first).known);
+    // They are replaced when they change: the fog at 0.5 s, the door once it has been pushed open.
+    for (let i = 0; i < 80; i += 1) state = stepLab(state);
+    expect(state.weatherActive).toEqual(['fog']);
+    expect(state.doorsOpen).toHaveLength(1);
+    expect(state.doorsOpen).not.toBe(first.doorsOpen);
   });
 
   it('stepLab does not change the state it is given', () => {

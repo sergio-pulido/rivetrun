@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { LAB_PLAYER, interactionsAt, objectiveStatus, type Dir, type LabDecisionLog } from '@rivetrun/lab';
+import { LAB_PLAYER, defOf, interactionsAt, objectiveStatus, type Dir, type LabDecisionLog } from '@rivetrun/lab';
 import { LabBoard } from './LabBoard';
 import { LabLegend } from './LabLegend';
 import type { LabMode, LabRunControls, LabRunView } from './useLabRun';
@@ -25,12 +25,22 @@ function Arrow({ turn }: { readonly turn: number }) {
   );
 }
 
-/** The last decisions, newest first: what fired, what was chosen, how long the answer took. */
-export function DecisionThread({ decisions, limit, title }: { readonly decisions: readonly LabDecisionLog[]; readonly limit: number; readonly title: string }) {
-  const shown = decisions.slice(-limit).reverse();
+interface DecisionThreadProps {
+  readonly decisions: readonly LabDecisionLog[];
+  /** How many to show, newest first. Absent = all of them, in a list that scrolls. */
+  readonly limit?: number;
+  readonly title: string;
+  /** A line under the title, e.g. whose view this is. */
+  readonly caption?: string;
+}
+
+/** Decisions, newest first: what fired, what was chosen, how long the answer took. */
+export function DecisionThread({ decisions, limit, title, caption }: DecisionThreadProps) {
+  const shown = (limit === undefined ? decisions : decisions.slice(-limit)).slice().reverse();
   return (
-    <section className="rr-card-brain flex flex-col gap-1.5 p-2.5" aria-label={title} data-testid="scenario-thread">
+    <section className={`rr-card-brain flex flex-col gap-1.5 p-2.5 ${limit === undefined ? 'max-h-72 overflow-y-auto' : ''}`} aria-label={title} data-testid="scenario-thread">
       <h3 className="rr-label !text-cyan">{title}</h3>
+      {caption ? <p className="text-[11px] leading-snug text-cyan-muted">{caption}</p> : null}
       {shown.length === 0 ? (
         <p className="text-xs leading-snug text-cyan-muted">No decision yet. A decision is asked only when something changes.</p>
       ) : (
@@ -65,38 +75,53 @@ export function LabPlay({ view, controls, mode, robot, jevLive, jevFacts }: LabP
   const me = state.agents.find((agent) => agent.id === LAB_PLAYER)!;
   const driving = mode === 'drive';
   const statuses = objectiveStatus(state, me);
-  const action = interactionsAt(state, me)[0];
+  // An action belongs to the tile the robot stands on. While it drives, the tile it is leaving has none to offer:
+  // a press then would be carried out on the tile it arrives at, which may offer something else (the lander: ending).
+  const settled = me.move === undefined && me.busy === undefined;
+  const action = settled ? interactionsAt(state, me)[0] : undefined;
   const rival = state.agents.find((agent) => agent.id !== LAB_PLAYER);
+  // Who holds what is public in a two-robot game (the referee says so). Where that robot is, is not.
+  const heldByOthers = state.objects.flatMap((object) => {
+    const holder = object.status === 'carried' && object.by !== LAB_PLAYER ? state.agents.find((agent) => agent.id === object.by) : undefined;
+    return holder ? [`${holder.label} holds ${defOf(state.scenario, object.id).label}`] : [];
+  });
+  const eyes = me.robot.suite.cameraM > 0 || me.robot.suite.droneM > 0;
   const thread = driving ? view.decisions.filter((d) => d.agentId !== LAB_PLAYER) : view.decisions.filter((d) => d.agentId === LAB_PLAYER);
   const { press, act, halt } = controls;
-  // Ending the mission cannot be undone, and on Mars the robot starts on the tile that offers it: it takes two taps,
-  // the second within 3 s, and the keyboard never does it.
+  // Ending the mission cannot be undone, and on Mars the robot starts on the tile that offers it: it takes two taps
+  // on that tile, the second within 3 s, and the keyboard never does it.
   const ending = action?.kind === 'finish';
-  const [armedAt, setArmedAt] = useState<number | null>(null);
-  const armed = ending && armedAt !== null && state.t - armedAt < 3;
+  // Armed for 3 s and only while the robot has not driven a tile since: leaving the tile and coming back disarms it.
+  const [armedAt, setArmedAt] = useState<{ readonly t: number; readonly tiles: number } | null>(null);
+  const armed = ending && armedAt !== null && state.t - armedAt.t < 3 && armedAt.tiles === me.stats.tiles;
+  const actionId = action?.objectId;
   const onAction = (): void => {
-    if (!ending || armed) { setArmedAt(null); act(); } else setArmedAt(state.t);
+    if (actionId === undefined) return;
+    if (!ending || armed) { setArmedAt(null); act(actionId); } else setArmedAt({ t: state.t, tiles: me.stats.tiles });
   };
 
   useEffect(() => {
     if (!driving) return undefined;
     const onKey = (event: KeyboardEvent): void => {
-      if (event.metaKey || event.ctrlKey || event.altKey) return;
+      if (event.defaultPrevented || event.metaKey || event.ctrlKey || event.altKey) return;
+      // A focused button, link or field keeps its own keys: Enter and Space there mean "press this", not "act".
+      const onControl = event.target instanceof Element && event.target.closest('button, a, input, textarea, select, summary, [contenteditable="true"]') !== null;
       const dir = KEYS[event.key];
       if (dir !== undefined) {
+        if (event.target instanceof Element && event.target.closest('input, textarea, select, [contenteditable="true"]') !== null) return;
         event.preventDefault();
         // A held key repeats: one press is one tile.
         if (!event.repeat) press(dir);
-      } else if (event.key === ' ' || event.key === 'Enter') {
+      } else if ((event.key === ' ' || event.key === 'Enter') && !onControl) {
         event.preventDefault();
-        if (!event.repeat && !ending) act();
-      } else if (event.key === 'Escape') {
+        if (!event.repeat && !ending && actionId !== undefined) act(actionId);
+      } else if (event.key === 'Escape' && !onControl) {
         halt();
       }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [driving, press, act, halt, ending]);
+  }, [driving, press, act, halt, ending, actionId]);
 
   return (
     <div className="flex flex-col gap-2.5 lg:grid lg:grid-cols-[minmax(0,1fr)_380px] lg:items-start lg:gap-x-5">
@@ -117,7 +142,9 @@ export function LabPlay({ view, controls, mode, robot, jevLive, jevFacts }: LabP
         <span className={`rr-chip tabular-nums ${me.batteryPct < 20 ? '!border-bad !text-bad' : ''}`}>Battery {Math.round(me.batteryPct)} %</span>
         <span className={`rr-chip tabular-nums ${me.damagePct > 0 ? '!border-warn !text-warn' : ''}`}>Damage {Math.round(me.damagePct)} %</span>
         {me.carrying.length > 0 ? <span className="rr-chip rr-chip-on">Carrying {me.carrying.length}</span> : null}
-        {state.weatherActive.length > 0 ? <span className="rr-chip !border-warn !text-warn">{state.weather.find((w) => state.weatherActive.includes(w.id))?.label}</span> : null}
+        {/* The weather is sensed, not announced: only a robot with a camera or a drone can tell it sees less far. */}
+        {eyes && state.weatherActive.length > 0 ? <span className="rr-chip !border-warn !text-warn">{state.weather.find((w) => state.weatherActive.includes(w.id))?.label}</span> : null}
+        {heldByOthers.map((line) => <span key={line} className="rr-chip rr-chip-on" data-testid="scenario-held">{line}</span>)}
         <span className="w-full truncate font-mono text-[11px] text-muted" data-testid="scenario-robot">{robot}</span>
       </div>
 
@@ -157,6 +184,7 @@ export function LabPlay({ view, controls, mode, robot, jevLive, jevFacts }: LabP
         <DecisionThread
           decisions={thread}
           limit={driving ? 3 : 5}
+          {...(driving ? { caption: 'Shown for the audience: these are its own decisions, your robot does not sense them.' } : {})}
           title={`${driving ? (rival?.label ?? 'Jev') : 'Your robot'} · ${!jevLive ? 'decisions by the fixed rules' : jevFacts ? 'Jev decides from facts only, live' : 'Jev decides, live (told the verdict)'}${view.thinking.length > 0 ? ' · thinking' : ''}`}
         />
         </div>

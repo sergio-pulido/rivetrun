@@ -41,7 +41,8 @@ export function trueTiles(state: LabState, agent: AgentState): (TileView & { rea
   return map.tiles.map((tile, index) => {
     const cell = cellAt(map, index);
     const look = tile.kind === 'door' && doorOpen(state, cell) ? 'door-open' : TRUE_LOOK[tile.kind];
-    return { index, x: cell.x, y: cell.y, look, terrain: tile.terrain, visited: agent.known[index]?.visited === true, noGo: false, sensed: agent.known[index] !== undefined };
+    // Sensed = one of the robot's sensors, or contact, reported it. A tile known only from the mission plan is not.
+    return { index, x: cell.x, y: cell.y, look, terrain: tile.terrain, visited: agent.known[index]?.visited === true, noGo: false, sensed: agent.known[index]?.seen === true };
   });
 }
 
@@ -64,8 +65,10 @@ export function poseOf(agent: Pick<AgentState, 'cell' | 'move'>): Cell {
 }
 
 export interface FogReport {
-  /** Share of the map the robot sensed, %. */
+  /** Share of the map the robot's own sensors reported, %. The mission plan does not count. */
   readonly sensedPct: number;
+  /** The floor plan was on the mission plan from the start. */
+  readonly planKnown: boolean;
   /** What was on the map and never reported, e.g. "2 stairs", "1 forklift". */
   readonly missed: readonly string[];
 }
@@ -75,7 +78,7 @@ const plural = (count: number, one: string, many: string): string => `${count} $
 /** "What your sensors could not see": the share of the map sensed and the things that never showed up. */
 export function fogReport(state: LabState, agent: AgentState): FogReport {
   const { scenario } = state;
-  const sensed = agent.known.filter((tile) => tile !== undefined).length;
+  const sensed = agent.known.filter((tile) => tile?.seen === true).length;
   const drops = scenario.map.tiles.filter((tile, index) => tile.kind === 'drop' && agent.known[index]?.kind !== 'drop').length;
   const unseenObjects = scenario.objects.filter((object) => agent.knownObjects[object.id] === undefined && state.objects.find((o) => o.id === object.id)?.by !== agent.id).length;
   const unseenMovers = scenario.movers.filter((mover) => !agent.memory.moversInView.includes(mover.id)).length;
@@ -83,6 +86,7 @@ export function fogReport(state: LabState, agent: AgentState): FogReport {
   const unread = agent.known.filter((tile) => tile !== undefined && !tile.blocked && tile.terrain === undefined).length;
   return {
     sensedPct: Math.round((sensed / Math.max(1, agent.known.length)) * 100),
+    planKnown: scenario.planMap,
     missed: [
       ...(drops > 0 ? [plural(drops, 'drop', 'drops')] : []),
       ...(unseenMovers > 0 ? [plural(unseenMovers, 'forklift', 'forklifts')] : []),
@@ -111,9 +115,9 @@ export function legendFor(scenario: LabScenario): LegendEntry[] {
   const outdoors = !scenario.indoor;
   return [
     { key: 'you', label: 'your robot' },
-    ...(scenario.agents.length > 1 ? [{ key: 'rival' as const, label: 'the other robot, when a sensor sees it' }] : []),
+    ...(scenario.agents.length > 1 ? [{ key: 'rival' as const, label: 'the other robot, when a camera or a drone sees it' }] : []),
     ...kinds.map((kind) => ({ key: kind, label: OBJECT_NAME[kind] })),
-    ...(scenario.movers.length > 0 ? [{ key: 'mover' as const, label: 'forklift ("?" until a camera names it)' }] : []),
+    ...(scenario.movers.length > 0 ? [{ key: 'mover' as const, label: 'forklift ("?" until a camera or a drone names it)' }] : []),
     ...(tiles.has('door') ? [{ key: 'door' as const, label: 'door' }] : []),
     ...(tiles.has('drop') ? [{ key: 'drop' as const, label: outdoors ? 'crater' : 'stairs down' }] : []),
     ...(tiles.has('ramp') ? [{ key: 'ramp' as const, label: outdoors ? 'dune' : 'ramp' }] : []),

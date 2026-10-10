@@ -32,6 +32,9 @@ describe('Lab Missions copy', () => {
     expect(resultHeading({ status: 'dnf', dnfReason: 'battery' })).toBe('Out of battery');
     expect(resultHeading({ status: 'dnf', dnfReason: 'damage' })).toBe('Robot wrecked');
     expect(resultHeading({ status: 'dnf', dnfReason: 'beaten' })).toBe('Jev got the flag home');
+    // With the fixed rules in Jev's seat the headline does not credit Jev.
+    expect(resultHeading({ status: 'dnf', dnfReason: 'beaten' }, false)).toBe('The other robot got the flag home');
+    expect(SCENARIO_BRIEFS.warehouse.tagline).toMatch(new RegExp(`${LAB_SCENARIOS.warehouse.movers.length === 8 ? 'eight' : 'x'} forklifts`));
     expect(resultHeading({ status: 'dnf', dnfReason: 'stuck' })).toBe('Nothing left to do');
     expect(resultHeading({ status: 'dnf', dnfReason: 'timeout' })).toBe('Out of time');
   });
@@ -75,6 +78,19 @@ describe('the board draws only what the robot knows', () => {
     expect(pose.x).toBe(1);
     expect(pose.y).toBeGreaterThan(1);
     expect(pose.y).toBeLessThan(2);
+  });
+
+  it('does not count the mission plan as sensing: a blind robot on a known floor plan has sensed one tile', () => {
+    const state = start('warehouse', { ...LAB_DEFAULT_BUILDS.warehouse, sensors: [] });
+    const report = fogReport(state, me(state));
+    expect(me(state).known.every((tile) => tile !== undefined)).toBe(true);
+    expect(report.planKnown).toBe(true);
+    expect(report.sensedPct).toBeLessThan(2);
+    expect(trueTiles(state, me(state)).filter((tile) => tile.sensed)).toHaveLength(1);
+    // With a lidar the same start reports the walls and floor in its line of sight.
+    const lidar = start('warehouse', { ...LAB_DEFAULT_BUILDS.warehouse, sensors: ['lidar_rplidar_c1'] });
+    expect(fogReport(lidar, me(lidar)).sensedPct).toBeGreaterThan(10);
+    expect(fogReport(start('maze'), me(start('maze'))).planKnown).toBe(false);
   });
 
   it('reports what the sensors never saw at the end of a run', () => {

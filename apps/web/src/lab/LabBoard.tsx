@@ -131,7 +131,8 @@ interface LabBoardProps {
 export function LabBoard({ state, reveal = false, onTile }: LabBoardProps) {
   const { map } = state.scenario;
   const me = state.agents.find((agent) => agent.id === LAB_PLAYER)!;
-  // `known` is a new array only when the robot has sensed something new; doors opening change `doorsOpen`.
+  // `known` is a new array only when the robot has sensed something new, `doorsOpen` only when a door opens and
+  // `weatherActive` only when the weather turns (the engine keeps unchanged arrays from step to step).
   const tiles = useMemo(() => (reveal ? trueTiles(state, me) : knownTiles(state, me)), [reveal, me.known, state.doorsOpen]); // eslint-disable-line react-hooks/exhaustive-deps
   const view = useMemo(() => (reveal ? [] : inView(state, me)), [reveal, me.cell, me.heading, me.known, state.weatherActive, state.doorsOpen]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -159,7 +160,10 @@ export function LabBoard({ state, reveal = false, onTile }: LabBoardProps) {
     const to = mover.route[(mover.index + 1) % mover.route.length]!;
     return [{ id: mover.id, x: from.x + (to.x - from.x) * mover.progress, y: from.y + (to.y - from.y) * mover.progress, named: reveal || seen!.labelled }];
   });
-  const rivals = state.agents.filter((agent) => agent.id !== LAB_PLAYER && (reveal || me.visibleRivals.some((r) => r.id === agent.id)));
+  // A camera or a drone names the other robot; a ranger only reports something moving, as it does for a forklift.
+  const named = (id: string): boolean => reveal || me.visibleRivals.some((r) => r.id === id && r.labelled);
+  const rivals = state.agents.filter((agent) => agent.id !== LAB_PLAYER && named(agent.id));
+  const blips = reveal ? [] : state.agents.filter((agent) => agent.id !== LAB_PLAYER && !named(agent.id) && me.visibleRivals.some((r) => r.id === agent.id)).map((agent) => ({ id: agent.id, ...poseOf(agent) }));
 
   return (
     <svg
@@ -186,7 +190,7 @@ export function LabBoard({ state, reveal = false, onTile }: LabBoardProps) {
       {objects.map(({ def, cell, done }) => (
         <Glyph key={def.id} kind={def.kind} id={def.id} cell={cell} done={done} rival={def.owner !== undefined && def.owner !== LAB_PLAYER} />
       ))}
-      {movers.map((mover) => (
+      {[...movers, ...blips.map((blip) => ({ ...blip, named: false }))].map((mover) => (
         <g key={mover.id}>
           <rect x={mover.x * T + 3} y={mover.y * T + 3} width={T - 6} height={T - 6} rx={3} fill="#fbbf24" stroke="#160b03" />
           <text x={mover.x * T + T / 2} y={mover.y * T + T / 2 + 4} textAnchor="middle" fontSize={11} fontWeight={700} fontFamily="var(--font-mono)" fill="#160b03">{mover.named ? 'F' : '?'}</text>
