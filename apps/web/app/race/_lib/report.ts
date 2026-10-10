@@ -26,14 +26,21 @@ export interface StateReport {
 export const reportState = (code: string, seat: RaceSeat, raceNo: number, report: StateReport): Promise<unknown> =>
   postRaceAction(code, { action: 'state', ...seat, raceNo, ...report });
 
-/** The final post decides the result: try it three times before giving up. */
+/** How long the final post keeps trying: a little under the server's patience with a silent phone (GONE_MS). */
+const FINAL_RETRY_MS = 18_000;
+
+/**
+ * The final post decides the result, so it outlasts a short loss of signal: it is retried until it lands or
+ * the server would have closed this robot's run as disconnected anyway.
+ */
 export async function reportFinal(code: string, seat: RaceSeat, raceNo: number, report: StateReport): Promise<void> {
-  for (let attempt = 0; attempt < 3; attempt++) {
+  const started = Date.now();
+  for (let attempt = 0; Date.now() - started < FINAL_RETRY_MS; attempt++) {
     try {
       await reportState(code, seat, raceNo, report);
       return;
     } catch {
-      await new Promise((resolve) => setTimeout(resolve, 400 * (attempt + 1)));
+      await new Promise((resolve) => setTimeout(resolve, Math.min(1500, 400 * (attempt + 1))));
     }
   }
 }

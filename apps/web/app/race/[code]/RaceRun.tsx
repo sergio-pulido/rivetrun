@@ -4,7 +4,7 @@ import type { GhostTrace } from '@rivetrun/contracts';
 import { compileTrack, MISSIONS } from '@rivetrun/sim';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { DriveControls } from '@/game/drive/DriveControls';
 import { createDriveInput } from '@/game/drive/driveInput';
 import { useRunHaptics } from '@/game/drive/haptics';
@@ -28,6 +28,11 @@ interface RaceRunProps {
   readonly clockOffsetMs: number;
 }
 
+/** A run that starts this long after the start signal was not there for it: the page was reloaded mid-race. */
+const LATE_START_MS = 1500;
+/** The reload note stays up for the first metres of the restarted run. */
+const RESTART_NOTE_M = 6;
+
 /** Drives this phone's run: starts driveController on the start signal and reports at 5 Hz. */
 function useDrive(snapshot: RaceSnapshot, seat: RaceSeat, me: RacePlayer, clockOffsetMs: number) {
   const feed = useMemo(() => createRunFeed(), []);
@@ -36,15 +41,27 @@ function useDrive(snapshot: RaceSnapshot, seat: RaceSeat, me: RacePlayer, clockO
   const live = snapshot.status === 'countdown' || snapshot.status === 'racing';
   const build = me.build;
 
+  // Read when the effect runs, not a dependency: a result arriving must not restart anything.
+  const doneRef = useRef(me.done);
+  useEffect(() => {
+    doneRef.current = me.done;
+  }, [me.done]);
+  const [lateByS, setLateByS] = useState<number | null>(null);
+
   useEffect(() => {
     if (!live || startAt === null) return undefined;
+    // The page was reloaded after this robot's result was final: there is nothing left to drive.
+    if (doneRef.current) return undefined;
     drive.release();
     let stop: (() => void) | undefined;
+    const waitMs = startAt - (Date.now() + clockOffsetMs);
+    // Joining a race already under way (the page was reloaded): the run starts again from the line, on the same clock.
+    setLateByS(waitMs < -LATE_START_MS ? Math.round(-waitMs / 1000) : null);
     const timer = setTimeout(
       () => {
         stop = startHumanRun({ code, raceNo, seat, mission: MISSIONS[missionId], seed, build, feed, drive });
       },
-      Math.max(0, startAt - (Date.now() + clockOffsetMs)),
+      Math.max(0, waitMs),
     );
     return () => {
       clearTimeout(timer);
@@ -55,7 +72,7 @@ function useDrive(snapshot: RaceSnapshot, seat: RaceSeat, me: RacePlayer, clockO
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [live, raceNo, startAt, code, missionId, seed, seat, feed, drive]);
 
-  return { feed, drive };
+  return { feed, drive, lateByS };
 }
 
 /**
@@ -103,7 +120,7 @@ function AfterRace({ code }: { readonly code: string }) {
  * Everything about the result (place, RACE TIME, DNF reason) is read from the server snapshot.
  */
 export default function RaceRun({ snapshot, seat, me, now, clockOffsetMs }: RaceRunProps) {
-  const { feed, drive } = useDrive(snapshot, seat, me, clockOffsetMs);
+  const { feed, drive, lateByS } = useDrive(snapshot, seat, me, clockOffsetMs);
   const view = useRunView(feed);
   const mission = MISSIONS[snapshot.missionId];
   const trackLengthM = compileTrack(mission.track).lengthM;
@@ -158,6 +175,15 @@ export default function RaceRun({ snapshot, seat, me, now, clockOffsetMs }: Race
       {driving ? (
         <div className="absolute inset-0 z-10">
           <DriveControls drive={drive} feed={feed} build={me.build} />
+        </div>
+      ) : null}
+
+      {/* After a reload mid-race: say what happened to the run. */}
+      {driving && lateByS !== null && (state?.x ?? 0) < RESTART_NOTE_M ? (
+        <div className="pointer-events-none absolute inset-x-0 top-[22%] z-[16] flex justify-center px-4">
+          <p className="rr-mono rounded border border-[var(--rr-warn,#f5a524)] bg-black/80 px-3 py-2 text-center text-[11px] uppercase tracking-wider text-[var(--rr-warn,#f5a524)]">
+            Page reloaded · back on the start line · the race clock kept running ({lateByS} s)
+          </p>
         </div>
       ) : null}
 
