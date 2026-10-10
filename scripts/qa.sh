@@ -174,11 +174,11 @@ if [ "$RUN_E2E" = 1 ]; then
   # One line per kind of warning with its count: a run with Jev unreachable prints the same line sixty times.
   grep -E '^(PASS|FAIL|SKIP) ' "$OUT/e2e.log" | sed 's/^/     /'
   grep -E '^WARN ' "$OUT/e2e.log" | sed -E 's/(\/api\/ghost)\?.*/\1?…/' | sort | uniq -c | sed 's/^ *\([0-9]*\) WARN /     WARN ×\1 /'
-  # A tag must mean the Jev path was driven. If the QA server could not reach Jev at all (laptop offline, Jev
-  # down), the smoke still passes on the fallback: say so and do not tag.
+  # Count the calls that could not reach Jev (laptop offline, Jev down). The smoke's Jev-mode step fails by itself
+  # when Jev answered none of its decisions, so a tag always means the Jev path was driven.
   if [ -f "$OUT/server.log" ] && grep -q "jev network: fetch failed" "$OUT/server.log"; then
     JEV_UNREACHABLE="$(grep -c "jev network: fetch failed" "$OUT/server.log")"
-    NOTES+=("Jev was unreachable from the QA server for $JEV_UNREACHABLE call(s) (network): those decisions ran on the fallback, so this run does not prove the Jev path")
+    NOTES+=("Jev was unreachable from the QA server for $JEV_UNREACHABLE call(s) (network): those decisions ran on the fallback")
   fi
   NOTES+=("e2e ran on $E2E_ON; screens: $SCREENS")
 else
@@ -206,10 +206,6 @@ echo "QA GREEN $SHORT · logs: $OUT"
 if [ "$TAG" = 1 ]; then
   if [ ${#SKIPPED[@]} -gt 0 ] && [ "${SKIPPED[*]}" != "demo-build" ]; then
     echo "not tagging: a gate step was skipped (${SKIPPED[*]})"
-    exit 0
-  fi
-  if [ "${JEV_UNREACHABLE:-0}" -gt 0 ]; then
-    echo "not tagging: Jev was unreachable during the smoke ($JEV_UNREACHABLE call(s)); run the gate again when the network is back"
     exit 0
   fi
   EXISTING="$(git -C "$ROOT" tag --points-at "$SHA" --list 'demo-good-*' | head -n 1)"

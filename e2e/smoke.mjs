@@ -115,7 +115,7 @@ async function assertHealthy(page, seen, { sideways = true } = {}) {
  * `data-robot="mk2" | "procedural"` (and `data-robot-reason` on a fallback). Waits for the kit, which loads late
  * under software rendering.
  */
-async function robotOnScreen(page, waitMs = 40_000) {
+async function robotOnScreen(page, waitMs = 60_000) {
   const read = () =>
     page.evaluate(() => {
       const nodes = [...document.querySelectorAll('[data-robot]')];
@@ -499,11 +499,21 @@ try {
       await assertHealthy(page, seen);
       if (!/finished/i.test(headline)) throw new Error(`result headline is "${headline}"`);
       if (fallback) warnings.push('jev run: FALLBACK was shown on the HUD (Jev slow or unavailable for at least one decision)');
-      const time = (await page.locator('body').innerText()).match(/(\d+\.\d)\s*s/)?.[1];
+      const resultText = await page.locator('body').innerText();
+      const time = resultText.match(/(\d+\.\d)\s*s/)?.[1];
+      // How many of the decisions Jev itself answered: a run where the fixed rules answered every one (Jev or the
+      // network down) finishes too, but proves nothing about the Jev path.
+      // The duel table's footer reads "17 decisions · median 243 ms", or "18 decisions · 18 answered by the fixed rules".
+      const fellBack = resultText.match(/(\d+) decisions · (\d+) (?:by heuristic fallback|answered by the fixed rules|by the fixed rules)/);
+      const plain = resultText.match(/(\d+) decisions · median/);
+      const decisions = fellBack ? Number(fellBack[1]) : plain ? Number(plain[1]) : null;
+      const byRules = fellBack ? Number(fellBack[2]) : 0;
+      if (decisions !== null && decisions > 0 && byRules >= decisions) throw new Error(`Jev answered none of the ${decisions} decisions (all by the fixed rules): Jev or the network is down, the Jev path is not proven`);
+      const answered = decisions === null ? '' : `, Jev answered ${decisions - byRules} of ${decisions} decisions`;
       // Back to Drive mode for the steps that follow.
       await go(page, '/');
       await page.getByRole('button', { name: 'You drive' }).click();
-      return `${coached ? 'coach marks shown, ' : ''}Jev finished${time ? ` in ${time} s` : ''}${fallback ? ', with FALLBACK decisions' : ', no FALLBACK'}`;
+      return `${coached ? 'coach marks shown, ' : ''}Jev finished${time ? ` in ${time} s` : ''}${answered}${fallback ? ', FALLBACK shown' : ', no FALLBACK'}`;
     }, page);
   }
 
@@ -745,7 +755,9 @@ try {
       await screen.waitForURL(/\/screen\?room=/, { timeout: NAV_MS });
       // Nobody on the grid yet: the attract loop replays the track.
       await sleep(6000);
-      await shot(screen, 'screen-01b-attract');
+      // Four kit robots in software rendering: under machine load this one picture can take longer than Playwright
+      // waits. It is evidence, not a check: a missed picture is a warning.
+      await shot(screen, 'screen-01b-attract').catch(() => warnings.push('screen: the attract-loop screenshot timed out (machine load); the race went on'));
       await screen.getByRole('radio', { name: /^M1\b/ }).first().click();
       const addBot = screen.getByRole('button', { name: '+ JEV bot' });
       await addBot.waitFor({ state: 'visible', timeout: 20_000 });
