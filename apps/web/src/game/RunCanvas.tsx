@@ -8,7 +8,8 @@ import type { DriveInput } from './drive/driveInput';
 import { createFakeRun, fakeGhostTrace } from './fakeRun';
 import { useBrainChoice } from './hud/brainStore';
 import { pilotOverride, type PilotTag } from './hud/strategy';
-import { RunHud } from './hud/RunHud';
+import { BrainColumn, RobotColumn } from './cockpit/RunCockpit';
+import { RunHud, useMedia } from './hud/RunHud';
 import { UI } from './palette';
 import { quality } from './quality';
 import { SceneFrame } from './SceneFrame';
@@ -21,6 +22,11 @@ import { useTelemetryOpen } from './telemetry/telemetryStore';
 
 /** A run waits at most this long for the robot's kit before it starts anyway. */
 const KIT_WAIT_MS = 4000;
+
+/** RR-COCKPIT: from this width the run view is three columns (brain · track · robot and race). */
+const COCKPIT = '(min-width: 1280px)';
+/** Narrower side columns below this width. */
+const COCKPIT_ROOMY = '(min-width: 1600px)';
 
 /** Mobile performance budget from the spec. Weak devices drop to 1 (see quality.ts). */
 export const MAX_DPR = 1.5;
@@ -127,7 +133,14 @@ export default function RunCanvas({ mission = MISSIONS.M5, build = PRESETS[DEFAU
   const brainChoice = useBrainChoice();
   // Whether something tall covers the lower part of an upright screen: the telemetry drawer, or the Brain sheet once it
   // is tapped open (it starts as one line). A page that draws its own HUD over a watched run keeps the old framing.
-  const covered = hud ? telemetryOpen || (drive === undefined && brainChoice === 'open') : drive === undefined;
+  // Desktop and projector, on a real run with the game's own HUD: brain on the left, robot and race on the right, and
+  // the track in between with nothing over the robot. Below 1280 px, and for pages that draw their own HUD, nothing changes.
+  const wideEnough = useMedia(COCKPIT);
+  const roomy = useMedia(COCKPIT_ROOMY);
+  const cockpit = wideEnough && hud && feed !== undefined;
+  const brainWidth = cockpit ? (roomy ? 360 : 300) : 0;
+  const robotWidth = cockpit ? (roomy ? 340 : 300) : 0;
+  const covered = cockpit ? false : hud ? telemetryOpen || (drive === undefined && brainChoice === 'open') : drive === undefined;
   const robot = useRobotSignal('run');
   // The run starts (onReady) when the scene has drawn AND the robot's kit is in, so the robot is on the start line
   // from the first moment. A kit that fails counts as in (the fallback robot is drawn); so does one that takes too long.
@@ -160,6 +173,9 @@ export default function RunCanvas({ mission = MISSIONS.M5, build = PRESETS[DEFAU
   return (
     // data-robot: which robot the run draws (mk2, procedural with data-robot-reason, or loading), for QA.
     <div className="relative h-full w-full overflow-hidden" style={{ background: UI.ink }} {...robot}>
+      {cockpit && <BrainColumn feed={activeFeed} drive={drive} ghosts={activeGhosts} pilot={pilot} width={brainWidth} />}
+      {/* The track and everything drawn over it. Full width, except in the cockpit, where the columns stand beside it. */}
+      <div className="absolute inset-y-0 overflow-hidden" style={{ left: brainWidth, right: robotWidth }}>
       <SceneFrame
         label="Building the track"
         failureHelp="The run itself still works: the gauges and controls are live."
@@ -172,9 +188,11 @@ export default function RunCanvas({ mission = MISSIONS.M5, build = PRESETS[DEFAU
           if (dev) (window as unknown as { __rivetrun?: unknown }).__rivetrun = { info: gl.info, scene, camera, state: () => activeFeed.get().state, pin: dev.pin };
         }}
       >
-        {(plain) => <RunScene mission={mission} build={build} feed={dev?.feed ?? activeFeed} ghosts={activeGhosts} particleBudget={tier.particles} hands={drive} plain={plain} raise={covered} playerName={drive ? undefined : pilot?.agent} flyIn={!tier.weak && feed !== undefined} />}
+        {(plain) => <RunScene mission={mission} build={build} feed={dev?.feed ?? activeFeed} ghosts={activeGhosts} particleBudget={tier.particles} hands={drive} plain={plain} raise={covered} playerName={drive ? undefined : pilot?.agent} flyIn={!tier.weak && feed !== undefined} cockpit={cockpit} />}
       </SceneFrame>
-      {hud && <RunHud mission={mission} feed={activeFeed} ghosts={activeGhosts} drive={drive} build={build} pilot={pilot} />}
+      {hud && <RunHud mission={mission} feed={activeFeed} ghosts={activeGhosts} drive={drive} build={build} pilot={pilot} cockpit={cockpit} />}
+      </div>
+      {cockpit && <RobotColumn feed={activeFeed} build={build} drive={drive} ghosts={activeGhosts} pilot={pilot} width={robotWidth} />}
     </div>
   );
 }

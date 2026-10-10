@@ -5,6 +5,7 @@ import type { Build, GhostTrace } from '@rivetrun/contracts';
 import type { DriveInput } from '../drive/driveInput';
 import { BrainHud, BrainLine, JEV_IS_TOLD, JEV_IS_TOLD_LONG } from '../hud/BrainHud';
 import { brainIsOpen, brainPanel, useBrainChoice } from '../hud/brainStore';
+import { arrivedLate, blindMetres } from '../cockpit/thinkingCost';
 import { ACTION_LABEL, POLICY_LABEL, UI } from '../palette';
 import type { RunFeed } from '../runFeed';
 import { pedalsOf, readingsOf, type Pedals, type Reading, type ReadingTone } from './readings';
@@ -57,7 +58,7 @@ function ReadingRow({ reading }: { reading: Reading }) {
 
 const SECTION: CSSProperties = { color: UI.dim, letterSpacing: 1.5 };
 
-function Entry({ entry, open, onToggle }: { entry: ThreadEntry; open: boolean; onToggle: (id: string) => void }) {
+function Entry({ entry, open, onToggle, cost }: { entry: ThreadEntry; open: boolean; onToggle: (id: string) => void; cost: boolean }) {
   const d = entry.decision;
   const share = d ? d.options.find((option) => option.action === d.choice)?.probability : undefined;
   return (
@@ -74,6 +75,8 @@ function Entry({ entry, open, onToggle }: { entry: ThreadEntry; open: boolean; o
             <>
               → {ACTION_LABEL[d.choice].toLowerCase()}
               {share === undefined ? '' : ` (${Math.round(share * 100)} %)`} · <span className="tabular-nums">{Math.round(d.latencyMs)} ms</span>
+              {/* What the wait cost: metres driven on the old command (the cockpit's THINKING COST, per decision). */}
+              {cost ? <span style={{ color: arrivedLate(d) ? UI.warn : UI.dim }}> · {blindMetres(d).toFixed(1)} m blind{arrivedLate(d) ? ' · late' : ''}</span> : null}
               {d.fallback ? ' · fallback' : ''}
             </>
           ) : (
@@ -140,7 +143,7 @@ function Entry({ entry, open, onToggle }: { entry: ThreadEntry; open: boolean; o
 }
 
 /** A brain's thread, newest on top. Stays at the top as entries arrive unless the reader scrolled down. */
-export const BrainThread = memo(function BrainThread({ entries, empty }: { entries: readonly ThreadEntry[]; empty: string }) {
+export const BrainThread = memo(function BrainThread({ entries, empty, cost = false }: { entries: readonly ThreadEntry[]; empty: string; cost?: boolean }) {
   const [open, setOpen] = useState<ReadonlySet<string>>(() => new Set());
   const scroller = useRef<HTMLDivElement>(null);
   const toggle = useMemo(
@@ -165,7 +168,7 @@ export const BrainThread = memo(function BrainThread({ entries, empty }: { entri
       ) : (
         <ol className="m-0 p-0">
           {[...entries].reverse().map((entry) => (
-            <Entry key={entry.id} entry={entry} open={open.has(entry.id)} onToggle={toggle} />
+            <Entry key={entry.id} entry={entry} open={open.has(entry.id)} onToggle={toggle} cost={cost} />
           ))}
         </ol>
       )}

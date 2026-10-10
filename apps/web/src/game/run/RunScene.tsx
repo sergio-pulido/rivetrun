@@ -333,6 +333,8 @@ interface RigProps {
   driving: boolean;
   /** A bottom sheet covers the lower screen in portrait after all (telemetry open while driving). */
   raise: boolean;
+  /** Desktop cockpit: the track has the middle column to itself. The robot sits 30 % from the left, in the lower third. */
+  cockpit: boolean;
   /** Open on the robot as it stood on the workbench and pull back to the track (off on weak devices and for reduced motion). */
   flyIn: boolean;
 }
@@ -341,7 +343,7 @@ interface RigProps {
 /** The fly-in from the workbench view lasts this long at most; any touch or key ends it at once. */
 const FLY_IN_MS = 1300;
 
-function CameraRig({ pose, light, startX, wide, driving, raise, flyIn }: RigProps) {
+function CameraRig({ pose, light, startX, wide, driving, raise, flyIn, cockpit }: RigProps) {
   const intro = useRef({ startAt: 0, over: !flyIn });
   // Reduced motion: no camera shake (and no fly-in, below).
   const still = useRef(false);
@@ -387,7 +389,7 @@ function CameraRig({ pose, light, startX, wide, driving, raise, flyIn }: RigProp
     const sheetLeftPx = (size.width - Math.min(HUD_SHEET_WIDTH_PX, size.width)) / 2;
     // Never closer to the edge than a fifth of the width: on a phone on its side the robot was half off the screen.
     const robotPx = clamp(sheetLeftPx - 130, size.width * 0.2, size.width * 0.36);
-    const lead = portrait ? (driving ? 1.7 : wide ? 1.35 : 0.75) : driving ? viewWidthM * 0.2 : (0.5 - robotPx / size.width) * viewWidthM;
+    const lead = cockpit ? viewWidthM * 0.2 : portrait ? (driving ? 1.7 : wide ? 1.35 : 0.75) : driving ? viewWidthM * 0.2 : (0.5 - robotPx / size.width) * viewWidthM;
     const leadX = (p.ready ? p.x : startX) + lead + clamp(p.v * 0.25, -0.5, 0.9);
     const leadY = p.ready ? p.y : 0;
     if (!f.init) {
@@ -400,7 +402,7 @@ function CameraRig({ pose, light, startX, wide, driving, raise, flyIn }: RigProp
 
     // In portrait an open Brain sheet or telemetry drawer (`raise`) covers the lower ~42 %: the robot sits in the clear band
     // above it. Otherwise only the pedals or the one-line Brain bar are down there, and the robot sits lower.
-    const lift = distance * Math.tan(halfV) * (portrait ? (raise ? 0.2 : -0.3) : -0.12);
+    const lift = distance * Math.tan(halfV) * (cockpit ? -0.3 : portrait ? (raise ? 0.2 : -0.3) : -0.12);
     const shake = !still.current && performance.now() < p.shakeUntil ? 0.09 : 0;
     target.set(f.x + (Math.random() - 0.5) * shake, f.y + 0.75 - lift + (Math.random() - 0.5) * shake, -1);
     camera.position.set(target.x, target.y + Math.sin(ELEVATION) * distance, target.z + Math.cos(ELEVATION) * distance);
@@ -456,10 +458,12 @@ export interface RunSceneProps {
   flyIn?: boolean;
   /** The agent driving the watched robot when it was picked on /play (RR-PLAN): shown on its name tag. */
   playerName?: string;
+  /** Desktop cockpit (RR-COCKPIT): frame the robot for a track that has the middle column to itself. */
+  cockpit?: boolean;
 }
 
 /** The 2.5D run view. Mount inside an R3F <Canvas>. Reads sim state only: no physics here. */
-export function RunScene({ mission, build, feed, ghosts = [], particleBudget = 1, hands, plain = false, raise = false, flyIn = false, playerName }: RunSceneProps) {
+export function RunScene({ mission, build, feed, ghosts = [], particleBudget = 1, hands, plain = false, raise = false, flyIn = false, playerName, cockpit = false }: RunSceneProps) {
   const layout = useMemo(() => layoutTrack(mission.track), [mission.track]);
   const pose = useRef<Pose>(restPose());
   const hasDrone = build.sensors.includes('scout_drone');
@@ -490,7 +494,7 @@ export function RunScene({ mission, build, feed, ghosts = [], particleBudget = 1
       {hasDrone && <ScoutDroneRig feed={feed} layout={layout} pose={pose} />}
       <SpeedLines pose={pose} budget={particleBudget} />
       <Particles ref={particles} timeScale={timeScale} budget={particleBudget} />
-      <CameraRig pose={pose} light={sun} startX={0} wide={hasDrone} driving={hands !== undefined} raise={raise} flyIn={flyIn} />
+      <CameraRig pose={pose} light={sun} startX={0} wide={hasDrone} driving={hands !== undefined} raise={raise} flyIn={flyIn} cockpit={cockpit} />
     </>
   );
 }

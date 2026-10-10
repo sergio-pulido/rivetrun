@@ -33,6 +33,11 @@ export interface RunHudProps {
   build?: Build;
   /** A robot picked on /play (RR-PLAN): its agent and strategy are named on one line under the top bar. */
   pilot?: PilotTag;
+  /**
+   * Desktop cockpit (RR-COCKPIT): the brain, the telemetry and the race stand in columns beside the track, so this
+   * overlay keeps only what belongs to the scene: the top bar, the sound button, the alerts, the end stamp and the pedals.
+   */
+  cockpit?: boolean;
 }
 
 /** Sound on / off. The choice persists (sfx.ts keeps it in localStorage). */
@@ -200,7 +205,7 @@ function useShortLandscape(): boolean {
   );
 }
 
-const useMedia = (query: string): boolean =>
+export const useMedia = (query: string): boolean =>
   useSyncExternalStore(
     (listener) => {
       const media = window.matchMedia(query);
@@ -347,7 +352,7 @@ export function RunAlerts({ mission, feed, build }: RunAlertsProps) {
 }
 
 /** DOM overlay for the run view: top bar, the decision log, a mark while Jev is thinking, end stamp and the Brain sheet. */
-export function RunHud({ mission, feed, ghosts = NO_GHOSTS, drive, build, pilot }: RunHudProps) {
+export function RunHud({ mission, feed, ghosts = NO_GHOSTS, drive, build, pilot, cockpit = false }: RunHudProps) {
   const view = useRunView(feed);
   const driving = drive !== undefined;
   // The run keeps its pace while Jev thinks (Brain v3): a small mark says a question is out. Not in Drive mode: the player decides there.
@@ -355,7 +360,7 @@ export function RunHud({ mission, feed, ghosts = NO_GHOSTS, drive, build, pilot 
   useRunHaptics(feed, driving);
   const dnf = view.dnfReason;
   const telemetryOpen = useTelemetryOpen();
-  const drawerOpen = telemetryOpen && build !== undefined && !view.done;
+  const drawerOpen = telemetryOpen && build !== undefined && !view.done && !cockpit;
   const short = useShortLandscape();
   const phone = usePhone();
   const portrait = useMedia(PORTRAIT);
@@ -389,7 +394,7 @@ export function RunHud({ mission, feed, ghosts = NO_GHOSTS, drive, build, pilot 
           <FpsBadge />
         </div>
         {/* One row under the top bar: telemetry on the left, the rival or the thinking mark in the middle, sound on the right. */}
-        <div className="mt-1.5 flex items-center gap-2">
+        <div className={`mt-1.5 items-center gap-2 ${cockpit ? 'hidden' : 'flex'}`}>
           {build ? <TelemetryButton open={telemetryOpen} onToggle={telemetry.toggle} /> : <span className="w-11" />}
           <div className="flex min-w-0 flex-1 justify-center">
             {driving && ghosts[0] ? (
@@ -403,13 +408,13 @@ export function RunHud({ mission, feed, ghosts = NO_GHOSTS, drive, build, pilot 
           <MuteButton />
         </div>
         {/* Who drives and on what orders (RR-PLAN): there from the start line, one line, never wrapped. */}
-        {pilot && !view.done && (
+        {pilot && !view.done && !cockpit && (
           <div className="mt-2 flex">
             <StrategyChip {...pilot} />
           </div>
         )}
         {/* The decision log (Brain v3): what the robot senses, then its last three decisions, newest first. */}
-        {!view.done && settled && (
+        {!view.done && settled && !cockpit && (
           <div className={`${pilot ? 'mt-1' : 'mt-2'} flex flex-col items-start gap-1`}>
             {/* On a short screen the standing facts give way: they are in the Brief and in the telemetry drawer. */}
             {!short && !phone && <WeatherChip atmosphere={atmosphere} gust={view.state?.gust === true} />}
@@ -430,8 +435,15 @@ export function RunHud({ mission, feed, ghosts = NO_GHOSTS, drive, build, pilot 
         {short && alerts ? <div className="mt-1.5 flex flex-col items-end gap-1.5">{alerts}</div> : null}
       </div>
 
+      {/* Cockpit: the sound button alone, top-right of the track. */}
+      {cockpit ? (
+        <div className="absolute right-3" style={{ top: 'max(14px, env(safe-area-inset-top))' }}>
+          <MuteButton />
+        </div>
+      ) : null}
+
       {!short && alerts ? (
-        <div className="absolute inset-x-0 flex flex-col items-center gap-1.5 px-3" style={{ top: '33%' }}>
+        <div className="absolute inset-x-0 flex flex-col items-center gap-1.5 px-3" style={{ top: cockpit ? '22%' : '33%' }}>
           {alerts}
         </div>
       ) : null}
@@ -460,7 +472,7 @@ export function RunHud({ mission, feed, ghosts = NO_GHOSTS, drive, build, pilot 
           into a bottom sheet (the camera then lifts the robot clear of it). On its side or on a desktop: a compact card
           in the bottom-right corner. With the telemetry drawer open it lives inside the drawer where there is room
           (≥1024 px wide), and elsewhere the drawer's thread stands in for it. */}
-      {!driving && !(short && view.done) && !drawerOpen && (
+      {!driving && !(short && view.done) && !drawerOpen && !cockpit && (
         portrait ? (
           <div className="absolute inset-x-0 bottom-0 mx-auto max-w-[430px]">
             {brainOpen ? (

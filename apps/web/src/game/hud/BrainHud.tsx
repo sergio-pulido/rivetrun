@@ -185,6 +185,10 @@ export interface BrainHudProps {
   frame?: BrainFrame;
   /** Makes the header a button that folds the panel to one line (BrainLine). */
   onCollapse?: () => void;
+  /** The "Jev is told…" line under the options. False where the caller prints it once itself (the desktop cockpit). */
+  explain?: boolean;
+  /** The last row: the briefing and the decision count. False on a short desktop screen, where the thread needs the room. */
+  footer?: boolean;
 }
 
 export type BrainFrame = 'sheet' | 'card' | 'plain';
@@ -276,7 +280,7 @@ function Header({ onCollapse, children }: { onCollapse?: () => void; children: R
  * The Brain panel (bottom sheet): what the AI perceives, its options with %, the chosen one in cyan,
  * who decided (JEV / FALLBACK), latency, trigger and the active briefing.
  */
-export function BrainHud({ pending = null, last = null, decisionCount = 0, compact = false, rows: wantedRows, frame = 'sheet', onCollapse }: BrainHudProps) {
+export function BrainHud({ pending = null, last = null, decisionCount = 0, compact = false, rows: wantedRows, frame = 'sheet', onCollapse, explain = true, footer = true }: BrainHudProps) {
   const maxRows = wantedRows ?? (compact ? 3 : MAX_OPTION_ROWS);
   const question = pending?.question ?? last?.question ?? null;
   const decision = pending ? null : (last?.decision ?? null);
@@ -358,13 +362,13 @@ export function BrainHud({ pending = null, last = null, decisionCount = 0, compa
         )}
       </div>
 
-      {!compact && (
+      {!compact && explain && (
         <p className="m-0 text-[11px] leading-[14px]" style={{ color: UI.dim }}>
           {JEV_IS_TOLD}
         </p>
       )}
 
-      {!compact && (
+      {!compact && footer && (
       <div className="flex items-center justify-between gap-3">
         {brief ? (
           <span className="min-w-0 truncate rounded-lg px-2.5 py-1 text-[12px] leading-[16px]" style={{ border: '1px solid #1f5a63', background: '#0c1a1d', color: UI.cyanText }}>
