@@ -18,11 +18,54 @@ import { RobotModel } from '../robot/RobotModel';
 
 const TICKS = Array.from({ length: 36 }, (_, i) => (i / 36) * Math.PI * 2);
 const FLOOR_SIZE = 16;
-/** The studio: a dark neutral backdrop, so black tyres and grey prints both stand out against it. */
-const BACKDROP = '#15171b';
+
+export type WorkshopStage = 'light' | 'dark';
+
+interface StageLook {
+  /** Seamless backdrop; the floor fades into exactly this colour. */
+  readonly backdrop: string;
+  /** Floor under the turntable, centre → edge (the last stop is the backdrop). */
+  readonly floor: readonly [string, string, string];
+  readonly table: { readonly base: string; readonly rim: string; readonly top: string; readonly tick: string };
+  readonly key: number;
+  readonly fill: number;
+  readonly rim: number;
+  readonly hemi: readonly [string, string, number];
+  /** Reflection environment: its background and the strength of its softboxes. */
+  readonly env: string;
+  readonly softbox: number;
+  /** Cast shadow and the soft contact shadow under the turntable, 0–1. */
+  readonly shadow: number;
+  readonly contact: number;
+}
+
+/**
+ * The two studios. `light`: the Workshop, a light-grey seamless like the MK-II hero render, with a mid-grey
+ * turntable so the rover separates from it. `dark`: graphite, for the bench on dark pages (Home).
+ */
+const STAGES: Readonly<Record<WorkshopStage, StageLook>> = {
+  light: {
+    backdrop: '#e3e5e8',
+    floor: ['#f3f4f6', '#ebedf0', '#e3e5e8'],
+    table: { base: '#4d535b', rim: '#666c75', top: '#7d848d', tick: '#30353c' },
+    key: 2.1, fill: 0.9, rim: 1.5,
+    hemi: ['#ffffff', '#c8ccd2', 0.95],
+    env: '#dcdee1', softbox: 0.85,
+    shadow: 0.26, contact: 0.3,
+  },
+  dark: {
+    backdrop: '#15171b',
+    floor: ['#3a3e46', '#2c3036', '#15171b'],
+    table: { base: '#0f1114', rim: '#191b1f', top: '#1c1e22', tick: '#6f7783' },
+    key: 2.7, fill: 0.9, rim: 3.4,
+    hemi: ['#dfe6f0', '#2a2d33', 0.55],
+    env: '#22252b', softbox: 1,
+    shadow: 0.3, contact: 0,
+  },
+};
 
 /** The studio floor: a soft pool of light under the turntable that falls off into the backdrop. */
-function floorTexture(): CanvasTexture {
+function floorTexture(look: StageLook): CanvasTexture {
   const size = 512;
   const canvas = document.createElement('canvas');
   canvas.width = size;
@@ -31,10 +74,10 @@ function floorTexture(): CanvasTexture {
   if (ctx) {
     const c = size / 2;
     const pool = ctx.createRadialGradient(c, c, 0, c, c, c);
-    pool.addColorStop(0, 'rgba(58, 62, 70, 1)');
-    pool.addColorStop(0.3, 'rgba(44, 48, 54, 1)');
-    pool.addColorStop(0.62, 'rgba(29, 32, 37, 1)');
-    pool.addColorStop(1, 'rgba(21, 23, 27, 1)');
+    pool.addColorStop(0, look.floor[0]);
+    pool.addColorStop(0.3, look.floor[1]);
+    pool.addColorStop(0.7, look.floor[2]);
+    pool.addColorStop(1, look.floor[2]);
     ctx.fillStyle = pool;
     ctx.fillRect(0, 0, size, size);
   }
@@ -43,16 +86,34 @@ function floorTexture(): CanvasTexture {
   return texture;
 }
 
+/** A soft dark disc: the contact shadow where the turntable meets the floor (it also stands in when shadows are off). */
+function contactTexture(): CanvasTexture {
+  const size = 256;
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  if (ctx) {
+    const c = size / 2;
+    const blob = ctx.createRadialGradient(c, c, c * 0.45, c, c, c);
+    blob.addColorStop(0, 'rgba(20, 22, 26, 1)');
+    blob.addColorStop(0.55, 'rgba(20, 22, 26, 0.55)');
+    blob.addColorStop(1, 'rgba(20, 22, 26, 0)');
+    ctx.fillStyle = blob;
+    ctx.fillRect(0, 0, size, size);
+  }
+  return new CanvasTexture(canvas);
+}
+
 // Bake keys: the turntable merges into one matte and one metal mesh (see robot/bake.tsx).
-const TABLE = {
-  // Dark graphite: the rover is the bright thing on the stage, the table only carries it. The rim light and the
-  // floor's pool of light keep black tyres apart from it.
-  base: withBakeKey(new MeshStandardMaterial({ color: '#0f1114' }), 'metal'),
-  rim: withBakeKey(new MeshStandardMaterial({ color: '#191b1f' }), 'matte'),
-  top: withBakeKey(new MeshStandardMaterial({ color: '#1c1e22' }), 'matte'),
-  tick: withBakeKey(new MeshStandardMaterial({ color: '#6f7783' }), 'matte'),
+const tableOf = (look: StageLook) => ({
+  base: withBakeKey(new MeshStandardMaterial({ color: look.table.base }), 'metal'),
+  rim: withBakeKey(new MeshStandardMaterial({ color: look.table.rim }), 'matte'),
+  top: withBakeKey(new MeshStandardMaterial({ color: look.table.top }), 'matte'),
+  tick: withBakeKey(new MeshStandardMaterial({ color: look.table.tick }), 'matte'),
   mark: withBakeKey(new MeshStandardMaterial({ color: UI.safety }), 'matte'),
-};
+});
+const TABLES = { light: tableOf(STAGES.light), dark: tableOf(STAGES.dark) } as const;
 
 /** Height the camera looks at: the middle of the rover on its turntable (the MK-II stands about 1 unit tall). */
 const FOCUS_Y = 0.55;
@@ -87,13 +148,17 @@ export interface WorkshopSceneProps {
   picked?: RoverPick | null;
   /** A tap on a rover part: the catalog part or printed part under the finger. */
   onPick?: (pick: RoverPick) => void;
+  /** Light studio (the Workshop) or dark graphite (the bench on dark pages). */
+  stage?: WorkshopStage;
 }
 
 /**
- * The rover on a turntable in a plain studio: dark neutral backdrop, a soft pool of light on the floor,
+ * The rover on a turntable in a plain studio (light seamless or dark graphite): a soft pool of light on the floor,
  * three-point lighting and a faint shadow. Swap the build and the changed part pops in. Mount inside a <Canvas>.
  */
-export function WorkshopScene({ build, spin = 0.45, plain = false, picked = null, onPick }: WorkshopSceneProps) {
+export function WorkshopScene({ build, spin = 0.45, plain = false, picked = null, onPick, stage = 'dark' }: WorkshopSceneProps) {
+  const look = STAGES[stage];
+  const TABLE = TABLES[stage];
   const gl = useThree((state) => state.gl);
   const table = useRef<Group>(null);
   const rover = useRef<Group>(null);
@@ -113,7 +178,13 @@ export function WorkshopScene({ build, spin = 0.45, plain = false, picked = null
   }, [pickedKey, build]);
   const drive = useRef<RobotDrive>(restDrive());
   const motion = useRef({ velocity: spin, dragging: false, lastX: 0, happyUntil: 0 });
-  const sheet = useMemo(() => new MeshBasicMaterial({ map: floorTexture(), fog: false }), []);
+  // Not tone-mapped: the floor's edge has to be exactly the backdrop colour, or the seamless shows a square.
+  const sheet = useMemo(() => new MeshBasicMaterial({ map: floorTexture(look), fog: false, toneMapped: false }), [look]);
+  const contact = useMemo(() => new MeshBasicMaterial({ map: contactTexture(), transparent: true, opacity: look.contact, depthWrite: false, fog: false, toneMapped: false }), [look]);
+  useEffect(() => () => {
+    contact.map?.dispose();
+    contact.dispose();
+  }, [contact]);
 
   useEffect(() => () => {
     sheet.map?.dispose();
@@ -169,11 +240,11 @@ export function WorkshopScene({ build, spin = 0.45, plain = false, picked = null
   return (
     <>
       <FitCamera />
-      <color attach="background" args={[BACKDROP]} />
+      <color attach="background" args={[look.backdrop]} />
       {/* Three-point lighting. Key: high, front left, the one that casts the shadow. */}
       <directionalLight
         position={[-3.8, 5.8, 4.6]}
-        intensity={2.7}
+        intensity={look.key}
         color="#fff6ea"
         castShadow
         shadow-mapSize={[1024, 1024]}
@@ -187,18 +258,18 @@ export function WorkshopScene({ build, spin = 0.45, plain = false, picked = null
         shadow-camera-far={18}
       />
       {/* Fill: low, front right, cool and soft, so the side away from the key is never black. */}
-      <directionalLight position={[4.6, 2.2, 3.4]} intensity={0.9} color="#dfe8ff" />
+      <directionalLight position={[4.6, 2.2, 3.4]} intensity={look.fill} color="#dfe8ff" />
       {/* Rim: from behind, high and to the right, a bright edge that cuts the silhouette out of the backdrop. */}
-      <directionalLight position={[2.8, 4.6, -5.6]} intensity={3.4} color="#ffffff" />
-      <hemisphereLight args={['#dfe6f0', '#2a2d33', 0.55]} />
+      <directionalLight position={[2.8, 4.6, -5.6]} intensity={look.rim} color="#ffffff" />
+      <hemisphereLight args={[look.hemi[0], look.hemi[1], look.hemi[2]]} />
       <Reflections plain={plain}>
-      <Environment resolution={64} frames={1}>
-        <color attach="background" args={['#22252b']} />
+      <Environment key={stage} resolution={64} frames={1}>
+        <color attach="background" args={[look.env]} />
         {/* Softboxes: black plastic and rubber only read through what they reflect. */}
-        <Lightformer form="rect" intensity={2.2} color="#ffffff" position={[0, 6, 0]} rotation={[Math.PI / 2, 0, 0]} scale={[10, 10, 1]} />
-        <Lightformer form="rect" intensity={1.8} color="#fff4e6" position={[-6, 2, 2]} rotation={[0, Math.PI / 2, 0]} scale={[7, 4, 1]} />
-        <Lightformer form="rect" intensity={0.9} color="#f2f5ff" position={[6, 2, 2]} rotation={[0, -Math.PI / 2, 0]} scale={[7, 4, 1]} />
-        <Lightformer form="rect" intensity={2.4} color="#ffffff" position={[2, 2.5, -7]} scale={[9, 3, 1]} />
+        <Lightformer form="rect" intensity={2.2 * look.softbox} color="#ffffff" position={[0, 6, 0]} rotation={[Math.PI / 2, 0, 0]} scale={[10, 10, 1]} />
+        <Lightformer form="rect" intensity={1.8 * look.softbox} color="#fff4e6" position={[-6, 2, 2]} rotation={[0, Math.PI / 2, 0]} scale={[7, 4, 1]} />
+        <Lightformer form="rect" intensity={0.9 * look.softbox} color="#f2f5ff" position={[6, 2, 2]} rotation={[0, -Math.PI / 2, 0]} scale={[7, 4, 1]} />
+        <Lightformer form="rect" intensity={2.4 * look.softbox} color="#ffffff" position={[2, 2.5, -7]} scale={[9, 3, 1]} />
       </Environment>
       </Reflections>
 
@@ -207,8 +278,13 @@ export function WorkshopScene({ build, spin = 0.45, plain = false, picked = null
       </mesh>
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]} receiveShadow>
         <planeGeometry args={[FLOOR_SIZE, FLOOR_SIZE]} />
-        <shadowMaterial transparent opacity={0.3} />
+        <shadowMaterial transparent opacity={look.shadow} />
       </mesh>
+      {look.contact > 0 && (
+        <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.002, 0]} material={contact} renderOrder={1}>
+          <planeGeometry args={[4.6, 4.6]} />
+        </mesh>
+      )}
 
       <group ref={table} rotation={[0, -0.6, 0]}>
         <group dispose={null}>
