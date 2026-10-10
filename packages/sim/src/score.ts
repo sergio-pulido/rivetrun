@@ -1,5 +1,6 @@
 import type { Episode, Outcome, TerrainId } from '@rivetrun/contracts';
 import { TERRAINS, TUNING } from './data';
+import { ACTION_PROFILES, PHYSICS } from './physics';
 import type { RunState } from './types';
 
 const round1 = (value: number): number => Math.round(value * 10) / 10;
@@ -41,7 +42,17 @@ export function why(state: RunState): string {
   const slope = state.world.segments[state.segmentIndex]!.slopeDeg;
   // A player can see the hill; the missing IMU only explains it when a Brain was driving.
   if (state.dnfReason === 'stuck' && slope >= 5 && state.config.manual) return `Stuck on a ${slope}° ${terrain} slope — it needs climb mode, a winch or more grip`;
-  if (state.dnfReason === 'stuck' && slope >= 5 && !has('imu')) return `Stuck on a ${slope}° ${terrain} slope — no IMU to feel the tilt`;
+  if (state.dnfReason === 'stuck' && slope >= 5) {
+    // Could climb mode have held this slope? If not, it is a grip problem and no sensor would have saved it.
+    const here = state.world.segments[state.segmentIndex]!;
+    const ground = TERRAINS[here.terrain];
+    const weather = (state.environment.weather === 'rain' ? TUNING.weather.rain.frictionFactor : 1) * (state.environment.weather === 'cold' && here.terrain === 'ice' ? TUNING.weather.cold.iceFrictionFactor : 1);
+    const grip = ground.baseFriction * (spec.grip[here.terrain] ?? 1) * weather * ACTION_PROFILES.climb_mode.grip;
+    const sink = ground.sinkage * spec.sinkageFactor * (spec.massKg / PHYSICS.refMassKg) * ACTION_PROFILES.climb_mode.drag;
+    const needed = Math.tan((slope * Math.PI) / 180) + ground.rollingResistance + PHYSICS.sinkageDrag * sink;
+    if (grip < needed) return `Stuck on a ${slope}° ${terrain} slope — ${spec.locomotionName.toLowerCase()} do not grip ${terrain} well enough, even in climb mode`;
+    if (!has('imu')) return `Stuck on a ${slope}° ${terrain} slope — no IMU to feel the tilt`;
+  }
   const here = state.world.segments[state.segmentIndex]!;
   if (state.dnfReason === 'stuck' && here.terrain === 'water' && here.depthCm > spec.maxWadingDepthCm) {
     return spec.maxSwimDepthCm > 0

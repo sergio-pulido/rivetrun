@@ -26,6 +26,8 @@ export interface Capabilities {
   /** Tallest obstacle it gets over while driving normally. */
   readonly clearanceCm: number;
   readonly topSpeedMps: number;
+  /** Drive force at the wheels: what pulls the mass up a slope and through soft ground. */
+  readonly pullN: number;
   /** Steepest dry-asphalt slope without climb mode. */
   readonly maxClimbDeg: number;
   /** Deepest water it can drive through. */
@@ -38,6 +40,10 @@ export interface Capabilities {
   readonly jump: { readonly airtimeS: number; readonly reachM: number; readonly cooldownS: number } | null;
   /** Share of impact damage absorbed, 0–1. */
   readonly impactProtection: number;
+  /** Winch fitted: hauls the robot up any slope and over any obstacle, slowly. */
+  readonly winch: boolean;
+  /** IMU fitted: the driver feels slope and slip at once instead of finding out by stalling. */
+  readonly sensesTilt: boolean;
   /** How far ahead the sensors report each thing; 0 = blind. */
   readonly lookahead: { readonly obstacleM: number; readonly terrainM: number; readonly waterDepthM: number };
   /** On one charge, at cruise on flat asphalt. */
@@ -58,6 +64,7 @@ export function capabilities(build: Build): Capabilities {
     tractionByTerrain: traction,
     clearanceCm: round(spec.clearanceCm, 1),
     topSpeedMps: stats.topSpeedMps,
+    pullN: round(spec.motorForceN, 1),
     maxClimbDeg: stats.maxClimbDeg,
     wadingDepthCm: round(spec.maxWadingDepthCm, 0),
     waterproof: spec.waterproof,
@@ -67,6 +74,8 @@ export function capabilities(build: Build): Capabilities {
       ? { airtimeS: round(jumpAirtimeS(spec.jumpImpulseMps)), reachM: round(cruiseMps * jumpAirtimeS(spec.jumpImpulseMps)), cooldownS: spec.jumpCooldownS }
       : null,
     impactProtection: round(1 - spec.impactDamageFactor),
+    winch: spec.extras.includes('winch'),
+    sensesTilt: sensors.imu !== undefined,
     lookahead: {
       obstacleM: sensors.ultrasonic ?? 0,
       terrainM: Math.max(sensors.camera ?? 0, sensors.scout_drone ?? 0),
@@ -81,7 +90,7 @@ export function capabilities(build: Build): Capabilities {
 /** Stable ids for one capability each. Traction is per terrain: `traction:mud`. */
 export type CapabilityId =
   | `traction:${TerrainId}`
-  | 'clearance' | 'top_speed' | 'climb' | 'wading' | 'waterproof' | 'thrust' | 'jump' | 'ramp_speed'
+  | 'clearance' | 'top_speed' | 'pull' | 'winch' | 'sense_tilt' | 'climb' | 'wading' | 'waterproof' | 'thrust' | 'jump' | 'ramp_speed'
   | 'protection' | 'lookahead_obstacle' | 'lookahead_terrain' | 'lookahead_depth' | 'range';
 
 export interface CapabilityItem {
@@ -97,6 +106,7 @@ export function capabilityList(build: Build): CapabilityItem[] {
   const c = capabilities(build);
   const items: CapabilityItem[] = [
     { id: 'top_speed', label: `Top speed ${c.topSpeedMps} m/s`, value: c.topSpeedMps, unit: 'm/s' },
+    { id: 'pull', label: `Pulls ${c.pullN} N`, value: c.pullN, unit: 'N' },
     { id: 'climb', label: `Climbs ${c.maxClimbDeg}°`, value: c.maxClimbDeg, unit: '°' },
     { id: 'clearance', label: `Clears ${c.clearanceCm} cm obstacles`, value: c.clearanceCm, unit: 'cm' },
     { id: 'wading', label: `Wades ${c.wadingDepthCm} cm`, value: c.wadingDepthCm, unit: 'cm' },
@@ -107,6 +117,8 @@ export function capabilityList(build: Build): CapabilityItem[] {
   ];
   if (c.waterproof) items.push({ id: 'waterproof', label: 'Sealed against water', value: 1, unit: '' });
   if (c.swimDepthCm > 0) items.push({ id: 'thrust', label: `Swims to ${c.swimDepthCm} cm at ${c.underwaterSpeedMps} m/s`, value: c.swimDepthCm, unit: 'cm' });
+  if (c.winch) items.push({ id: 'winch', label: 'Winch: hauls it up any slope or over any obstacle', value: 1, unit: '' });
+  if (c.sensesTilt) items.push({ id: 'sense_tilt', label: 'Feels slope and slip at once', value: 1, unit: '' });
   if (c.jump) items.push({ id: 'jump', label: `Jumps ${c.jump.reachM} m`, value: c.jump.reachM, unit: 'm' });
   if (c.impactProtection > 0) items.push({ id: 'protection', label: `Absorbs ${Math.round(c.impactProtection * 100)}% of impacts`, value: c.impactProtection, unit: '' });
   if (c.lookahead.obstacleM > 0) items.push({ id: 'lookahead_obstacle', label: `Sees obstacles ${c.lookahead.obstacleM} m ahead`, value: c.lookahead.obstacleM, unit: 'm' });
@@ -153,11 +165,13 @@ let providers: Map<CapabilityId, PartId[]> | undefined;
 /** Parts that provide or improve a capability, best first. For "fit one of these" hints. */
 export function partsProviding(capability: CapabilityId): PartId[] {
   if (!providers) {
-    const base = new Map(capabilityList(PROBE).map((item) => [item.id, item.value]));
     const gains = new Map<CapabilityId, { id: PartId; gain: number }[]>();
     for (const part of PARTS) {
       if (part.comingSoon) continue;
-      for (const item of capabilityList(probeWith(part))) {
+      // Measured against the same probe without the part, so a helper it needs is not credited to it.
+      const probe = probeWith(part);
+      const base = new Map(capabilityList(without(probe, part.id)).map((item) => [item.id, item.value]));
+      for (const item of capabilityList(probe)) {
         const gain = item.value - (base.get(item.id) ?? 0);
         if (gain > 1e-9) gains.set(item.id, [...(gains.get(item.id) ?? []), { id: part.id, gain }]);
       }
@@ -218,6 +232,13 @@ export function missionDemands(mission: Mission): SegmentDemand[] {
     // Asked wherever the ground is soft, slippery or steep enough for grip to decide the outcome.
     if (!deep && (needGrip >= 0.25 || terrain.baseFriction <= SLIPPERY_FRICTION)) tests.push({ capability: `traction:${segment.terrain}`, need: needGrip, unit: 'μ', label: `Grip on ${name} ≥ ${needGrip}` });
     if (slope >= 5) tests.push({ capability: 'climb', need: slope, unit: '°', label: `Climb ${slope}°` });
+    // Force per kilogram to keep moving here, quoted for a reference-mass robot; meetsDemand scales it by the build's mass.
+    const pullPerKg = (Math.sin(slope * DEG) + (pull - Math.tan(slope * DEG)) * Math.cos(slope * DEG)) * G;
+    if (!deep && (slope >= 10 || terrain.sinkage >= 0.3)) {
+      const needN = round(pullPerKg * PHYSICS.refMassKg, 0);
+      tests.push({ capability: 'pull', need: needN, unit: 'N', label: `Pull ≥ ${needN} N per ${PHYSICS.refMassKg} kg` });
+    }
+    if (slope >= 10) tests.push({ capability: 'sense_tilt', need: 1, unit: '', label: `Feel the ${slope}° slope` });
     if (segment.depthCm > 0) {
       tests.push({ capability: 'waterproof', need: 1, unit: '', label: `${segment.terrain === 'water' ? 'Water' : 'Mud'} ${segment.depthCm} cm: sealed hull` });
       if (segment.terrain === 'water') {
@@ -255,9 +276,13 @@ export function missionDemands(mission: Mission): SegmentDemand[] {
 export function meetsDemand(build: Build, test: DemandTest): boolean {
   const c = capabilities(build);
   const id = test.capability;
-  if (id.startsWith('traction:')) return c.tractionByTerrain[id.slice('traction:'.length) as TerrainId] >= test.need;
+  // Climb mode adds grip, and a winch does not need any.
+  if (id.startsWith('traction:')) return c.winch || c.tractionByTerrain[id.slice('traction:'.length) as TerrainId] * ACTION_PROFILES.climb_mode.grip >= test.need;
   switch (id) {
-    case 'climb': return c.maxClimbDeg >= test.need;
+    case 'climb': return c.maxClimbDeg >= test.need || c.winch;
+    case 'pull': return c.pullN >= (test.need * c.massKg) / PHYSICS.refMassKg || c.winch;
+    case 'winch': return c.winch;
+    case 'sense_tilt': return c.sensesTilt;
     case 'clearance': return c.clearanceCm * PHYSICS.climbClearanceFactor >= test.need || c.jump !== null;
     case 'wading': return c.wadingDepthCm >= test.need;
     case 'waterproof': return c.waterproof;

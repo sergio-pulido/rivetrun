@@ -41,7 +41,11 @@ describe('capabilities', () => {
     expect(partGives(allRounder, 'bumper').map((item) => item.id)).toEqual(['protection']);
     expect(partGives(PRESETS.deep_diver.build, 'thruster_kit').map((item) => item.id)).toEqual(['thrust']);
     expect(partsProviding('thrust')).toEqual(['thruster_kit']);
-    expect(partsProviding('waterproof')).toContain('waterproof_case');
+    expect(partsProviding('waterproof')).toEqual(['waterproof_case']);
+    expect(partsProviding('sense_tilt')).toEqual(['imu']);
+    expect(partsProviding('winch')).toEqual(['winch']);
+    expect(partsProviding('pull')[0]).toBe('motor_torque');
+    expect(partGives(allRounder, 'motor_torque').map((item) => item.id)).toContain('pull');
     expect(partsProviding('jump')).toEqual(['piston_jump']);
     expect(partsProviding('traction:ice')[0]).toBe('tracks');
   });
@@ -87,6 +91,11 @@ describe('assessBuild', () => {
 
     const noPiston = assessBuild(allRounder, MISSIONS.M7);
     expect(noPiston.dnf?.missing).toContain('jump');
+
+    // Speedster on the mud slope: the sentence and the missing list name the same thing, grip.
+    const speedster = assessBuild(PRESETS.speedster.build, MISSIONS.M3);
+    expect(speedster.dnf?.why).toMatch(/do not grip mud/);
+    expect(speedster.dnf?.missing).toContain('traction:mud');
 
     expect(assessBuild(PRESETS.deep_diver.build, MISSIONS.M6).finished).toBe(true);
   });
