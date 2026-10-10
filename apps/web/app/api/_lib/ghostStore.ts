@@ -56,6 +56,8 @@ const state: GhostState = (holder.__rivetrunGhostsV2 ??= { entries: new Map(), w
 const MAX_WARMING = 2;
 /** Warm-up runs waiting at once: beyond this, new warm-ups are skipped rather than queued. */
 const MAX_WARM_QUEUE = 18;
+/** Requested ghosts waiting at once; beyond this a request is turned away instead of queued. */
+const MAX_REQUEST_QUEUE = 24;
 
 /** Starts whatever may run now: requested ghosts first, warm-ups only while few runs are active. */
 function pump(): void {
@@ -168,6 +170,8 @@ export function requestGhost(request: GhostRequest): GhostAnswer {
   }
   if (entry?.state === 'failed' && Date.now() - entry.at < RETRY_AFTER_FAILURE_MS) return { status: 'unavailable', reason: entry.reason };
   if (!request.fault && !process.env.JEV_API_KEY) return { status: 'unavailable', reason: 'JEV_API_KEY is not set' };
+  // Each new ghost is a full run of Jev calls: when this many are already waiting, the phone races the fixed rules.
+  if (state.waiting.filter((item) => !item.low).length >= MAX_REQUEST_QUEUE) return { status: 'unavailable', reason: 'too many ghosts are being prepared' };
   remember(key, { state: 'pending', since: Date.now() });
   void compute(key, request);
   warmSiblings(request);

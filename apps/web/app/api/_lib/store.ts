@@ -15,6 +15,7 @@ interface Store {
 }
 
 const LEADERBOARD_SIZE = 20;
+const MAX_RUNS = 5000;
 const DECISION_CACHE_MAX = 2000;
 
 // globalThis keeps the store across dev HMR reloads of the route modules.
@@ -39,6 +40,8 @@ const bestPerNickname = (missionId: MissionId): StoredRun[] => {
 export function addRun(nickname: string, episode: Episode): { id: string; rank: number } {
   const run: StoredRun = { id: crypto.randomUUID(), nickname, episode, createdAt: new Date().toISOString() };
   store.runs.push(run);
+  // In memory: the oldest runs make room once the log is very long.
+  if (store.runs.length > MAX_RUNS) store.runs.splice(0, store.runs.length - MAX_RUNS);
   const rank = bestPerNickname(episode.missionId).findIndex((r) => nicknameKey(r.nickname) === nicknameKey(nickname));
   return { id: run.id, rank: rank + 1 };
 }
@@ -101,6 +104,8 @@ export function decisionKey(q: BrainQuestion): string {
   const byAction = new Map(q.lookahead.map((l) => [l.action, l]));
   return JSON.stringify([
     CACHE_VERSION,
+    // The question names the mission's scan zones and states its length: answers are not shared across missions.
+    q.missionId,
     q.gameplayVersion ?? null,
     q.briefing ?? '',
     q.lookaheadS ?? null,

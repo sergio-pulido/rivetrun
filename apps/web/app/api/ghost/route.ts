@@ -1,4 +1,5 @@
 import { BriefingSchema, BuildSchema, MissionIdSchema, PrioritySchema, SeedSchema } from '@rivetrun/contracts';
+import { driveSeed, MISSIONS } from '@rivetrun/sim';
 import { z } from 'zod';
 import { apiError, parseWith } from '@/api/respond';
 import { requestGhost } from '../_lib/ghostStore';
@@ -40,6 +41,8 @@ export async function GET(request: Request): Promise<Response> {
   if (!parsed.ok) return parsed.response;
   const { mission, seed, build, priority, briefing } = parsed.data;
 
+  // Drive mode has one seed per mission; any other seed would be a fresh Jev run nobody races against.
+  if (seed !== driveSeed(MISSIONS[mission])) return apiError(400, 'bad_request', 'seed is not this mission\'s Drive seed');
   const fault = jevFaultOf(request);
   const answer = requestGhost({ missionId: mission, seed, build, priority, briefing, ...(fault ? { fault } : {}) });
   // ?status=1: the Brief asks only whether Jev is ready (and starts the run if it is not), without the trace.

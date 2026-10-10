@@ -9,6 +9,9 @@ export const apiError = (status: number, code: ApiError['code'], error: string):
 export const notImplemented = (route: string): Response =>
   apiError(501, 'not_implemented', `${route} is not implemented yet (scaffold)`);
 
+/** Largest JSON body any route accepts. */
+export const MAX_BODY_BYTES = 2_000_000;
+
 export type Parsed<T> = { ok: true; data: T } | { ok: false; response: Response };
 
 const describeIssues = (error: z.ZodError): string =>
@@ -25,9 +28,14 @@ export function parseWith<S extends z.ZodType>(schema: S, input: unknown): Parse
 
 /** Reads and validates a JSON body. Invalid JSON and schema failures both return 400. */
 export async function parseJsonBody<S extends z.ZodType>(request: Request, schema: S): Promise<Parsed<z.infer<S>>> {
+  // A real post is a question or one episode, well under a megabyte: anything far larger is refused before it is
+  // parsed, so one request cannot tie up the server or fill its memory.
+  if (Number(request.headers.get('content-length') ?? 0) > MAX_BODY_BYTES) return { ok: false, response: apiError(413, 'bad_request', 'body too large') };
   let body: unknown;
   try {
-    body = await request.json();
+    const text = await request.text();
+    if (text.length > MAX_BODY_BYTES) return { ok: false, response: apiError(413, 'bad_request', 'body too large') };
+    body = JSON.parse(text);
   } catch {
     return { ok: false, response: apiError(400, 'bad_request', 'body must be valid JSON') };
   }

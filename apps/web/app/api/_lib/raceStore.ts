@@ -312,10 +312,11 @@ function report(room: Room, action: Act<'state'>, now: number): RaceResult<null>
   if (action.done && action.episode && !room.logged.has(player.id)) {
     // Room Race runs count as episodes, like a run submitted from the Result screen.
     room.logged.add(player.id);
-    addRun(player.nickname, action.episode);
-    // A race run that replays from its input log also counts for the arena's human row. Nothing is refused here:
-    // the race result is the server's own clock, not the posted episode.
-    if (player.kind === 'human') recordHumanRun(player.nickname, action.episode);
+    // A race run that replays from its input log also counts for the arena's human row. The race result itself is
+    // the server's own clock and stands either way, but an episode whose replay gives a different result is not
+    // logged: its score would otherwise reach the leaderboard unchecked.
+    const check = player.kind === 'human' ? recordHumanRun(player.nickname, action.episode) : null;
+    if (check?.verdict !== 'mismatch') addRun(player.nickname, action.episode);
   }
   return done(null);
 }

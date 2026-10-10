@@ -1,4 +1,4 @@
-import { PRESETS } from '@rivetrun/sim';
+import { driveSeed, MISSIONS, PRESETS } from '@rivetrun/sim';
 import { ApiErrorSchema, type BrainQuestion } from '@rivetrun/contracts';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { JEV_FAULT_COOKIE, JEV_FAULT_HEADER, JEV_FAULT_SLOW_MS } from './_lib/jevFault';
@@ -19,7 +19,8 @@ const question: BrainQuestion = {
 const ask = (headers: Record<string, string>): Promise<Response> =>
   decide(new Request('http://localhost/api/decide', { method: 'POST', body: JSON.stringify(question), headers: { 'content-type': 'application/json', ...headers } }));
 
-const ghostUrl = (seed: number): string => `http://localhost/api/ghost?mission=M1&seed=${seed}&build=${encodeURIComponent(JSON.stringify(PRESETS.all_rounder.build))}`;
+/** Drive mode's own seed for the mission: the only seed the route computes a ghost for. */
+const ghostUrl = (mission: 'M1' | 'M2', seed: number = driveSeed(MISSIONS[mission])): string => `http://localhost/api/ghost?mission=${mission}&seed=${seed}&build=${encodeURIComponent(JSON.stringify(PRESETS.all_rounder.build))}`;
 
 const code = async (response: Response): Promise<string> => ApiErrorSchema.parse(await response.json()).code;
 
@@ -44,17 +45,21 @@ describe('Jev fault switch', () => {
   }, 10_000);
 
   it('fail: /api/ghost has no Jev ghost to serve (503), so Drive mode races the heuristic', async () => {
-    const request = (): Promise<Response> => ghost(new Request(ghostUrl(4242), { headers: { [JEV_FAULT_HEADER]: 'fail' } }));
+    const request = (): Promise<Response> => ghost(new Request(ghostUrl('M1'), { headers: { [JEV_FAULT_HEADER]: 'fail' } }));
     expect((await request()).status).toBe(202);
     await vi.waitFor(async () => expect((await request()).status).toBe(503), { timeout: 20_000, interval: 250 });
     expect(await code(await request())).toBe('upstream_error');
   }, 30_000);
 
   it('slow: the ghost run never waits for Jev past the decision deadline and ends as "no Jev ghost" (503)', async () => {
-    const request = (): Promise<Response> => ghost(new Request(ghostUrl(4243), { headers: { [JEV_FAULT_HEADER]: 'slow' } }));
+    const request = (): Promise<Response> => ghost(new Request(ghostUrl('M2'), { headers: { [JEV_FAULT_HEADER]: 'slow' } }));
     expect((await request()).status).toBe(202);
     await vi.waitFor(async () => expect((await request()).status).toBe(503), { timeout: 110_000, interval: 1000 });
   }, 120_000);
+
+  it('/api/ghost refuses a seed that is not the mission\'s Drive seed: no Jev run is started for it', async () => {
+    expect((await ghost(new Request(ghostUrl('M1', 4242)))).status).toBe(400);
+  });
 
   it('is ignored in a production build unless the server opted in', async () => {
     vi.stubEnv('NODE_ENV', 'production');
