@@ -29,6 +29,8 @@ export type { RunAlertsProps } from './hud/RunHud';
 // Brain v3 decision log: the last three decisions as chips, for the run HUD and the big screen.
 export { replayTrace, useReplayFeed } from './replayFeed';
 export type { ReplayOptions } from './replayFeed';
+export { LaneProgress } from './hud/LaneProgress';
+export type { LaneDot, LaneProgressProps } from './hud/LaneProgress';
 export { RunMenu } from './hud/RunMenu';
 export type { RunMenuProps } from './hud/RunMenu';
 export { StrategyChip } from './hud/StrategyChip';
