@@ -9,7 +9,7 @@ import { AppHeader } from '@/ui/AppHeader';
 import { buildStats } from '@/ui/buildStats';
 import { formatSeconds } from '@/ui/format';
 import { LOCKED_PARTS, isUnlocked, useProgressStore } from '@/state/progress';
-import { useRunStore, type RunResult } from '@/state/run';
+import { useRunStore, type GhostResult, type RunResult } from '@/state/run';
 import { Icon, type IconName } from '@/ui/Icon';
 import { Shell } from '@/ui/Shell';
 import { Stars } from '@/ui/Stars';
@@ -83,8 +83,12 @@ function Summary({ result }: { readonly result: RunResult }) {
   const next = MISSION_IDS[MISSION_IDS.indexOf(mission.id) + 1];
   // What the brain was asked along the way, over the distance the robot covered.
   const decisions = decisionSummary(episode.decisions, outcome.progressFraction * compileTrack(mission.track).lengthM);
-  // The sim's reaction metric, when the run carries one (Drive mode): the player against Jev, event by event.
-  const duel = useMemo(() => reactionDuel(parseReactions((result as RunResult & { readonly reactions?: unknown }).reactions) ?? []), [result]);
+  // The sim's reaction metric (Drive mode): the player's thumbs against Jev's latency, which the ghost carries when the server sent it.
+  const duel = useMemo(() => {
+    const jevGhost = result.ghosts.find((ghost) => ghost.policy === 'jev') as (GhostResult & { readonly medianLatencyMs?: unknown }) | undefined;
+    const ghostMedianMs = typeof jevGhost?.medianLatencyMs === 'number' && jevGhost.medianLatencyMs >= 0 ? jevGhost.medianLatencyMs : null;
+    return reactionDuel(parseReactions(outcome.breakdown?.reactions) ?? [], ghostMedianMs);
+  }, [result.ghosts, outcome.breakdown]);
   const headline = outcome.finished ? 'Finished' : outcome.dnfReason ? DNF_LABEL[outcome.dnfReason] : 'Did not finish';
 
   // Pays the points once per episode; the store ignores an episode it has already paid.

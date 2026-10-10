@@ -4,14 +4,15 @@ import { parseReactions, reactionDuel, type ReactionEvent } from './reactions';
 const event = (label: string, humanS: number | null, jevMs: number | null, xM = 10): ReactionEvent => ({ t: xM / 2, xM, label, humanS, jevMs });
 
 describe('parseReactions', () => {
-  it('reads the events the run store carries', () => {
-    expect(parseReactions({ events: [{ t: 4.2, xM: 11.5, label: 'LIDAR · rock 11 m', humanS: 0.82, jevMs: 340 }] })).toEqual([{ t: 4.2, xM: 11.5, label: 'LIDAR · rock 11 m', humanS: 0.82, jevMs: 340 }]);
+  it('reads the events the sim puts on the outcome breakdown', () => {
+    const fromSim = [{ t: 4.2, xM: 11.5, label: 'CAMERA · rock 5.9 m', cause: 'hazard_seen', humanS: 0.82 }];
+    expect(parseReactions(fromSim)).toEqual([{ t: 4.2, xM: 11.5, label: 'CAMERA · rock 5.9 m', humanS: 0.82 }]);
   });
 
   it('is null for a run with no reaction data or data in another shape', () => {
     expect(parseReactions(undefined)).toBeNull();
-    expect(parseReactions({ events: [{ label: 'rock' }] })).toBeNull();
-    expect(parseReactions({ events: [{ t: 1, xM: 1, label: 'rock', humanS: -1, jevMs: null }] })).toBeNull();
+    expect(parseReactions([{ label: 'rock' }])).toBeNull();
+    expect(parseReactions([{ t: 1, xM: 1, label: 'rock', humanS: -1 }])).toBeNull();
   });
 });
 
@@ -41,6 +42,15 @@ describe('reactionDuel', () => {
   it('does not invent a time for a side that never reacted', () => {
     expect(reactionDuel([event('rock', null, 250)])!.headline).toBe('Your reaction: none · Jev 0.25 s');
     expect(reactionDuel([event('rock', 0.7, null)])!.headline).toBe('Your reaction 0.70 s · Jev —');
+  });
+
+  it('uses the median latency of the ghost for Jev when the events carry none, and names no winner per event', () => {
+    const events = [{ t: 2, xM: 5, label: 'CAMERA · rock 5.9 m', humanS: 0.9 }, { t: 6, xM: 17, label: 'IMU · slip', humanS: null }];
+    const duel = reactionDuel(events, 340)!;
+    expect(duel.headline).toBe('Your reaction 0.90 s · Jev 0.34 s');
+    expect(duel.jevPerEvent).toBe(false);
+    expect(duel.rows.map((row) => [row.you, row.jev, row.faster])).toEqual([['0.90 s', '—', null], ['no reaction', '—', null]]);
+    expect(reactionDuel(events)!.headline).toBe('Your reaction 0.90 s · Jev —');
   });
 
   it('has nothing to show for a run with no events', () => {
