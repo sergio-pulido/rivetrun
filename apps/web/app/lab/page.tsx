@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { LAB_RIVAL_LATENCY_MS, LAB_SCENARIO_IDS, LAB_SCENARIOS } from '@rivetrun/lab';
+import { MISSIONS } from '@rivetrun/sim';
 import { Icon } from '@/ui/Icon';
 import { BrainArena } from '@/ui/lab/BrainArena';
 import { arenaResults } from '@/ui/lab/arenaData';
@@ -14,9 +15,10 @@ export const metadata = { title: 'Lab · RivetRun' };
 
 export default function LabPage() {
   const scenarioNames = LAB_SCENARIO_IDS.map((id) => LAB_SCENARIOS[id].name);
+  const missionNames = Object.fromEntries(Object.values(MISSIONS).map((mission) => [mission.id, mission.name]));
   return (
     <Shell back="/" title="Lab">
-      <BrainArena arena={arenaResults()} ctfRivalMs={LAB_RIVAL_LATENCY_MS} />
+      <BrainArena arena={arenaResults()} ctfRivalMs={LAB_RIVAL_LATENCY_MS} missionNames={missionNames} />
 
       {/* The one way into Lab Missions for now: not on Home or in the menu until QA has seen it green. */}
       <Link href="/scenarios" data-testid="lab-missions-link" className="rr-card flex items-center gap-3 p-4 active:bg-panel-2">

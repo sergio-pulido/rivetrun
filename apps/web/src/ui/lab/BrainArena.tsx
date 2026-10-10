@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
+import { ArenaHumans } from './ArenaHumans';
 import { arenaLine, arenaRows, mostRuns, scatter, scenarioTable, type Arena, type ArenaSection, type ContestantKind } from './arena';
 
 const PLOT = { width: 334, height: 230, padding: 30 } as const;
@@ -185,10 +186,19 @@ function Scenarios({ section }: { readonly section: ArenaSection }) {
   );
 }
 
-function Results({ section, ctfRivalMs }: { readonly section: ArenaSection; readonly ctfRivalMs: number | null }) {
+interface ResultsProps {
+  readonly section: ArenaSection;
+  readonly ctfRivalMs: number | null;
+  /** Shown under the table: the humans on the rail missions. */
+  readonly after?: ReactNode;
+}
+
+function Results({ section, ctfRivalMs, after }: ResultsProps) {
   const rows = arenaRows(section);
   // The runner's notes when the file carries them; otherwise the one thing the CTF column cannot be read without.
-  const notes = section.notes.length > 0 ? section.notes : section.scenarios.includes('ctf') ? [ctfNote(ctfRivalMs)] : [];
+  // The runner's first note is what the tables measure: it goes above them, not in a footnote.
+  const [lead, ...fileNotes] = section.notes;
+  const notes = section.notes.length > 0 ? fileNotes : section.scenarios.includes('ctf') ? [ctfNote(ctfRivalMs)] : [];
   return (
     <>
       {section.scenarios.length > 0 ? (
@@ -200,6 +210,12 @@ function Results({ section, ctfRivalMs }: { readonly section: ArenaSection; read
           ))}
         </div>
       ) : null}
+      {lead ? (
+        <p className="rounded-[10px] border border-cyan-line bg-cyan-deep px-3 py-2.5 text-[13px] leading-snug text-cyan-soft" data-testid="arena-lead-note">
+          <span className="font-mono text-[10px] font-medium tracking-[1.5px] text-cyan">WHAT THIS MEASURES · </span>
+          {lead}
+        </p>
+      ) : null}
       <Table arena={section} />
       {rows.some((row) => row.fewer) ? (
         <p className="-mt-1.5 text-[11px] leading-snug text-warn">Rows marked in amber ran fewer runs than the others ({mostRuns(section)}): their figures rest on less and are not directly comparable.</p>
@@ -208,6 +224,7 @@ function Results({ section, ctfRivalMs }: { readonly section: ArenaSection; read
         <p className="-mt-1.5 text-[11px] leading-snug text-warn">Rows marked with a gameplay version were run on an earlier version of the game than the rest (gameplay {section.gameplayVersion}).</p>
       ) : null}
       {section.priced ? <p className="-mt-1.5 text-[11px] leading-snug text-muted">Cost per run: each provider&apos;s published price × the tokens it reported. A token count is shown where no price is set.</p> : null}
+      {after}
       <Scenarios section={section} />
       {notes.map((note) => (
         <p key={note} className="-mt-1.5 text-[11px] leading-snug text-text-2">
@@ -232,9 +249,11 @@ interface BrainArenaProps {
   readonly arena: Arena | null;
   /** How fast the capture-the-flag rival answers, from the lab package: for the note under the Lab Missions table. */
   readonly ctfRivalMs?: number | null;
+  /** Mission id → name, for the humans listed under the rail table. */
+  readonly missionNames?: Readonly<Record<string, string>>;
 }
 
-export function BrainArena({ arena, ctfRivalMs = null }: BrainArenaProps) {
+export function BrainArena({ arena, ctfRivalMs = null, missionNames = {} }: BrainArenaProps) {
   const [track, setTrack] = useState<Track>('rail');
   const section: ArenaSection | null = track === 'rail' ? arena : (arena?.lab ?? null);
   const hasResults = section !== null && section.contestants.length + section.notRun.length > 0;
@@ -270,7 +289,7 @@ export function BrainArena({ arena, ctfRivalMs = null }: BrainArenaProps) {
 
       <div role="tabpanel" className="flex flex-col gap-3.5">
         {hasResults ? (
-          <Results section={section} ctfRivalMs={ctfRivalMs} />
+          <Results section={section} ctfRivalMs={ctfRivalMs} after={track === 'rail' ? <ArenaHumans missionNames={missionNames} /> : null} />
         ) : (
           <div className="flex flex-col gap-1.5 rounded-xl border border-dashed border-line-3 px-3.5 py-5 text-center">
             <p className="font-display text-[15px] font-semibold">{EMPTY[track].title}</p>
