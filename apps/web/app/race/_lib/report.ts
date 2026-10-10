@@ -14,6 +14,7 @@ export interface StateReport {
   readonly batteryPct: number;
   readonly lastAction: Action | null;
   readonly lastActionP?: number | null;
+  readonly latencyMs?: number | null;
   readonly thinking?: boolean;
   readonly done?: boolean;
   readonly finished?: boolean;

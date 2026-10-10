@@ -8,11 +8,11 @@ const LINES_SHOWN = 2;
  * The JEV bots' live decisions: what each was told and how it split its probability.
  * Jev returns a choice with probabilities, not text, so this panel shows inputs and numbers only.
  */
-export function ThreadPanel({ thread }: { readonly thread: readonly ThreadEntry[] }) {
+export function ThreadPanel({ thread, arena = false }: { readonly thread: readonly ThreadEntry[]; /** Live Arena: the bots are different brains, not all Jev. */ readonly arena?: boolean }) {
   return (
     <div className={styles.thread} aria-live="off">
-      <span className={styles.label}>Jev · live decisions</span>
-      <span className={styles.threadNote}>Inputs and probability split. Jev returns a choice, not reasoning.</span>
+      <span className={styles.label}>{arena ? 'Brains · live decisions' : 'Jev · live decisions'}</span>
+      <span className={styles.threadNote}>{arena ? 'Same robot, same seed, same question. Each brain returns a choice; the ms are its real response time.' : 'Inputs and probability split. Jev returns a choice, not reasoning.'}</span>
       {thread.length === 0 ? <span className={styles.orderEmpty}>Waiting for the first decision…</span> : null}
       <ol className={styles.threadList}>
         {thread.map((entry) => (
@@ -39,7 +39,7 @@ export function ThreadPanel({ thread }: { readonly thread: readonly ThreadEntry[
               </div>
             ))}
             {/* Never show a heuristic answer under Jev's name. */}
-            {entry.fallback || entry.policy !== 'jev' ? <div className={styles.threadFallback}>Jev did not answer in time · heuristic chose</div> : null}
+            {arena ? (entry.fallback ? <div className={styles.threadFallback}>No answer in time · the fixed rules chose</div> : null) : entry.fallback || entry.policy !== 'jev' ? <div className={styles.threadFallback}>Jev did not answer in time · heuristic chose</div> : null}
           </li>
         ))}
       </ol>

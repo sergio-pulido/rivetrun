@@ -1,6 +1,6 @@
 // A Jev-driven run for Room Race: the big screen runs each JEV bot with the client brain (Jev through
 // /api/decide, heuristic fallback) in real time, and posts its state like a phone does.
-import type { Build, Mission } from '@rivetrun/contracts';
+import type { Brain, Build, Mission } from '@rivetrun/contracts';
 import { runController } from '@rivetrun/sim';
 import { createClientBrain } from '@/brain/clientBrain';
 import { entryFromDecision, entryFromLog, type ThreadEntry } from '@/brain/thread';
@@ -20,10 +20,12 @@ export interface JevRunOptions {
   readonly onDecision?: (entry: ThreadEntry) => void;
   /** The bot's name in the thread, e.g. "JEV-1". */
   readonly who?: string;
+  /** Live Arena: the brain that drives this bot instead of Jev through /api/decide. */
+  readonly brain?: Brain;
 }
 
 /** Starts the bot now. Returns a stop function. */
-export function startJevRun({ code, raceNo, seat, mission, seed, build, briefing, onDecision, who = 'JEV' }: JevRunOptions): () => void {
+export function startJevRun({ code, raceNo, seat, mission, seed, build, briefing, onDecision, who = 'JEV', brain }: JevRunOptions): () => void {
   const feed = createRunFeed();
   let stopped = false;
 
@@ -37,11 +39,12 @@ export function startJevRun({ code, raceNo, seat, mission, seed, build, briefing
       batteryPct: view.state?.battery ?? 100,
       lastAction: last?.selected ?? null,
       lastActionP: last ? (last.probabilities[last.selected] ?? null) : null,
+      latencyMs: last ? last.latencyMs : null,
       thinking: view.pending !== null,
     };
   };
 
-  const controller = runController({ mission, seed, build, priority: 0.5 }, createClientBrain({ briefing, isAirborne: () => feed.get().state?.airborne === true }), {
+  const controller = runController({ mission, seed, build, priority: 0.5 }, brain ?? createClientBrain({ briefing, isAirborne: () => feed.get().state?.airborne === true }), {
     onEvent: (event) => {
       feed.push(event);
       // Hints (advisory) are not decisions the bot acted on.

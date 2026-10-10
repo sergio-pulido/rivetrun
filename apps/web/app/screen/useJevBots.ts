@@ -1,12 +1,13 @@
 'use client';
 
-import { BRIEFING_PRESETS, type Build } from '@rivetrun/contracts';
-import { MISSIONS } from '@rivetrun/sim';
+import { BRIEFING_PRESETS, type Brain, type Build } from '@rivetrun/contracts';
+import { heuristicBrain, MISSIONS } from '@rivetrun/sim';
 import { useCallback, useEffect, useState } from 'react';
 import { z } from 'zod';
+import { createClientBrain } from '@/brain/clientBrain';
 import type { ThreadEntry } from '@/brain/thread';
 import { startJevRun } from '../race/_lib/jevRun';
-import { JoinResponseSchema, type RaceSnapshot } from '../race/_lib/protocol';
+import { ARENA_DECIDE_TIMEOUT_MS, JoinResponseSchema, type ArenaBrainId, type RaceSnapshot } from '../race/_lib/protocol';
 import type { RaceSeat } from '../race/_lib/report';
 import { postRaceAction } from '../race/_lib/useRaceRoom';
 
@@ -32,12 +33,23 @@ function saveSeats(code: string, seats: readonly RaceSeat[]): void {
   }
 }
 
+/**
+ * The brain behind a live Arena bot: the fixed rules run here; every model is asked through the server, with a
+ * longer wait than the game's 1.2 s because slow answers are what the Arena shows. Undefined = an ordinary JEV bot.
+ */
+function arenaBrain(model: string | undefined): Brain | undefined {
+  if (!model) return undefined;
+  if (model === 'heuristic') return heuristicBrain;
+  return createClientBrain({ url: `/api/arena/decide?model=${encodeURIComponent(model)}`, timeoutMs: ARENA_DECIDE_TIMEOUT_MS });
+}
+
 export interface JevBots {
   /** Bots in the room that this screen holds the seat for (and therefore runs). */
   readonly running: number;
   /** The bots' decisions in the current race, newest first. */
   readonly thread: readonly ThreadEntry[];
-  readonly add: (build: Build) => Promise<void>;
+  /** `model`: a live Arena brain (ARENA_BRAINS); without it, a JEV bot as in every Room Race. */
+  readonly add: (build: Build, model?: ArenaBrainId) => Promise<void>;
   readonly remove: (playerId: string) => Promise<void>;
 }
 
@@ -71,7 +83,7 @@ export function useJevBots(snapshot: RaceSnapshot | null, clockOffsetMs: number)
       () => {
         for (const bot of bots) {
           const seat = seats.find((candidate) => candidate.playerId === bot.id);
-          if (seat) stops.push(startJevRun({ code, raceNo, seat, mission: MISSIONS[missionId], seed, build: bot.build, briefing: bot.briefing, who: bot.nickname, onDecision }));
+          if (seat) stops.push(startJevRun({ code, raceNo, seat, mission: MISSIONS[missionId], seed, build: bot.build, briefing: bot.briefing, who: bot.nickname, onDecision, brain: arenaBrain(bot.model) }));
         }
       },
       Math.max(0, startAt - (Date.now() + clockOffsetMs)),
@@ -85,10 +97,10 @@ export function useJevBots(snapshot: RaceSnapshot | null, clockOffsetMs: number)
   }, [live, raceNo, startAt, code, missionId, seed, botsKey]);
 
   const add = useCallback(
-    async (build: Build): Promise<void> => {
+    async (build: Build, model?: ArenaBrainId): Promise<void> => {
       if (!code) return;
-      const briefing = bots.length === 0 ? undefined : BRIEFING_PRESETS[0].text;
-      const seat = JoinResponseSchema.parse(await postRaceAction(code, { action: 'addBot', build, briefing }));
+      const briefing = model || bots.length === 0 ? undefined : BRIEFING_PRESETS[0].text;
+      const seat = JoinResponseSchema.parse(await postRaceAction(code, { action: 'addBot', build, briefing, ...(model ? { model } : {}) }));
       setSeats((previous) => {
         const next = [...previous, { playerId: seat.playerId, token: seat.token }];
         saveSeats(code, next);

@@ -1,6 +1,8 @@
 import type { MissionId } from '@rivetrun/contracts';
 import { SCAN_RULES } from '@rivetrun/sim';
 import {
+  ARENA_BRAINS,
+  ARENA_MAX_BOTS,
   BUILD_MS,
   CLOSE_AFTER_LEADER_MS,
   COUNTDOWN_MS,
@@ -76,6 +78,7 @@ const onGrid = (player: RacePlayer): RacePlayer => ({
   batteryPct: 100,
   lastAction: null,
   lastActionP: null,
+  latencyMs: null,
   thinking: false,
   silent: false,
   done: false,
@@ -192,7 +195,7 @@ const freeLane = (room: Room): number => {
   return lane;
 };
 
-function seatPlayer(room: Room, fields: Pick<RacePlayer, 'nickname' | 'kind' | 'build' | 'briefing'>): JoinResponse {
+function seatPlayer(room: Room, fields: Pick<RacePlayer, 'nickname' | 'kind' | 'build' | 'briefing' | 'model'>): JoinResponse {
   const playerId = crypto.randomUUID();
   const token = crypto.randomUUID();
   room.players.set(playerId, onGrid({ ...fields, id: playerId, ready: fields.kind === 'jev', lane: freeLane(room) } as RacePlayer));
@@ -218,6 +221,13 @@ function addBot(room: Room, action: Act<'addBot'>): RaceResult<JoinResponse> {
   const open = canSeat(room);
   if (!open.ok) return open;
   const bots = [...room.players.values()].filter((player) => player.kind === 'jev');
+  if (action.model) {
+    // Live Arena: one bot per brain, named after it.
+    if (bots.length >= ARENA_MAX_BOTS) return fail(409, `At most ${ARENA_MAX_BOTS} brains per race.`);
+    if (bots.some((bot) => bot.model === action.model)) return fail(409, 'That brain is already on the grid.');
+    const label = ARENA_BRAINS.find((brain) => brain.id === action.model)?.label ?? action.model;
+    return done(seatPlayer(room, { nickname: label, kind: 'jev', build: action.build, model: action.model }));
+  }
   if (bots.length >= MAX_BOTS) return fail(409, `At most ${MAX_BOTS} JEV bots per room.`);
   const names = new Set(bots.map((bot) => bot.nickname));
   const nickname = ['JEV-1', 'JEV-2', 'JEV-3'].find((name) => !names.has(name)) ?? 'JEV';
@@ -299,6 +309,7 @@ function report(room: Room, action: Act<'state'>, now: number): RaceResult<null>
     batteryPct: action.batteryPct,
     lastAction: action.lastAction,
     lastActionP: action.lastActionP,
+    latencyMs: action.latencyMs ?? player.latencyMs,
     thinking: action.thinking && !action.done,
     silent: false,
     done: action.done,

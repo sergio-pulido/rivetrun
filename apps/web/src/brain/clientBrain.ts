@@ -21,6 +21,8 @@ class DecideTimeout extends Error {}
 
 export interface ClientBrainOptions {
   readonly timeoutMs?: number;
+  /** Where to ask (default /api/decide: Jev). The live Arena asks /api/arena/decide?model=… */
+  readonly url?: string;
   /** "Brief the brain": the player's instructions, sent to Jev with every question. The heuristic ignores it. */
   readonly briefing?: string;
   /**
@@ -59,17 +61,17 @@ const fallbackDecision = async (question: BrainQuestion, started: number): Promi
   };
 };
 
-const askServer = async (question: BrainQuestion, timeoutMs: number): Promise<BrainDecision> => {
+const askServer = async (question: BrainQuestion, timeoutMs: number, url: string): Promise<BrainDecision> => {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const response = await fetch(DECIDE_URL, {
+    const response = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(question),
       signal: controller.signal,
     });
-    if (!response.ok) throw new Error(`/api/decide responded ${response.status}`);
+    if (!response.ok) throw new Error(`the brain's server responded ${response.status}`);
     const decision = BrainDecisionSchema.parse(await response.json());
     if (!question.options.includes(decision.selected)) throw new Error('decision is not an available action');
     return decision;
@@ -104,7 +106,7 @@ export function createClientBrain(options: ClientBrainOptions = {}): Brain {
         return fallbackDecision(question, started);
       }
       try {
-        const decision = await askServer(question, timeoutMs);
+        const decision = await askServer(question, timeoutMs, options.url ?? DECIDE_URL);
         slowInARow = 0;
         // Round trip as the player experienced it (includes the network hop to our server).
         return { ...decision, latencyMs: Math.round(performance.now() - started) };

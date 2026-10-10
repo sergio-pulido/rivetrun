@@ -56,6 +56,25 @@ export const RACE_DNF_LABEL: Readonly<Record<RaceDnf, string>> = {
   disconnected: 'lost connection',
 };
 
+/**
+ * The live Arena race (/screen?arena=1): brains that can each drive one bot on the same seed and build.
+ * The fast tier of docs/BRAIN_ARENA.md plus the game's fixed rules; answered by POST /api/arena/decide.
+ */
+export const ARENA_BRAINS = [
+  { id: 'jev-1.13.0', label: 'Jev' },
+  { id: 'gpt-6-luna', label: 'GPT-6 Luna' },
+  { id: 'deepseek-flash', label: 'DeepSeek Flash' },
+  { id: 'gpt-5-nano', label: 'GPT-5 nano' },
+  { id: 'claude-haiku-5-5', label: 'Claude Haiku 5.5' },
+  { id: 'heuristic', label: 'Fixed rules' },
+] as const;
+export type ArenaBrainId = (typeof ARENA_BRAINS)[number]['id'];
+export const ArenaBrainIdSchema = z.enum(ARENA_BRAINS.map((brain) => brain.id) as [ArenaBrainId, ...ArenaBrainId[]]);
+/** Bots in a live Arena race: one lane per brain. */
+export const ARENA_MAX_BOTS = 4;
+/** How long a live Arena bot waits for its brain before the fixed rules decide that one decision. */
+export const ARENA_DECIDE_TIMEOUT_MS = 4000;
+
 export const RacePlayerSchema = z.object({
   id: z.string(),
   nickname: NicknameSchema,
@@ -64,6 +83,10 @@ export const RacePlayerSchema = z.object({
   build: BuildSchema,
   /** Jev bots only: the briefing the bot drives by. */
   briefing: BriefingSchema.optional(),
+  /** Live Arena bots only (/screen?arena=1): the brain that drives this bot, one of ARENA_BRAINS. */
+  model: z.string().optional(),
+  /** Bots: how long the brain took over its last decision, ms. */
+  latencyMs: z.number().min(0).nullable().default(null),
   /** BUILD phase: the player has locked the build in. */
   ready: z.boolean().default(false),
   /** Join order: picks the lane and the colour. */
@@ -118,7 +141,7 @@ const seat = { playerId: z.string(), token: z.string() };
 export const RaceActionSchema = z.discriminatedUnion('action', [
   z.object({ action: z.literal('join'), nickname: NicknameSchema, build: BuildSchema }),
   /** Host: add a JEV bot. The caller (the big screen) gets its seat and runs it. */
-  z.object({ action: z.literal('addBot'), build: BuildSchema, briefing: BriefingSchema.optional() }),
+  z.object({ action: z.literal('addBot'), build: BuildSchema, briefing: BriefingSchema.optional(), model: ArenaBrainIdSchema.optional() }),
   /** Host: remove a player or a bot before the race. */
   z.object({ action: z.literal('remove'), playerId: z.string() }),
   /** Host: pick the track in the lobby, so every screen shows it before the BUILD phase. */
@@ -140,6 +163,8 @@ export const RaceActionSchema = z.discriminatedUnion('action', [
     batteryPct: z.number().min(0).max(100),
     lastAction: ActionSchema.nullable(),
     lastActionP: z.number().min(0).max(1).nullable().default(null),
+    /** Bots: how long the brain took over its last decision, ms. */
+    latencyMs: z.number().min(0).nullable().optional(),
     thinking: z.boolean().default(false),
     done: z.boolean().default(false),
     finished: z.boolean().default(false),

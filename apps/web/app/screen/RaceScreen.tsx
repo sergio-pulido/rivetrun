@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { AttractCanvas, DecisionChips, type DecisionChip } from '@/game';
 import { AppHeader } from '@/ui/AppHeader';
-import { duelVerdict, MAX_BOTS, rankPlayers, resultText, SEAT_OPTIONS, seatsTaken, type RaceSnapshot } from '../race/_lib/protocol';
+import { ARENA_BRAINS, ARENA_MAX_BOTS, duelVerdict, MAX_BOTS, rankPlayers, resultText, SEAT_OPTIONS, seatsTaken, type ArenaBrainId, type RaceSnapshot } from '../race/_lib/protocol';
 import { postRaceAction, useRaceRoom, useServerNow } from '../race/_lib/useRaceRoom';
 import { RaceTrack } from './RaceTrack';
 import { Side, useEpisodeCount } from './Side';
@@ -18,6 +18,8 @@ interface RaceScreenProps {
   readonly code: string;
   /** Origin phones can reach (LAN address on localhost). */
   readonly siteUrl: string;
+  /** /screen?arena=1: the live Arena race, one bot per brain. */
+  readonly arena?: boolean;
 }
 
 const STATUS_TITLE = { lobby: 'LOBBY', build: 'BUILD', countdown: 'GET READY', racing: 'LIVE', finished: 'FINISH' } as const;
@@ -110,7 +112,7 @@ function Order({ snapshot }: { readonly snapshot: RaceSnapshot }) {
   );
 }
 
-function HostBar({ snapshot, bots, onError }: { readonly snapshot: RaceSnapshot; readonly bots: JevBots; readonly onError: (message: string | null) => void }) {
+function HostBar({ snapshot, bots, onError, arena }: { readonly snapshot: RaceSnapshot; readonly bots: JevBots; readonly onError: (message: string | null) => void; readonly arena: boolean }) {
   // The pick lives in the room, so the header, the lanes and every phone show the chosen track at once.
   const missionId = snapshot.missionId;
   const setMissionId = (id: MissionId): void => {
@@ -142,6 +144,10 @@ function HostBar({ snapshot, bots, onError }: { readonly snapshot: RaceSnapshot;
   const addBot = (): void => {
     onError(null);
     bots.add(PRESETS.all_rounder.build).catch((cause: unknown) => onError(cause instanceof Error ? cause.message : 'Could not add a JEV bot.'));
+  };
+  const addBrain = (model: ArenaBrainId): void => {
+    onError(null);
+    bots.add(PRESETS.all_rounder.build, model).catch((cause: unknown) => onError(cause instanceof Error ? cause.message : 'Could not add that brain.'));
   };
   const removeBot = (): void => {
     const last = botsInRoom[botsInRoom.length - 1];
@@ -190,9 +196,20 @@ function HostBar({ snapshot, bots, onError }: { readonly snapshot: RaceSnapshot;
         <span className={styles.pickName}>
           {missionId} · {MISSIONS[missionId].name}
         </span>
-        <button type="button" onClick={addBot} disabled={botsInRoom.length >= MAX_BOTS} className={`${styles.button} ${styles.buttonJev} ${styles.spacer}`}>
-          + JEV bot
-        </button>
+        {arena ? (
+          // Live Arena: one lane per brain, same robot and seed for all of them.
+          <span className={`${styles.arenaBrains} ${styles.spacer}`}>
+            {ARENA_BRAINS.filter((brain) => !botsInRoom.some((bot) => bot.model === brain.id)).map((brain) => (
+              <button key={brain.id} type="button" onClick={() => addBrain(brain.id)} disabled={botsInRoom.length >= ARENA_MAX_BOTS} className={`${styles.button} ${styles.buttonJev} ${styles.buttonSmall}`}>
+                + {brain.label}
+              </button>
+            ))}
+          </span>
+        ) : (
+          <button type="button" onClick={addBot} disabled={botsInRoom.length >= MAX_BOTS} className={`${styles.button} ${styles.buttonJev} ${styles.spacer}`}>
+            + JEV bot
+          </button>
+        )}
         {botsInRoom.length > 0 ? (
           <button type="button" onClick={removeBot} className={`${styles.button} ${styles.buttonGhost}`} aria-label="Remove the last JEV bot">
             − bot
@@ -206,7 +223,7 @@ function HostBar({ snapshot, bots, onError }: { readonly snapshot: RaceSnapshot;
   );
 }
 
-export function RaceScreen({ code, siteUrl }: RaceScreenProps) {
+export function RaceScreen({ code, siteUrl, arena = false }: RaceScreenProps) {
   const router = useRouter();
   const { snapshot, link, clockOffsetMs } = useRaceRoom(code);
   const now = useServerNow(clockOffsetMs);
@@ -238,6 +255,8 @@ export function RaceScreen({ code, siteUrl }: RaceScreenProps) {
   const status = snapshot.status;
   const racing = status === 'racing' || status === 'finished';
   const hasJev = snapshot.players.some((player) => player.kind === 'jev');
+  // A race with bots named after their brains is the live Arena, whatever URL the screen was opened with.
+  const arenaRace = snapshot.players.some((player) => player.model !== undefined);
   const buildLeftS = Math.max(0, Math.ceil(((snapshot.buildEndsAt ?? now) - now) / 1000));
   const closesInS = snapshot.closesAt === null ? null : Math.max(0, Math.ceil((snapshot.closesAt - now) / 1000));
   const verdict = status === 'finished' ? duelVerdict(snapshot.players) : null;
@@ -271,7 +290,7 @@ export function RaceScreen({ code, siteUrl }: RaceScreenProps) {
             <div className={styles.titleRow}>
               <span className={`${styles.dot} ${status === 'racing' ? '' : styles.dotIdle}`} />
               <span className={styles.title}>
-                {hasJev ? 'HUMANS vs JEV' : 'ROOM RACE'} · {link === 'reconnecting' ? 'RECONNECTING' : STATUS_TITLE[status]}
+                {arenaRace ? 'BRAIN ARENA' : hasJev ? 'HUMANS vs JEV' : 'ROOM RACE'} · {link === 'reconnecting' ? 'RECONNECTING' : STATUS_TITLE[status]}
               </span>
               <span className={styles.chip}>
                 {mission.id} · {mission.name}
@@ -352,7 +371,7 @@ export function RaceScreen({ code, siteUrl }: RaceScreenProps) {
             </div>
           ) : null}
 
-          {status === 'lobby' ? <HostBar snapshot={snapshot} bots={bots} onError={setError} /> : null}
+          {status === 'lobby' ? <HostBar snapshot={snapshot} bots={bots} onError={setError} arena={arena} /> : null}
         </div>
 
         <Side
@@ -362,7 +381,7 @@ export function RaceScreen({ code, siteUrl }: RaceScreenProps) {
           episodes={episodes}
           seats={`${seatsTaken(snapshot)}/${snapshot.seats}`}
           // During and after a race with JEV bots, their live decision thread takes the QR block's place.
-          extra={racing && hasJev && bots.running > 0 ? <ThreadPanel thread={bots.thread} /> : undefined}
+          extra={racing && hasJev && bots.running > 0 ? <ThreadPanel thread={bots.thread} arena={arenaRace} /> : undefined}
           stat={`${snapshot.players.length} in the room`}
         >
           <Order snapshot={snapshot} />

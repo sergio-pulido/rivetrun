@@ -8,13 +8,15 @@ export const metadata: Metadata = { title: 'Room Challenge · RivetRun' };
 export const dynamic = 'force-dynamic';
 
 interface ScreenPageProps {
-  searchParams: Promise<{ room?: string | string[] }>;
+  searchParams: Promise<{ room?: string | string[]; arena?: string | string[] }>;
 }
 
-// /screen — Room Challenge leaderboard. /screen?room=ABCD — that room's Room Race.
+// /screen — Room Challenge leaderboard. /screen?room=ABCD — that room's Room Race. Add &arena=1 for the live Arena race.
 export default async function ScreenPage({ searchParams }: ScreenPageProps) {
   const siteUrl = await resolveSiteUrl();
-  const room = RaceCodeSchema.safeParse((await searchParams).room);
-  if (room.success) return <RaceScreen code={room.data} siteUrl={siteUrl} />;
+  const params = await searchParams;
+  const room = RaceCodeSchema.safeParse(params.room);
+  // ?arena=1: the host bar offers one bot per brain (the live Arena race) instead of JEV bots.
+  if (room.success) return <RaceScreen code={room.data} siteUrl={siteUrl} arena={params.arena === '1'} />;
   return <ScreenClient siteUrl={siteUrl} />;
 }
