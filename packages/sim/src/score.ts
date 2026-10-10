@@ -88,6 +88,8 @@ export function why(state: RunState): string {
   return `Finished with ${Math.round(sim.damage)}% damage and ${Math.round(sim.battery)}% battery left`;
 }
 
+type LossKind = 'impact' | 'landing' | 'fall' | 'water' | 'slip' | 'scans';
+
 /** Gameplay v3 result breakdown: where the time and the hull went, and one thing to try next. */
 function breakdown(state: RunState, scanPenaltyS: number, scanBonus: number): NonNullable<Outcome['breakdown']> {
   const { stats, spec } = state;
@@ -101,23 +103,26 @@ function breakdown(state: RunState, scanPenaltyS: number, scanBonus: number): No
   };
   const tuning = TUNING.score;
   // Each loss in score points, so the biggest one names the advice.
-  const losses: [number, string][] = [
-    [damageByCause.impact * tuning.perDamagePct, spec.sources.length <= 1 || !spec.sources.some((source) => ['ultrasonic', 'tof', 'lidar', 'camera', 'scout_drone'].includes(source))
+  const losses: [LossKind, number, string][] = [
+    ['impact', damageByCause.impact * tuning.perDamagePct, spec.sources.length <= 1 || !spec.sources.some((source) => ['ultrasonic', 'tof', 'lidar', 'camera', 'scout_drone'].includes(source))
       ? 'Fit a distance sensor: it hit things it could not see' : 'Ease off before hazards: impact damage grows with the square of the speed over the safe speed'],
-    [damageByCause.landing * tuning.perDamagePct, 'Take ramps and drops slower, or fit the bumper'],
-    [damageByCause.fall * tuning.perDamagePct, spec.jumpImpulseMps > 0 ? 'Jump later: the piston has to carry the whole gap' : 'Carry more speed onto the ramp, or fit the piston'],
-    [damageByCause.water * tuning.perDamagePct, 'Fit the waterproof case'],
-    [stats.slipLostS * tuning.perSecond, 'Use less throttle on loose ground: spinning wheels grip 30 % less. Tracks or off-road tyres raise the limit'],
-    [scanPenaltyS * tuning.perSecond, 'Stop on the scan zones (under 0.1 m/s for 1.5 s) with the sensor each one needs'],
+    ['landing', damageByCause.landing * tuning.perDamagePct, 'Take ramps and drops slower, or fit the bumper'],
+    ['fall', damageByCause.fall * tuning.perDamagePct, spec.jumpImpulseMps > 0 ? 'Jump later: the piston has to carry the whole gap' : 'Carry more speed onto the ramp, or fit the piston'],
+    ['water', damageByCause.water * tuning.perDamagePct, 'Fit the waterproof case'],
+    ['slip', stats.slipLostS * tuning.perSecond, 'Use less throttle on loose ground: spinning wheels grip 30 % less. Tracks or off-road tyres raise the limit'],
+    ['scans', scanPenaltyS * tuning.perSecond, 'Stop on the scan zones (under 0.1 m/s for 1.5 s) with the sensor each one needs'],
   ];
-  const worst = losses.sort((a, b) => b[0] - a[0])[0]!;
+  const ranked = [...losses].sort((a, b) => b[1] - a[1]);
+  const worst = ranked[0]!;
+  const listed = ranked.filter((loss) => loss[1] > 0).map(([kind, points]) => ({ kind, points: round1(points) }));
   return {
     slipLostS: round1(stats.slipLostS),
     damageByCause,
     scansDone: state.scans.done.length,
     scansMissed: state.scans.missed.length,
     decisions: {},
-    tryNext: worst[0] >= 8 ? worst[1] : state.finished ? 'Clean run: try a faster build, or more throttle where the ground allows it' : 'Check the test run: the build is missing something this mission needs',
+    ...(listed.length > 0 ? { losses: listed, biggestLoss: listed[0]! } : {}),
+    tryNext: worst[1] >= 8 ? worst[2] : state.finished ? 'Clean run: try a faster build, or more throttle where the ground allows it' : 'Check the test run: the build is missing something this mission needs',
     scanPenaltyS,
     scanBonus,
   };

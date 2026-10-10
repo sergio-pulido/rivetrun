@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Action, Brain, Build, Mission, RunEvent } from '@rivetrun/contracts';
-import { MISSIONS, PRESETS, controlToAction, createRun, driveController, driveSeed, heuristicBrain, heuristicDecide, jumpChargePower, runHeadless, safeSpeedMps, step } from './index';
+import { MISSIONS, PRESETS, controlToAction, createRun, runController, driveController, driveSeed, heuristicBrain, heuristicDecide, jumpChargePower, runHeadless, safeSpeedMps, step } from './index';
 
 const allRounder = PRESETS.all_rounder.build;
 /** The heuristic, with every throttle level replaced by one pace. */
@@ -236,4 +236,27 @@ describe('gameplay v3 P2: charged piston jump', () => {
     expect(instant.airborneAt).toBeLessThan(2.2);
     expect(instant.peakM).toBeCloseTo(full.peakM, 2);
   }, 20000);
+});
+
+describe('gameplay v3: result breakdown', () => {
+  const check = (breakdown: NonNullable<Awaited<ReturnType<ReturnType<typeof runController>['start']>>['outcome']['breakdown']>): void => {
+    expect(breakdown.slipLostS).toBeGreaterThanOrEqual(0);
+    expect(Object.keys(breakdown.damageByCause).sort()).toEqual(['fall', 'impact', 'landing', 'tipOver', 'water']);
+    expect(breakdown.scansDone + breakdown.scansMissed).toBeLessThanOrEqual(MISSIONS.M3.scanZones!.length);
+    // A missed scan is a loss with a name: 10 s, 40 points each.
+    expect(breakdown.losses?.find((loss) => loss.kind === 'scans')?.points ?? 0).toBe(breakdown.scansMissed * 40);
+    expect(breakdown.tryNext.length).toBeGreaterThan(10);
+    const losses = breakdown.losses ?? [];
+    expect(losses.every((loss, i) => loss.points > 0 && (i === 0 || loss.points <= losses[i - 1]!.points))).toBe(true);
+    expect(breakdown.biggestLoss).toEqual(losses[0]);
+  };
+
+  it('a Jev-mode run and a Drive run both carry slip time, damage by cause, scans and the biggest loss', async () => {
+    const brained = await runController({ mission: MISSIONS.M3, seed: 3, build: allRounder, priority: 0.5 }, heuristicBrain, { onEvent: () => undefined, timeScale: 300, policy: 'jev' }).start();
+    check(brained.outcome.breakdown!);
+
+    const driven = await driveController({ mission: MISSIONS.M3, seed: 3, build: allRounder, priority: 0.5 }, () => ({ throttle: 1, brake: 0 }), { onEvent: () => undefined, timeScale: 300, hints: false }).start();
+    check(driven.outcome.breakdown!);
+    expect(driven.outcome.breakdown!.inputLog).toBeDefined();
+  }, 30000);
 });

@@ -94,6 +94,10 @@ export const OutcomeSchema = z.object({
     decisions: z.partialRecord(TriggerKindSchema, z.number().int().min(0)),
     /** One line on what to try next, from the biggest loss. */
     tryNext: z.string(),
+    /** Every loss in score points, biggest first (zero losses left out). `slip` = time lost to wheelspin, `scans` = missed scan zones. */
+    losses: z.array(z.object({ kind: z.enum(['impact', 'landing', 'fall', 'water', 'slip', 'scans']), points: z.number().min(0) })).optional(),
+    /** The first of `losses`, or absent on a run that lost nothing. */
+    biggestLoss: z.object({ kind: z.enum(['impact', 'landing', 'fall', 'water', 'slip', 'scans']), points: z.number().min(0) }).optional(),
     /** Seconds added to the time for missed scans, and points added for centred ones. */
     scanPenaltyS: z.number().min(0),
     scanBonus: z.number().min(0),
