@@ -8,6 +8,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { DriveControls } from '@/game/drive/DriveControls';
 import { createDriveInput } from '@/game/drive/driveInput';
 import { useRunHaptics } from '@/game/drive/haptics';
+import { RunAlerts } from '@/game/hud/RunHud';
 import RunCanvas from '@/game/RunCanvas';
 import { AppHeader } from '@/ui/AppHeader';
 import { createRunFeed, useRunView } from '@/game/runFeed';
@@ -157,6 +158,13 @@ export default function RaceRun({ snapshot, seat, me, now, clockOffsetMs }: Race
       {driving ? (
         <div className="absolute inset-0 z-10">
           <DriveControls drive={drive} feed={feed} build={me.build} />
+        </div>
+      ) : null}
+
+      {/* The driver's alerts of solo Drive mode (scan prompt, next hazard, air, landing, blocked): above the pedals, below the race bar. */}
+      {driving ? (
+        <div className="pointer-events-none absolute inset-0 z-[15]">
+          <RunAlerts mission={mission} feed={feed} build={me.build} />
         </div>
       ) : null}
 
