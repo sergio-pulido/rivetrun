@@ -3,12 +3,15 @@
 import Link from 'next/link';
 import { PARTS_BY_ID } from '@rivetrun/sim';
 import { useBuildStore } from '@/state/build';
+import { useInventoryStore } from '@/state/inventory';
 import { buildName } from '@/ui/buildStats';
 import { Icon } from '@/ui/Icon';
 import { Shell } from '@/ui/Shell';
 import { formatMoney, formatSubtotal, parsePrice, quantity, realPlan, subtotal, type Bom, type BomItem, type RealLine } from './bom';
 import type { PartMedia } from './bomData';
 import { FabLab } from './FabLab';
+import { stock } from './inventory';
+import { OwnedToggle } from './OwnedToggle';
 import { PrintedParts, type PrinterChoice } from './PrintedParts';
 import type { PrintedPart } from './printedData';
 import { StatusBadge, priceText } from './RealComponent';
@@ -16,17 +19,20 @@ import { StatusBadge, priceText } from './RealComponent';
 interface RowProps {
   readonly line: RealLine;
   readonly render: string | null;
+  /** The player already has this one ("My parts"). */
+  readonly owned: boolean;
+  readonly onToggle: () => void;
 }
 
 /** One line of the list: what to buy, how many, and the price exactly as its page showed it. */
-function Row({ line, render }: RowProps) {
+function Row({ line, render, owned, onToggle }: RowProps) {
   const { item } = line;
   const price = parsePrice(item.priceShown);
   const qty = item.qty ?? 1;
   const gamePart = line.gameId ? PARTS_BY_ID.get(line.gameId)?.name : undefined;
   return (
-    <li>
-      <Link href={`/workshop/real/${item.key}`} className="flex items-center gap-2.5 rounded-[12px] border border-[#1E232A] bg-panel-3 p-2 active:bg-panel-2">
+    <li className={`flex items-stretch gap-1.5 rounded-[12px] border ${owned ? 'border-ok/40 bg-[#0F1712]' : 'border-[#1E232A] bg-panel-3'}`}>
+      <Link href={`/workshop/real/${item.key}`} className="flex min-w-0 flex-1 items-center gap-2.5 rounded-[12px] p-2 active:bg-panel-2">
         <span className="grid h-12 w-12 shrink-0 place-items-center overflow-hidden rounded-lg bg-stage">
           {render ? (
             // eslint-disable-next-line @next/next/no-img-element
@@ -53,6 +59,7 @@ function Row({ line, render }: RowProps) {
           {price && qty > 1 ? <span className="block text-[10px] text-muted">{qty} × {item.priceShown}</span> : null}
         </span>
       </Link>
+      <OwnedToggle owned={owned} name={item.name} onToggle={onToggle} />
     </li>
   );
 }
@@ -72,6 +79,8 @@ interface RealBuildProps {
 /** "Build it for real": the shopping list for the robot on the bench. Only what the bill of materials contains. */
 export function RealBuild({ bom, media, printed, printedRenders, tools, toolRenders }: RealBuildProps) {
   const build = useBuildStore((store) => store.build);
+  const owned = useInventoryStore((store) => store.owned);
+  const toggleOwned = useInventoryStore((store) => store.toggle);
 
   if (!bom) {
     return (
@@ -85,6 +94,8 @@ export function RealBuild({ bom, media, printed, printedRenders, tools, toolRend
   const all = [...plan.core, ...plan.chosen];
   const sum = subtotal(all);
   const figure = formatSubtotal(sum);
+  const mine = stock(all, printed, owned);
+  const leftFigure = formatSubtotal(mine.toBuySum);
   const printers: readonly PrinterChoice[] = tools.filter((tool) => tool.category === 'printer').map((tool) => ({ key: tool.key, name: tool.name, usedFor: tool.usedFor }));
 
   return (
@@ -103,11 +114,43 @@ export function RealBuild({ bom, media, printed, printedRenders, tools, toolRend
         </p>
       ))}
 
+      <section className={`rr-pop rounded-[14px] border p-3.5 ${mine.ready ? 'border-ok/60 bg-[#0F1712]' : 'border-line bg-panel'}`} aria-live="polite">
+        <div className="flex items-baseline justify-between gap-2">
+          <h3 className="rr-label">My parts</h3>
+          <span className="font-mono text-[11px] tabular-nums text-text-2">
+            {mine.have} OF {mine.total} IN HAND
+          </span>
+        </div>
+        <div className="rr-meter mt-2 !h-1.5">
+          <span style={{ width: `${mine.total > 0 ? (mine.have / mine.total) * 100 : 0}%`, backgroundColor: 'var(--color-ok)' }} />
+        </div>
+        {mine.ready ? (
+          <p className="mt-2.5 flex items-center gap-2 font-display text-lg font-semibold text-ok">
+            <Icon name="check" size={18} />
+            You can build this today
+          </p>
+        ) : (
+          <p className="mt-2.5 text-[13px] leading-snug text-text-2">
+            {mine.toBuy.length > 0 ? (
+              <>
+                Still to buy: <span className="font-mono font-semibold tabular-nums text-text">{leftFigure ?? `${mine.toBuy.length} ${mine.toBuy.length === 1 ? 'item' : 'items'}`}</span>
+                {leftFigure && mine.toBuySum.atRetailer > 0 ? ` + ${mine.toBuySum.atRetailer} at retailer price` : ''}
+                {leftFigure ? ` (${mine.toBuy.length} ${mine.toBuy.length === 1 ? 'line' : 'lines'})` : ''}.
+              </>
+            ) : (
+              'Everything to buy is in hand.'
+            )}
+            {mine.toPrint > 0 ? ` Still to print: ${mine.toPrint} ${mine.toPrint === 1 ? 'design' : 'designs'}.` : ''}
+          </p>
+        )}
+        <p className="mt-1.5 text-[11px] leading-snug text-muted">Tick what you already have. Kept on this device.</p>
+      </section>
+
       <section className="flex flex-col gap-1.5">
         <h3 className="rr-label">Core kit · {plan.core.length} items</h3>
         <ul className="flex flex-col gap-1.5">
           {plan.core.map((line) => (
-            <Row key={line.item.key} line={line} render={media[line.item.key]?.render ?? null} />
+            <Row key={line.item.key} line={line} render={media[line.item.key]?.render ?? null} owned={owned.includes(line.item.key)} onToggle={() => toggleOwned(line.item.key)} />
           ))}
         </ul>
       </section>
@@ -116,7 +159,7 @@ export function RealBuild({ bom, media, printed, printedRenders, tools, toolRend
         <h3 className="rr-label">Your parts · {plan.chosen.length} items</h3>
         <ul className="flex flex-col gap-1.5">
           {plan.chosen.map((line) => (
-            <Row key={line.item.key} line={line} render={media[line.item.key]?.render ?? null} />
+            <Row key={line.item.key} line={line} render={media[line.item.key]?.render ?? null} owned={owned.includes(line.item.key)} onToggle={() => toggleOwned(line.item.key)} />
           ))}
         </ul>
       </section>

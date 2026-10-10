@@ -1,7 +1,9 @@
 'use client';
 
 import { useState } from 'react';
+import { printedKey, useInventoryStore } from '@/state/inventory';
 import { Icon } from '@/ui/Icon';
+import { OwnedToggle } from './OwnedToggle';
 import { formatGrams, formatHours, isEstimate, printTotals } from './printed';
 import type { PrintedPart } from './printedData';
 
@@ -27,6 +29,8 @@ interface PrintedPartsProps {
  */
 export function PrintedParts({ parts, printers, renders }: PrintedPartsProps) {
   const [step, setStep] = useState<Step>({ kind: 'idle' });
+  const owned = useInventoryStore((store) => store.owned);
+  const toggleOwned = useInventoryStore((store) => store.toggle);
   if (parts.length === 0) return null;
   const totals = printTotals(parts);
   const est = totals.estimated ? 'est. ' : '';
@@ -40,7 +44,7 @@ export function PrintedParts({ parts, printers, renders }: PrintedPartsProps) {
         {parts.map((part) => {
           const tag = isEstimate(part) ? 'est.' : part.source;
           return (
-            <li key={part.id} id={`printed-${part.id}`} className="flex items-center gap-2.5 rounded-[12px] border border-[#1E232A] bg-panel-3 p-2">
+            <li key={part.id} id={`printed-${part.id}`} className={`flex items-center gap-2.5 rounded-[12px] border py-2 pl-2 ${owned.includes(printedKey(part.id)) ? 'border-ok/40 bg-[#0F1712]' : 'border-[#1E232A] bg-panel-3'}`}>
               <span className="grid h-12 w-12 shrink-0 place-items-center overflow-hidden rounded-lg bg-stage">
                 {renders[part.id] ? (
                   // eslint-disable-next-line @next/next/no-img-element
@@ -65,6 +69,7 @@ export function PrintedParts({ parts, printers, renders }: PrintedPartsProps) {
                   {tag ? ` · ${tag}` : ''}
                 </span>
               </span>
+              <OwnedToggle owned={owned.includes(printedKey(part.id))} name={part.name} onToggle={() => toggleOwned(printedKey(part.id))} doneLabel="Printed" />
             </li>
           );
         })}
