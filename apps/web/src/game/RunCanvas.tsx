@@ -6,6 +6,7 @@ import { DEFAULT_PRESET_ID, MISSIONS, PRESETS } from '@rivetrun/sim';
 import { useRunAudio } from './audio/useRunAudio';
 import type { DriveInput } from './drive/driveInput';
 import { createFakeRun, fakeGhostTrace } from './fakeRun';
+import { useBrainChoice } from './hud/brainStore';
 import { RunHud } from './hud/RunHud';
 import { UI } from './palette';
 import { quality } from './quality';
@@ -116,6 +117,10 @@ export default function RunCanvas({ mission = MISSIONS.M5, build = PRESETS[DEFAU
   const dev = useMemo(() => (process.env.NODE_ENV === 'production' ? null : pinnable(activeFeed)), [activeFeed]);
   const tier = quality();
   const telemetryOpen = useTelemetryOpen();
+  const brainChoice = useBrainChoice();
+  // Whether something tall covers the lower part of an upright screen: the telemetry drawer, or the Brain sheet once it
+  // is tapped open (it starts as one line). A page that draws its own HUD over a watched run keeps the old framing.
+  const covered = hud ? telemetryOpen || (drive === undefined && brainChoice === 'open') : drive === undefined;
   const robot = useRobotSignal('run');
   // The run starts (onReady) when the scene has drawn AND the robot's kit is in, so the robot is on the start line
   // from the first moment. A kit that fails counts as in (the fallback robot is drawn); so does one that takes too long.
@@ -160,7 +165,7 @@ export default function RunCanvas({ mission = MISSIONS.M5, build = PRESETS[DEFAU
           if (dev) (window as unknown as { __rivetrun?: unknown }).__rivetrun = { info: gl.info, scene, camera, state: () => activeFeed.get().state, pin: dev.pin };
         }}
       >
-        {(plain) => <RunScene mission={mission} build={build} feed={dev?.feed ?? activeFeed} ghosts={activeGhosts} particleBudget={tier.particles} hands={drive} plain={plain} raise={telemetryOpen && hud} flyIn={!tier.weak && feed !== undefined} />}
+        {(plain) => <RunScene mission={mission} build={build} feed={dev?.feed ?? activeFeed} ghosts={activeGhosts} particleBudget={tier.particles} hands={drive} plain={plain} raise={covered} flyIn={!tier.weak && feed !== undefined} />}
       </SceneFrame>
       {hud && <RunHud mission={mission} feed={activeFeed} ghosts={activeGhosts} drive={drive} build={build} />}
     </div>

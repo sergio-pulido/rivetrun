@@ -256,13 +256,28 @@ interface LabelStyle {
   readonly border?: string;
 }
 
-/** Sign / tag texture, 4:1. */
-export function labelTexture(text: string, style: LabelStyle): CanvasTexture {
-  return memo(`label:${text}:${style.color}:${style.background}:${style.border ?? ''}`, () =>
-    canvasTexture(256, 64, (ctx) => {
+const LABEL_FONT = '700 34px ui-monospace, SFMono-Regular, Menlo, monospace';
+const LABEL_WIDTH = 256;
+
+/** Width a label needs for its text, never under the standard 256. */
+function fittedWidth(text: string): number {
+  const ctx = document.createElement('canvas').getContext('2d');
+  if (!ctx) return LABEL_WIDTH;
+  ctx.font = LABEL_FONT;
+  return Math.max(LABEL_WIDTH, Math.ceil(ctx.measureText(text).width) + 44);
+}
+
+/**
+ * Sign / tag texture, 4:1. With `fit` the texture grows wider than 4:1 when the text needs it (a caller that
+ * passes it sizes its sprite from the texture's own width); without it long text is cut at both ends.
+ */
+export function labelTexture(text: string, style: LabelStyle, fit = false): CanvasTexture {
+  const width = fit ? fittedWidth(text) : LABEL_WIDTH;
+  return memo(`label:${text}:${style.color}:${style.background}:${style.border ?? ''}:${width}`, () =>
+    canvasTexture(width, 64, (ctx) => {
       ctx.fillStyle = style.background;
       ctx.beginPath();
-      ctx.roundRect(2, 2, 252, 60, 14);
+      ctx.roundRect(2, 2, width - 4, 60, 14);
       ctx.fill();
       if (style.border) {
         ctx.strokeStyle = style.border;
@@ -270,10 +285,10 @@ export function labelTexture(text: string, style: LabelStyle): CanvasTexture {
         ctx.stroke();
       }
       ctx.fillStyle = style.color;
-      ctx.font = '700 34px ui-monospace, SFMono-Regular, Menlo, monospace';
+      ctx.font = LABEL_FONT;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText(text, 128, 34);
+      ctx.fillText(text, width / 2, 34);
     }),
   );
 }

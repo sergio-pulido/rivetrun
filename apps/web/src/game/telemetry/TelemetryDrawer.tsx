@@ -3,7 +3,8 @@
 import { memo, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import type { Build, GhostTrace } from '@rivetrun/contracts';
 import type { DriveInput } from '../drive/driveInput';
-import { JEV_IS_TOLD, JEV_IS_TOLD_LONG } from '../hud/BrainHud';
+import { BrainHud, BrainLine, JEV_IS_TOLD, JEV_IS_TOLD_LONG } from '../hud/BrainHud';
+import { brainIsOpen, brainPanel, useBrainChoice } from '../hud/brainStore';
 import { ACTION_LABEL, POLICY_LABEL, UI } from '../palette';
 import type { RunFeed } from '../runFeed';
 import { pedalsOf, readingsOf, type Pedals, type Reading, type ReadingTone } from './readings';
@@ -16,6 +17,8 @@ const REPAINT_MS = 200;
 const TONE_COLOR: Readonly<Record<ReadingTone, string>> = { plain: UI.text, warn: UI.warn, bad: UI.bad, none: '#6f7883' };
 
 const NO_GHOSTS: readonly GhostTrace[] = [];
+const openBrain = (): void => brainPanel.set(true);
+const foldBrain = (): void => brainPanel.set(false);
 
 const level = (value: boolean | number): number => (typeof value === 'number' ? value : value ? 1 : 0);
 
@@ -179,6 +182,8 @@ export interface TelemetryDrawerProps {
   onClose: () => void;
   /** Leave this much room under the drawer (the Drive-mode pedals). */
   bottomPx?: number;
+  /** Jev mode on a wide screen: the Brain panel stands in the drawer, between the robot's values and the thread, and folds to one line. */
+  brain?: boolean;
 }
 
 /**
@@ -187,8 +192,9 @@ export interface TelemetryDrawerProps {
  * the latency. A bottom sheet in portrait, a side panel in landscape (docs/BRAIN_V3_SENSING.md).
  * Memoised and on its own 5 Hz clock: the HUD around it repaints with every sim frame, this does not.
  */
-export const TelemetryDrawer = memo(function TelemetryDrawer({ feed, build, drive, ghosts = NO_GHOSTS, onClose, bottomPx = 0 }: TelemetryDrawerProps) {
+export const TelemetryDrawer = memo(function TelemetryDrawer({ feed, build, drive, ghosts = NO_GHOSTS, onClose, bottomPx = 0, brain = false }: TelemetryDrawerProps) {
   const [, repaint] = useState(0);
+  const brainOpen = brainIsOpen(useBrainChoice(), true);
   useEffect(() => {
     const id = window.setInterval(() => repaint((n) => n + 1), REPAINT_MS);
     return () => window.clearInterval(id);
@@ -255,7 +261,17 @@ export const TelemetryDrawer = memo(function TelemetryDrawer({ feed, build, driv
             </div>
           )}
         </section>
-        <div className="flex min-h-0 flex-1 flex-col">
+        {/* min-w-0: the Brain panel's one-line header must truncate, not widen the column past the screen. */}
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+          {brain && (
+            <div className="flex-none" style={{ borderBottom: '1px solid #232932' }}>
+              {brainOpen ? (
+                <BrainHud pending={view.pending} last={view.decision} decisionCount={view.decisionCount} compact rows={4} frame="plain" onCollapse={foldBrain} />
+              ) : (
+                <BrainLine pending={view.pending} last={view.decision} frame="plain" onExpand={openBrain} />
+              )}
+            </div>
+          )}
           <div className="flex-none px-3 pt-1.5 font-mono text-[0.85em]" style={SECTION}>
             {who}&apos;S THREAD · {rival ? "GHOST'S CLOCK" : 'LIVE'}
           </div>

@@ -12,7 +12,8 @@ import { useRunView, type RunFeed, type RunView } from '../runFeed';
 import { sensesOf, type Senses } from '../sense';
 import { TelemetryButton, TelemetryDrawer } from '../telemetry/TelemetryDrawer';
 import { telemetry, useTelemetryOpen } from '../telemetry/telemetryStore';
-import { BrainHud } from './BrainHud';
+import { BrainHud, BrainLine } from './BrainHud';
+import { brainIsOpen, brainPanel, useBrainChoice } from './brainStore';
 import { DECISION_CHIPS, type DecisionChip } from './decisionChip';
 import { DecisionChips } from './DecisionChips';
 import { DriveAlerts } from './DriveAlerts';
@@ -195,6 +196,24 @@ function useShortLandscape(): boolean {
   );
 }
 
+const useMedia = (query: string): boolean =>
+  useSyncExternalStore(
+    (listener) => {
+      const media = window.matchMedia(query);
+      media.addEventListener('change', listener);
+      return () => media.removeEventListener('change', listener);
+    },
+    () => window.matchMedia(query).matches,
+    () => false,
+  );
+
+/** Held upright (any width): the Brain panel is one line under the track until it is tapped open. */
+const PORTRAIT = '(orientation: portrait)';
+/** A laptop or projector: the telemetry panel beside the track has room for the Brain panel too. */
+const WIDE = '(orientation: landscape) and (min-width: 1024px)';
+const openBrain = (): void => brainPanel.set(true);
+const foldBrain = (): void => brainPanel.set(false);
+
 /** Height of the Drive-mode pedals: the telemetry drawer sits above them so the player can keep driving. */
 const PEDALS_PX = 118;
 const closeTelemetry = (): void => telemetry.set(false);
@@ -335,6 +354,9 @@ export function RunHud({ mission, feed, ghosts = NO_GHOSTS, drive, build }: RunH
   const drawerOpen = telemetryOpen && build !== undefined && !view.done;
   const short = useShortLandscape();
   const phone = usePhone();
+  const portrait = useMedia(PORTRAIT);
+  const wide = useMedia(WIDE);
+  const brainOpen = brainIsOpen(useBrainChoice(), false);
   // The start line belongs to the START sign, the robots and their name tags: the chips come in once the robot
   // has left it, and then stay.
   const [settled, setSettled] = useState(false);
@@ -423,16 +445,29 @@ export function RunHud({ mission, feed, ghosts = NO_GHOSTS, drive, build }: RunH
       )}
 
       {/* On a short screen the end stamp needs the room the Brain sheet takes: the sheet steps aside once the run is over. */}
-      {!driving && !(short && view.done) && (
-        // With the telemetry drawer open the thread replaces the Brain sheet where the two would cover the robot between them.
-        <div className={`absolute bottom-0 ${short ? 'right-0 w-[360px]' : 'inset-x-0 mx-auto max-w-[430px]'} ${drawerOpen ? 'portrait:hidden max-[1239px]:hidden' : ''}`}>
-          <BrainHud pending={view.pending} last={view.decision} decisionCount={view.decisionCount} compact={short} />
-        </div>
+      {/* The Brain panel never stands over the middle of the track. Upright: one line under the track, tapped open
+          into a bottom sheet (the camera then lifts the robot clear of it). On its side or on a desktop: a compact card
+          in the bottom-right corner. With the telemetry drawer open it lives inside the drawer where there is room
+          (≥1024 px wide), and elsewhere the drawer's thread stands in for it. */}
+      {!driving && !(short && view.done) && !drawerOpen && (
+        portrait ? (
+          <div className="absolute inset-x-0 bottom-0 mx-auto max-w-[430px]">
+            {brainOpen ? (
+              <BrainHud pending={view.pending} last={view.decision} decisionCount={view.decisionCount} onCollapse={foldBrain} />
+            ) : (
+              <BrainLine pending={view.pending} last={view.decision} onExpand={openBrain} />
+            )}
+          </div>
+        ) : (
+          <div className={`absolute bottom-0 right-0 ${short ? 'w-[360px]' : 'w-[340px] pb-3 pr-3 min-[1700px]:w-[420px]'}`}>
+            <BrainHud pending={view.pending} last={view.decision} decisionCount={view.decisionCount} compact frame={short ? 'sheet' : 'card'} />
+          </div>
+        )
       )}
       </div>
 
       {drawerOpen && build ? (
-        <TelemetryDrawer feed={feed} build={build} drive={drive} ghosts={ghosts} onClose={closeTelemetry} bottomPx={driving ? PEDALS_PX : 0} />
+        <TelemetryDrawer feed={feed} build={build} drive={drive} ghosts={ghosts} onClose={closeTelemetry} bottomPx={driving ? PEDALS_PX : 0} brain={wide && !driving} />
       ) : null}
     </div>
   );

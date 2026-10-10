@@ -177,16 +177,107 @@ export interface BrainHudProps {
   /** The last answered question and its decision. */
   last?: { readonly question: BrainQuestion; readonly decision: BrainDecision } | null;
   decisionCount?: number;
-  /** A short screen (a phone on its side): the header and the three likeliest options only. */
+  /** A short screen (a phone on its side), a corner card or the telemetry panel: the header and the likeliest options only. */
   compact?: boolean;
+  /** Option rows shown. Defaults to three when compact, six otherwise. */
+  rows?: number;
+  /** Where it stands: a bottom sheet (default), a card in a corner, or plain inside another panel. */
+  frame?: BrainFrame;
+  /** Makes the header a button that folds the panel to one line (BrainLine). */
+  onCollapse?: () => void;
+}
+
+export type BrainFrame = 'sheet' | 'card' | 'plain';
+
+const FRAME_CLASS: Readonly<Record<BrainFrame, string>> = {
+  sheet: '',
+  card: 'rounded-2xl',
+  plain: '',
+};
+const FRAME_STYLE: Readonly<Record<BrainFrame, CSSProperties>> = {
+  sheet: { paddingBottom: 'max(14px, env(safe-area-inset-bottom))' },
+  card: { background: 'rgb(16 21 26 / 0.94)', border: '1px solid #1f5a63', paddingBottom: 12 },
+  plain: { paddingBottom: 10 },
+};
+
+function Chevron({ up }: { up: boolean }) {
+  return (
+    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden className="shrink-0">
+      <path d={up ? 'M2 8l4-4 4 4' : 'M2 4l4 4 4-4'} />
+    </svg>
+  );
+}
+
+export interface BrainLineProps {
+  pending?: BrainHudProps['pending'];
+  last?: BrainHudProps['last'];
+  frame?: BrainFrame;
+  onExpand: () => void;
+}
+
+/**
+ * The Brain panel folded to one line: who decided, what, how firmly and how fast ("JEV · slow_down 88 % · 211 ms").
+ * A fallback still says FALLBACK. Tap to open the panel.
+ */
+export function BrainLine({ pending = null, last = null, frame = 'sheet', onExpand }: BrainLineProps) {
+  const decision = pending ? null : (last?.decision ?? null);
+  return (
+    <button
+      type="button"
+      onClick={onExpand}
+      aria-expanded={false}
+      aria-label="Show the Brain panel"
+      className={`${frame === 'sheet' ? styles.sheet : FRAME_CLASS[frame]} pointer-events-auto flex min-h-[44px] w-full items-center gap-2 px-4 text-left font-mono text-[12px] leading-none`}
+      style={{ color: UI.dim, ...(frame === 'sheet' ? { paddingBottom: 'env(safe-area-inset-bottom)' } : frame === 'card' ? { background: 'rgb(16 21 26 / 0.94)', border: '1px solid #1f5a63' } : { paddingLeft: 12, paddingRight: 12 }) }}
+    >
+      <span className="min-w-0 flex-1 truncate">
+        {pending ? (
+          <span className={styles.pulse} style={{ color: UI.cyan }}>
+            JEV · thinking · <Elapsed since={pending.since} />
+          </span>
+        ) : decision ? (
+          <>
+            <span style={{ color: decision.fallback ? UI.bad : decision.policy === 'jev' ? UI.cyan : UI.dim, fontWeight: 600 }}>{decision.fallback ? 'FALLBACK' : decision.policy.toUpperCase()}</span>
+            {' · '}
+            <span style={{ color: UI.text }}>{decision.selected}</span>{' '}
+            <span className="tabular-nums" style={{ color: UI.text }}>
+              {Math.round((decision.probabilities[decision.selected] ?? 0) * 100)} %
+            </span>
+            {' · '}
+            <span className="tabular-nums">{Math.round(decision.latencyMs)} ms</span>
+          </>
+        ) : (
+          <>
+            <span style={{ color: UI.cyan, fontWeight: 600 }}>JEV</span> · standby
+          </>
+        )}
+      </span>
+      <span style={{ color: UI.cyan }}>
+        <Chevron up />
+      </span>
+    </button>
+  );
+}
+
+/** The panel's first row. With `onCollapse` it is a button: tap to fold the panel to one line. */
+function Header({ onCollapse, children }: { onCollapse?: () => void; children: ReactNode }) {
+  if (!onCollapse) return <div className="flex items-center justify-between gap-2">{children}</div>;
+  return (
+    <button type="button" onClick={onCollapse} aria-expanded aria-label="Fold the Brain panel" className="pointer-events-auto -my-2 flex min-h-[36px] w-full items-center justify-between gap-2 text-left">
+      {children}
+      <span style={{ color: UI.cyan }}>
+        <Chevron up={false} />
+      </span>
+    </button>
+  );
 }
 
 /**
  * The Brain panel (bottom sheet): what the AI perceives, its options with %, the chosen one in cyan,
  * who decided (JEV / FALLBACK), latency, trigger and the active briefing.
  */
-export function BrainHud({ pending = null, last = null, decisionCount = 0, compact = false }: BrainHudProps) {
-  const maxRows = compact ? 3 : MAX_OPTION_ROWS;
+export function BrainHud({ pending = null, last = null, decisionCount = 0, compact = false, rows: wantedRows, frame = 'sheet', onCollapse }: BrainHudProps) {
+  const maxRows = wantedRows ?? (compact ? 3 : MAX_OPTION_ROWS);
   const question = pending?.question ?? last?.question ?? null;
   const decision = pending ? null : (last?.decision ?? null);
   const thinking = pending !== null;
@@ -205,8 +296,8 @@ export function BrainHud({ pending = null, last = null, decisionCount = 0, compa
   const lookaheadS = question?.lookaheadS ?? DEFAULT_LOOKAHEAD_S;
 
   return (
-    <div className={`${styles.sheet} flex flex-col gap-2.5 px-4 pt-3.5`} style={{ color: UI.text, paddingBottom: 'max(14px, env(safe-area-inset-bottom))' }}>
-      <div className="flex items-center justify-between gap-2">
+    <div className={`${frame === 'sheet' ? styles.sheet : FRAME_CLASS[frame]} flex flex-col gap-2.5 ${frame === 'plain' ? 'px-3 pt-2.5' : 'px-4 pt-3.5'}`} style={{ color: UI.text, ...FRAME_STYLE[frame] }}>
+      <Header onCollapse={onCollapse}>
         <span className="font-display text-[16px] font-bold leading-none tracking-[2px]" style={{ color: UI.cyan }}>
           BRAIN
         </span>
@@ -237,7 +328,7 @@ export function BrainHud({ pending = null, last = null, decisionCount = 0, compa
             'standby'
           )}
         </span>
-      </div>
+      </Header>
 
       {!compact && <Perceived perceived={question?.perceived ?? null} />}
 

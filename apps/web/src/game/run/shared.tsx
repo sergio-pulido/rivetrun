@@ -21,11 +21,15 @@ export const EFFECT_PARTICLES: Readonly<Partial<Record<SimEffect, { kind: Partic
   bubbles: { kind: 'bubbles', rate: 30, where: 'rear' },
 };
 
-/** Name tag floating over a robot. */
+const TAG_HEIGHT = 0.31;
+
+/** Name tag floating over a robot, or a sign's label. As tall as ever; wider when the text needs it, so nothing is cut off. */
 export function Tag({ text, color, y }: { text: string; color: string; y: number }) {
   const material = useMemo(
-    () => new SpriteMaterial({ map: labelTexture(text, { color, background: 'rgba(15,20,27,0.82)', border: color }), depthTest: false, fog: false, transparent: true }),
+    () => new SpriteMaterial({ map: labelTexture(text, { color, background: 'rgba(15,20,27,0.82)', border: color }, true), depthTest: false, fog: false, transparent: true }),
     [text, color],
   );
-  return <sprite material={material} position={[0, y, 0]} scale={[1.24, 0.31, 1]} renderOrder={10} />;
+  const image = material.map?.image as { width: number; height: number } | undefined;
+  const width = image ? (TAG_HEIGHT * image.width) / image.height : TAG_HEIGHT * 4;
+  return <sprite material={material} position={[0, y, 0]} scale={[width, TAG_HEIGHT, 1]} renderOrder={10} />;
 }

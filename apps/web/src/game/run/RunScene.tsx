@@ -396,8 +396,9 @@ function CameraRig({ pose, light, startX, wide, driving, raise, flyIn }: RigProp
     f.x = Math.abs(leadX - f.x) > 6 ? leadX : damp(f.x, leadX, 6, dt);
     f.y = damp(f.y, leadY, 3.2, dt);
 
-    // In portrait the Brain sheet (or the telemetry drawer, `raise`) covers the lower ~42 %: the robot sits in the clear band above it.
-    const lift = distance * Math.tan(halfV) * (portrait ? (driving && !raise ? -0.3 : 0.2) : -0.12);
+    // In portrait an open Brain sheet or telemetry drawer (`raise`) covers the lower ~42 %: the robot sits in the clear band
+    // above it. Otherwise only the pedals or the one-line Brain bar are down there, and the robot sits lower.
+    const lift = distance * Math.tan(halfV) * (portrait ? (raise ? 0.2 : -0.3) : -0.12);
     const shake = !still.current && performance.now() < p.shakeUntil ? 0.09 : 0;
     target.set(f.x + (Math.random() - 0.5) * shake, f.y + 0.75 - lift + (Math.random() - 0.5) * shake, -1);
     camera.position.set(target.x, target.y + Math.sin(ELEVATION) * distance, target.z + Math.cos(ELEVATION) * distance);
