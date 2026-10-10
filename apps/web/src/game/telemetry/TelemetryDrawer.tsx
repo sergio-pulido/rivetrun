@@ -3,6 +3,7 @@
 import { memo, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import type { Build, GhostTrace } from '@rivetrun/contracts';
 import type { DriveInput } from '../drive/driveInput';
+import { JEV_IS_TOLD, JEV_IS_TOLD_LONG } from '../hud/BrainHud';
 import { ACTION_LABEL, POLICY_LABEL, UI } from '../palette';
 import type { RunFeed } from '../runFeed';
 import { pedalsOf, readingsOf, type Pedals, type Reading, type ReadingTone } from './readings';
@@ -258,6 +259,14 @@ export const TelemetryDrawer = memo(function TelemetryDrawer({ feed, build, driv
           <div className="flex-none px-3 pt-1.5 font-mono text-[0.85em]" style={SECTION}>
             {who}&apos;S THREAD · {rival ? "GHOST'S CLOCK" : 'LIVE'}
           </div>
+          {/* What the percentages in the thread mean, said once (Q20). Only Jev is told the rules' verdict this way. */}
+          {who === 'JEV' && (
+            <p className="m-0 flex-none px-3 pt-1 text-[0.9em] leading-snug" style={{ color: UI.dim }}>
+              {/* The bottom sheet on a phone has room for the short form only; the side panel takes the long one. */}
+              <span className="landscape:hidden">{JEV_IS_TOLD}</span>
+              <span className="hidden landscape:inline">{JEV_IS_TOLD_LONG}</span>
+            </p>
+          )}
           <BrainThread entries={thread} empty={empty} />
         </div>
       </div>

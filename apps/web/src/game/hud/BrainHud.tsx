@@ -32,6 +32,14 @@ const triggerText = (question: BrainQuestion): string => question.cause?.label ?
 const LOCKED_BY: Readonly<Partial<Record<Action, string>>> = { deploy_winch: 'needs Winch' };
 
 const DEFAULT_LOOKAHEAD_S = 1.5;
+
+/**
+ * What Jev is told (docs/QA.md Q20, docs/ARENA.md): the question names the option the fixed rules rate as
+ * correct, so the percentages are how firmly Jev follows that in time, not a judgement of its own.
+ */
+export const JEV_IS_TOLD = 'Jev is told which option the fixed rules rate as correct. The % is how firmly it follows that.';
+export const JEV_IS_TOLD_LONG =
+  "The question Jev gets states, for some options, which one the game's fixed rules rate as correct (scan here, slow down before a scan zone, the priority rule). The percentages show how firmly it follows that under its real response time, not a judgement of its own. On facts alone it scores lower: the measured numbers are in docs/ARENA.md.";
 /** Option rows the sheet has room for on a phone without covering the robot. */
 const MAX_OPTION_ROWS = 6;
 
@@ -258,6 +266,12 @@ export function BrainHud({ pending = null, last = null, decisionCount = 0, compa
           </span>
         )}
       </div>
+
+      {!compact && (
+        <p className="m-0 text-[11px] leading-[14px]" style={{ color: UI.dim }}>
+          {JEV_IS_TOLD}
+        </p>
+      )}
 
       {!compact && (
       <div className="flex items-center justify-between gap-3">
