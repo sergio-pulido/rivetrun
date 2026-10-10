@@ -126,6 +126,7 @@ const readHud = (page) =>
       zoneDistM: zone ? Number(zone[2]) : null,
       onPad: /STOP HERE · SCAN/.test(text),
       scanning: /SCANNING ·/.test(text),
+      scanPct: Number(text.match(/HOLD STILL · (\d+) %/)?.[1] ?? 0),
       scanned: /\bSCANNED\b/.test(text),
       missed: /SCAN MISSED/.test(text),
       cannotScan: /cannot scan: needs/.test(text),
@@ -146,7 +147,7 @@ async function driveM1(page) {
     held.delete(key);
     await page.keyboard.up(key);
   };
-  const log = { scanned: false, missed: false, sawZone: false, sawPad: false, brakedAtM: null, creeps: 0, reloads: 0, repressed: 0, shots: [] };
+  const log = { scanned: false, missed: false, sawZone: false, sawPad: false, sawScanning: false, maxScanPct: 0, brakedAtM: null, creeps: 0, reloads: 0, repressed: 0, shots: [] };
   let phase = 'approach';
   let lastX = null;
   let stillSince = null;
@@ -181,6 +182,10 @@ async function driveM1(page) {
     if (hud.missed) log.missed = true;
     if (hud.zoneDistM !== null) log.sawZone = true;
     if (hud.onPad) log.sawPad = true;
+    if (hud.scanning) {
+      log.sawScanning = true;
+      log.maxScanPct = Math.max(log.maxScanPct, hud.scanPct);
+    }
     const moving = lastX !== null && hud.xPct !== null && Math.abs(hud.xPct - lastX) > 0.02;
     if (moving || stillSince === null) stillSince = Date.now();
     lastX = hud.xPct;
@@ -202,11 +207,11 @@ async function driveM1(page) {
         await release('ArrowUp');
         await press('ArrowDown');
         phase = 'stop';
-        log.shots.push(await shot(page, 'phone-04-run-brake'));
       }
     } else if (phase === 'stop') {
       if (hud.scanning) {
         phase = 'scan';
+        // The robot stands still for the 1.5 s hold: the one moment a slow screenshot costs nothing.
         log.shots.push(await shot(page, 'phone-05-run-scanning'));
       } else if (!hud.onPad && hud.zoneDistM !== null && hud.zoneDistM > 0.3 && stoppedMs > 500 && log.creeps < 12) {
         // Stopped short of the pad: one short push at half throttle, then brake again.
@@ -224,7 +229,10 @@ async function driveM1(page) {
         phase = 'finish';
       }
     } else if (phase === 'scan') {
-      // Brake stays held until the HUD says SCANNED.
+      // Brake stays held until the HUD says SCANNED. The toast is brief and the screenshot above may outlast it:
+      // a scan that was seen running and ended with the zone chip gone and no SCAN MISSED is a completed scan.
+      if (!hud.scanning && !hud.onPad && hud.zoneDistM === null && !hud.missed) log.scanned = true;
+      else if (!hud.scanning && hud.onPad && stoppedMs > 4000) phase = 'stop';
     } else {
       await release('ArrowDown');
       await press('ArrowUp');
@@ -333,7 +341,7 @@ try {
     await step('drive M1 · scan', async () => {
       if (!drive) throw new Error('no run to judge');
       if (!drive.sawZone && !drive.sawPad) throw new Error('the HUD never announced the scan zone');
-      if (!drive.scanned) throw new Error(`scan not completed (missed=${drive.missed}, braked at ${drive.brakedAtM} m, creeps=${drive.creeps})`);
+      if (!drive.scanned) throw new Error(`scan not completed (missed=${drive.missed}, scanning seen=${drive.sawScanning} up to ${drive.maxScanPct} %, braked at ${drive.brakedAtM} m, creeps=${drive.creeps})`);
       return `braked at ${drive.brakedAtM} m from the pad, ${drive.creeps} creep(s), SCANNED${drive.reloads ? ` · ${drive.reloads} dev reload(s) during the run` : ''}`;
     }, page);
   }

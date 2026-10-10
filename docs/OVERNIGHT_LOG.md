@@ -3,8 +3,11 @@
 Written by [MASTER] for the human. Newest status first. Program: docs/OVERNIGHT.md. Findings: docs/QA.md ("Overnight findings").
 
 ## What the human must do
+- Top up the Anthropic API account: since about 04:20 every call answers "Your credit balance is too low" (HTTP 400). Haiku, Sonnet and Opus cannot be re-run in the arena until then; their rows stay from gameplay version 3 and are marked so. OpenAI, DeepSeek and Jev are fine.
 - Type anything in the [MASTER] session when you see this (and again whenever you pass by): each message you type gives me 10 more messages to the workers. Without it I can only reach them through docs/OVERNIGHT.md, which an idle session never reads.
 - 07:30: build the demo from the latest tag, not from main: `pnpm demo:stable -- --ref "$(git tag -l 'demo-good-*' | sort | tail -1)"`. Serving a tag has not been tested by any session (brain tested `--ref <sha> --build-only` only): check the `/screen` footer shows "build <sha> · <ref>".
+- Decide at rehearsal: a Room Race closes 45 s after the leader finishes and anyone still driving gets "DNF · race closed". With fast JEV bots in the room that can cut off slow players on the long tracks (M6 is 100 m). Kept at 45 s.
+- Phone frame rate on every mission: open `/run/M1` … `/run/M9` with `?fps=1` on a real phone and read the badge (last and worst second). No session has a phone; M8 (heavy rain) and M9 (snow, night, headlight) are the new costs.
 - One look on a real phone or a visible Chrome tab at `/run/M1?robot=mk2&fps=1`: the frame-rate badge says whether the MK-II kit loaded or fell back to the procedural robot. No session can see this (headless Chromium renders at 0–3 fps and the kit times out there).
 - Uncommitted asset files in the checkout (`apps/web/public/models/**`, `apps/web/public/renders/**`, `assets/**`: the Blender agent's) are not in any tag. Commit them, or the demo built from a tag ships the older models.
 
@@ -20,3 +23,6 @@ Written by [MASTER] for the human. Newest status first. Program: docs/OVERNIGHT.
 - 03:58 · [LAB]: `/scenarios` stays off the Home screen until the gate has seen it green.
 
 ## Status log
+
+### 04:26 · first tag
+`demo-good-0426` → b5cda43. Green: typecheck, unit tests, determinism, balance, production build, the e2e on that build (Drive run on M1 with the scan, all nine Briefs and run scenes, Room Race with two JEV bots, /lab), and `pnpm demo:stable -- --build-only`. The first e2e attempt of that run failed its scan step because my own screenshot blocked the script through the whole scan (laptop load average 22); the retry passed and the script no longer does that.
