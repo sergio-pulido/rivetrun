@@ -1,6 +1,6 @@
 'use client';
 
-import type { Build, DecisionLog, Episode, MissionId, Outcome, Policy } from '@rivetrun/contracts';
+import type { Build, DecisionLog, Episode, GhostTrace, MissionId, Outcome, Policy } from '@rivetrun/contracts';
 import { DEFAULT_PRESET_ID, PRESETS } from '@rivetrun/sim';
 import { create } from 'zustand';
 
@@ -24,6 +24,8 @@ export interface RunResult {
   readonly missionId: MissionId;
   readonly episode: Episode;
   readonly ghosts: readonly GhostResult[];
+  /** The player's own run as a ghost (frames at 10 Hz, policy 'human' in Drive mode), so it can be raced again. */
+  readonly trace?: GhostTrace;
 }
 
 interface RunStore {

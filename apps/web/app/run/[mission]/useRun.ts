@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import type { Build, Episode, GhostTrace, Mission } from '@rivetrun/contracts';
+import type { Build, Episode, GhostTrace, Mission, RunEvent, SimState } from '@rivetrun/contracts';
 import { createRun, driveController, driveSeed, heuristicBrain, randomBrain, runController, runHeadless } from '@rivetrun/sim';
 import { createClientBrain } from '@/brain/clientBrain';
 import { createDriveInput, createRunFeed, type DriveInput, type RunFeed } from '@/game';
@@ -11,6 +11,8 @@ import { loadRivalGhost } from './ghost';
 
 /** Time the finish / crash stays on screen before the Result page. */
 const RESULT_DELAY_MS = 3200;
+/** The player's own trace is sampled like every other ghost: 10 Hz of sim time. */
+const TRACE_STEP_MS = 100;
 
 export type PlayMode = 'drive' | 'jev';
 
@@ -20,6 +22,8 @@ export interface RunOptions {
   readonly priority: number;
   readonly briefing?: string;
   readonly mode: PlayMode;
+  /** Drive mode: race this trace (the player's stored best on this mission's drive seed) instead of the Jev rival. */
+  readonly rivalTrace?: GhostTrace | null;
 }
 
 export interface RunSession {
@@ -52,8 +56,9 @@ async function prepareJevMode({ mission, build, priority }: RunOptions): Promise
 }
 
 /** Drive mode: one fixed seed per mission and one rival, the precomputed Jev ghost (or the heuristic's). */
-async function prepareDriveMode({ mission, build, priority, briefing }: RunOptions): Promise<Prepared> {
+async function prepareDriveMode({ mission, build, priority, briefing, rivalTrace }: RunOptions): Promise<Prepared> {
   const seed = driveSeed(mission);
+  if (rivalTrace) return { seed, ghosts: [rivalTrace], results: [{ policy: rivalTrace.policy, outcome: rivalTrace.outcome }] };
   const rival = await loadRivalGhost({ mission, seed, build, priority, briefing });
   return {
     seed,
@@ -68,7 +73,7 @@ async function prepareDriveMode({ mission, build, priority, briefing }: RunOptio
  * Drive mode: the player's input through driveController against one ghost. One live controller either way.
  */
 export function useRun(options: RunOptions): RunSession {
-  const { mission, build, priority, briefing, mode } = options;
+  const { mission, build, priority, briefing, mode, rivalTrace } = options;
   const router = useRouter();
   const feed = useMemo(() => createRunFeed(), []);
   const drive = useMemo(() => (mode === 'drive' ? createDriveInput() : undefined), [mode]);
@@ -90,7 +95,7 @@ export function useRun(options: RunOptions): RunSession {
     feed.reset();
     setGhosts([]);
     useRunStore.getState().clearResult();
-    const run: RunOptions = { mission, build, priority, briefing, mode };
+    const run: RunOptions = { mission, build, priority, briefing, mode, rivalTrace };
 
     const play = async (): Promise<void> => {
       const prepared = await (drive ? prepareDriveMode(run) : prepareJevMode(run));
@@ -98,9 +103,19 @@ export function useRun(options: RunOptions): RunSession {
       setGhosts(prepared.ghosts);
 
       const config = { mission, seed: prepared.seed, build, priority };
+      // Keep the run as a ghost trace: one frame per 100 ms of sim time, plus the last one.
+      const frames: SimState[] = [];
+      let last: SimState | undefined;
+      const record = (event: RunEvent): void => {
+        if (event.type === 'frame') {
+          last = event.state;
+          if (Math.round(event.state.t * 1000) % TRACE_STEP_MS === 0) frames.push(event.state);
+        }
+        feed.push(event);
+      };
       const controller = drive
-        ? driveController(config, drive.read, { onEvent: feed.push })
-        : runController(config, createClientBrain(), { onEvent: feed.push, policy: 'jev', briefing });
+        ? driveController(config, drive.read, { onEvent: record })
+        : runController(config, createClientBrain(), { onEvent: record, policy: 'jev', briefing });
       stop = controller.stop;
       // The clock starts when the player can see the track, not when the code is ready.
       // Until then the robot waits on the start line.
@@ -110,7 +125,9 @@ export function useRun(options: RunOptions): RunSession {
       const episode: Episode = await controller.start();
       drive?.release();
       if (cancelled) return;
-      useRunStore.getState().setResult({ missionId: mission.id, episode, ghosts: prepared.results });
+      if (last && frames[frames.length - 1] !== last) frames.push(last);
+      const trace: GhostTrace = { policy: episode.policy, frames, outcome: episode.outcome };
+      useRunStore.getState().setResult({ missionId: mission.id, episode, ghosts: prepared.results, trace });
       timer = setTimeout(() => router.push('/result'), RESULT_DELAY_MS);
     };
 
@@ -124,7 +141,7 @@ export function useRun(options: RunOptions): RunSession {
       drive?.release();
       if (timer !== undefined) clearTimeout(timer);
     };
-  }, [mission, build, priority, briefing, mode, drive, feed, router, scene]);
+  }, [mission, build, priority, briefing, mode, rivalTrace, drive, feed, router, scene]);
 
   return { feed, ghosts, drive, error, onSceneReady: scene.ready };
 }
