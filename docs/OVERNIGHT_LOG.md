@@ -51,6 +51,9 @@ Written by [MASTER] for the human. Newest status first. Program: docs/OVERNIGHT.
 
 README.md and docs/SETUP.md were rewritten from the repo at 05:22 (commit 05915a1) by a sub-agent under [MASTER]; they are refreshed before 10:00. Disagreements it found between documents: docs/JEV.md gives Jev's latency as p50 376 ms where docs/BENCHMARK.md has 243 ms; docs/QA.md R6 says Careful fails M6 with the Deep Diver where the benchmark shows it finishing.
 
+### 05:43 · ninth tag
+`demo-good-0543` → 8d924d6, 19 e2e steps. New step: the M1 Drive run is submitted and the server's replay accepts it (200). One warning, first time tonight: the Jev-mode run showed FALLBACK for at least one decision (Jev answered late once; the arena's facts-only runs were hitting Jev at the same time). On main after the tag: Lab Missions' "Jev decides from facts only" switch (one Warehouse run each way: 497 told the verdict, 520 on facts alone, with 18 more tiles driven), the rover glyph on the Lab map, the game's review round (a second race on the same phone started in climb mode: fixed).
+
 ### 05:35 · eighth tag
 `demo-good-0535` → 1a241f5. Adds since 0522: a phone that drops off or reloads mid-race, live Jev on Lab Missions, humans in the arena with server-side replay, the leak test, the audited why-lines, the Brief's "Jev is ready" line, failure panels for a lost or missing WebGL context, the sound levels test.
 
