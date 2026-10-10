@@ -74,6 +74,15 @@ sync_tree() {
   fi
 }
 
+# Five sessions load this machine (load average 20-40 at times) and several suites have multi-second tests: two
+# packages at a time, and one serial retry, so a timeout under load is not reported as a broken commit.
+unit_tests() {
+  if pnpm -s exec turbo run test --continue --concurrency=2; then return 0; fi
+  echo "--- unit tests failed; second, serial attempt in 15 s ---"
+  sleep 15
+  pnpm -s exec turbo run test --continue --concurrency=1 --force
+}
+
 determinism() {
   "$TSX" scripts/balance.ts --seeds 2 >"$OUT/balance.txt" 2>&1 || return 1
   "$TSX" scripts/balance.ts --seeds 2 >"$OUT/balance-again.txt" 2>&1 || return 1
@@ -137,7 +146,8 @@ echo "QA $STAMP · commit $SHORT ($(git -C "$ROOT" log -1 --format=%s "$SHA" | c
 if run worktree "$ROOT" sync_tree && run install "$QA_TREE" pnpm install --frozen-lockfile --prefer-offline; then
   run typegen "$QA_TREE/apps/web" pnpm exec next typegen
   run typecheck "$QA_TREE" pnpm -s exec turbo run typecheck --continue
-  run unit-tests "$QA_TREE" pnpm -s exec turbo run test --continue
+  run unit-tests "$QA_TREE" unit_tests
+  if grep -q "second, serial attempt" "$OUT/unit-tests.log" 2>/dev/null; then NOTES+=("unit tests passed only on a second, serial attempt: the first timed out or failed under load (see $OUT/unit-tests.log)"); fi
   if run determinism "$QA_TREE" determinism; then
     run balance "$QA_TREE" balance
     if [ -f "$ROOT/e2e/out/balance-last.txt" ] && ! cmp -s "$OUT/balance.txt" "$ROOT/e2e/out/balance-last.txt"; then
