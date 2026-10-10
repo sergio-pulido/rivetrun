@@ -33,6 +33,23 @@ describe('hazardWarning', () => {
   });
 });
 
+describe('rough ground', () => {
+  it('warns before rock at the sim entry speed, and not before grass', () => {
+    const rock = seeing({ terrainAhead: { source: 'camera', terrain: 'rock', distanceM: 3 } });
+    expect(hazardWarning(rock, 2, 0.9)).toMatchObject({ what: 'rough', terrain: 'rock', safeMps: 1, over: true });
+    // At 0.9 m/s the same rock 3 m away is more than 3 s off: no warning yet. Closer, it warns without the red.
+    expect(hazardWarning(rock, 0.9, 0.9)).toBeNull();
+    expect(hazardWarning(seeing({ terrainAhead: { source: 'camera', terrain: 'rock', distanceM: 2 } }), 0.9, 0.9)).toMatchObject({ what: 'rough', over: false });
+    expect(hazardWarning(seeing({ terrainAhead: { source: 'camera', terrain: 'grass', distanceM: 3 } }), 2, 0.9)).toBeNull();
+    expect(hazardWarning(seeing({ terrainAhead: 'unknown' }), 2, 0.9)).toBeNull();
+  });
+
+  it('the nearer of rough ground and an obstacle on it wins', () => {
+    const both = seeing({ terrainAhead: { source: 'camera', terrain: 'rock', distanceM: 2 }, hazard: { source: 'camera', distanceM: 4, kind: 'rock', safeSpeedMps: 0.9 } });
+    expect(hazardWarning(both, 2, 0.9)).toMatchObject({ what: 'rough', safeMps: 1 });
+  });
+});
+
 describe('pedal bands follow the sim thresholds', () => {
   it('throttle', () => {
     expect([0, 0.14, 0.15, 0.49, 0.5, 0.84, 0.85, 1].map(throttleBand)).toEqual(['COAST', 'COAST', 'EASE', 'EASE', 'STEADY', 'STEADY', 'FULL', 'FULL']);
