@@ -110,6 +110,9 @@ const CAPABILITY_NAME: Readonly<Partial<Record<CapabilityId, string>>> = {
   lookahead_terrain: 'reading terrain ahead',
   lookahead_depth: 'measuring water depth',
   range: 'range',
+  pull: 'pulling force',
+  winch: 'a winch',
+  sense_tilt: 'feeling the slope',
 };
 
 /** A capability in a few plain words, for "missing: …" and "fit for …". */

@@ -61,6 +61,9 @@ const GOOD_FOR: Readonly<Partial<Record<CapabilityId, readonly string[]>>> = {
   lookahead_terrain: ['terrain changes'],
   lookahead_depth: ['unknown water depth'],
   range: ['long tracks'],
+  pull: ['slopes', 'soft ground'],
+  winch: ['getting unstuck'],
+  sense_tilt: ['steep slopes'],
 };
 
 /** Terrain and obstacle types the part helps with: everything it makes better. */

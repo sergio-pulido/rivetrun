@@ -9,7 +9,7 @@ import { capabilityList, partGives, type CapabilityId } from './sim';
 /** The abilities worth stating for a part every rover has one of, when it is the one fitted. */
 const HEADLINES: Readonly<Record<string, readonly CapabilityId[]>> = {
   locomotion: ['clearance', 'wading', 'climb'],
-  motor: ['top_speed', 'climb'],
+  motor: ['top_speed', 'pull', 'climb'],
   battery: ['range'],
 };
 
