@@ -380,15 +380,20 @@ function CameraRig({ pose, light, startX, wide, driving, raise, flyIn }: RigProp
     camera.position.set(target.x, target.y + Math.sin(ELEVATION) * distance, target.z + Math.cos(ELEVATION) * distance);
     // Deploy: start close on the robot from its front quarter, as it stood on the workbench, and pull back to the track.
     const start = intro.current;
-    if (!start.over && p.ready) {
+    if (!start.over) {
       const now = performance.now();
-      if (start.startAt === 0) start.startAt = now;
-      const u = (now - start.startAt) / FLY_IN_MS;
+      // The close view is already what the loading cover fades out to: the clock only starts once the robot is there,
+      // so there is no cut from the track view to the close-up when the first sim frame arrives.
+      if (p.ready && start.startAt === 0) start.startAt = now;
+      const u = start.startAt === 0 ? 0 : (now - start.startAt) / FLY_IN_MS;
       if (u >= 1) start.over = true;
       else {
         const k = u < 0.5 ? 4 * u * u * u : 1 - (-2 * u + 2) ** 3 / 2;
-        near.from.set(p.x + 2.7, p.y + 1.3, LANES.player + 3.5);
-        near.look.set(p.x, p.y + 0.55, LANES.player);
+        // Before the first frame the robot is about to appear behind the start line.
+        const rx = p.ready ? p.x : startX - 0.85;
+        const ry = p.ready ? p.y : 0;
+        near.from.set(rx + 2.7, ry + 1.3, LANES.player + 3.5);
+        near.look.set(rx, ry + 0.55, LANES.player);
         camera.position.lerpVectors(near.from, camera.position, k);
         near.aim.lerpVectors(near.look, target, k);
         camera.lookAt(near.aim);

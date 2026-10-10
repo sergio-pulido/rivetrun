@@ -126,6 +126,10 @@ const SPECIAL_LABEL: Readonly<Record<ControlSpecial, string>> = { jump: 'JUMP', 
 
 /** What gets a bogged-down robot moving again (the sim's `freeWith`), or `none` when nothing this build has will. */
 type Escape = NonNullable<SimState['freeWith']> | 'none';
+/** The countdown starts at 6.5 s: the prompt shows from here down. */
+const PROMPT_FROM_S = 6;
+/** "This build cannot pass here" is only said this close to the end. */
+const CANNOT_PASS_FROM_S = 4;
 const ESCAPE_TEXT: Readonly<Record<Escape, string>> = {
   climb: 'TAP CLIMB',
   winch: 'HOLD WINCH',
@@ -208,7 +212,17 @@ export function DriveControls({ drive, feed, build }: DriveControlsProps) {
   const slope = view.state?.slopeDeg ?? 0;
   // Holding still on a scan pad is not being stuck: no prompt while the scan runs.
   const stuckInS = done || view.state?.scan ? undefined : view.state?.stuckInS;
-  const escape: Escape | null = stuckInS === undefined ? null : (view.state?.freeWith ?? 'none');
+  const freeWith = view.state?.freeWith;
+  const moving = Math.abs(view.state?.v ?? 0) > 0.05;
+  // The way out is already in use (climb mode on, winch held): nothing to tell the player while it works.
+  const inUse = (freeWith === 'climb' && input.climb) || (freeWith === 'winch' && input.winch);
+  const escape: Escape | null =
+    // Not before the first touch, and not for the first half second of the countdown (it would flash on a slow patch).
+    stuckInS === undefined || !driven || stuckInS > PROMPT_FROM_S || inUse
+      ? null
+      : freeWith ??
+        // "Cannot pass" only when it is true: standing still, late in the countdown, with nothing left to try.
+        (!moving && stuckInS <= CANNOT_PASS_FROM_S ? 'none' : null);
   const special = escape === 'climb' || escape === 'winch' ? escape : contextualSpecial(build, slope, input.winch);
   const cooldownMs = (PARTS_BY_ID.get('piston_jump')?.effects.cooldownS ?? 3) * 1000;
   const sinceJump = input.jumpAt > 0 ? performance.now() - input.jumpAt : Infinity;
