@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import type { Build, GhostTrace, Mission, Obstacle, SimState } from '@rivetrun/contracts';
+import { atmosphereOf, weatherOverride, type Atmosphere } from '../atmosphere';
 import { isMuted, toggleMute } from '../audio/sfx';
 import { DriveControls } from '../drive/DriveControls';
 import type { DriveInput } from '../drive/driveInput';
@@ -200,6 +201,18 @@ function BlockedChip({ kind }: { kind: Obstacle }) {
   );
 }
 
+/** The mission's weather in a few words; GUST lights up while the sim says one is blowing. */
+function WeatherChip({ atmosphere, gust }: { atmosphere: Atmosphere; gust: boolean }) {
+  if (atmosphere.labels.length === 0) return null;
+  return (
+    <span className="rounded-[7px] px-2 py-1 font-mono text-[10px] leading-[13px]" style={{ border: `1px solid ${gust ? UI.warn : UI.line}`, background: 'rgb(14 16 19 / 0.82)', color: UI.text }}>
+      <span style={{ color: UI.dim }}>WEATHER · </span>
+      {gust && <span style={{ color: UI.warn, fontWeight: 600 }}>GUST · </span>}
+      {atmosphere.labels.join(' · ')}
+    </span>
+  );
+}
+
 /** What the build senses ahead, or that it senses nothing: the same fact the band on the track shows. */
 function SenseChip({ senses }: { senses: Senses }) {
   const color = senses.blind ? UI.bad : UI.cyanText;
@@ -242,6 +255,7 @@ export function RunHud({ mission, feed, ghosts = NO_GHOSTS, drive, build }: RunH
   const telemetryOpen = useTelemetryOpen();
   const drawerOpen = telemetryOpen && build !== undefined && !view.done;
   const senses = useMemo(() => (build ? sensesOf(build, mission.weather) : null), [build, mission.weather]);
+  const atmosphere = useMemo(() => atmosphereOf(mission, weatherOverride()), [mission]);
   const chips = useMemo(() => logChips(view.chips, view.lastHit, senses), [view.chips, view.lastHit, senses]);
 
   return (
@@ -277,6 +291,7 @@ export function RunHud({ mission, feed, ghosts = NO_GHOSTS, drive, build }: RunH
         {/* The decision log (Brain v3): what the robot senses, then its last three decisions, newest first. */}
         {!view.done && (
           <div className="mt-2 flex flex-col items-start gap-1">
+            <WeatherChip atmosphere={atmosphere} gust={view.state?.gust === true} />
             {senses && <SenseChip senses={senses} />}
             {/* With the drawer open the thread has the detail: one chip keeps the track in view. */}
             {/* A driver gets one hint at a time: the alerts below are what to act on. */}

@@ -3,8 +3,7 @@
 import { useFrame, useThree } from '@react-three/fiber';
 import { useEffect, useMemo, useRef } from 'react';
 import { AdditiveBlending, IcosahedronGeometry, MeshBasicMaterial, Shape, ShapeGeometry, type Group } from 'three';
-import type { Weather } from '@rivetrun/contracts';
-import { SKY } from '../palette';
+import type { Atmosphere } from '../atmosphere';
 import { clamp, mulberry32 } from '../rng';
 import type { TrackLayout } from '../track';
 import { glowTexture, skyTexture } from './textures';
@@ -32,12 +31,13 @@ const PUFFS: ReadonlyArray<readonly [number, number, number, number]> = [
 
 interface BackdropProps {
   layout: TrackLayout;
-  weather: Weather;
+  atmosphere: Atmosphere;
 }
 
 /** Sky gradient, sun, three hill ridges and drifting low-poly clouds. */
-export function Backdrop({ layout, weather }: BackdropProps) {
-  const look = SKY[weather];
+export function Backdrop({ layout, atmosphere }: BackdropProps) {
+  const look = atmosphere.sky;
+  const { overcast, night } = atmosphere;
   const scene = useThree((state) => state.scene);
   const camera = useThree((state) => state.camera);
   const mid = (layout.minY + layout.maxY) / 2;
@@ -64,23 +64,23 @@ export function Backdrop({ layout, weather }: BackdropProps) {
   useEffect(() => () => ridges.forEach((ridge) => ridge.geometry.dispose()), [ridges]);
 
   const cloudMaterial = useMemo(
-    () => new MeshBasicMaterial({ color: weather === 'rain' ? '#8493a1' : '#ffffff', transparent: true, opacity: weather === 'rain' ? 0.75 : 0.9, fog: false }),
-    [weather],
+    () => new MeshBasicMaterial({ color: night ? '#18202e' : overcast ? '#8493a1' : '#ffffff', transparent: true, opacity: night ? 0.7 : overcast ? 0.75 : 0.9, fog: false }),
+    [overcast, night],
   );
   const sunMaterial = useMemo(() => new MeshBasicMaterial({ color: look.sun, fog: false }), [look]);
   const glowMaterial = useMemo(
-    () => new MeshBasicMaterial({ map: glowTexture(), color: look.sun, transparent: true, opacity: weather === 'rain' ? 0.25 : 0.7, blending: AdditiveBlending, depthWrite: false, fog: false }),
-    [look, weather],
+    () => new MeshBasicMaterial({ map: glowTexture(), color: look.sun, transparent: true, opacity: overcast ? 0.25 : night ? 0.35 : 0.7, blending: AdditiveBlending, depthWrite: false, fog: false }),
+    [look, overcast, night],
   );
   const cloudField = useMemo(() => {
     const rand = mulberry32(42);
-    return Array.from({ length: weather === 'rain' ? 12 : 7 }, (_, i) => ({
+    return Array.from({ length: overcast ? 12 : 7 }, (_, i) => ({
       x: (i - 3) * 16 + rand() * 8,
       y: -9 + rand() * 6.5,
       z: -168 - rand() * 16,
       scale: 3 + rand() * 3,
     }));
-  }, [weather]);
+  }, [overcast]);
 
   useFrame(({ clock }) => {
     // Sun and clouds sit at "infinity": they follow the camera.
@@ -101,7 +101,8 @@ export function Backdrop({ layout, weather }: BackdropProps) {
       ))}
       <group ref={far}>
         <mesh material={sunMaterial} position={[13, mid - 6.5, -190]}>
-          <circleGeometry args={[5.5, 28]} />
+          {/* At night the same disc is the moon: smaller. */}
+          <circleGeometry args={[night ? 2.6 : 5.5, 28]} />
         </mesh>
         <mesh material={glowMaterial} position={[13, mid - 6.5, -189]}>
           <planeGeometry args={[46, 46]} />

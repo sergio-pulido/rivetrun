@@ -1,7 +1,7 @@
 'use client';
 
 import { useFrame } from '@react-three/fiber';
-import { useEffect, useMemo, useRef, type RefObject } from 'react';
+import { useEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import { BufferAttribute, BufferGeometry, CanvasTexture, DoubleSide, MeshBasicMaterial, SRGBColorSpace, type Group, type Mesh } from 'three';
 import { LANES, UI } from '../palette';
 import type { RunFeed } from '../runFeed';
@@ -66,7 +66,10 @@ interface SenseBandProps {
 export function SenseBand({ layout, pose, feed, senses }: SenseBandProps) {
   const mesh = useRef<Mesh>(null);
   const label = useRef<Group>(null);
-  const length = senses.blind ? BLIND_STUB_M : senses.forwardM;
+  // What the build can reach on paper; weather can shorten it (fog, night, rain), and then the sim's Observation says by how much.
+  const [observed, setObserved] = useState<number | null>(null);
+  const reach = useRef(senses.blind ? BLIND_STUB_M : senses.forwardM);
+  const blind = observed === null ? senses.blind : observed <= 0;
   const geometry = useMemo(() => {
     const g = new BufferGeometry();
     const uv = new Float32Array((SLICES + 1) * 4);
@@ -102,6 +105,12 @@ export function SenseBand({ layout, pose, feed, senses }: SenseBandProps) {
     node.visible = shown;
     tag.visible = shown;
     if (!shown) return;
+    const seen = feed.get().observation?.value;
+    if (seen) {
+      const range = seen.blind ? 0 : Math.round(seen.forwardRangeM * 2) / 2;
+      if (range !== observed) setObserved(range);
+    }
+    const length = observed === null ? reach.current : observed > 0 ? observed : BLIND_STUB_M;
     const position = geometry.getAttribute('position') as BufferAttribute;
     // The sim's x is the nose: sensing starts there.
     for (let i = 0; i <= SLICES; i += 1) {
@@ -121,7 +130,7 @@ export function SenseBand({ layout, pose, feed, senses }: SenseBandProps) {
     <>
       <mesh ref={mesh} geometry={geometry} material={material} frustumCulled={false} renderOrder={2} visible={false} />
       <group ref={label} visible={false}>
-        <Tag text={senseLabel(senses)} color={senses.blind ? UI.bad : UI.cyan} y={0.3} />
+        <Tag text={blind ? 'BLIND' : observed !== null && senses.ranges[0] ? `${senses.ranges[0].label} ${observed} m` : senseLabel(senses)} color={blind ? UI.bad : UI.cyan} y={0.3} />
       </group>
     </>
   );

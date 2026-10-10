@@ -36,6 +36,9 @@ export type { TelemetryDrawerProps } from './telemetry/TelemetryDrawer';
 export { liveThread, threadAt } from './telemetry/thread';
 export type { ThreadEntry } from './telemetry/thread';
 export { telemetry, useTelemetryOpen } from './telemetry/telemetryStore';
+// A mission's weather as the scene draws it (sky, fog, rain, snow, wind, night) and its HUD words.
+export { atmosphereOf } from './atmosphere';
+export type { Atmosphere } from './atmosphere';
 // What a build can sense ahead of its nose (the band on the track, the BLIND marker).
 export { senseLabel, sensesOf } from './sense';
 export type { SenseRange, Senses } from './sense';

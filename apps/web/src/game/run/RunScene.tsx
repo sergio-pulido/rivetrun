@@ -1,10 +1,11 @@
 'use client';
 
 import { useFrame, useThree } from '@react-three/fiber';
-import { useMemo, useRef, type RefObject } from 'react';
+import { useCallback, useMemo, useRef, type RefObject } from 'react';
 import { Vector3, type DirectionalLight, type Group, type PerspectiveCamera } from 'three';
 import type { Build, GhostTrace, Mission, Policy, SimEffect } from '@rivetrun/contracts';
 import { TUNING } from '@rivetrun/sim';
+import { atmosphereOf, weatherOverride } from '../atmosphere';
 import { LANES, POLICY_LABEL, POLICY_TINT, TERRAIN_LOOK, UI, laneZ } from '../palette';
 import { clamp, damp, lerp } from '../rng';
 import { restDrive, type Expression, type RobotDrive } from '../robot/drive';
@@ -13,6 +14,7 @@ import type { DriveInput } from '../drive/driveInput';
 import type { RunFeed } from '../runFeed';
 import { sensesOf } from '../sense';
 import { PIT_DEPTH, basinDepthAt, layoutTrack, sampleTrack, type TrackLayout } from '../track';
+import { Headlights } from './Headlights';
 import { Particles, type ParticleEmitter } from './Particles';
 import { restPose, type Pose } from './pose';
 import { restRide, rideOver, stanceFor } from './ride';
@@ -35,9 +37,11 @@ interface PlayerProps {
   particles: RefObject<ParticleEmitter | null>;
   /** Drive mode: the player's controls. The face follows the pedals and the tag reads YOU. */
   hands?: DriveInput;
+  /** Night mission: the robot drives with its lights on. */
+  lights?: boolean;
 }
 
-function Player({ feed, build, layout, pose, timeScale, particles, hands }: PlayerProps) {
+function Player({ feed, build, layout, pose, timeScale, particles, hands, lights = false }: PlayerProps) {
   const group = useRef<Group>(null);
   const drive = useRef<RobotDrive>(restDrive());
   const riding = useRef(restRide());
@@ -196,6 +200,7 @@ function Player({ feed, build, layout, pose, timeScale, particles, hands }: Play
   return (
     <group ref={group} visible={false}>
       <RobotModel build={build} drive={drive} droneAway />
+      {lights && <Headlights nose={stance.nose} />}
       <Tag text={hands ? POLICY_LABEL.human : POLICY_LABEL.jev} color={UI.safety} y={1.95} />
     </group>
   );
@@ -375,17 +380,20 @@ export function RunScene({ mission, build, feed, ghosts = [], particleBudget = 1
   const pose = useRef<Pose>(restPose());
   const hasDrone = build.sensors.includes('scout_drone');
   const senses = useMemo(() => sensesOf(build, mission.weather), [build, mission.weather]);
+  const atmosphere = useMemo(() => atmosphereOf(mission, weatherOverride()), [mission]);
+  // The wind of the moment, gusts included, straight from the sim; the mission's steady wind before the first frame.
+  const windNow = useCallback(() => feed.get().state?.windMps ?? atmosphere.windMps, [feed, atmosphere]);
   const timeScale = useRef(1);
   const particles = useRef<ParticleEmitter>(null);
   const sun = useRef<DirectionalLight>(null);
   return (
     <>
-      <World layout={layout} weather={mission.weather} sun={sun} budget={particleBudget} plain={plain} />
+      <World layout={layout} atmosphere={atmosphere} windNow={windNow} sun={sun} budget={particleBudget} plain={plain} />
 
       {ghosts.map((trace) => (
         <Ghost key={trace.policy} trace={trace} build={build} layout={layout} pose={pose} timeScale={timeScale} driving={hands !== undefined} />
       ))}
-      <Player feed={feed} build={build} layout={layout} pose={pose} timeScale={timeScale} particles={particles} hands={hands} />
+      <Player feed={feed} build={build} layout={layout} pose={pose} timeScale={timeScale} particles={particles} hands={hands} lights={atmosphere.night} />
       <SenseBand layout={layout} pose={pose} feed={feed} senses={senses} />
       {mission.scanZones && mission.scanZones.length > 0 ? <ScanPads layout={layout} zones={mission.scanZones} build={build} feed={feed} /> : null}
       {hasDrone && <ScoutDroneRig feed={feed} layout={layout} pose={pose} />}

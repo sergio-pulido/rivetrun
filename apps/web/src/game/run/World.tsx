@@ -4,8 +4,7 @@ import { Environment, Lightformer } from '@react-three/drei';
 import { useThree } from '@react-three/fiber';
 import { useEffect, type RefObject } from 'react';
 import type { DirectionalLight } from 'three';
-import type { Weather } from '@rivetrun/contracts';
-import { SKY } from '../palette';
+import type { Atmosphere } from '../atmosphere';
 import type { TrackLayout } from '../track';
 import { Backdrop } from './Backdrop';
 import { Dressing } from './Dressing';
@@ -16,7 +15,10 @@ import { WeatherFx } from './WeatherFx';
 
 interface WorldProps {
   layout: TrackLayout;
-  weather: Weather;
+  /** The mission's weather as drawn: sky, fog, light, rain, snow, wind (atmosphereOf). */
+  atmosphere: Atmosphere;
+  /** Headwind right now, gusts included: the wind streaks follow it. */
+  windNow?: () => number;
   /** The one shadow-casting light. The camera rig moves it (and its target) with the action. */
   sun: RefObject<DirectionalLight | null>;
   /** 0–1: weather particle budget. */
@@ -30,8 +32,8 @@ interface WorldProps {
 }
 
 /** Everything that is not a robot: fog, lights, reflections, backdrop, the track strip and its dressing, weather. */
-export function World({ layout, weather, sun, budget = 1, shadowSpan = 9, lanes, plain = false }: WorldProps) {
-  const sky = SKY[weather];
+export function World({ layout, atmosphere, windNow, sun, budget = 1, shadowSpan = 9, lanes, plain = false }: WorldProps) {
+  const sky = atmosphere.sky;
   const scene = useThree((state) => state.scene);
 
   useEffect(() => {
@@ -45,7 +47,7 @@ export function World({ layout, weather, sun, budget = 1, shadowSpan = 9, lanes,
 
   return (
     <>
-      <fog attach="fog" args={[sky.fog, 40, 330]} />
+      <fog attach="fog" args={[sky.fog, atmosphere.fogNear, atmosphere.fogFar]} />
       <hemisphereLight args={[sky.hemiSky, sky.hemiGround, sky.hemiIntensity]} />
       <directionalLight
         ref={sun}
@@ -62,21 +64,21 @@ export function World({ layout, weather, sun, budget = 1, shadowSpan = 9, lanes,
         shadow-camera-near={1}
         shadow-camera-far={40}
       />
-      <directionalLight color="#cfe0ff" intensity={0.55} position={[-4, 3, 12]} />
+      <directionalLight color="#cfe0ff" intensity={0.55 * atmosphere.fill} position={[-4, 3, 12]} />
       <Reflections plain={plain}>
-      <Environment resolution={64} frames={1}>
+      <Environment key={atmosphere.key} resolution={64} frames={1}>
         <color attach="background" args={[sky.mid]} />
-        <Lightformer form="rect" intensity={2.2} color={sky.horizon} position={[0, 2, -8]} scale={[30, 6, 1]} />
-        <Lightformer form="rect" intensity={1.6} color="#ffffff" position={[0, 9, 0]} rotation={[Math.PI / 2, 0, 0]} scale={[20, 20, 1]} />
-        <Lightformer form="rect" intensity={0.5} color={sky.hemiGround} position={[0, -6, 0]} rotation={[-Math.PI / 2, 0, 0]} scale={[30, 30, 1]} />
+        <Lightformer form="rect" intensity={2.2 * atmosphere.env} color={sky.horizon} position={[0, 2, -8]} scale={[30, 6, 1]} />
+        <Lightformer form="rect" intensity={1.6 * atmosphere.env} color="#ffffff" position={[0, 9, 0]} rotation={[Math.PI / 2, 0, 0]} scale={[20, 20, 1]} />
+        <Lightformer form="rect" intensity={0.5 * atmosphere.env} color={sky.hemiGround} position={[0, -6, 0]} rotation={[-Math.PI / 2, 0, 0]} scale={[30, 30, 1]} />
       </Environment>
       </Reflections>
 
-      <Backdrop layout={layout} weather={weather} />
+      <Backdrop layout={layout} atmosphere={atmosphere} />
       <Terrain layout={layout} />
       <Dressing layout={layout} lanes={lanes} />
       <Features layout={layout} />
-      <WeatherFx weather={weather} budget={budget} />
+      <WeatherFx atmosphere={atmosphere} budget={budget} windNow={windNow} />
     </>
   );
 }
