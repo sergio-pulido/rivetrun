@@ -22,17 +22,22 @@ const LOCOMOTION_LABEL: Readonly<Record<string, string>> = { wheels: 'wheels', o
 const LANE_MAX = 60;
 const LANE_MIN = 13;
 const LANE_GAP = 8;
-/** Above this many robots the lanes pack tight and drop the build line. */
-const DENSE_FROM = 13;
-const DENSE_GAP = 2;
-/** Height the lanes may use on the 720-high board, below the header and captions. */
+const DENSE_GAP = 3;
+/** Below this lane height (design px) the lanes pack tight and drop the build line. */
+const DENSE_BELOW = 36;
+/** Fallback height for the lanes on the 720-high board, until the real space has been measured. */
 const LANES_HEIGHT = 500;
 /** Past this share of the track the action chip moves to the robot's left. */
 const CHIP_FLIP = 0.68;
 
-const laneGap = (count: number): number => (count >= DENSE_FROM ? DENSE_GAP : LANE_GAP);
-const laneHeight = (count: number, budget: number): number =>
-  Math.max(LANE_MIN, Math.min(LANE_MAX, Math.floor((budget - laneGap(count) * (count - 1)) / Math.max(1, count))));
+const fit = (count: number, budget: number, gap: number): number => Math.floor((budget - gap * (count - 1)) / Math.max(1, count));
+
+/** Lane height and gap that fit `count` lanes into `budget` design px: roomy when they fit, dense when they do not. */
+function laneLayout(count: number, budget: number): { height: number; gap: number; dense: boolean } {
+  const roomy = Math.min(LANE_MAX, fit(count, budget, LANE_GAP));
+  if (roomy >= DENSE_BELOW) return { height: roomy, gap: LANE_GAP, dense: false };
+  return { height: Math.max(LANE_MIN, Math.min(LANE_MAX, fit(count, budget, DENSE_GAP))), gap: DENSE_GAP, dense: true };
+}
 
 function stripGradient(world: World): string {
   const stops = world.segments.map(
@@ -101,7 +106,7 @@ interface RaceTrackProps {
   readonly mission: Mission;
   readonly players: readonly RacePlayer[];
   readonly status: RaceStatus;
-  /** Height the lanes may use, in design px. Smaller when something else shares the column (decision chips). */
+  /** Height the lanes may use, in design px: the space the big screen measured for them. */
   readonly heightBudget?: number;
 }
 
@@ -110,9 +115,8 @@ export function RaceTrack({ mission, players, status, heightBudget = LANES_HEIGH
   const world = compileTrack(mission.track);
   const terrains = [...new Set(world.segments.map((segment) => segment.terrain))].join(' · ');
   const lanes = [...players].sort((a, b) => a.lane - b.lane);
-  const height = laneHeight(lanes.length, heightBudget);
+  const { height, gap, dense } = laneLayout(lanes.length, heightBudget);
   const gradient = stripGradient(world);
-  const dense = lanes.length >= DENSE_FROM;
 
   return (
     <>
@@ -124,7 +128,7 @@ export function RaceTrack({ mission, players, status, heightBudget = LANES_HEIGH
           <span>Finish</span>
         </div>
       </div>
-      <div className={`${styles.lanes} ${dense ? styles.lanesDense : ''}`} style={{ ['--gap' as string]: laneGap(lanes.length) }}>
+      <div className={`${styles.lanes} ${dense ? styles.lanesDense : ''}`} style={{ ['--gap' as string]: gap }}>
         {lanes.length === 0 ? <div className={styles.emptyLane}>The grid is empty. Scan the code to bring your robot.</div> : null}
         {lanes.map((player) => {
           const out = player.done && !player.finished;

@@ -144,6 +144,8 @@
   position: relative;
   flex: 1;
   min-height: 0;
+  /* Lanes never spill over the host bar or the chips below them. */
+  overflow: hidden;
 }
 .lanes {
   --gap: 8;
@@ -893,4 +895,23 @@
   border: 1px solid #1f5a63;
   background: #0c1a1d;
   color: #bfeff5;
+}
+
+/* Lobby host controls: two rows, so nine tracks, the seats, the bots and the start never wrap. */
+.hostBars {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--u) * 10);
+  flex-shrink: 0;
+  min-width: 0;
+}
+.pickName {
+  font-family: var(--display);
+  font-weight: 600;
+  font-size: calc(var(--u) * 18);
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
 }

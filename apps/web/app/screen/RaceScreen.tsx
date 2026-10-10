@@ -3,7 +3,7 @@
 import type { Mission, MissionId } from '@rivetrun/contracts';
 import { compileTrack, MISSION_IDS, MISSIONS, PRESETS } from '@rivetrun/sim';
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { AttractCanvas, DecisionChips, type DecisionChip } from '@/game';
 import { AppHeader } from '@/ui/AppHeader';
 import { duelVerdict, MAX_BOTS, rankPlayers, resultText, SEAT_OPTIONS, seatsTaken, type RaceSnapshot } from '../race/_lib/protocol';
@@ -21,11 +21,35 @@ interface RaceScreenProps {
 }
 
 const STATUS_TITLE = { lobby: 'LOBBY', build: 'BUILD', countdown: 'GET READY', racing: 'LIVE', finished: 'FINISH' } as const;
-/** Lane height budget (design px) when the decision chips share the column. */
-const LANES_WITH_CHIPS = 380;
-const LANES_FULL = 500;
-/** Design px the weather line takes from the lanes. */
-const WEATHER_LINE = 34;
+/** Design px the caption row above the lanes takes. */
+const CAPTIONS_HEIGHT = 34;
+
+/**
+ * The height the lanes really have, in design px. The lane area is whatever the column has left after the
+ * header, the weather line, the verdict, the decision chips and the host bar, so it is measured, not assumed:
+ * with eight phones and two bots every lane must still fit above whatever sits below it.
+ */
+function useLaneBudget(): { ref: React.RefObject<HTMLDivElement | null>; budget: number | undefined } {
+  const ref = useRef<HTMLDivElement | null>(null);
+  const [budget, setBudget] = useState<number | undefined>(undefined);
+  useEffect(() => {
+    const element = ref.current;
+    if (!element) return undefined;
+    const measure = (): void => {
+      const unit = Math.min(window.innerWidth / 1280, window.innerHeight / 720);
+      setBudget(Math.max(0, Math.floor(element.clientHeight / unit) - CAPTIONS_HEIGHT));
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(element);
+    window.addEventListener('resize', measure);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('resize', measure);
+    };
+  });
+  return { ref, budget };
+}
 const ORDER_ROW_MAX = 30;
 const ORDER_ROW_MIN = 20;
 /** A full room does not fit the panel: it lists the front of the field and counts the rest. */
@@ -124,48 +148,60 @@ function HostBar({ snapshot, bots, onError }: { readonly snapshot: RaceSnapshot;
     if (last) bots.remove(last.id).catch((cause: unknown) => onError(cause instanceof Error ? cause.message : 'Could not remove the bot.'));
   };
   return (
-    <div className={styles.hostBar}>
-      <div className={styles.picks} role="radiogroup" aria-label="Track">
-        {MISSION_IDS.map((id) => (
-          <button
-            key={id}
-            type="button"
-            role="radio"
-            aria-checked={missionId === id}
-            onClick={() => setMissionId(id)}
-            className={`${styles.pick} ${missionId === id ? styles.pickOn : ''}`}
-          >
-            {id} {MISSIONS[id].name}
-          </button>
-        ))}
+    <div className={styles.hostBars}>
+      {/* Row 1: the track (ids only, nine missions must fit one row) and the human seats. */}
+      <div className={styles.hostBar}>
+        <div className={styles.hostBar} role="radiogroup" aria-label="Track">
+          <span className={styles.pickLabel}>Track</span>
+          {MISSION_IDS.map((id) => (
+            <button
+              key={id}
+              type="button"
+              role="radio"
+              aria-checked={missionId === id}
+              aria-label={`${id} ${MISSIONS[id].name}`}
+              title={MISSIONS[id].name}
+              onClick={() => setMissionId(id)}
+              className={`${styles.pick} ${missionId === id ? styles.pickOn : ''}`}
+            >
+              {id}
+            </button>
+          ))}
+        </div>
+        <div className={`${styles.hostBar} ${styles.spacer}`} role="radiogroup" aria-label="Human seats">
+          <span className={styles.pickLabel}>Seats</span>
+          {SEAT_OPTIONS.map((seats) => (
+            <button
+              key={seats}
+              type="button"
+              role="radio"
+              aria-checked={snapshot.seats === seats}
+              disabled={seats < taken}
+              onClick={() => setSeats(seats)}
+              className={`${styles.pick} ${snapshot.seats === seats ? styles.pickOn : ''}`}
+            >
+              {seats}
+            </button>
+          ))}
+        </div>
       </div>
-      <div className={styles.hostBar} role="radiogroup" aria-label="Human seats">
-        <span className={styles.pickLabel}>Seats</span>
-        {SEAT_OPTIONS.map((seats) => (
-          <button
-            key={seats}
-            type="button"
-            role="radio"
-            aria-checked={snapshot.seats === seats}
-            disabled={seats < taken}
-            onClick={() => setSeats(seats)}
-            className={`${styles.pick} ${snapshot.seats === seats ? styles.pickOn : ''}`}
-          >
-            {seats}
-          </button>
-        ))}
-      </div>
-      <button type="button" onClick={addBot} disabled={botsInRoom.length >= MAX_BOTS} className={`${styles.button} ${styles.buttonJev}`}>
-        + JEV bot
-      </button>
-      {botsInRoom.length > 0 ? (
-        <button type="button" onClick={removeBot} className={`${styles.button} ${styles.buttonGhost}`} aria-label="Remove the last JEV bot">
-          − bot
+      {/* Row 2: bots and the start. */}
+      <div className={styles.hostBar}>
+        <span className={styles.pickName}>
+          {missionId} · {MISSIONS[missionId].name}
+        </span>
+        <button type="button" onClick={addBot} disabled={botsInRoom.length >= MAX_BOTS} className={`${styles.button} ${styles.buttonJev} ${styles.spacer}`}>
+          + JEV bot
         </button>
-      ) : null}
-      <button type="button" onClick={() => void start()} disabled={snapshot.players.length === 0 || starting} className={styles.button}>
-        {starting ? 'Opening…' : 'Open build phase'}
-      </button>
+        {botsInRoom.length > 0 ? (
+          <button type="button" onClick={removeBot} className={`${styles.button} ${styles.buttonGhost}`} aria-label="Remove the last JEV bot">
+            − bot
+          </button>
+        ) : null}
+        <button type="button" onClick={() => void start()} disabled={snapshot.players.length === 0 || starting} className={styles.button}>
+          {starting ? 'Opening…' : 'Open build phase'}
+        </button>
+      </div>
     </div>
   );
 }
@@ -176,6 +212,7 @@ export function RaceScreen({ code, siteUrl }: RaceScreenProps) {
   const now = useServerNow(clockOffsetMs);
   const episodes = useEpisodeCount();
   const bots = useJevBots(snapshot, clockOffsetMs);
+  const lanes = useLaneBudget();
   const [error, setError] = useState<string | null>(null);
   const joinUrl = `${siteUrl}/race/${code}`;
 
@@ -288,7 +325,7 @@ export function RaceScreen({ code, siteUrl }: RaceScreenProps) {
           ) : null}
           {status === 'build' ? <p className={styles.alertInfo}>BUILD PHASE · phones are rebuilding for {mission.name}. The race starts when everyone is ready or the timer runs out.</p> : null}
 
-          <div className={styles.trackArea}>
+          <div className={styles.trackArea} ref={lanes.ref}>
             {status === 'lobby' && snapshot.players.length === 0 ? (
               // Nobody on the grid yet: the presets replay the track on a loop until the first robot joins.
               <div className={styles.attract}>
@@ -297,7 +334,7 @@ export function RaceScreen({ code, siteUrl }: RaceScreenProps) {
               </div>
             ) : (
               <div className={styles.main}>
-                <RaceTrack mission={mission} players={snapshot.players} status={status} heightBudget={(showChips ? LANES_WITH_CHIPS : LANES_FULL) - (weather ? WEATHER_LINE : 0)} />
+                <RaceTrack mission={mission} players={snapshot.players} status={status} heightBudget={lanes.budget} />
               </div>
             )}
             {status === 'countdown' ? (
