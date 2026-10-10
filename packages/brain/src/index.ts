@@ -26,8 +26,8 @@ export const JEV_QUESTION_VERSION = 'q9-scan-approach';
  * - 'facts': the same state, options and predicted numbers, with what each thing costs, and no rule or judgement.
  */
 export type QuestionMode = 'verdict' | 'facts';
-/** Wording version of the facts-only question: 2 = each option carries the sim's scan, contact and end-speed facts. */
-const FACTS_WORDING = 'facts2';
+/** Wording version of the facts-only question: 2 = each option carries the sim's scan, contact and end-speed facts; 3 = also the time the rest of the track takes at that pace, and a fall into a gap. */
+const FACTS_WORDING = 'facts3';
 export const jevQuestionVersion = (mode: QuestionMode = 'verdict'): string => (mode === 'facts' ? `${JEV_QUESTION_VERSION}-${FACTS_WORDING}` : JEV_QUESTION_VERSION);
 /** Words that would tell the reader which option to take; a facts-only question holds none of them (unit-tested). */
 export const VERDICT_WORDS = /\b(correct|must|should|ought|best|prefer|wrong|pick)\b/i;
@@ -180,6 +180,8 @@ const finishChargeLine = (entry: LookaheadEntry): string =>
 function optionFacts(entry: LookaheadEntry): string {
   const parts: string[] = [];
   if (entry.endSpeedMps !== undefined) parts.push(`Speed at the end of the window: ${round(entry.endSpeedMps, 1)} m/s.`);
+  if (entry.projectedFinishS !== undefined) parts.push(`At this pace the rest of the track takes ${round(entry.projectedFinishS, 0)} s.`);
+  if (entry.fallsIntoGap) parts.push('Falls into the gap inside the window: +5 s, 15 % damage, and the robot is put back before the gap.');
   const scan = entry.scan;
   if (scan) {
     const zone = `Scan zone "${scan.label.replace(/["`]/g, "'")}"`;
@@ -387,7 +389,7 @@ export function buildJevRequest(question: BrainQuestion, model: string = JEV_MOD
         type: 'choice',
         instructions:
           (facts
-            ? 'A robot is racing along a track to the finish line. A robot that stops for good or goes backwards never reaches the finish, and a run that does not finish scores close to nothing; among runs that finish, the score rewards less time, less damage and more charge left. ' +
+            ? 'A robot is racing along a track to the finish line. A robot that stops for good or goes backwards never reaches the finish, and a run that does not finish scores close to nothing; among runs that finish, every second of race time costs 4 points, and damage and charge used cost points too. ' +
               'Choose one driving action for it to take now. '
             : 'A robot is racing along a track and must reach the finish line; a robot that stops or goes backwards never finishes and loses the race. ' +
               'Which driving action should it take now? ') +
