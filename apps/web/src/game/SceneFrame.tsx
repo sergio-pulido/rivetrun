@@ -3,6 +3,7 @@
 import { Canvas, useFrame, type CanvasProps, type RootState } from '@react-three/fiber';
 import { Component, useCallback, useEffect, useRef, useState, type CSSProperties, type ErrorInfo, type ReactNode } from 'react';
 import { quality } from './quality';
+import { UI } from './palette';
 import { SceneLoader } from './SceneLoader';
 
 /** After this long without a first frame the scene drops its optional extras and draws with plain lights. */
@@ -41,6 +42,41 @@ class SceneBoundary extends Component<BoundaryProps, { failed: boolean }> {
   render(): ReactNode {
     return this.state.failed ? null : this.props.children;
   }
+}
+
+interface Problem {
+  readonly title: string;
+  readonly help: string;
+}
+
+/**
+ * The 3D view is gone (lost context, no WebGL, a crash): say so and give a way on. It sits above whatever
+ * overlay the page draws over the canvas (the HUD, the pedals), and only its two buttons take touches.
+ */
+function SceneProblem({ problem }: { problem: Problem }) {
+  return (
+    <div className="pointer-events-none absolute inset-x-0 z-40 flex justify-center px-5" style={{ top: '46%' }} role="alert">
+      <div className="w-full max-w-[340px] rounded-2xl px-4 py-3.5 text-center" style={{ border: `2px solid ${UI.warn}`, background: 'rgb(14 16 19 / 0.94)', color: UI.text }}>
+        <p className="m-0 font-display text-[15px] font-bold uppercase tracking-[2px]" style={{ color: UI.warn }}>
+          {problem.title}
+        </p>
+        <p className="m-0 mt-1.5 text-[13px] leading-snug">{problem.help}</p>
+        <div className="mt-3 flex justify-center gap-2">
+          <button
+            type="button"
+            onClick={() => window.location.reload()}
+            className="pointer-events-auto h-11 rounded-xl px-5 font-display text-[14px] font-bold tracking-[1.5px]"
+            style={{ background: UI.safety, color: UI.ink }}
+          >
+            RELOAD
+          </button>
+          <a href="/" className="pointer-events-auto flex h-11 items-center rounded-xl px-5 font-display text-[14px] font-bold tracking-[1.5px]" style={{ border: `1px solid ${UI.line}`, color: UI.text, textDecoration: 'none' }}>
+            HOME
+          </a>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export interface SceneFrameProps {
@@ -108,7 +144,13 @@ export function SceneFrame({ children, camera, label, tips = false, bare = false
     return () => window.clearTimeout(id);
   }, [phase]);
 
-  const failed = phase === 'failed' ? '3D view unavailable on this device' : lost ? '3D view paused · reload to resume' : null;
+  const problem: Problem | null =
+    phase === 'failed'
+      ? { title: '3D view unavailable on this device', help: 'The run itself still works: the gauges and controls are live. Reload to try the 3D view again.' }
+      : lost
+        ? { title: '3D view paused', help: 'The graphics were reset. They usually come back by themselves in a moment; reload if they do not.' }
+        : null;
+  const failed = problem?.title ?? null;
 
   return (
     <>
@@ -136,7 +178,8 @@ export function SceneFrame({ children, camera, label, tips = false, bare = false
           </Canvas>
         </SceneBoundary>
       )}
-      {(bare || phase === 'shown') && !failed ? null : <SceneLoader label={label} tips={tips} leaving={phase === 'ready' && !failed} failed={failed} />}
+      {(bare || phase === 'shown') && !failed ? null : <SceneLoader label={label} tips={tips} leaving={phase === 'ready' && !failed} failed={failed} blank={problem !== null} />}
+      {problem ? <SceneProblem problem={problem} /> : null}
     </>
   );
 }

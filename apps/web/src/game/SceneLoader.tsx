@@ -16,13 +16,15 @@ export interface SceneLoaderProps {
   leaving?: boolean;
   /** Shown instead of the spinner when the 3D view cannot run at all. */
   failed?: string | null;
+  /** Only the drafting-sheet background: the caller draws its own message over it. */
+  blank?: boolean;
 }
 
 /**
  * What a 3D scene shows until it has drawn its first frame: a drafting-sheet cover, a spinner,
  * a label and a rotating tip. Pure DOM, so it is also the fallback while the three.js chunk downloads.
  */
-export function SceneLoader({ label = 'Starting the 3D view', tips = true, leaving = false, failed = null }: SceneLoaderProps) {
+export function SceneLoader({ label = 'Starting the 3D view', tips = true, leaving = false, failed = null, blank = false }: SceneLoaderProps) {
   // The first tip is fixed so server and client markup agree; later ones are random.
   const [tip, setTip] = useState(0);
   useEffect(() => {
@@ -39,7 +41,7 @@ export function SceneLoader({ label = 'Starting the 3D view', tips = true, leavi
       role="status"
       aria-live="polite"
     >
-      {failed ? (
+      {blank ? null : failed ? (
         <svg width="44" height="44" viewBox="0 0 44 44" fill="none" stroke={UI.warn} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
           <path d="M22 5 40 37H4Z" />
           <path d="M22 17v9m0 5v.5" />
@@ -50,10 +52,12 @@ export function SceneLoader({ label = 'Starting the 3D view', tips = true, leavi
           <path d="M22 5a17 17 0 0 1 17 17" stroke={UI.cyan} strokeWidth="5" strokeLinecap="round" />
         </svg>
       )}
-      <p className="mt-4 font-display text-[15px] font-bold uppercase tracking-[2px]" style={{ color: failed ? UI.warn : UI.cyan }}>
-        {failed ?? label}
-      </p>
-      {tips && !failed ? (
+      {blank ? null : (
+        <p className="mt-4 font-display text-[15px] font-bold uppercase tracking-[2px]" style={{ color: failed ? UI.warn : UI.cyan }}>
+          {failed ?? label}
+        </p>
+      )}
+      {tips && !failed && !blank ? (
         <p key={tip} className={`${styles.tip} mt-3 max-w-[300px] text-[13px] leading-snug`} style={{ color: UI.text }}>
           <span className="mr-1.5 font-mono text-[10px] tracking-[1.5px]" style={{ color: UI.dim }}>
             TIP

@@ -323,6 +323,11 @@ const FLY_IN_MS = 1300;
 
 function CameraRig({ pose, light, startX, wide, driving, raise, flyIn }: RigProps) {
   const intro = useRef({ startAt: 0, over: !flyIn });
+  // Reduced motion: no camera shake (and no fly-in, below).
+  const still = useRef(false);
+  useEffect(() => {
+    still.current = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  }, []);
   const near = useMemo(() => ({ from: new Vector3(), look: new Vector3(), aim: new Vector3() }), []);
   useEffect(() => {
     if (!flyIn) return undefined;
@@ -375,7 +380,7 @@ function CameraRig({ pose, light, startX, wide, driving, raise, flyIn }: RigProp
 
     // In portrait the Brain sheet (or the telemetry drawer, `raise`) covers the lower ~42 %: the robot sits in the clear band above it.
     const lift = distance * Math.tan(halfV) * (portrait ? (driving && !raise ? -0.3 : 0.2) : -0.12);
-    const shake = performance.now() < p.shakeUntil ? 0.09 : 0;
+    const shake = !still.current && performance.now() < p.shakeUntil ? 0.09 : 0;
     target.set(f.x + (Math.random() - 0.5) * shake, f.y + 0.75 - lift + (Math.random() - 0.5) * shake, -1);
     camera.position.set(target.x, target.y + Math.sin(ELEVATION) * distance, target.z + Math.cos(ELEVATION) * distance);
     // Deploy: start close on the robot from its front quarter, as it stood on the workbench, and pull back to the track.
