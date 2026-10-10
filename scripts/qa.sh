@@ -131,6 +131,15 @@ smoke_build() {
   done
   run_smoke
   local status=$?
+  # RR-PLAN (docs/PLAY_AND_PLAN.md): the new flows and the load test run on the same build once the old flows are
+  # green. Their lines are reported and never decide the tag.
+  if [ "$status" = 0 ] && [ "${QA_PLAN:-1}" = 1 ]; then
+    [ -f "$ROOT/e2e/plan.mjs" ] && { QA_BASE_URL="$BASE_URL" QA_SCREENS="$SCREENS-plan" node "$ROOT/e2e/plan.mjs" || true; }
+    if [ -f "$QA_TREE/scripts/loadtest-play.mjs" ]; then
+      echo "PLAN LOAD 40 simulated phones against $BASE_URL (scripts/loadtest-play.mjs)"
+      (cd "$QA_TREE" && node scripts/loadtest-play.mjs --base "$BASE_URL" --clients 40) 2>&1 | sed 's/^/PLAN LOAD   /' || true
+    fi
+  fi
   kill "$server" 2>/dev/null
   wait "$server" 2>/dev/null
   return "$status"
@@ -174,6 +183,13 @@ if [ "$RUN_E2E" = 1 ]; then
   # One line per kind of warning with its count: a run with Jev unreachable prints the same line sixty times.
   grep -E '^(PASS|FAIL|SKIP) ' "$OUT/e2e.log" | sed 's/^/     /'
   grep -E '^WARN ' "$OUT/e2e.log" | sed -E 's/(\/api\/ghost)\?.*/\1?…/' | sort | uniq -c | sed 's/^ *\([0-9]*\) WARN /     WARN ×\1 /'
+  # RR-PLAN: reported, never counted in FAILED.
+  if grep -q -E '^PLAN ' "$OUT/e2e.log"; then
+    echo "     --- RR-PLAN new flows (do not decide the tag) ---"
+    grep -E '^PLAN ' "$OUT/e2e.log" | sed 's/^/     /'
+    PLAN_RED="$(grep -c -E '^PLAN (FAIL|LOAD +FAIL)' "$OUT/e2e.log" || true)"
+    [ "$PLAN_RED" = 0 ] || NOTES+=("RR-PLAN: $PLAN_RED new-flow line(s) red; the tag covers the old flows only")
+  fi
   # Count the calls that could not reach Jev (laptop offline, Jev down). The smoke's Jev-mode step fails by itself
   # when Jev answered none of its decisions, so a tag always means the Jev path was driven.
   if [ -f "$OUT/server.log" ] && grep -q "jev network: fetch failed" "$OUT/server.log"; then

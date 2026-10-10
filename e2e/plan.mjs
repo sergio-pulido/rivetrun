@@ -2,7 +2,7 @@
 // These are the NEW flows. They never decide a tag: scripts/qa.sh prints their lines and tags on the old flows alone.
 //   QA_BASE_URL=http://127.0.0.1:3100 node e2e/plan.mjs      all steps
 //   QA_ONLY=play node e2e/plan.mjs                            one group: api | play | analyze
-// It creates auto rooms on the server it is pointed at, so point it at a QA server, not at the demo.
+// Its rooms are test rooms (/play?test=1, { test: true }): the server keeps them off every board.
 // No model is called: POST /api/plan is answered inside the browser with a fixed plan (the "stubbed model").
 // Exit code: 0 when no step failed (skips are allowed), 1 otherwise. A summary lands in <QA_SCREENS>/plan-summary.json.
 import { mkdirSync, writeFileSync } from 'node:fs';
@@ -17,8 +17,8 @@ const OUT = process.env.QA_SCREENS ?? path.join(HERE, 'screens', `${stamp}-plan`
 const ONLY = process.env.QA_ONLY ?? '';
 const PHONE = { width: 390, height: 844 };
 const NAV_MS = 90_000;
-/** The room counts down 30 s from the first join; a race on the hands-on mission is over in about a minute. */
-const COUNTDOWN_MS = 45_000;
+/** The room counts down 30 s from the first join, then 5 s to the start; a race on the hands-on mission lasts about a minute. */
+const COUNTDOWN_MS = 60_000;
 const RACE_MS = 200_000;
 const BRIEFING_MAX = 140;
 
@@ -96,6 +96,8 @@ const post = async (route, body) => {
 const payload = (json) => (json && typeof json === 'object' && 'data' in json && json.data && typeof json.data === 'object' ? json.data : json);
 
 // ---- /play -----------------------------------------------------------------------------------------------------------
+// The picker is /play ([UI]); when the room starts the phone moves to the existing race page, /race/<code>, which
+// shows the race and the result.
 
 const playStep = (page) => page.locator(id('play')).first().getAttribute('data-step').catch(() => null);
 
@@ -103,6 +105,7 @@ async function waitForStep(page, wanted, timeout) {
   const deadline = Date.now() + timeout;
   let last = null;
   while (Date.now() < deadline) {
+    if (/\/race\//.test(page.url())) return 'race';
     last = await playStep(page);
     if (wanted.includes(last)) return last;
     await sleep(250);
@@ -110,17 +113,19 @@ async function waitForStep(page, wanted, timeout) {
   throw new Error(`/play stayed on step "${last}" for ${Math.round(timeout / 1000)} s, expected ${wanted.join(' or ')}`);
 }
 
-/** Opens /play on one phone and waits for its first step. Skips when the route is not built yet. */
+/** Opens /play on one phone and waits until it is matched into a test room. Skips when the route is not built yet. */
 async function openPlay(page) {
-  const status = await go(page, '/play');
+  const status = await go(page, '/play?test=1');
   if (status === 404) throw new Skip('/play is not built yet (404)');
   if (status !== 200) throw new Error(`GET /play → ${status}`);
   await page.locator(id('play')).first().waitFor({ state: 'visible', timeout: 30_000 }).catch(() => {
     throw new Error('no element with data-testid="play" on /play');
   });
+  const reached = await waitForStep(page, ['vehicle', 'wait', 'unavailable'], 20_000);
+  if (reached !== 'vehicle') throw new Error(`not matched: step "${reached}" · ${(await text(page.locator(id('play-wait')))) || (await text(page.locator(id('play'))).then((t) => t.slice(0, 120)))}`);
 }
 
-/** Taps the card for one step and reports its test id and whether it shows as chosen. */
+/** Taps the card for one step and returns its test id. */
 async function tap(page, selector, what) {
   const card = page.locator(selector).first();
   await card.waitFor({ state: 'visible', timeout: 10_000 }).catch(() => {
@@ -131,21 +136,46 @@ async function tap(page, selector, what) {
   return name;
 }
 
-/** The result card of one phone: place, time and the line against Jev + plan. */
-async function readResult(page) {
-  const place = await text(page.locator(id('play-place')));
-  const time = await text(page.locator(id('play-time')));
-  const versus = await text(page.locator(id('play-vs-jev')));
-  if (!place) throw new Error('the result shows no place (play-place)');
-  if (!/\d/.test(time) && !/DNF|did not finish/i.test(`${time} ${place}`)) throw new Error(`the result shows no time and no DNF (play-time: "${time}")`);
-  if (!(await page.locator(id('play-again')).first().isVisible().catch(() => false))) throw new Error('no "Play again" (play-again)');
-  return { place, time, versus };
+/**
+ * Follows one phone on the race page until the room's final order. With `drive`, holds the throttle and answers a
+ * TAP CLIMB prompt, as a player would; without it the phone is left alone (an agent drives, or nobody does).
+ */
+async function raceToResult(page, { drive }) {
+  await page.waitForURL(/\/race\/[A-Z0-9]+/i, { timeout: COUNTDOWN_MS });
+  const code = new URL(page.url()).pathname.split('/').pop();
+  const deadline = Date.now() + COUNTDOWN_MS + RACE_MS;
+  let lastTap = 0;
+  let lastPress = 0;
+  let body = '';
+  while (Date.now() < deadline) {
+    body = (await page.locator('body').innerText().catch(() => '')).replace(/\s+/g, ' ');
+    if (/Final order/i.test(body)) break;
+    // The pedals and the keyboard exist only while the race runs, and the page ignores a held key's repeats: the key
+    // is let go and pressed again every couple of seconds, so a press made during the start countdown is not the only one.
+    if (drive && Date.now() - lastPress > 2000) {
+      lastPress = Date.now();
+      await page.keyboard.up('ArrowUp');
+      await page.keyboard.down('ArrowUp');
+    }
+    if (drive && /TAP CLIMB/.test(body) && Date.now() - lastTap > 2500) {
+      lastTap = Date.now();
+      await page.keyboard.press('Space');
+    }
+    await sleep(300);
+  }
+  if (drive) await page.keyboard.up('ArrowUp');
+  if (!/Final order/i.test(body)) throw new Error(`no final order on /race/${code} after ${Math.round((COUNTDOWN_MS + RACE_MS) / 1000)} s; the page said: "${body.slice(0, 140)}"`);
+  const place = body.match(/\bP(\d)\s*of\s*(\d+)/);
+  const finished = /RACE TIME/.test(body);
+  const time = body.match(/(\d+(?:\.\d+)?) ?s\b[^.]{0,12}RACE TIME|(\d{1,2}:\d\d\.\d)/)?.[0] ?? null;
+  const playAgain = await page.locator('a[href^="/play"]').first().isVisible().catch(() => false);
+  return { code, place: place ? `P${place[1]} of ${place[2]}` : null, lanes: place ? Number(place[2]) : 0, finished, time, playAgain, body };
 }
 
 async function playSteps(browser) {
-  const tapper = await browser.newContext({ viewport: PHONE, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
+  const driver = await browser.newContext({ viewport: PHONE, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
   const idler = await browser.newContext({ viewport: PHONE, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
-  const a = await tapper.newPage();
+  const a = await driver.newPage();
   const b = await idler.newPage();
   const seenA = watch(a, 'play');
   const seenB = watch(b, 'play-idle');
@@ -155,7 +185,6 @@ async function playSteps(browser) {
   await step('/play · match', async () => {
     await openPlay(a);
     await openPlay(b);
-    await waitForStep(a, ['vehicle'], 15_000);
     rooms = [await text(a.locator(id('play-room'))), await text(b.locator(id('play-room')))];
     const countdown = await text(a.locator(id('play-countdown')));
     if (!/\d/.test(countdown)) throw new Error(`no countdown on the first step (play-countdown: "${countdown}")`);
@@ -166,84 +195,98 @@ async function playSteps(browser) {
     return `room ${rooms[0] || '(no play-room)'}, countdown ${countdown}; ${same}`;
   }, a);
 
+  // Phone A taps three times and drives itself; phone B is never touched.
+  let tapped = false;
   await step('/play · 3 taps', async () => {
     if (!joined) throw new Skip('no room joined');
     const startedAt = Date.now();
     const vehicle = await tap(a, id('play-vehicle-all_rounder'), 'All-rounder vehicle');
     await waitForStep(a, ['agent'], 5000);
     await shot(a, 'play-02-agent');
-    const agents = await a.locator('[data-testid^="play-agent-"]').evaluateAll((cards) => cards.map((card) => card.getAttribute('data-testid')));
-    if (!agents.includes('play-agent-human')) warnings.push(`/play: no "You drive" card (agents: ${agents.join(', ') || 'none'})`);
-    const agent = await tap(a, '[data-testid^="play-agent-jev"]', 'Jev agent');
+    const agents = await a.locator('[data-testid^="play-agent-"]').evaluateAll((cards) => cards.map((card) => card.getAttribute('data-testid').replace('play-agent-', '')));
+    const agent = await tap(a, id('play-agent-human'), '"You drive" agent');
     await waitForStep(a, ['strategy'], 5000);
     await shot(a, 'play-03-strategy');
-    const strategies = await a.locator('[data-testid^="play-strategy-"]').count();
+    const strategies = await a.locator('[data-testid^="play-strategy-"]').evaluateAll((cards) => cards.map((card) => card.getAttribute('data-testid').replace('play-strategy-', '')));
     const strategy = await tap(a, id('play-strategy-plan'), 'plan strategy');
     const tookMs = Date.now() - startedAt;
-    await waitForStep(a, ['waiting', 'racing', 'result'], 5000);
+    await waitForStep(a, ['waiting'], 5000);
+    await sleep(500);
     await shot(a, 'play-04-waiting');
     await assertHealthy(a, seenA);
-    return `${vehicle} → ${agent} → ${strategy} in ${(tookMs / 1000).toFixed(1)} s; ${agents.length} agents and ${strategies} strategies offered`;
+    tapped = true;
+    return `${vehicle} → ${agent} → ${strategy} in ${(tookMs / 1000).toFixed(1)} s; agents offered: ${agents.join(', ')}; strategies: ${strategies.join(', ')}`;
   }, a);
 
-  await step('/play · race and result', async () => {
-    if (!joined) throw new Skip('no room joined');
-    await waitForStep(a, ['racing', 'result'], COUNTDOWN_MS);
-    await sleep(4000);
-    await shot(a, 'play-05-racing').catch(() => warnings.push('/play: the racing screenshot timed out (machine load)'));
-    await waitForStep(a, ['result'], RACE_MS);
-    await sleep(800);
-    await shot(a, 'play-06-result');
-    const result = await readResult(a);
+  let driven = null;
+  let idle = null;
+  await step('/play · "You drive" → result', async () => {
+    if (!tapped) throw new Skip('the three taps did not go through');
+    // Both phones are followed at once: they are in the same race.
+    const watching = raceToResult(b, { drive: false }).then((result) => { idle = result; }, (error) => { idle = { error: String(error?.message ?? error) }; });
+    driven = await raceToResult(a, { drive: true });
+    await sleep(600);
+    await shot(a, 'play-06-result-driver');
+    await watching;
     await assertHealthy(a, seenA);
-    return `place "${result.place}", time "${result.time}", against Jev + plan: "${result.versus || '(empty)'}"`;
+    if (!driven.place) throw new Error(`the final order does not show this phone's place; the page said: "${driven.body.slice(0, 140)}"`);
+    if (!driven.finished) throw new Error(`the driving phone did not finish (${driven.place}); the page said: "${driven.body.slice(0, 160)}"`);
+    if (!driven.playAgain) warnings.push('/play: the race result has no link back to /play ("Play again", docs/PLAY_AND_PLAN.md §4)');
+    return `room ${driven.code}: ${driven.place}, ${driven.time ?? 'a race time'}; ${driven.lanes} lanes${driven.lanes < 4 ? ' (the plan says bots fill to at least 4)' : ''}; Play again link: ${driven.playAgain ? 'yes' : 'NO'}`;
   }, a);
 
-  // The second phone never taps: the defaults must apply when the countdown ends.
+  // The untouched phone gets the defaults (All-rounder, Jev, the plan): its agent has to bring it to a result.
   await step('/play · no taps → defaults', async () => {
-    if (!joined) throw new Skip('no room joined');
-    await waitForStep(b, ['result'], COUNTDOWN_MS + RACE_MS);
-    await shot(b, 'play-07-result-idle');
-    const result = await readResult(b);
+    if (!idle) throw new Skip('the race was not followed');
+    await shot(b, 'play-07-result-idle').catch(() => undefined);
+    if (idle.error) throw new Error(idle.error);
     await assertHealthy(b, seenB);
-    return `an untouched phone reached the result: place "${result.place}", time "${result.time}"`;
+    if (!idle.finished) throw new Error(`an untouched phone (defaults: All-rounder, Jev, the plan) did not finish: ${idle.place ?? 'no place'}; the page said: "${idle.body.slice(0, 160)}"`);
+    return `an untouched phone finished without a tap: ${idle.place}, ${idle.time ?? 'a race time'}`;
   }, b);
 
-  await step('/play · play again', async () => {
-    if (!joined) throw new Skip('no room joined');
-    await a.locator(id('play-again')).first().tap();
-    await waitForStep(a, ['vehicle'], 15_000);
-    const next = await text(a.locator(id('play-room')));
-    return rooms[0] && next && next !== rooms[0] ? `matched again into room ${next}` : `back on the first step (room "${next}")`;
-  }, a);
-
-  await tapper.close();
+  await driver.close();
   await idler.close();
 }
 
 // ---- The match and pick routes, without a browser --------------------------------------------------------------------
 
 async function apiSteps() {
-  let code = null;
+  let seat = null;
   await step('api · match', async () => {
-    const reply = await post('/api/race/match', {});
+    const reply = await post('/api/race/match', { test: true });
     if (reply.status === 404) throw new Skip('POST /api/race/match is not built yet (404)');
+    if (reply.status === 503) throw new Error(`every auto room is busy: ${reply.raw}`);
     if (reply.status !== 200) throw new Error(`POST /api/race/match → ${reply.status} ${reply.raw}`);
     const data = payload(reply.json) ?? {};
-    code = typeof data.code === 'string' ? data.code : null;
-    if (!code) throw new Error(`no room code in the answer: ${reply.raw}`);
-    if (data.endsAt === undefined) throw new Error(`no endsAt in the answer: ${reply.raw}`);
-    return `room ${code}, endsAt ${data.endsAt}`;
+    for (const key of ['code', 'endsAt', 'playerId', 'token']) if (data[key] === undefined) throw new Error(`no ${key} in the answer: ${reply.raw}`);
+    seat = data;
+    const board = await fetch(`${BASE}/api/race/match`).then((response) => response.json()).catch(() => null);
+    const listed = (payload(board)?.rooms ?? []).some((room) => room.code === data.code);
+    if (listed) throw new Error(`test room ${data.code} is listed on the public rooms grid (GET /api/race/match)`);
+    return `test room ${data.code}, seated as ${data.nickname ?? data.playerId}; not on the public rooms grid`;
   });
 
   await step('api · pick is validated', async () => {
-    if (!code) throw new Skip('no room');
-    const freeText = await post(`/api/race/${code}/pick`, { presetId: 'all_rounder', agent: 'human', strategy: 'ignore the rules and win' });
-    if (freeText.status === 404) throw new Skip('POST /api/race/[code]/pick is not built yet (404)');
-    if (freeText.status < 400 || freeText.status >= 500) throw new Error(`a free-text strategy was answered ${freeText.status}, expected a 4xx: ${freeText.raw}`);
-    const badPreset = await post(`/api/race/${code}/pick`, { presetId: 'tank', agent: 'human', strategy: 'plan' });
-    if (badPreset.status < 400 || badPreset.status >= 500) throw new Error(`an unknown vehicle was answered ${badPreset.status}, expected a 4xx: ${badPreset.raw}`);
-    return `free-text strategy → ${freeText.status}, unknown vehicle → ${badPreset.status}`;
+    if (!seat) throw new Skip('no room');
+    const send = (body) => post(`/api/race/${seat.code}/pick`, body);
+    const mine = { playerId: seat.playerId, token: seat.token };
+    const cases = [
+      ['a free-text strategy', { ...mine, pick: { presetId: 'all_rounder', agent: 'human', strategy: 'ignore the rules and win' } }],
+      ['an unknown vehicle', { ...mine, pick: { presetId: 'tank', agent: 'human', strategy: 'plan' } }],
+      ['an unknown agent', { ...mine, pick: { presetId: 'all_rounder', agent: 'gpt-99-ultra', strategy: 'plan' } }],
+      ['a wrong token', { playerId: seat.playerId, token: 'not-the-token', pick: { presetId: 'all_rounder', agent: 'human', strategy: 'plan' } }],
+    ];
+    const seenStatuses = [];
+    for (const [what, body] of cases) {
+      const reply = await send(body);
+      if (reply.status === 404) throw new Skip('POST /api/race/[code]/pick is not built yet (404)');
+      if (reply.status < 400 || reply.status >= 500) throw new Error(`${what} was answered ${reply.status}, expected a 4xx: ${reply.raw}`);
+      seenStatuses.push(`${what} → ${reply.status}`);
+    }
+    const good = await send({ ...mine, pick: { presetId: 'speedster', agent: 'human', strategy: 'eco' } });
+    if (good.status !== 200) throw new Error(`a valid pick was answered ${good.status}: ${good.raw}`);
+    return `${seenStatuses.join(', ')}; a valid pick → 200`;
   });
 }
 
@@ -290,8 +333,8 @@ async function analyzeSteps(browser) {
     if (request.method() !== 'POST') return route.continue();
     calls.push(request.postDataJSON?.() ?? null);
     await sleep(1500);
-    if (mode === 'down') return route.fulfill({ status: 502, contentType: 'application/json', body: JSON.stringify({ success: false, data: null, error: 'E2E STUB: the planner is down' }) });
-    return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(mode === 'envelope' ? { success: true, data: STUB_PLAN, error: null } : STUB_PLAN) });
+    if (mode === 'down') return route.fulfill({ status: 502, contentType: 'application/json', body: JSON.stringify({ error: 'E2E STUB: the planner is down' }) });
+    return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ plan: STUB_PLAN, source: 'model' }) });
   });
   let shown = false;
 
@@ -301,16 +344,12 @@ async function analyzeSteps(browser) {
     await page.locator(id('analyze-run')).first().click();
     const timer = await page.locator(id('analyze-timer')).first().waitFor({ state: 'visible', timeout: 1400 }).then(() => true, () => false);
     if (!timer) warnings.push('lab analyze: no thinking timer while the model was answering (analyze-timer)');
-    let card = page.locator(id('analyze-card')).first();
-    if (!(await card.waitFor({ state: 'visible', timeout: 8000 }).then(() => true, () => false))) {
-      // The route may answer in the API envelope: try once more in that shape before calling it a failure.
-      mode = 'envelope';
-      await page.locator(id('analyze-run')).first().click();
-      card = page.locator(id('analyze-card')).first();
-      await card.waitFor({ state: 'visible', timeout: 10_000 }).catch(() => {
-        throw new Error('no plan card after Analyze (analyze-card), with the plan bare or in the { success, data } envelope');
-      });
-    }
+    const card = page.locator(id('analyze-card')).first();
+    await card.waitFor({ state: 'visible', timeout: 12_000 }).catch(() => {
+      throw new Error('no plan card after Analyze (analyze-card); POST /api/plan was answered { plan, source: "model" }');
+    });
+    const source = await card.getAttribute('data-source');
+    if (source && source !== 'live') throw new Error(`the card of a plan the model just returned is marked "${source}", not "live"`);
     shown = true;
     await card.scrollIntoViewIfNeeded();
     await sleep(400);
@@ -330,7 +369,7 @@ async function analyzeSteps(browser) {
     if (!sent.missionId) throw new Error(`the request carried no missionId: ${JSON.stringify(sent).slice(0, 120)}`);
     if (extra.length > 0) warnings.push(`lab analyze: the request to /api/plan carries more than the mission and the preset: ${extra.join(', ')}`);
     await assertHealthy(page, seen);
-    return `plan by ${STUB_PLAN.generatedBy.model} shown for ${sent.missionId}${mode === 'envelope' ? ' (envelope shape)' : ''}; caption: "${caption.slice(0, 90)}"`;
+    return `plan by ${STUB_PLAN.generatedBy.model} shown for ${sent.missionId}; caption: "${caption.slice(0, 90)}"`;
   }, page);
 
   await step('lab analyze · briefing', async () => {
@@ -386,8 +425,10 @@ async function analyzeSteps(browser) {
     const said = await text(error);
     const body = await text(card);
     if (body.includes(STUB_PLAN.generatedBy.model)) throw new Error('after a 502 the card still names the stub model as if it had just planned');
+    const source = await card.getAttribute('data-source').catch(() => null);
+    if (body && source === 'live') throw new Error('after a 502 the plan card is marked "live" although no model answered');
     await assertHealthy(page, seen);
-    return said ? `message: "${said.slice(0, 100)}"${body ? '; a plan card is shown with it' : ''}` : `no message; a plan card is shown: "${body.slice(0, 80)}"`;
+    return said ? `message: "${said.slice(0, 100)}"${body ? `; a plan card marked "${source}" is shown with it` : ''}` : `no message; a plan card marked "${source}" is shown`;
   }, page);
 
   await context.close();
