@@ -141,7 +141,7 @@ async function tap(page, selector, what) {
  * TAP CLIMB prompt, as a player would; without it the phone is left alone (an agent drives, or nobody does).
  */
 async function raceToResult(page, { drive }) {
-  await page.waitForURL(/\/race\/[A-Z0-9]+/i, { timeout: COUNTDOWN_MS + 15_000 });
+  await page.waitForURL(/\/race\/[A-Z0-9]+/i, { timeout: COUNTDOWN_MS + 30_000 });
   const code = new URL(page.url()).pathname.split('/').pop();
   const deadline = Date.now() + COUNTDOWN_MS + RACE_MS;
   let lastTap = 0;
@@ -192,13 +192,20 @@ async function playSteps(browser) {
 
   await step('/play · match', async () => {
     await openPlay(a.page);
+    // With the mission step (the default since 14:37) no room is asked for until a mission is taken: the first tap.
+    let mission = 'no mission step';
+    if ((await playStep(a.page)) === 'mission') {
+      await shot(a.page, 'play-00-mission');
+      mission = `mission tap ${await tap(a.page, id('play-mission-M7'), 'M7 mission')}`;
+      await waitForStep(a.page, ['vehicle'], 15_000);
+    }
     const room = await text(a.page.locator(id('play-room')));
     const countdown = await text(a.page.locator(id('play-countdown')));
-    if (!/\d/.test(countdown)) throw new Error(`no countdown on the first step (play-countdown: "${countdown}")`);
+    if (!/\d/.test(countdown)) throw new Error(`no countdown on the vehicle step (play-countdown: "${countdown}")`);
     await shot(a.page, 'play-01-vehicle');
     await assertHealthy(a.page, a.seen);
     joined = true;
-    return `room ${room || '(no play-room)'}, countdown ${countdown}`;
+    return `${mission}; room ${room || '(no play-room)'}, countdown ${countdown}`;
   }, a.page);
 
   await step('/play · taps', async () => {
