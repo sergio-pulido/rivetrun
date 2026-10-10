@@ -40,6 +40,9 @@ export { telemetry, useTelemetryOpen } from './telemetry/telemetryStore';
 // A mission's weather as the scene draws it (sky, fog, rain, snow, wind, night) and its HUD words.
 export { atmosphereOf } from './atmosphere';
 export type { Atmosphere } from './atmosphere';
+// For 2D views of the same game (Lab Missions): the rover from above, the terrain colours and what the colours mean.
+export { GAME_COLORS, ROBOT_COLORS, RobotGlyph, TERRAIN_COLORS, terrainTile } from './glyph';
+export type { RobotGlyphProps } from './glyph';
 // What a build can sense ahead of its nose (the band on the track, the BLIND marker).
 export { senseLabel, sensesOf } from './sense';
 export type { SenseRange, Senses } from './sense';
