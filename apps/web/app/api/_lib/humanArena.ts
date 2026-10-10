@@ -1,5 +1,6 @@
 import { DRIVE_VERSION, GAMEPLAY_VERSION, type Build, type Episode, type MissionId } from '@rivetrun/contracts';
 import { MISSION_IDS, PRESETS, replayEpisode } from '@rivetrun/sim';
+import { peekGhost } from './ghostStore';
 
 // Humans in the Brain Arena (docs/BRAIN_ARENA.md, docs/OVERNIGHT.md OVN-BRAIN-7): a Drive run counts only when the
 // server can replay its input log on the same mission, seed and build and gets the same result. In memory, like
@@ -33,9 +34,27 @@ export type HumanCheck =
   /** Replayed and the result differs from the one posted: the posted result is not what this log produces. */
   | { readonly verdict: 'mismatch'; readonly reason: string };
 
+/** One verified Drive run of today's audience, with the Jev ghost it raced when the server had that ghost. */
+export interface HumanRunRow {
+  readonly nickname: string;
+  readonly missionId: MissionId;
+  readonly finished: boolean;
+  readonly timeS: number;
+  readonly score: number;
+  /** Jev's time on the same mission, seed and build; null when no Jev ghost was ready for that loadout. */
+  readonly jevTimeS: number | null;
+  /** True when the human finished faster than Jev did (or Jev did not finish); null without a Jev ghost. */
+  readonly beatJev: boolean | null;
+  readonly createdAt: string;
+}
+const MAX_HUMAN_RUNS = 500;
+const BOARD_ROWS = 8;
+
 interface HumanArenaState {
   /** Best verified human run per mission. */
   readonly best: Map<MissionId, HumanArenaRow>;
+  /** Every verified run since the server started, oldest first. */
+  runs?: HumanRunRow[];
   verified: number;
   rejected: number;
 }
@@ -89,6 +108,12 @@ export function recordHumanRun(nickname: string, episode: Episode): HumanCheck {
     driveVersion: episode.driveVersion ?? DRIVE_VERSION,
     createdAt: new Date().toISOString(),
   };
+  // Against Jev: the ghost this player raced in Drive mode, if the server has it (default priority, no briefing).
+  const jev = peekGhost({ missionId: episode.missionId, seed: episode.seed, build: episode.build, priority: episode.priority })?.ghost.outcome ?? null;
+  const beatJev = jev === null ? null : outcome.finished && (!jev.finished || outcome.timeS < jev.timeS);
+  const runs = (state.runs ??= []);
+  runs.push({ nickname, missionId: episode.missionId, finished: outcome.finished, timeS: outcome.timeS, score: outcome.score, jevTimeS: jev?.finished ? jev.timeS : null, beatJev, createdAt: row.createdAt });
+  if (runs.length > MAX_HUMAN_RUNS) runs.splice(0, runs.length - MAX_HUMAN_RUNS);
   const current = state.best.get(row.missionId);
   if (!current || row.score > current.score) state.best.set(row.missionId, row);
   return check;
@@ -102,6 +127,21 @@ export interface HumanArenaBody {
   readonly rejected: number;
   /** The best verified human per mission, in mission order; a mission nobody has driven yet is absent. */
   readonly humans: readonly HumanArenaRow[];
+  /** Verified runs that had a Jev ghost to race: how many there were and how many the human won. */
+  readonly vsJev: { readonly runs: number; readonly humanWins: number };
+  /** Today's board: the best finished run of each nickname, fastest first. */
+  readonly board: readonly HumanRunRow[];
+}
+
+function board(): HumanRunRow[] {
+  const best = new Map<string, HumanRunRow>();
+  for (const run of state.runs ?? []) {
+    if (!run.finished) continue;
+    const key = `${run.nickname.trim().toLowerCase()}|${run.missionId}`;
+    const current = best.get(key);
+    if (!current || run.timeS < current.timeS) best.set(key, run);
+  }
+  return [...best.values()].sort((a, b) => a.missionId.localeCompare(b.missionId) || a.timeS - b.timeS).slice(0, BOARD_ROWS);
 }
 
 export const humanArena = (): HumanArenaBody => ({
@@ -109,6 +149,8 @@ export const humanArena = (): HumanArenaBody => ({
   driveVersion: DRIVE_VERSION,
   verified: state.verified,
   rejected: state.rejected,
+  vsJev: { runs: (state.runs ?? []).filter((run) => run.beatJev !== null).length, humanWins: (state.runs ?? []).filter((run) => run.beatJev === true).length },
+  board: board(),
   humans: MISSION_IDS.flatMap((id) => {
     const row = state.best.get(id);
     return row ? [row] : [];

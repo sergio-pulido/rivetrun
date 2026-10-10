@@ -209,6 +209,12 @@ export function requestGhost(request: GhostRequest): GhostAnswer {
   return { status: 'pending' };
 }
 
+/** The stored Jev ghost for this loadout if it is ready; never starts one. */
+export function peekGhost(request: GhostRequest): GhostBody | null {
+  const entry = state.entries.get(keyOf(request));
+  return entry?.state === 'ready' ? entry.body : null;
+}
+
 export const ghostStats = (): { ready: number; pending: number } => {
   const entries = [...state.entries.values()];
   return { ready: entries.filter((e) => e.state === 'ready').length, pending: entries.filter((e) => e.state === 'pending').length };
