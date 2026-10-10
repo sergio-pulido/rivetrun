@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { MISSIONS } from '@rivetrun/sim';
 import type { HumanArenaBody } from '../api/_lib/humanArena';
 import { QrCode } from '../leaderboard/_lib/QrCode';
+import { AutoRoomsGrid } from './AutoRoomsGrid';
 import play from './play.module.css';
 import styles from './screen.module.css';
 
@@ -45,9 +46,9 @@ export function PlayScreen({ siteUrl }: { readonly siteUrl: string }) {
       <div className={play.board}>
         <div className={play.left}>
           <div className={play.qr}>
-            <QrCode value={siteUrl} />
+            <QrCode value={`${siteUrl}/play`} />
           </div>
-          <span className={play.url}>{siteUrl.replace(/^https?:\/\//, '')}</span>
+          <span className={play.url}>{siteUrl.replace(/^https?:\/\//, '')}/play</span>
         </div>
         <div className={play.right}>
           <h1 className={play.headline}>
@@ -62,6 +63,10 @@ export function PlayScreen({ siteUrl }: { readonly siteUrl: string }) {
               </>
             )}
           </p>
+          {/* The rooms filling up and racing right now (RR-PLAN §7; the sim session's component). */}
+          <div className={play.rooms}>
+            <AutoRoomsGrid />
+          </div>
           <div className={play.table}>
             <div className={`${play.row} ${play.head}`}>
               <span>#</span>
@@ -71,7 +76,7 @@ export function PlayScreen({ siteUrl }: { readonly siteUrl: string }) {
               <span>Jev</span>
             </div>
             {board.length === 0 ? <div className={play.empty}>Today&apos;s best times appear here.</div> : null}
-            {board.map((run, index) => (
+            {board.slice(0, 4).map((run, index) => (
               <div key={`${run.nickname}-${run.missionId}`} className={play.row}>
                 <span className={play.place}>{index + 1}</span>
                 <span className={play.name}>{run.nickname}</span>
