@@ -23,3 +23,5 @@ export type { BuildAssessment, Capabilities, CapabilityId, CapabilityItem, Deman
 export type { DriveLogEntry } from './controller';
 export { naiveDrive, carefulDrive, fullThrottleCheck } from './stranger';
 export type { FullThrottleCheck } from './stranger';
+export { SIMPLIFICATIONS } from './simplifications';
+export type { Simplification } from './simplifications';

@@ -1,5 +1,6 @@
 import { MissionSchema, PartSchema, PresetSchema, TerrainSchema, TerrainIdSchema, type Build } from '@rivetrun/contracts';
 import { describe, expect, it } from 'vitest';
+import { SIMPLIFICATIONS } from '../simplifications';
 import { MISSIONS, MISSION_IDS, PARTS, PARTS_BY_ID, PRESETS, TERRAINS, TUNING } from './index';
 
 const buildParts = (build: Build) =>
@@ -53,5 +54,17 @@ describe('sim data (v0) matches contracts', () => {
     expect(TUNING.dtMs).toBe(50);
     expect(TUNING.decision).toMatchObject({ intervalS: 1.5, lookaheadS: 1.5, slipThresholdPct: 25, timeoutMs: 1200, slowMoFactor: 0.25 });
     expect(TUNING.score).toMatchObject({ base: 1000, perSecond: 4, perDamagePct: 6, perEnergyPct: 2, costDivisor: 5, dnfMax: 200 });
+  });
+});
+
+describe('simplifications', () => {
+  it('each is one sentence with a screen, and names a real part or mission when it names one', () => {
+    expect(new Set(SIMPLIFICATIONS.map((s) => s.id)).size).toBe(SIMPLIFICATIONS.length);
+    for (const item of SIMPLIFICATIONS) {
+      expect(item.sentence.endsWith('.'), item.id).toBe(true);
+      expect(item.sentence.length, item.id).toBeLessThan(170);
+      if (item.partId) expect(PARTS.some((part) => part.id === item.partId), item.id).toBe(true);
+      if (item.missionId) expect(item.missionId in MISSIONS, item.id).toBe(true);
+    }
   });
 });
