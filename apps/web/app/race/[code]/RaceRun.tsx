@@ -123,6 +123,14 @@ function useDrive(snapshot: RaceSnapshot, seat: RaceSeat, me: RacePlayer, clockO
 function AfterRace({ code, auto }: { readonly code: string; /** An auto room of /play: no host, it closes by itself. */ readonly auto?: { readonly test: boolean } }) {
   const router = useRouter();
   const [waiting, setWaiting] = useState(false);
+  // Esc leaves the results for Home, unless the header's menu is open: then Esc closes that menu, as everywhere.
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent): void => {
+      if (event.key === 'Escape' && !document.querySelector('[role="menu"]')) router.push('/');
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [router]);
   // An auto room has no host to reopen it: "Play again" goes back to /play, which matches into the next room.
   if (auto) {
     return (
@@ -130,7 +138,10 @@ function AfterRace({ code, auto }: { readonly code: string; /** An auto room of 
         <Link href={auto.test ? '/play?test=1' : '/play'} className="rr-btn rr-btn-primary">
           Play again
         </Link>
-        <p className="text-center font-mono text-[11px] text-dim">A new room starts every 30 s. Change your vehicle, agent or strategy on the way in.</p>
+        <Link href="/" className="rr-btn rr-btn-secondary" data-testid="race-back-to-menu">
+          Back to menu
+        </Link>
+        <p className="text-center font-mono text-[11px] text-dim">A new room starts every 30 s. Change your mission, vehicle or driver on the way in.</p>
       </div>
     );
   }
@@ -272,8 +283,9 @@ export default function RaceRun({ snapshot, seat, me, now, clockOffsetMs }: Race
       {/* Result card: flat, centred, and only ever the server's numbers. Above the 3D view's own failure panel
           (z-40): once the run is over, the result is what matters. */}
       {localDone || official || over ? (
-        <div className={`absolute inset-0 z-50 flex items-center justify-center p-3 ${over ? 'pt-16' : ''}`}>
-          <div className="rr-panel max-h-full w-full max-w-md overflow-y-auto p-4">
+        <div className={`absolute inset-0 z-50 flex items-center justify-center p-3 ${over ? 'pointer-events-none pt-16' : ''}`}>
+          {/* Once the race is over the wrapper lets taps through, so the header's back arrow and menu above it answer. */}
+          <div className="rr-panel pointer-events-auto max-h-full w-full max-w-md overflow-y-auto p-4">
             {!official ? (
               <>
                 <p className="rr-label text-blueprint">Run complete</p>
