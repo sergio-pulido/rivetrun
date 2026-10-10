@@ -281,7 +281,8 @@ function Ghost({ trace, build, layout, pose, timeScale, driving }: GhostProps) {
   return (
     <group ref={group} visible={false}>
       <RobotModel build={build} drive={drive} ghostTint={POLICY_TINT[policy]} droneAway />
-      <Tag text={POLICY_LABEL[policy]} color={POLICY_TINT[policy]} y={2.05} />
+      {/* The far lane's tag rides a little higher, so three robots on the start line do not stack their names. */}
+      <Tag text={POLICY_LABEL[policy]} color={POLICY_TINT[policy]} y={!driving && policy === 'random' ? 2.3 : 2.05} />
     </group>
   );
 }

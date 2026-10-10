@@ -115,7 +115,10 @@ function useScanNews(state: SimState | null): { readonly text: string; readonly 
 const CLEAN_DEG = 10;
 const HARD_DEG = 30;
 
-/** In the air: the nose against the horizon, and which pedal moves it. Green while a landing would be clean. */
+/**
+ * In the air: the nose against the ground it will meet, and which pedal moves it. The robot levels itself for
+ * every driver (the sim's rule); only the player's brake or extra throttle tips it. Green while a landing would be clean.
+ */
 function AirChip({ pitchDeg, groundDeg }: { pitchDeg: number; groundDeg: number }) {
   // The grade is the nose against the ground it will meet, not against the horizon.
   const off = Math.abs(pitchDeg - groundDeg);
@@ -132,7 +135,7 @@ function AirChip({ pitchDeg, groundDeg }: { pitchDeg: number; groundDeg: number 
       <span className="text-left">
         NOSE {pitchDeg - groundDeg >= 0 ? 'UP' : 'DOWN'} {Math.round(off)}°
         <span className="block text-[11px]" style={{ color: UI.text }}>
-          throttle lifts it · brake drops it
+          it levels itself · brake drops the nose · more throttle lifts it
         </span>
       </span>
     </span>
