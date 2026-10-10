@@ -49,6 +49,16 @@ describe('brain', () => {
     expect(withJump.questions.action.instructions).toContain('`jump` is only correct');
   });
 
+  it('tells Jev about a hazard seen beyond the simulated window (lidar range)', () => {
+    const near = buildJevRequest(question);
+    expect(near.questions.action.instructions).not.toContain('NOT in any predicted damage');
+    const far = buildJevRequest({ ...question, perceived: { ...question.perceived, obstacleAheadM: 9 } });
+    expect(far.questions.action.instructions).toContain('an obstacle 9 m ahead');
+    // cruise covers 2.1 m in 1.5 s: 6.9 m left at 1.4 m/s is about 4.9 s away.
+    expect(far.questions.action.criteria.cruise).toContain('6.9 m ahead, reached in about 4.9 s at this pace (later)');
+    expect(far.questions.action.criteria.brake).toContain('8.8 m ahead');
+  });
+
   it('parses probabilities, renormalised over the available options', () => {
     const parsed = parseJevResponse(
       {

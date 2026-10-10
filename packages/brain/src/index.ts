@@ -106,7 +106,47 @@ const priorityRule = (priority: number): string => {
   return `The player priority is ${value} on a scale from 0 (pure speed) to 1 (pure safety): SAFETY. Pick the option with the most progress among those with negligible damage; if none has negligible damage, pick the one with the least damage that still moves forward.`;
 };
 
-const describeOption = (action: Action, entry: LookaheadEntry | undefined, bestProgress: number, lookaheadS: number): string => {
+/** A hazard the sensors see further away than any option travels in the simulated window (long-range rangers). */
+interface FarHazard {
+  readonly kind: 'obstacle' | 'gap';
+  readonly distanceM: number;
+}
+
+/** How soon the robot arrives at a far hazard if it keeps the pace an option ends the window with. */
+const arrivalBucket = (seconds: number): string => (seconds < 1.5 ? 'immediately' : seconds < 4 ? 'soon' : seconds < 8 ? 'later' : 'far off');
+
+/**
+ * The lookahead only simulates `lookaheadS` seconds, so a hazard seen beyond that reach is in none of the
+ * predicted damage figures. This line gives Jev the facts the simulation left out, per option: how much
+ * distance is left after the window and how soon the robot gets there at that option's pace.
+ */
+function farHazardLine(hazard: FarHazard | null, entry: LookaheadEntry, lookaheadS: number): string {
+  if (!hazard) return '';
+  const leftM = hazard.distanceM - entry.progressM;
+  if (leftM <= 0) return '';
+  const paceMps = entry.progressM / lookaheadS;
+  if (paceMps <= 0.05) return ` The ${hazard.kind} stays ${round(leftM, 1)} m ahead: this option does not approach it.`;
+  const arrivalS = leftM / paceMps;
+  return ` The ${hazard.kind} is then ${round(leftM, 1)} m ahead, reached in about ${round(arrivalS, 1)} s at this pace (${arrivalBucket(arrivalS)}).`;
+}
+
+/** The nearest hazard that no option reaches inside the simulated window, or null. */
+function findFarHazard(question: BrainQuestion): FarHazard | null {
+  const reach = Math.max(0, ...question.lookahead.map((entry) => entry.progressM));
+  const { obstacleAheadM, gapAheadM } = question.perceived;
+  const seen: FarHazard[] = [];
+  if (typeof obstacleAheadM === 'number' && obstacleAheadM > reach) seen.push({ kind: 'obstacle', distanceM: obstacleAheadM });
+  if (typeof gapAheadM === 'number' && gapAheadM > reach) seen.push({ kind: 'gap', distanceM: gapAheadM });
+  return seen.sort((a, b) => a.distanceM - b.distanceM)[0] ?? null;
+}
+
+const describeOption = (
+  action: Action,
+  entry: LookaheadEntry | undefined,
+  bestProgress: number,
+  lookaheadS: number,
+  hazard: FarHazard | null,
+): string => {
   if (!entry) return `${ACTION_MEANING[action]} No prediction available.`;
   const progress = round(entry.progressM, 1);
   const damage = round(entry.damagePct, 1);
@@ -116,7 +156,8 @@ const describeOption = (action: Action, entry: LookaheadEntry | undefined, bestP
     `${ACTION_MEANING[action]} Predicted over the next ${lookaheadS} s: ` +
     `progress ${progress} m (${progressBucket(entry.progressM, bestProgress, scale)}), ` +
     `damage +${damage} % (${damageBucket(entry.damagePct)}), ` +
-    `energy ${energy} % (${energyBucket(entry.energyPct, scale)}).`
+    `energy ${energy} % (${energyBucket(entry.energyPct, scale)}).` +
+    farHazardLine(hazard, entry, lookaheadS)
   );
 };
 
@@ -130,8 +171,13 @@ export function buildJevRequest(question: BrainQuestion, model: string = JEV_MOD
   const lookaheadS = question.lookaheadS ?? DEFAULT_LOOKAHEAD_S;
   const byAction = new Map(question.lookahead.map((entry) => [entry.action, entry]));
   const bestProgress = Math.max(0, ...question.lookahead.map((entry) => entry.progressM));
+  // Long-range rangers (ToF 4 m, lidar 12 m) see hazards the 1.5 s simulation never reaches.
+  const hazard = findFarHazard(question);
+  const hazardLine = hazard
+    ? `The sensors see ${hazard.kind === 'gap' ? 'a gap' : 'an obstacle'} ${round(hazard.distanceM, 1)} m ahead, further than any option travels in the simulated window, so hitting it is NOT in any predicted damage figure. Each option says how far away it then is and how soon the robot reaches it. Arriving "immediately" or "soon" at speed risks an impact, more so on slippery ground (ice, mud, a high \`slipPct\`) where the robot needs longer to slow down; "later" or "far off" leaves room to keep the pace for now. `
+    : '';
   const criteria = Object.fromEntries(
-    question.options.map((action) => [action, describeOption(action, byAction.get(action), bestProgress, lookaheadS)]),
+    question.options.map((action) => [action, describeOption(action, byAction.get(action), bestProgress, lookaheadS, hazard)]),
   );
   const stopped = Math.abs(question.status.speedMps) < STOPPED_SPEED_MPS;
   // Only builds with the piston are offered `jump`; say when it is worth its energy.
@@ -160,6 +206,7 @@ export function buildJevRequest(question: BrainQuestion, model: string = JEV_MOD
           `${priorityRule(question.priority)} ` +
           'Options with no progress or backwards progress are only correct when every forward option has heavy damage. ' +
           jumpLine +
+          hazardLine +
           '`perceived` holds the sensor readings ("unknown" means no sensor for that reading); `robot` is the current speed, battery, damage and motion.',
         criteria,
       },

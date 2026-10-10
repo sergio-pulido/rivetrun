@@ -75,6 +75,9 @@ export function decisionKey(q: BrainQuestion): string {
     p.terrainAhead,
     bucket(p.terrainAheadDistanceM, 1),
     bucket(p.obstacleAheadM, 0.5),
+    // Long-range rangers put gaps and obstacles up to 12 m out; the far-hazard lines in the question depend on them.
+    bucket(p.gapAheadM, 0.5),
+    bucket(p.gapWidthM, 0.25),
     bucket(p.slipPct, 10),
     bucket(p.tiltDeg, 5),
     bucket(p.depthAheadCm, 5),
