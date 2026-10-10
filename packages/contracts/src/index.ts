@@ -6,3 +6,4 @@ export * from './sensing';
 export * from './brain';
 export * from './run';
 export * from './api';
+export * from './plan';

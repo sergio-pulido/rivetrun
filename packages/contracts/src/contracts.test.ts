@@ -138,3 +138,25 @@ describe('contracts', () => {
     expect(SubmitRunRequestSchema.safeParse({ nickname: '<script>', episode: {} }).success).toBe(false);
   });
 });
+
+describe('RR-PLAN contracts', () => {
+  it('PlayerPick: three taps, no free text; strategy is the plan or a briefing preset', async () => {
+    const { BRIEFING_PRESETS, BriefingPresetIdSchema, PlayerPickSchema, PlanSchema, DEFAULT_PLAY_PICK } = await import('./index');
+    expect([...BriefingPresetIdSchema.options]).toEqual(BRIEFING_PRESETS.map((preset) => preset.id));
+    expect(PlayerPickSchema.safeParse({ ...DEFAULT_PLAY_PICK, agent: 'jev-1.13.0' }).success).toBe(true);
+    expect(PlayerPickSchema.safeParse({ presetId: 'speedster', agent: 'human', strategy: 'eco' }).success).toBe(true);
+    expect(PlayerPickSchema.safeParse({ presetId: 'speedster', agent: 'human', strategy: 'Drive fast please' }).success).toBe(false);
+    expect(PlayerPickSchema.safeParse({ presetId: 'tank', agent: 'human', strategy: 'plan' }).success).toBe(false);
+    const plan = {
+      build: { locomotion: 'offroad_wheels', motor: 'motor_torque', battery: 'battery_large', sensors: ['camera', 'ultrasonic'], extras: ['bumper'] },
+      presetId: 'all_rounder', priority: 0.4, briefing: 'Ease in for the scan pad, climb mode on the mud slope.',
+      rationale: 'Mud slope needs torque and grip; one scan zone needs the camera.',
+      partsWhy: [{ partId: 'motor_torque', why: 'Climbs the 10° mud slope' }],
+      generatedBy: { provider: 'anthropic', model: 'claude-sonnet-5-5', ms: 14200, at: '2026-10-10T13:00:00.000Z' },
+    };
+    expect(PlanSchema.safeParse(plan).success).toBe(true);
+    expect(PlanSchema.safeParse({ ...plan, briefing: 'x'.repeat(141) }).success).toBe(false);
+    expect(PlanSchema.safeParse({ ...plan, partsWhy: Array.from({ length: 5 }, () => plan.partsWhy[0]) }).success).toBe(false);
+    expect(PlanSchema.safeParse({ ...plan, priority: 1.4 }).success).toBe(false);
+  });
+});
