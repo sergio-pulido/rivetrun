@@ -168,20 +168,11 @@ export function Brief({ missionId }: { readonly missionId: MissionId }) {
       {/* A build that cannot finish goes above the fold, next to its fix; otherwise the robot is a footnote. */}
       {blocked ? robotCard : null}
 
-      <WeatherCard mission={mission} build={build} />
-
       <ObjectivesCard mission={mission} build={build} />
 
-      <div className="rr-rise" style={{ ['--i' as string]: 2 }}>
-        <ScenarioStrip segments={scenario} buildName={buildName(build)} />
-      </div>
+      <WeatherCard mission={mission} build={build} />
 
-      <TestRun mission={mission} result={testRun} />
-
-      <PersonalBestCard mission={mission} build={build} />
-
-      <SensePanel build={build} />
-
+      {/* Who drives comes before the detail: it is the one choice this screen asks for. */}
       <section className="rr-rise flex flex-col gap-1.5" style={{ ['--i' as string]: 2 }}>
         <ModeSwitch />
         <p className="px-1 text-xs leading-snug text-muted">{MODE_NOTE[mode]}</p>
@@ -201,6 +192,16 @@ export function Brief({ missionId }: { readonly missionId: MissionId }) {
           </div>
         </>
       )}
+
+      <PersonalBestCard mission={mission} build={build} />
+
+      <div className="rr-rise" style={{ ['--i' as string]: 4 }}>
+        <ScenarioStrip segments={scenario} buildName={buildName(build)} />
+      </div>
+
+      <TestRun mission={mission} result={testRun} />
+
+      <SensePanel build={build} folded />
 
       {blocked ? null : robotCard}
     </Shell>
