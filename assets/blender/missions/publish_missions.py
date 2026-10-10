@@ -19,3 +19,9 @@ core=['M7','M3','M6','M9'];sheet=Image.new('RGB',(1280,720))
 for i,key in enumerate(core):
  if (OUT/(key+'.webp')).exists():sheet.paste(Image.open(OUT/(key+'.webp')),(i%2*640,i//2*360))
 sheet.save(HERE/'core_contact_sheet.png')
+
+bonus=['M1','M2','M4','M5','M8']
+if all((OUT/(k+'.webp')).exists() for k in bonus):
+ sheet=Image.new('RGB',(1920,720),(20,25,30))
+ for i,key in enumerate(bonus):sheet.paste(Image.open(OUT/(key+'.webp')),(i%3*640,i//3*360))
+ sheet.save(HERE/'alternatives_contact_sheet.png')

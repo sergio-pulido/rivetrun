@@ -50,5 +50,70 @@
     "robot": "all_rounder",
     "camera": "shared 3/4 side",
     "author": "sergio.pulido@alodai.com"
+  },
+  {
+    "id": "M1",
+    "file": "apps/web/public/renders/missions/M1.webp",
+    "master": "assets/blender/missions/M1.png",
+    "blend": "assets/blender/missions/M1.blend",
+    "width": 640,
+    "height": 360,
+    "bytes": 18234,
+    "quality": 94,
+    "robot": "all_rounder",
+    "camera": "shared 3/4 side",
+    "author": "sergio.pulido@alodai.com"
+  },
+  {
+    "id": "M2",
+    "file": "apps/web/public/renders/missions/M2.webp",
+    "master": "assets/blender/missions/M2.png",
+    "blend": "assets/blender/missions/M2.blend",
+    "width": 640,
+    "height": 360,
+    "bytes": 29908,
+    "quality": 94,
+    "robot": "all_rounder",
+    "camera": "shared 3/4 side",
+    "author": "sergio.pulido@alodai.com"
+  },
+  {
+    "id": "M4",
+    "file": "apps/web/public/renders/missions/M4.webp",
+    "master": "assets/blender/missions/M4.png",
+    "blend": "assets/blender/missions/M4.blend",
+    "width": 640,
+    "height": 360,
+    "bytes": 26248,
+    "quality": 94,
+    "robot": "all_rounder",
+    "camera": "shared 3/4 side",
+    "author": "sergio.pulido@alodai.com"
+  },
+  {
+    "id": "M5",
+    "file": "apps/web/public/renders/missions/M5.webp",
+    "master": "assets/blender/missions/M5.png",
+    "blend": "assets/blender/missions/M5.blend",
+    "width": 640,
+    "height": 360,
+    "bytes": 27066,
+    "quality": 94,
+    "robot": "all_rounder",
+    "camera": "shared 3/4 side",
+    "author": "sergio.pulido@alodai.com"
+  },
+  {
+    "id": "M8",
+    "file": "apps/web/public/renders/missions/M8.webp",
+    "master": "assets/blender/missions/M8.png",
+    "blend": "assets/blender/missions/M8.blend",
+    "width": 640,
+    "height": 360,
+    "bytes": 23266,
+    "quality": 94,
+    "robot": "all_rounder",
+    "camera": "shared 3/4 side",
+    "author": "sergio.pulido@alodai.com"
   }
 ]
