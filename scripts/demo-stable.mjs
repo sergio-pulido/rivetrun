@@ -1,6 +1,8 @@
 // Stable demo: build and serve the last COMMITTED main from its own git worktree (../rivetrun-demo),
 // so nothing a session is still editing in this checkout can reach the demo. See docs/DEMO_PLAN.md.
 //   pnpm demo:stable                 build committed main, serve on 0.0.0.0:3001
+//   pnpm demo:stable -- --ref <ref>  build and serve that git ref instead (a tag, branch or commit), e.g.
+//                                    --ref "$(git tag -l 'demo-good-*' | sort | tail -1)" for the last tag QA passed
 //   pnpm demo:stable -- --tunnel     also open the Cloudflare quick tunnel first and bake its URL into the build
 //   pnpm demo:stable -- --build-only build and stop (checks that committed main builds)
 // NEXT_PUBLIC_SITE_URL, when set, is used as the public URL instead of a tunnel. DEMO_PORT overrides 3001.
@@ -13,15 +15,30 @@ const repo = fileURLToPath(new URL('..', import.meta.url));
 const demo = path.resolve(repo, '..', 'rivetrun-demo');
 const web = path.join(demo, 'apps', 'web');
 const port = String(process.env.DEMO_PORT ?? 3001);
-const flags = new Set(process.argv.slice(2));
+const args = process.argv.slice(2);
+const flags = new Set(args);
+/** The git ref to build: --ref <ref>, default main. */
+const refIndex = args.indexOf('--ref');
+const ref = refIndex >= 0 ? args[refIndex + 1] : 'main';
+if (!ref || ref.startsWith('--')) {
+  console.error('--ref needs a git ref, e.g. --ref demo-good-0730');
+  process.exit(1);
+}
 const URL_PATTERN = /https:\/\/(?!api\.)[a-z0-9-]+\.trycloudflare\.com/;
 
 const git = (args, cwd = repo) => execFileSync('git', args, { cwd, encoding: 'utf8' }).trim();
 const run = (command, args, cwd, env = process.env) => execFileSync(command, args, { cwd, env, stdio: 'inherit' });
 
-/** Checks the worktree out at main's current commit (detached: main itself stays checked out here). */
+/** Checks the worktree out at the ref's commit (detached: main itself stays checked out here). */
 function syncWorktree() {
-  const sha = git(['rev-parse', 'main']);
+  let sha;
+  try {
+    // ^{commit} resolves an annotated tag to the commit it points at.
+    sha = git(['rev-parse', '--verify', '--quiet', `${ref}^{commit}`]);
+  } catch {
+    console.error(`"${ref}" is not a commit, tag or branch in this repository.`);
+    process.exit(1);
+  }
   if (!existsSync(path.join(demo, '.git'))) {
     git(['worktree', 'add', '--detach', demo, sha]);
   } else {
@@ -29,8 +46,8 @@ function syncWorktree() {
     git(['checkout', '--detach', '--force', sha], demo);
   }
   const uncommitted = git(['status', '--porcelain', '--untracked-files=no']).split('\n').filter(Boolean).length;
-  console.log(`Demo worktree ${demo} at ${sha.slice(0, 7)} (${git(['log', '-1', '--format=%s', sha])})`);
-  if (uncommitted > 0) console.log(`Note: ${uncommitted} uncommitted file(s) in the main checkout are NOT in this demo.`);
+  console.log(`Demo worktree ${demo} at ${ref} = ${sha.slice(0, 7)} (${git(['log', '-1', '--format=%s', sha])})`);
+  if (ref === 'main' && uncommitted > 0) console.log(`Note: ${uncommitted} uncommitted file(s) in the main checkout are NOT in this demo.`);
   return sha;
 }
 
@@ -88,7 +105,8 @@ if (flags.has('--tunnel') && !flags.has('--build-only')) {
 const CANDIDATE = '.next-candidate';
 const LIVE = '.next-live';
 const stamp = path.join(web, LIVE, 'DEMO_COMMIT');
-const buildEnv = { ...process.env, NEXT_PUBLIC_SITE_URL: siteUrl, NEXT_DIST_DIR: CANDIDATE };
+// The commit and ref are baked into the build: /api/version and the big screen's footer show them.
+const buildEnv = { ...process.env, NEXT_PUBLIC_SITE_URL: siteUrl, NEXT_PUBLIC_DEMO_COMMIT: sha, NEXT_PUBLIC_DEMO_REF: ref, NEXT_DIST_DIR: CANDIDATE };
 let served = sha;
 try {
   rmSync(path.join(web, CANDIDATE), { recursive: true, force: true });
@@ -99,16 +117,16 @@ try {
 } catch {
   // next build has already printed the errors above.
   if (!existsSync(stamp)) {
-    console.error(`\nCommitted main (${sha.slice(0, 7)}) does not build and there is no earlier good build to serve.`);
+    console.error(`\n${ref} (${sha.slice(0, 7)}) does not build and there is no earlier good build to serve.`);
     tunnel?.child.kill('SIGTERM');
     process.exit(1);
   }
   served = readFileSync(stamp, 'utf8').trim();
-  console.error(`\nCommitted main (${sha.slice(0, 7)}) does NOT build (errors above). Keeping the last good build, ${served.slice(0, 7)}.`);
+  console.error(`\n${ref} (${sha.slice(0, 7)}) does NOT build (errors above). Keeping the last good build, ${served.slice(0, 7)}.`);
   if (flags.has('--build-only')) process.exit(1);
 }
 if (flags.has('--build-only')) {
-  console.log(`\nCommitted main (${sha.slice(0, 7)}) builds. Nothing was started.`);
+  console.log(`\n${ref} (${sha.slice(0, 7)}) builds. Nothing was started.`);
   process.exit(0);
 }
 const env = { ...process.env, NEXT_PUBLIC_SITE_URL: siteUrl, NEXT_DIST_DIR: LIVE };

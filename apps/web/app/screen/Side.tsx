@@ -6,6 +6,9 @@ import { QrCode } from '../leaderboard/_lib/QrCode';
 import styles from './screen.module.css';
 
 const STATS_REFRESH_MS = 5000;
+// Baked in by `pnpm demo:stable` (scripts/demo-stable.mjs); undefined on the dev server.
+const BUILD_COMMIT = process.env.NEXT_PUBLIC_DEMO_COMMIT;
+const BUILD_REF = process.env.NEXT_PUBLIC_DEMO_REF;
 
 /** Episodes submitted since the server started; null until the first answer or while it is unreachable. */
 export function useEpisodeCount(): number | null {
@@ -73,6 +76,13 @@ export function Side({ children, joinLabel, joinCode, joinUrl, episodes, seats, 
         <span>{stat}</span>
       </div>
       <span className={styles.tagline}>Today a game. Tomorrow a benchmark.</span>
+      {/* Stable demo builds only: which commit (and tag) this screen is serving. */}
+      {BUILD_COMMIT ? (
+        <span className={styles.buildStamp}>
+          build {BUILD_COMMIT.slice(0, 7)}
+          {BUILD_REF && BUILD_REF !== 'main' ? ` · ${BUILD_REF}` : ''}
+        </span>
+      ) : null}
     </div>
   );
 }

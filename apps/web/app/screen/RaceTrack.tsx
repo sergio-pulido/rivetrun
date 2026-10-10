@@ -16,6 +16,7 @@ const STRIP: Readonly<Record<TerrainId, string>> = {
   water: '#2E7FA0',
   ice: '#BFE3F2',
   rock: '#8C949E',
+  snow: '#E9F1F5',
 };
 const LOCOMOTION_LABEL: Readonly<Record<string, string>> = { wheels: 'wheels', offroad_wheels: 'off-road', tracks: 'tracks' };
 const LANE_MAX = 60;

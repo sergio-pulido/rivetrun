@@ -864,3 +864,11 @@
   min-width: 0;
   overflow: hidden;
 }
+
+/* Stable demo builds: the commit this screen serves, small, under the footer line. */
+.buildStamp {
+  font-family: var(--data);
+  font-size: calc(var(--u) * 10);
+  color: var(--faint);
+  flex-shrink: 0;
+}
