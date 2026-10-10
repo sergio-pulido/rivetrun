@@ -41,6 +41,9 @@
   overflow-y: auto;
   overscroll-behavior: contain;
   touch-action: pan-y;
+  /* A thin dark bar: the default one is a white slab on desktop. */
+  scrollbar-width: thin;
+  scrollbar-color: #2a323c transparent;
   padding: 6px 12px max(10px, env(safe-area-inset-bottom));
 }
 
