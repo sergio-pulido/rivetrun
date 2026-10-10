@@ -12,6 +12,12 @@ import { heuristicBrain } from '@rivetrun/sim';
 
 export const DECIDE_TIMEOUT_MS = 1200;
 const DECIDE_URL = '/api/decide';
+/** After this many answers in a row that came too late, Jev is not asked for a while: waiting 1.2 s for every
+ * decision makes the robot react late to everything, which costs more than driving on the fixed rules. */
+const SLOW_STREAK = 2;
+const SLOW_PAUSE_MS = 8000;
+
+class DecideTimeout extends Error {}
 
 export interface ClientBrainOptions {
   readonly timeoutMs?: number;
@@ -68,7 +74,7 @@ const askServer = async (question: BrainQuestion, timeoutMs: number): Promise<Br
     if (!question.options.includes(decision.selected)) throw new Error('decision is not an available action');
     return decision;
   } catch (error) {
-    if (controller.signal.aborted) throw new Error(`no decision within ${timeoutMs} ms`);
+    if (controller.signal.aborted) throw new DecideTimeout(`no decision within ${timeoutMs} ms`);
     throw error;
   } finally {
     clearTimeout(timer);
@@ -86,16 +92,28 @@ const holdInAir = (question: BrainQuestion): BrainDecision => {
 export function createClientBrain(options: ClientBrainOptions = {}): Brain {
   const timeoutMs = options.timeoutMs ?? DECIDE_TIMEOUT_MS;
   const briefing = options.briefing?.trim().slice(0, BRIEFING_MAX_CHARS);
+  let slowInARow = 0;
+  let pausedUntil = 0;
   return {
     decide: async (asked) => {
       if (options.isAirborne?.()) return holdInAir(asked);
       const question: BrainQuestion = briefing ? { ...asked, briefing } : asked;
       const started = performance.now();
+      if (started < pausedUntil) {
+        options.onFallback?.('Jev is answering too slowly: the fixed rules decide for a few seconds');
+        return fallbackDecision(question, started);
+      }
       try {
         const decision = await askServer(question, timeoutMs);
+        slowInARow = 0;
         // Round trip as the player experienced it (includes the network hop to our server).
         return { ...decision, latencyMs: Math.round(performance.now() - started) };
       } catch (error) {
+        slowInARow = error instanceof DecideTimeout ? slowInARow + 1 : 0;
+        if (slowInARow >= SLOW_STREAK) {
+          slowInARow = 0;
+          pausedUntil = performance.now() + SLOW_PAUSE_MS;
+        }
         options.onFallback?.(error instanceof Error ? error.message : String(error));
         return fallbackDecision(question, started);
       }

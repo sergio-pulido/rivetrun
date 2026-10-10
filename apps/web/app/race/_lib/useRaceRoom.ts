@@ -29,12 +29,21 @@ export function useRaceRoom(code: string, initial?: RaceSnapshot): RaceRoom {
     let closed = false;
     let poller: ReturnType<typeof setInterval> | undefined;
     let lastMessageAt = Date.now();
+    // Polled answers can overtake each other on a slow link: a snapshot older than the one shown is dropped.
+    let newestServerNow = 0;
+    let polling = false;
+    // The answer that travelled fastest gives the best estimate of the server's clock; slower ones only add delay.
+    let offsetMs: number | null = null;
 
     const accept = (data: unknown): void => {
       const parsed = RaceSnapshotSchema.safeParse(data);
       if (!parsed.success || closed) return;
       lastMessageAt = Date.now();
-      setRoom({ snapshot: parsed.data, link: 'live', clockOffsetMs: parsed.data.serverNow - Date.now() });
+      if (parsed.data.serverNow < newestServerNow) return;
+      newestServerNow = parsed.data.serverNow;
+      const measured = parsed.data.serverNow - Date.now();
+      offsetMs = offsetMs === null ? measured : Math.max(offsetMs, measured);
+      setRoom({ snapshot: parsed.data, link: 'live', clockOffsetMs: offsetMs });
     };
     const markMissing = (): void => {
       if (poller !== undefined) clearInterval(poller);
@@ -42,6 +51,8 @@ export function useRaceRoom(code: string, initial?: RaceSnapshot): RaceRoom {
       setRoom((previous) => ({ ...previous, link: 'missing' }));
     };
     const readOnce = async (): Promise<void> => {
+      if (polling) return; // one read at a time: a slow link must not pile requests up
+      polling = true;
       try {
         const response = await fetch(`/api/race/${code}`, { cache: 'no-store' });
         if (closed) return;
@@ -49,11 +60,19 @@ export function useRaceRoom(code: string, initial?: RaceSnapshot): RaceRoom {
         else if (response.ok) accept(await response.json());
       } catch {
         if (!closed) setRoom((previous) => (previous.link === 'missing' ? previous : { ...previous, link: 'reconnecting' }));
+      } finally {
+        polling = false;
       }
     };
 
     const source = new EventSource(`/api/race/${code}/events`);
-    source.onmessage = (event: MessageEvent<string>) => accept(JSON.parse(event.data));
+    source.onmessage = (event: MessageEvent<string>) => {
+      try {
+        accept(JSON.parse(event.data));
+      } catch {
+        // A cut-off frame is not a snapshot: the next one replaces it.
+      }
+    };
     source.addEventListener('gone', markMissing);
     source.onerror = () => {
       if (closed || poller !== undefined) return;
