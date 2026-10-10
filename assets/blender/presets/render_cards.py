@@ -43,6 +43,6 @@ for c in groups.values():c.hide_render=False
 bpy.ops.wm.save_as_mainfile(filepath=str(HERE/'preset_cards.blend'))
 (HERE/'assembly-manifest.json').write_text(json.dumps({'author':data['author'],'records':records,'cameraDirection':[1.6,-5.5,2.6],'cameraTarget':list(centre),'orthoScale':cd.ortho_scale,'lights':'Exact default hero studio rig: white key/rim/fill 900/1200/450 W, 3.5 m area lights','sameCameraAndScale':True,'libraryPlacements':data['libraryPlacement'],'missingPartsPolicy':data['missingPartsPolicy']},indent=2)+'\n')
 for preset in data['presets']:
- if preset['id'] not in ['speedster','mud_crawler']:continue
+ if preset['id'] not in ['mud_crawler','deep_diver']:continue
  for key,c in groups.items():c.hide_render=key!=preset['id']
  scene.render.filepath=str(HERE/(preset['id']+'.png'));bpy.ops.render.render(write_still=True);print('PRESET MASTER',preset['id'],flush=True)

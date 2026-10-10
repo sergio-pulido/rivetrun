@@ -77,11 +77,10 @@
         "motor_torque",
         "battery_large",
         "imu",
-        "waterproof_case"
-      ],
-      "missingParts": [
+        "waterproof_case",
         "piston_jump"
-      ]
+      ],
+      "missingParts": []
     },
     {
       "id": "all_rounder",
@@ -238,6 +237,12 @@
       "source": "apps/web/public/models/parts/waterproof_case_hammond_1554j2gy.glb",
       "kind": "component_library",
       "scale": 10
+    },
+    "piston_jump": {
+      "file": "/tmp/rr-preset-render-inputs/piston_jump.glb",
+      "source": "apps/web/public/models/mk2/piston_jump.glb",
+      "kind": "mk2_module",
+      "scale": 1
     },
     "offroad_wheels": {
       "file": "/tmp/rr-preset-render-inputs/offroad_wheels.glb",

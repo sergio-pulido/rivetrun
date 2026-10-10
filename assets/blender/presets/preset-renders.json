@@ -36,7 +36,7 @@
       "master": "assets/blender/presets/mud_crawler.png",
       "file": "apps/web/public/renders/presets/mud_crawler.webp",
       "url": "/renders/presets/mud_crawler.webp",
-      "sizeBytes": 23130,
+      "sizeBytes": 36078,
       "resolutionPx": [
         768,
         768
@@ -49,11 +49,10 @@
         "motor_torque",
         "battery_large",
         "imu",
-        "waterproof_case"
-      ],
-      "missingParts": [
+        "waterproof_case",
         "piston_jump"
-      ]
+      ],
+      "missingParts": []
     },
     {
       "id": "all_rounder",
@@ -83,7 +82,7 @@
       "master": "assets/blender/presets/deep_diver.png",
       "file": "apps/web/public/renders/presets/deep_diver.webp",
       "url": "/renders/presets/deep_diver.webp",
-      "sizeBytes": 48892,
+      "sizeBytes": 58098,
       "resolutionPx": [
         768,
         768
@@ -108,7 +107,7 @@
   "lineup": {
     "file": "apps/web/public/renders/presets/lineup.webp",
     "url": "/renders/presets/lineup.webp",
-    "sizeBytes": 199568,
+    "sizeBytes": 223558,
     "resolutionPx": [
       2400,
       900
@@ -129,7 +128,7 @@
   },
   "og": {
     "file": "apps/web/public/og.png",
-    "sizeBytes": 214937,
+    "sizeBytes": 230152,
     "resolutionPx": [
       1200,
       630
