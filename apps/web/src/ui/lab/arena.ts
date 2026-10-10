@@ -163,6 +163,9 @@ export interface ScatterPoint {
   readonly kind: ContestantKind;
   readonly x: number;
   readonly y: number;
+  /** Its score is under the bottom of the score axis: drawn on the axis and named in the note below the plot. */
+  readonly below: boolean;
+  readonly score: number;
 }
 
 export interface Scatter {
@@ -170,13 +173,32 @@ export interface Scatter {
   /** The right end of the latency axis and the top of the score axis, rounded up to a tidy figure. */
   readonly xMaxMs: number;
   readonly yMax: number;
+  /** The bottom of the score axis. Above zero when one brain scores far under the rest: the axis then starts just under the pack so the pack can be told apart. */
+  readonly yMin: number;
+  /** Marks along the latency axis: the axis is a square-root scale, so they are not evenly spaced. */
+  readonly xTicks: readonly { readonly ms: number; readonly x: number }[];
 }
+
+/** Latencies worth a mark on the axis, in ms. */
+const TICKS_MS = [0, 500, 1000, 2000, 5000, 10000] as const;
 
 /** The next tidy figure at or above a value: 1, 2 or 5 times a power of ten. */
 function tidyCeiling(value: number): number {
   if (value <= 0) return 1;
   const power = 10 ** Math.floor(Math.log10(value));
   return [1, 2, 5, 10].map((step) => step * power).find((candidate) => candidate >= value) ?? 10 * power;
+}
+
+/**
+ * Where the score axis starts. Zero, unless the lowest brain sits apart from all the others by more than half the axis:
+ * then the axis starts at a tidy figure just under the rest, and that brain is shown below it.
+ */
+function scoreFloor(scores: readonly number[], yMax: number): number {
+  const sorted = [...scores].sort((a, b) => a - b);
+  const [lowest, next] = sorted;
+  if (sorted.length < 3 || lowest === undefined || next === undefined || next - lowest < yMax / 2) return 0;
+  const step = tidyCeiling(yMax / 10);
+  return Math.max(0, Math.floor((next - step / 2) / step) * step);
 }
 
 /** Median latency against mean score, one point per brain that has both. Null with fewer than two: one dot compares nothing. */
@@ -187,17 +209,24 @@ export function scatter(arena: ArenaSection, box: PlotBox): Scatter | null {
   if (measured.length < 2) return null;
   const xMaxMs = tidyCeiling(Math.max(...measured.map((point) => point.ms)));
   const yMax = tidyCeiling(Math.max(...measured.map((point) => point.score)));
+  const yMin = scoreFloor(measured.map((point) => point.score), yMax);
   const [plotW, plotH] = [box.width - 2 * box.padding, box.height - 2 * box.padding];
+  // Square-root scale: instant brains (0 ms) stay on the axis, fast ones spread out, one slow one does not squash the rest.
+  const xOf = (ms: number): number => box.padding + Math.sqrt(ms / xMaxMs) * plotW;
   return {
     xMaxMs,
     yMax,
+    yMin,
+    xTicks: TICKS_MS.filter((ms) => ms <= xMaxMs).map((ms) => ({ ms, x: xOf(ms) })),
     points: measured.map(({ entry, ms, score }) => ({
       id: entry.id,
       label: entry.label,
       kind: entry.kind,
-      x: box.padding + (ms / xMaxMs) * plotW,
-      // Scores below zero sit on the axis: the plot is about who is higher, not how far under.
-      y: box.padding + (1 - Math.max(0, score) / yMax) * plotH,
+      x: xOf(ms),
+      // A score under the axis sits on it, flagged: the plot is about telling the pack apart.
+      y: box.padding + (1 - Math.max(0, Math.min(1, (score - yMin) / (yMax - yMin)))) * plotH,
+      below: score < yMin,
+      score,
     })),
   };
 }

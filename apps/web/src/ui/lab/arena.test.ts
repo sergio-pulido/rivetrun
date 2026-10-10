@@ -77,6 +77,10 @@ describe('scatter', () => {
     expect(jev!.x).toBeLessThan(haiku!.x);
     expect(jev!.y).toBeLessThan(heuristic!.y);
     expect(plot.xMaxMs).toBeGreaterThanOrEqual(410);
+    // Square-root latency axis: a quarter of the range sits at half the width.
+    expect(plot.xTicks[0]).toEqual({ ms: 0, x: 20 });
+    for (const tick of plot.xTicks) expect(tick.x).toBeCloseTo(20 + Math.sqrt(tick.ms / plot.xMaxMs) * 260, 5);
+    expect(plot.xTicks.every((tick) => tick.ms <= plot.xMaxMs)).toBe(true);
     expect(plot.yMax).toBeGreaterThanOrEqual(780.4);
     for (const point of plot.points) {
       expect(point.x).toBeGreaterThanOrEqual(20);
@@ -84,6 +88,24 @@ describe('scatter', () => {
       expect(point.y).toBeGreaterThanOrEqual(20);
       expect(point.y).toBeLessThanOrEqual(180);
     }
+  });
+
+  it('starts the score axis at zero when the brains are spread out', () => {
+    const plot = scatter(parseArena(FILE)!, { width: 300, height: 200, padding: 20 })!;
+    expect(plot.yMin).toBe(0);
+    expect(plot.points.every((point) => !point.below)).toBe(true);
+  });
+
+  it('starts the axis just under the pack when one brain scores far below it, and flags that one', () => {
+    const brain = (id: string, meanScore: number, latencyP50Ms: number) => ({ id, label: id, kind: 'llm', status: 'ok', meanScore, latencyP50Ms });
+    const plot = scatter(parseArena({ ...FILE, contestants: [brain('a', 497, 0), brain('b', 481, 900), brain('c', 425, 1100), brain('random', 78, 0)] })!, { width: 300, height: 200, padding: 20 })!;
+    expect(plot.yMax).toBe(500);
+    expect(plot.yMin).toBe(400);
+    const [a, b, c, random] = plot.points;
+    expect(random).toMatchObject({ below: true, y: 180, score: 78 });
+    expect([a!.below, b!.below, c!.below]).toEqual([false, false, false]);
+    // The pack now spans most of the plot's height.
+    expect(c!.y - a!.y).toBeGreaterThan(70);
   });
 
   it('has nothing to plot with fewer than two brains measured', () => {

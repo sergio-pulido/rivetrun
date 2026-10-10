@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { arenaLine, arenaRows, scatter, type Arena, type ArenaSection, type ContestantKind } from './arena';
 
-const PLOT = { width: 334, height: 210, padding: 30 } as const;
+const PLOT = { width: 334, height: 230, padding: 30 } as const;
 
 /** Jev is the brain's colour everywhere; the player's orange marks the models brought in to challenge it. */
 const DOT: Readonly<Record<ContestantKind, string>> = {
@@ -67,20 +67,23 @@ function Scatter({ arena }: { readonly arena: ArenaSection }) {
       <svg viewBox={`0 0 ${width} ${height}`} className="block w-full" role="img" aria-label={`Median decision latency against mean score: ${plot.points.map((point) => point.label).join(', ')}`}>
         <rect x={padding} y={padding} width={right - padding} height={bottom - padding} fill="var(--color-panel-2)" stroke="var(--color-line)" />
         <line x1={padding} y1={(padding + bottom) / 2} x2={right} y2={(padding + bottom) / 2} stroke="var(--color-line)" strokeDasharray="3 4" />
-        <line x1={(padding + right) / 2} y1={padding} x2={(padding + right) / 2} y2={bottom} stroke="var(--color-line)" strokeDasharray="3 4" />
         <g fontFamily="var(--font-mono)" fontSize="9" fill="var(--color-muted)">
-          <text x={padding} y={bottom + 13}>0 ms</text>
-          <text x={right} y={bottom + 13} textAnchor="end">
-            {plot.xMaxMs >= 1000 ? `${plot.xMaxMs / 1000} s` : `${plot.xMaxMs} ms`}
-          </text>
-          <text x={(padding + right) / 2} y={bottom + 24} textAnchor="middle">
+          {plot.xTicks.map((tick) => (
+            <g key={tick.ms}>
+              {tick.ms > 0 ? <line x1={tick.x} y1={padding} x2={tick.x} y2={bottom} stroke="var(--color-line)" strokeDasharray="3 4" /> : null}
+              <text x={tick.x} y={bottom + 13} textAnchor="middle">
+                {tick.ms === 0 ? '0' : `${tick.ms / 1000} s`}
+              </text>
+            </g>
+          ))}
+          <text x={(padding + right) / 2} y={bottom + 26} textAnchor="middle">
             MEDIAN LATENCY →
           </text>
           <text x={padding - 5} y={padding + 3} textAnchor="end">
             {plot.yMax}
           </text>
           <text x={padding - 5} y={bottom} textAnchor="end">
-            0
+            {plot.yMin}
           </text>
           <text x={padding} y={padding - 9}>
             ↑ MEAN SCORE
@@ -89,7 +92,7 @@ function Scatter({ arena }: { readonly arena: ArenaSection }) {
         {/* Numbered rather than named on the plot: brains that score alike sit too close for names to stay readable. */}
         {plot.points.map((point, index) => (
           <g key={point.id}>
-            <circle cx={point.x} cy={point.y} r="8" fill={DOT[point.kind]} stroke="var(--color-ground)" strokeWidth="1.5" />
+            <circle cx={point.x} cy={point.y} r="7.5" fill={DOT[point.kind]} fillOpacity="0.92" stroke={point.below ? 'var(--color-warn)' : 'var(--color-ground)'} strokeWidth="1.5" strokeDasharray={point.below ? '2 2' : undefined} />
             <text x={point.x} y={point.y + 3.5} textAnchor="middle" fontFamily="var(--font-mono)" fontSize="10" fontWeight="600" fill="var(--color-ground)">
               {index + 1}
             </text>
@@ -106,7 +109,17 @@ function Scatter({ arena }: { readonly arena: ArenaSection }) {
           </li>
         ))}
       </ol>
-      <p className="text-[11px] leading-snug text-muted">Up and to the left is better: a higher score from a faster answer.</p>
+      {plot.points.some((point) => point.below) ? (
+        <p className="text-[11px] leading-snug text-warn">
+          Below the score axis (it starts at {plot.yMin}):{' '}
+          {plot.points
+            .filter((point) => point.below)
+            .map((point) => `${point.label} ${Math.round(point.score)}`)
+            .join(', ')}
+          .
+        </p>
+      ) : null}
+      <p className="text-[11px] leading-snug text-muted">Up and to the left is better: a higher score from a faster answer. The latency axis is stretched at the fast end (square-root scale) so brains that answer quickly do not sit on top of each other.</p>
     </figure>
   );
 }
