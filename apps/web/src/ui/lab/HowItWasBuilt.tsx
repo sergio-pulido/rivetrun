@@ -53,7 +53,7 @@ function Commits({ chart }: { readonly chart: CommitChart }) {
           );
         })}
       </svg>
-      <ul className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] leading-snug text-text-2">
+      <ul className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] leading-snug text-text-2 lg:text-[13px]">
         {present.map((owner) => (
           <li key={owner} className="flex items-center gap-1.5">
             <span className="h-2.5 w-2.5 rounded-sm" style={{ background: OWNER_LOOK[owner].color }} />
@@ -62,7 +62,7 @@ function Commits({ chart }: { readonly chart: CommitChart }) {
           </li>
         ))}
       </ul>
-      <p className="text-[11px] leading-snug text-muted">Every session commits under one git author, so a commit is counted for the session that owns most of the files it touched.</p>
+      <p className="text-[11px] leading-snug text-muted lg:text-[13px]">Every session commits under one git author, so a commit is counted for the session that owns most of the files it touched.</p>
     </figure>
   );
 }
@@ -73,12 +73,12 @@ const compact = (value: number): string => (value >= 1_000_000 ? `${(value / 1_0
 export function HowItWasBuilt({ built }: { readonly built: Built }) {
   const { sessions, commits, benchmark, tokens } = built;
   return (
-    <section className="rr-card flex flex-col gap-4 p-4" aria-labelledby="how-built">
-      <div className="flex flex-col gap-1">
+    <section className="rr-card flex flex-col gap-4 p-4 lg:grid lg:grid-cols-2 lg:items-start lg:gap-x-8 lg:p-6" aria-labelledby="how-built">
+      <div className="flex flex-col gap-1 lg:col-span-2">
         <h2 id="how-built" className="font-display text-2xl font-bold leading-none">
           How it was built
         </h2>
-        <p className="text-[13px] leading-snug text-text-2">Parallel AI coding sessions on one repository, each with its own files, one human setting the direction. Everything below is read from the repository.</p>
+        <p className="text-[13px] leading-snug text-text-2 lg:text-base">Parallel AI coding sessions on one repository, each with its own files, one human setting the direction. Everything below is read from the repository.</p>
       </div>
 
       {sessions.length > 0 ? (
@@ -87,24 +87,24 @@ export function HowItWasBuilt({ built }: { readonly built: Built }) {
           <ul className="flex flex-col">
             {sessions.map((session) => (
               <li key={session.name} className="flex items-baseline gap-2.5 border-t border-tag py-1.5 first:border-t-0">
-                <span className="w-[92px] shrink-0 font-mono text-[11px] font-semibold tracking-[1px] text-orange-soft">{session.name.toUpperCase()}</span>
-                <span className="min-w-0 text-xs leading-snug text-text-2">{session.role}</span>
+                <span className="w-[92px] shrink-0 font-mono text-[11px] font-semibold tracking-[1px] text-orange-soft lg:w-[108px] lg:text-[13px]">{session.name.toUpperCase()}</span>
+                <span className="min-w-0 text-xs leading-snug text-text-2 lg:text-sm">{session.role}</span>
               </li>
             ))}
           </ul>
         </div>
       ) : null}
 
-      {commits && commits.total > 0 ? <Commits chart={commits} /> : <p className="text-xs leading-snug text-muted">The commit history is not available on this server.</p>}
+      {commits && commits.total > 0 ? <Commits chart={commits} /> : <p className="text-xs leading-snug text-muted lg:text-sm">The commit history is not available on this server.</p>}
 
       {benchmark ? (
-        <div className="flex flex-col gap-1.5">
+        <div className="flex flex-col gap-1.5 lg:col-span-2">
           <h3 className="rr-label">Brain benchmark</h3>
           <div className="rr-scroll-x -mx-4 px-4">
-            <table className="w-full min-w-[560px] border-collapse text-right font-mono text-xs tabular-nums">
+            <table className="w-full min-w-[560px] border-collapse text-right font-mono text-xs tabular-nums lg:text-sm">
               <caption className="sr-only">Brain benchmark, overall per policy and briefing</caption>
               <thead>
-                <tr className="text-[10px] font-medium uppercase tracking-[1px] text-muted">
+                <tr className="text-[10px] font-medium uppercase tracking-[1px] text-muted lg:text-[11px]">
                   {benchmark.table.headers.map((header, index) => (
                     <th key={header} scope="col" className={`px-2 py-2 font-medium ${index === 0 ? 'sticky left-0 bg-panel pl-0 text-left' : 'whitespace-nowrap'}`}>
                       {header}
@@ -131,11 +131,11 @@ export function HowItWasBuilt({ built }: { readonly built: Built }) {
               </tbody>
             </table>
           </div>
-          {benchmark.generated ? <p className="text-[11px] leading-snug text-muted">{benchmark.generated.replaceAll('`', '')}</p> : null}
+          {benchmark.generated ? <p className="text-[11px] leading-snug text-muted lg:text-[13px]">{benchmark.generated.replaceAll('`', '')}</p> : null}
         </div>
       ) : null}
 
-      <div className="flex flex-col gap-1.5">
+      <div className="flex flex-col gap-1.5 lg:col-span-2">
         <h3 className="rr-label">Tokens</h3>
         {tokens.length > 0 ? (
           <ul className="flex flex-col">
@@ -150,7 +150,7 @@ export function HowItWasBuilt({ built }: { readonly built: Built }) {
             ))}
           </ul>
         ) : (
-          <p className="text-xs leading-snug text-muted">Token counts have not been added yet. They appear here from docs/tokens.json.</p>
+          <p className="text-xs leading-snug text-muted lg:text-sm">Token counts have not been added yet. They appear here from docs/tokens.json.</p>
         )}
       </div>
     </section>

@@ -15,6 +15,11 @@ const DOT: Readonly<Record<ContestantKind, string>> = {
   human: 'var(--color-ok)',
 };
 
+/** Small print: one step larger on desktop and projector screens. */
+const NOTE = 'leading-snug lg:text-[13px]';
+/** A row of the results that keeps the whole card width when the results are in two columns. */
+const FULL = 'lg:col-span-2';
+
 const COLUMNS = ['Finish', 'Score', 'Dec. / run', 'p50', 'p95', 'Late crashes', 'Cost / run'] as const;
 const FACTS_TONE = { up: 'text-ok', down: 'text-warn' } as const;
 
@@ -23,11 +28,11 @@ function Table({ arena }: { readonly arena: ArenaSection }) {
   // second one must not be a column that scrolls out of view.
   const facts = hasFacts(arena);
   return (
-    <div className="rr-scroll-x -mx-4 px-4">
-      <table className="w-full min-w-[620px] border-collapse text-right font-mono text-xs tabular-nums">
+    <div className="rr-scroll-x -mx-4 px-4 lg:col-span-2">
+      <table className="w-full min-w-[620px] border-collapse text-right font-mono text-xs tabular-nums lg:text-[15px]">
         <caption className="sr-only">Brain Arena results per contestant</caption>
         <thead>
-          <tr className="text-[10px] font-medium uppercase tracking-[1px] text-muted">
+          <tr className="text-[10px] font-medium uppercase tracking-[1px] text-muted lg:text-xs">
             <th scope="col" className="sticky left-0 bg-panel py-2 pr-3 text-left font-medium">
               Brain
             </th>
@@ -48,20 +53,20 @@ function Table({ arena }: { readonly arena: ArenaSection }) {
         <tbody>
           {arenaRows(arena).map((row) => (
             <tr key={row.id} className={`border-t border-tag ${row.configured ? '' : 'text-faint'}`}>
-              <th scope="row" className="sticky left-0 max-w-[150px] bg-panel py-2 pr-3 text-left font-normal">
+              <th scope="row" className="sticky left-0 max-w-[150px] bg-panel py-2 pr-3 text-left font-normal lg:max-w-[340px]">
                 <span className="flex items-start gap-1.5">
                   <span className="mt-1 h-2 w-2 shrink-0 rounded-full" style={{ background: row.configured ? DOT[row.kind] : 'transparent', border: row.configured ? undefined : '1px dashed var(--color-line-3)' }} />
-                  <span className={`font-display text-[13px] font-semibold leading-tight ${row.configured ? 'text-text' : ''}`}>{row.label}</span>
+                  <span className={`font-display text-[13px] font-semibold leading-tight lg:text-base ${row.configured ? 'text-text' : ''}`}>{row.label}</span>
                 </span>
-                <span className={`block pl-3.5 text-[10px] text-muted ${row.configured ? 'truncate' : 'whitespace-normal leading-tight'}`}>{row.detail}</span>
-                {row.fewer ? <span className="block pl-3.5 text-[10px] font-medium text-warn">{row.fewer} only</span> : null}
-                {row.carried ? <span className="block pl-3.5 text-[10px] font-medium text-warn">run on {row.carried}</span> : null}
+                <span className={`block pl-3.5 text-[10px] text-muted lg:text-xs ${row.configured ? 'truncate' : 'whitespace-normal leading-tight'}`}>{row.detail}</span>
+                {row.fewer ? <span className="block pl-3.5 text-[10px] font-medium text-warn lg:text-xs">{row.fewer} only</span> : null}
+                {row.carried ? <span className="block pl-3.5 text-[10px] font-medium text-warn lg:text-xs">run on {row.carried}</span> : null}
               </th>
               <td className="whitespace-nowrap px-2 py-2">{row.finish}</td>
               <td className="whitespace-nowrap px-2 py-2">
                 <span className="block">{row.score}</span>
                 {facts && row.configured ? (
-                  <span className={`block text-[11px] ${row.factsMove ? FACTS_TONE[row.factsMove] : /^\d/.test(row.factsScore) ? 'text-text-2' : 'text-faint'}`} data-testid="facts-score">
+                  <span className={`block text-[11px] lg:text-[13px] ${row.factsMove ? FACTS_TONE[row.factsMove] : /^\d/.test(row.factsScore) ? 'text-text-2' : 'text-faint'}`} data-testid="facts-score">
                     {/^\d/.test(row.factsScore) ? `facts ${row.factsScore}` : row.factsScore}
                   </span>
                 ) : null}
@@ -122,7 +127,7 @@ function Scatter({ arena }: { readonly arena: ArenaSection }) {
           </g>
         ))}
       </svg>
-      <ol className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] leading-snug text-text-2">
+      <ol className={`flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-text-2 ${NOTE}`}>
         {plot.points.map((point, index) => (
           <li key={point.id} className="flex items-center gap-1.5">
             <span className="grid h-4 w-4 place-items-center rounded-full font-mono text-[10px] font-semibold text-ground" style={{ background: DOT[point.kind] }}>
@@ -133,7 +138,7 @@ function Scatter({ arena }: { readonly arena: ArenaSection }) {
         ))}
       </ol>
       {plot.points.some((point) => point.below) ? (
-        <p className="text-[11px] leading-snug text-warn">
+        <p className={`text-[11px] text-warn ${NOTE}`}>
           Below the score axis (it starts at {plot.yMin}):{' '}
           {plot.points
             .filter((point) => point.below)
@@ -142,7 +147,7 @@ function Scatter({ arena }: { readonly arena: ArenaSection }) {
           .
         </p>
       ) : null}
-      <p className="text-[11px] leading-snug text-muted">Up and to the left is better: a higher score from a faster answer. The latency axis is stretched at the fast end (square-root scale) so brains that answer quickly do not sit on top of each other.</p>
+      <p className={`text-[11px] text-muted ${NOTE}`}>Up and to the left is better: a higher score from a faster answer. The latency axis is stretched at the fast end (square-root scale) so brains that answer quickly do not sit on top of each other.</p>
     </figure>
   );
 }
@@ -170,10 +175,10 @@ function Scenarios({ section }: { readonly section: ArenaSection }) {
     <div className="flex flex-col gap-1.5">
       <h3 className="rr-label">Score by scenario</h3>
       <div className="rr-scroll-x -mx-4 px-4">
-        <table className="w-full min-w-[520px] border-collapse text-right font-mono text-xs tabular-nums">
+        <table className="w-full min-w-[520px] border-collapse text-right font-mono text-xs tabular-nums lg:text-sm">
           <caption className="sr-only">Mean score per scenario, with runs completed</caption>
           <thead>
-            <tr className="text-[10px] font-medium uppercase tracking-[1px] text-muted">
+            <tr className="text-[10px] font-medium uppercase tracking-[1px] text-muted lg:text-[11px]">
               <th scope="col" className="sticky left-0 bg-panel py-2 pr-3 text-left font-medium">
                 Brain
               </th>
@@ -187,13 +192,13 @@ function Scenarios({ section }: { readonly section: ArenaSection }) {
           <tbody>
             {table.rows.map((row) => (
               <tr key={row.id} className="border-t border-tag">
-                <th scope="row" className="sticky left-0 max-w-[140px] bg-panel py-2 pr-3 text-left font-display text-[13px] font-semibold leading-tight text-text">
+                <th scope="row" className="sticky left-0 max-w-[140px] bg-panel py-2 pr-3 text-left font-display text-[13px] font-semibold leading-tight text-text lg:max-w-[200px] lg:text-[15px]">
                   {row.label}
                 </th>
                 {row.cells.map((cell, index) => (
                   <td key={table.scenarios[index]} className={`whitespace-nowrap px-2 py-2 ${cell.failed ? 'text-warn' : ''}`}>
                     {cell.score}
-                    {cell.done ? <span className="ml-1 text-[10px] text-muted">{cell.done}</span> : null}
+                    {cell.done ? <span className="ml-1 text-[10px] text-muted lg:text-[11px]">{cell.done}</span> : null}
                   </td>
                 ))}
               </tr>
@@ -201,7 +206,7 @@ function Scenarios({ section }: { readonly section: ArenaSection }) {
           </tbody>
         </table>
       </div>
-      <p className="text-[11px] leading-snug text-muted">Mean score, then runs completed of runs made.</p>
+      <p className={`text-[11px] text-muted ${NOTE}`}>Mean score, then runs completed of runs made.</p>
     </div>
   );
 }
@@ -225,7 +230,7 @@ function Results({ section, ctfRivalMs, after }: ResultsProps) {
   return (
     <>
       {section.scenarios.length > 0 ? (
-        <div className="flex flex-wrap gap-1.5">
+        <div className={`flex flex-wrap gap-1.5 ${FULL}`}>
           {section.scenarios.map((scenario) => (
             <span key={scenario} className="rr-chip">
               {scenario.replaceAll('_', ' ')}
@@ -234,29 +239,32 @@ function Results({ section, ctfRivalMs, after }: ResultsProps) {
         </div>
       ) : null}
       {lead ? (
-        <p className="rounded-[10px] border border-cyan-line bg-cyan-deep px-3 py-2.5 text-[13px] leading-snug text-cyan-soft" data-testid="arena-lead-note">
+        <p className={`rounded-[10px] border border-cyan-line bg-cyan-deep px-3 py-2.5 text-[13px] leading-snug text-cyan-soft lg:text-base ${FULL}`} data-testid="arena-lead-note">
           <span className="font-mono text-[10px] font-medium tracking-[1.5px] text-cyan">WHAT THIS MEASURES · </span>
           {lead}
-          {factsNote ? <span className="mt-1.5 block text-xs text-cyan-muted">{factsNote}</span> : null}
+          {factsNote ? <span className="mt-1.5 block text-xs text-cyan-muted lg:text-sm">{factsNote}</span> : null}
         </p>
       ) : null}
       <Table arena={section} />
       {rows.some((row) => row.fewer) ? (
-        <p className="-mt-1.5 text-[11px] leading-snug text-warn">Rows marked in amber ran fewer runs than the others ({mostRuns(section)}): their figures rest on less and are not directly comparable.</p>
+        <p className={`-mt-1.5 text-[11px] text-warn ${NOTE} ${FULL}`}>Rows marked in amber ran fewer runs than the others ({mostRuns(section)}): their figures rest on less and are not directly comparable.</p>
       ) : null}
       {rows.some((row) => row.carried) ? (
-        <p className="-mt-1.5 text-[11px] leading-snug text-warn">Rows marked with a gameplay version were run on an earlier version of the game than the rest (gameplay {section.gameplayVersion}).</p>
+        <p className={`-mt-1.5 text-[11px] text-warn ${NOTE} ${FULL}`}>Rows marked with a gameplay version were run on an earlier version of the game than the rest (gameplay {section.gameplayVersion}).</p>
       ) : null}
-      {section.priced ? <p className="-mt-1.5 text-[11px] leading-snug text-muted">Cost per run: each provider&apos;s published price × the tokens it reported. A token count is shown where no price is set.</p> : null}
-      {after}
-      <Scenarios section={section} />
-      {notes.map((note) => (
-        <p key={note} className="-mt-1.5 text-[11px] leading-snug text-text-2">
-          {note}
-        </p>
-      ))}
+      {section.priced ? <p className={`-mt-1.5 text-[11px] text-muted ${NOTE} ${FULL}`}>Cost per run: each provider&apos;s published price × the tokens it reported. A token count is shown where no price is set.</p> : null}
+      {/* Wide screens: the humans, the scenario scores and the notes beside the plot. On a phone this wrapper is not there. */}
+      <div className="contents lg:flex lg:min-w-0 lg:flex-col lg:gap-3.5 lg:empty:hidden">
+        {after}
+        <Scenarios section={section} />
+        {notes.map((note) => (
+          <p key={note} className={`-mt-1.5 text-[11px] text-text-2 ${NOTE}`}>
+            {note}
+          </p>
+        ))}
+      </div>
       <Scatter arena={section} />
-      <p className="border-t border-line pt-3 text-xs leading-snug text-text-2">
+      <p className={`border-t border-line pt-3 text-xs leading-snug text-text-2 lg:text-sm ${FULL}`}>
         {arenaLine(section)}
         {section.promptHash ? <span className="ml-1.5 font-mono text-[10px] text-faint">prompt {section.promptHash}</span> : null}
       </p>
@@ -283,15 +291,15 @@ export function BrainArena({ arena, ctfRivalMs = null, missionNames = {} }: Brai
   const hasResults = section !== null && section.contestants.length + section.notRun.length > 0;
 
   return (
-    <section className="rr-card flex flex-col gap-3.5 p-4" aria-labelledby="brain-arena">
+    <section className="rr-card flex flex-col gap-3.5 p-4 lg:p-6" aria-labelledby="brain-arena">
       <div className="flex flex-col gap-1">
         <h2 id="brain-arena" className="font-display text-2xl font-bold leading-none">
           Brain Arena
         </h2>
-        <p className="text-[13px] leading-snug text-text-2">Same robot, same seed, same sensors, same question. Different brains. Their answers arrive with their real latency: the robot holds its last command until then.</p>
+        <p className="text-[13px] leading-snug text-text-2 lg:text-base">Same robot, same seed, same sensors, same question. Different brains. Their answers arrive with their real latency: the robot holds its last command until then.</p>
       </div>
 
-      <div className="flex gap-1.5" role="tablist" aria-label="Arena track">
+      <div className="flex gap-1.5 lg:max-w-[520px]" role="tablist" aria-label="Arena track">
         {TRACKS.map((entry) => {
           const on = entry.id === track;
           return (
@@ -301,7 +309,7 @@ export function BrainArena({ arena, ctfRivalMs = null, missionNames = {} }: Brai
               role="tab"
               aria-selected={on}
               onClick={() => setTrack(entry.id)}
-              className={`h-11 flex-1 rounded-[10px] border font-display text-[13px] font-semibold transition-colors ${on ? 'border-cyan bg-cyan-deep text-cyan-soft' : 'border-line-2 bg-panel-2 text-text-2'}`}
+              className={`h-11 flex-1 rounded-[10px] border font-display text-[13px] font-semibold transition-colors lg:text-base ${on ? 'border-cyan bg-cyan-deep text-cyan-soft' : 'border-line-2 bg-panel-2 text-text-2'}`}
             >
               {entry.label}
             </button>
@@ -309,13 +317,13 @@ export function BrainArena({ arena, ctfRivalMs = null, missionNames = {} }: Brai
         })}
       </div>
 
-      {track === 'lab' ? <p className="-mt-1.5 text-[11px] leading-snug text-muted">Lab Missions use a grid simulation: top-down scenarios with the same parts, sensors, battery and brains.</p> : null}
+      {track === 'lab' ? <p className={`-mt-1.5 text-[11px] text-muted ${NOTE}`}>Lab Missions use a grid simulation: top-down scenarios with the same parts, sensors, battery and brains.</p> : null}
 
-      <div role="tabpanel" className="flex flex-col gap-3.5">
+      <div role="tabpanel" className="flex flex-col gap-3.5 lg:grid lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] lg:items-start lg:gap-x-8">
         {hasResults ? (
           <Results section={section} ctfRivalMs={ctfRivalMs} after={track === 'rail' ? <ArenaHumans missionNames={missionNames} /> : null} />
         ) : (
-          <div className="flex flex-col gap-1.5 rounded-xl border border-dashed border-line-3 px-3.5 py-5 text-center">
+          <div className={`flex flex-col gap-1.5 rounded-xl border border-dashed border-line-3 px-3.5 py-5 text-center ${FULL}`}>
             <p className="font-display text-[15px] font-semibold">{EMPTY[track].title}</p>
             <p className="text-xs leading-snug text-muted">{EMPTY[track].text}</p>
           </div>

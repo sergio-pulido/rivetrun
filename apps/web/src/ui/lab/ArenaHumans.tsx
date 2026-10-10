@@ -32,21 +32,21 @@ export function ArenaHumans({ missionNames }: ArenaHumansProps) {
         {humans.rows.map((row) => (
           <li key={row.missionId} className="grid grid-cols-[1fr_auto_auto] items-baseline gap-x-3 border-t border-tag py-1.5 first:border-t-0">
             <span className="min-w-0">
-              <span className="block truncate font-display text-[13px] font-semibold">
+              <span className="block truncate font-display text-[13px] font-semibold lg:text-[15px]">
                 <span className="mr-1.5 inline-block h-2 w-2 rounded-full align-middle" style={{ background: 'var(--color-ok)' }} />
                 {row.nickname}
               </span>
-              <span className="block truncate pl-3.5 font-mono text-[10px] text-muted">
+              <span className="block truncate pl-3.5 font-mono text-[10px] text-muted lg:text-xs">
                 {row.missionId}
                 {missionNames[row.missionId] ? ` ${missionNames[row.missionId]}` : ''} · <span className={row.sameBuild ? '' : 'text-warn'}>{row.build}</span>
               </span>
             </span>
-            <span className={`font-mono text-xs tabular-nums ${row.result === 'DNF' ? 'text-warn' : ''}`}>{row.result}</span>
-            <span className="font-mono text-xs font-semibold tabular-nums">{row.score}</span>
+            <span className={`font-mono text-xs tabular-nums lg:text-sm ${row.result === 'DNF' ? 'text-warn' : ''}`}>{row.result}</span>
+            <span className="font-mono text-xs font-semibold tabular-nums lg:text-sm">{row.score}</span>
           </li>
         ))}
       </ul>
-      <p className="text-[11px] leading-snug text-muted">
+      <p className="text-[11px] leading-snug text-muted lg:text-[13px]">
         One player per mission: the best Drive run the server could verify by replaying its inputs and getting the same time and score ({humans.verified} verified
         {humans.rejected > 0 ? `, ${humans.rejected} rejected` : ''} since the server started). Driven on Drive&apos;s seed, not the arena&apos;s three, so not directly comparable with the rows above.
         {otherBuild ? ' A build in amber is not the robot the brains drove.' : ''}
