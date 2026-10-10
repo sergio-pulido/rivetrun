@@ -101,6 +101,18 @@ describe('brain', () => {
     const request = buildJevRequest(v3);
     const text = JSON.stringify(request);
 
+    it('tells Jev to ease in when a zone it can scan is close ahead, and to scan once on it (Q13)', () => {
+      const zone = { id: 'z1', label: 'Survivor', distanceM: 3, canScan: true, done: false, missed: false };
+      const instructions = (q: BrainQuestion): string => buildJevRequest(q).questions.action.instructions;
+      const approaching = instructions({ ...v3, observation: { ...observation, scanZones: [zone] } });
+      expect(approaching).toContain('The scan zone "Survivor" is 3 m ahead');
+      expect(approaching).toContain('`slow_down` is the correct option now');
+      expect(instructions(v3)).not.toContain('is the correct option now');
+      expect(instructions({ ...v3, observation: { ...observation, scanZones: [{ ...zone, canScan: false }] } })).not.toContain('is the correct option now');
+      const on = instructions({ ...v3, options: [...v3.options, 'scan'], observation: { ...observation, scanZones: [{ ...zone, distanceM: 0.2 }] } });
+      expect(on).toContain('The scan zone "Survivor" is under the robot right now');
+    });
+
     it('sends the Observation and nothing from the legacy perception', () => {
       expect(request.state).not.toHaveProperty('perceived');
       expect(request.state.sensors).toEqual(observation.lines);

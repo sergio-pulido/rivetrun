@@ -19,7 +19,7 @@ export const JEV_TIMEOUT_MS = 1200;
  * Version of the question wording below. Bump it whenever buildJevRequest changes what Jev is told:
  * every cache of Jev answers (decisions, ghosts) keys on it, so an old answer is never served for a new question.
  */
-export const JEV_QUESTION_VERSION = 'q8-observation';
+export const JEV_QUESTION_VERSION = 'q9-scan-approach';
 const QUESTION_ID = 'action';
 
 export interface JevBrainOptions {
@@ -227,19 +227,25 @@ function observationState(observation: Observation, cause: string | undefined): 
   };
 }
 
-/** A zone counts as under the robot within this distance of its centre. */
-const ZONE_UNDER_M = 1;
+/** A zone this close ahead is being approached: the same distance the sim's heuristic eases in from. */
+const ZONE_APPROACH_M = 3.2;
 
 /**
  * Scanning is a mission objective, not progress, so the rule is stated as a fact computed here rather than
  * left for Jev to infer from distances (docs/JEV.md: literal reading).
  */
 function scanLine(question: BrainQuestion, observation: Observation): string {
-  if (!question.options.includes('scan')) return '';
-  const under = observation.scanZones.find((zone) => zone.canScan && !zone.done && !zone.missed && Math.abs(zone.distanceM) <= ZONE_UNDER_M);
-  return under
-    ? `The scan zone "${under.label.replace(/["`]/g, "'")}" is under the robot right now and this robot can scan it. Scanning zones is a mission objective and a zone driven past is lost for good, so \`scan\` is the correct option here unless the briefing forbids stopping; this overrides the rule about options with no progress. `
-    : 'No scannable zone is under the robot right now, so `scan` is not correct yet. ';
+  const open = observation.scanZones.filter((zone) => zone.canScan && !zone.done && !zone.missed);
+  const name = (label: string): string => label.replace(/["`]/g, "'");
+  // The sim offers `scan` exactly when a zone this robot can scan is within reach: that is "under the robot".
+  if (question.options.includes('scan')) {
+    const under = [...open].sort((a, b) => Math.abs(a.distanceM) - Math.abs(b.distanceM))[0];
+    return `The scan zone${under ? ` "${name(under.label)}"` : ''} is under the robot right now and this robot can scan it. Scanning zones is a mission objective and a zone driven past is lost for good (a 10 s penalty), so \`scan\` is the correct option here unless the briefing forbids stopping; this overrides the rule about options with no progress. `;
+  }
+  // On the way in: a robot that arrives fast cannot stop on the zone, and the next decision comes only when it is on it.
+  const ahead = open.find((zone) => zone.distanceM > 0 && zone.distanceM <= ZONE_APPROACH_M);
+  if (!ahead || !question.options.includes('slow_down')) return '';
+  return `The scan zone "${name(ahead.label)}" is ${round(ahead.distanceM, 1)} m ahead and this robot can scan it. Scanning it is a mission objective: the robot must stop on the zone, and driving past it costs a 10 s penalty, far more than the time lost by easing in. A robot arriving at speed cannot stop in time, so \`slow_down\` is the correct option now unless the briefing forbids stopping; this overrides the rule about progress. The \`scan\` option appears once the robot is on the zone. `;
 }
 
 /**
