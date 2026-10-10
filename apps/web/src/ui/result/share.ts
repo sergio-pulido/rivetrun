@@ -14,7 +14,7 @@ export function shareText(episode: Episode, ghosts: readonly Ghost[] = []): stri
   // The duel in a clause: both times as the result screen shows them.
   const duel = jev && outcome.finished && jev.outcome.finished ? ` (${formatSeconds(outcome.timeS)} s vs Jev ${formatSeconds(jev.outcome.timeS)} s)` : '';
   const result = outcome.finished ? `${outcome.score} pts in ${formatSeconds(outcome.timeS)} s ${'★'.repeat(outcome.stars)}` : `DNF at ${Math.round(outcome.progressFraction * 100)}%, ${outcome.score} pts`;
-  return `RivetRun ${mission.id} ${mission.name}: ${result.trim()}${duel}. Robot: ${buildName(episode.build)} (€${outcome.costEur}). I built the body, AI drove it.`;
+  return `RivetRun ${mission.id} ${mission.name}: ${result.trim()}${duel}. Robot: ${buildName(episode.build)} (€${outcome.costEur}). ${episode.policy === 'human' ? 'I built the body and raced the AI.' : 'I built the body, the AI drove it.'}`;
 }
 
 export type ShareOutcome = 'shared' | 'copied' | 'manual';

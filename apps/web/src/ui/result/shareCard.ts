@@ -5,6 +5,7 @@ import { MISSIONS } from '@rivetrun/sim';
 import type { GhostResult } from '@/state/run';
 import { buildName } from '@/ui/buildStats';
 import { formatSeconds } from '@/ui/format';
+import { tagline } from '@/ui/home/Tagline';
 import { driveVerdict } from './DuelTable';
 
 export interface ShareCard {
@@ -19,6 +20,8 @@ export interface ShareCard {
   readonly stars: number;
   readonly robot: string;
   readonly score: string;
+  /** Home's line, ending on who drove: the player raced it, or watched Jev drive it. */
+  readonly tagline: string;
 }
 
 const result = (outcome: Episode['outcome']): string => (outcome.finished ? `${formatSeconds(outcome.timeS)} s` : `DNF · ${Math.round(outcome.progressFraction * 100)}%`);
@@ -37,6 +40,7 @@ export function shareCardData(episode: Episode, ghosts: readonly Pick<GhostResul
     stars: episode.outcome.stars,
     robot: buildName(episode.build),
     score: `${Math.round(episode.outcome.score)} pts`,
+    tagline: tagline(drove),
   };
 }
 
@@ -87,7 +91,7 @@ export async function drawShareCard(card: ShareCard): Promise<Blob | null> {
 
     text(card.verdict, 64, 460, '700 52px', COLOR.text);
     text(`${'★'.repeat(card.stars)}${'☆'.repeat(Math.max(0, 3 - card.stars))}  ${card.score}  ·  ${card.robot}`, 64, 528, '500 32px', COLOR.muted);
-    text('You build the body. AI drives it.', 64, 590, '500 26px', COLOR.orange);
+    text(card.tagline, 64, 590, '500 26px', COLOR.orange);
     return await new Promise((resolve) => canvas.toBlob((blob) => resolve(blob), 'image/png'));
   } catch {
     return null;

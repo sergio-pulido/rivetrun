@@ -24,6 +24,11 @@ describe('shareCardData', () => {
     expect(card).toMatchObject({ rivalName: 'YOUR BEST', rival: '43.6 s', verdict: 'You beat your best run by 3.6 s' });
   });
 
+  it('ends on the line of the Home screen for who drove', () => {
+    expect(shareCardData(episode(), [{ policy: 'jev', outcome: outcome({ timeS: 41.2 }) }]).tagline).toBe('Build the body. Brief the brain. Then race it.');
+    expect(shareCardData(episode({}, 'jev'), []).tagline).toBe('Build the body. Brief the brain. Watch it drive.');
+  });
+
   it('has no rival side when Jev drove your robot', () => {
     const card = shareCardData(episode({}, 'jev'), [{ policy: 'heuristic', outcome: outcome({ timeS: 50 }) }]);
     expect(card).toMatchObject({ rivalName: null, rival: null, verdict: 'Jev drove my robot' });
@@ -34,5 +39,8 @@ describe('shareText', () => {
   it('adds the time against Jev when there is one to compare', () => {
     expect(shareText(episode(), [{ policy: 'jev', outcome: outcome({ timeS: 41.2 }) }])).toContain('43.6 s vs Jev 41.2 s');
     expect(shareText(episode())).not.toContain('vs Jev');
+    // The last sentence says who drove.
+    expect(shareText(episode())).toMatch(/I built the body and raced the AI\.$/);
+    expect(shareText(episode({}, 'jev'))).toMatch(/I built the body, the AI drove it\.$/);
   });
 });
