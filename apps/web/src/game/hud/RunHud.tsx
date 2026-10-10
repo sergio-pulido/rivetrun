@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
+import { useEffect, useMemo, useState, useSyncExternalStore, type ReactNode } from 'react';
 import type { Build, GhostTrace, Mission, Obstacle, SimState } from '@rivetrun/contracts';
 import { atmosphereOf, weatherOverride, type Atmosphere } from '../atmosphere';
 import { isMuted, toggleMute } from '../audio/sfx';
@@ -268,6 +268,41 @@ function logChips(chips: readonly DecisionChip[], hit: RunView['lastHit'], sense
   return [...chips, blind].sort((a, b) => a.t - b.t).slice(-DECISION_CHIPS);
 }
 
+/** What needs the driver's eyes: what just happened (fall, hit, blocked), then what is coming (scan, hazard, the air). */
+function alertsOf(view: RunView, mission: Mission, drivenBuild: Build | undefined): ReactNode {
+  if (view.done) return null;
+  return (
+    <>
+      {view.lastFall ? <FallToast fall={view.lastFall} /> : null}
+      {view.state?.blockedBy ? <BlockedChip kind={view.state.blockedBy} /> : view.lastDamage ? <ContactToast hit={view.lastDamage} /> : null}
+      {drivenBuild ? <DriveAlerts mission={mission} build={drivenBuild} state={view.state} observation={view.observation?.value ?? null} landing={view.lastLanding} /> : null}
+    </>
+  );
+}
+
+export interface RunAlertsProps {
+  mission: Mission;
+  feed: RunFeed;
+  /** The build being driven by hand. */
+  build: Build;
+}
+
+/**
+ * The driver's alerts on their own, for a page that draws its own HUD around the canvas (the Room Race
+ * phone): scan prompts and the progress ring, the next hazard with its safe speed, the air chip, landing
+ * grades, falls, hits and "blocked". A centred column a third of the way down; it takes no touches.
+ */
+export function RunAlerts({ mission, feed, build }: RunAlertsProps) {
+  const view = useRunView(feed);
+  const alerts = alertsOf(view, mission, build);
+  if (!alerts) return null;
+  return (
+    <div className="pointer-events-none absolute inset-x-0 flex flex-col items-center gap-1.5 px-3" style={{ top: '33%' }}>
+      {alerts}
+    </div>
+  );
+}
+
 /** DOM overlay for the run view: top bar, the decision log, a mark while Jev is thinking, end stamp and the Brain sheet. */
 export function RunHud({ mission, feed, ghosts = NO_GHOSTS, drive, build }: RunHudProps) {
   const view = useRunView(feed);
@@ -279,14 +314,7 @@ export function RunHud({ mission, feed, ghosts = NO_GHOSTS, drive, build }: RunH
   const telemetryOpen = useTelemetryOpen();
   const drawerOpen = telemetryOpen && build !== undefined && !view.done;
   const short = useShortLandscape();
-  // What needs the driver's eyes: what just happened, then what is coming.
-  const alerts = view.done ? null : (
-    <>
-      {view.lastFall ? <FallToast fall={view.lastFall} /> : null}
-      {view.state?.blockedBy ? <BlockedChip kind={view.state.blockedBy} /> : view.lastDamage ? <ContactToast hit={view.lastDamage} /> : null}
-      {driving && build ? <DriveAlerts mission={mission} build={build} state={view.state} observation={view.observation?.value ?? null} landing={view.lastLanding} /> : null}
-    </>
-  );
+  const alerts = alertsOf(view, mission, driving ? build : undefined);
   const senses = useMemo(() => (build ? sensesOf(build, mission.weather) : null), [build, mission.weather]);
   const atmosphere = useMemo(() => atmosphereOf(mission, weatherOverride()), [mission]);
   const chips = useMemo(() => logChips(view.chips, view.lastHit, senses), [view.chips, view.lastHit, senses]);
