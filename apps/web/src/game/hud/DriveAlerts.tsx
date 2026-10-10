@@ -135,7 +135,7 @@ function AirChip({ pitchDeg, groundDeg }: { pitchDeg: number; groundDeg: number 
       <span className="text-left">
         NOSE {pitchDeg - groundDeg >= 0 ? 'UP' : 'DOWN'} {Math.round(off)}°
         <span className="block text-[11px]" style={{ color: UI.text }}>
-          it levels itself · brake drops the nose · more throttle lifts it
+          levels itself · brake: nose down
         </span>
       </span>
     </span>
