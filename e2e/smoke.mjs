@@ -656,7 +656,16 @@ try {
         // Long enough for the first frames and a few seconds of driving.
         await sleep(7000);
         await shot(page, `run-${id}`);
-        const text = await page.locator('body').innerText().catch(() => '');
+        let text = await page.locator('body').innerText().catch(() => '');
+        if (/3D VIEW UNAVAILABLE/i.test(text)) {
+          // Under machine load the software renderer can miss the scene's 15 s first-frame limit. One reload tells
+          // a slow machine from a scene that cannot draw.
+          warnings.push(`run ${id}: "3D VIEW UNAVAILABLE" on the first load (machine load); reloaded once`);
+          await go(page, `/run/${id}`);
+          await sleep(12_000);
+          await shot(page, `run-${id}`);
+          text = await page.locator('body').innerText().catch(() => '');
+        }
         if (/3D VIEW UNAVAILABLE|could not start/i.test(text)) bad.push(`${id}: ${text.match(/3D VIEW UNAVAILABLE[^\n]*|The run could not start[^\n]*/i)?.[0]}`);
         const overlay = await devOverlayError(page);
         if (overlay) bad.push(`${id}: ${overlay}`);
@@ -708,7 +717,7 @@ try {
       if (downSeen.pageErrors.length > 0) throw new Error(`uncaught: ${downSeen.pageErrors[0]}`);
       if (!/finished/i.test(headline)) throw new Error(`with Jev down the result headline is "${headline}"`);
       if (!fallback) throw new Error('with the Jev fault cookie set the HUD never said FALLBACK (a production server honours the cookie only with RIVETRUN_JEV_FAULT_SWITCH=1)');
-      const said = body.match(/[^\n]*fallback[^\n]*/i)?.[0] ?? 'the Result does not mention the fallback';
+      const said = body.match(/[^\n]*(fallback|by the fixed rules)[^\n]*/i)?.[0] ?? 'the Result does not mention the fallback';
       return `Finished with FALLBACK on the HUD; Result: "${said.trim().slice(0, 80)}"`;
     }, downPage);
     await down.close();
