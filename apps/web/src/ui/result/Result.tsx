@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useState, type ReactNode } from 'react';
-import { MISSION_IDS, MISSIONS, whyLine } from '@rivetrun/sim';
+import { MISSION_IDS, MISSIONS, compileTrack, whyLine } from '@rivetrun/sim';
 import { DNF_LABEL } from '@/game/palette';
 import { useBuildStore } from '@/state/build';
 import { AppHeader } from '@/ui/AppHeader';
@@ -13,6 +13,7 @@ import { useRunStore, type RunResult } from '@/state/run';
 import { Icon, type IconName } from '@/ui/Icon';
 import { Shell } from '@/ui/Shell';
 import { Stars } from '@/ui/Stars';
+import { decisionSummary } from './decisions';
 import { DuelTable } from './DuelTable';
 import { ScoreBreakdown } from './ScoreBreakdown';
 import { downloadEpisode, share, type ShareResult } from './share';
@@ -78,6 +79,8 @@ function Summary({ result }: { readonly result: RunResult }) {
   const tenths = useCountUp(Math.round(Number(formatSeconds(outcome.timeS)) * 10));
   const percent = useCountUp(Math.round(outcome.progressFraction * 100));
   const next = MISSION_IDS[MISSION_IDS.indexOf(mission.id) + 1];
+  // What the brain was asked along the way, over the distance the robot covered.
+  const decisions = decisionSummary(episode.decisions, outcome.progressFraction * compileTrack(mission.track).lengthM);
   const headline = outcome.finished ? 'Finished' : outcome.dnfReason ? DNF_LABEL[outcome.dnfReason] : 'Did not finish';
 
   // Pays the points once per episode; the store ignores an episode it has already paid.
@@ -113,6 +116,13 @@ function Summary({ result }: { readonly result: RunResult }) {
           </span>
         ) : null}
       </p>
+
+      {decisions ? (
+        <p className="rr-rise rounded-[14px] border border-cyan-line bg-cyan-deep px-3 py-2.5 text-[13px] leading-snug text-cyan-soft" style={{ ['--i' as string]: 1 }}>
+          <span className="font-mono text-[10px] font-medium tracking-[1.5px] text-cyan">BRAIN · </span>
+          {decisions}
+        </p>
+      ) : null}
 
       <div className="rr-rise" style={{ ['--i' as string]: 2 }}>
         <DuelTable episode={episode} ghosts={result.ghosts} briefing={briefing} />
