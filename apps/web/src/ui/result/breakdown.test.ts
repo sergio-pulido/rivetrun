@@ -48,18 +48,28 @@ describe('breakdownView', () => {
   });
 });
 
+describe('losses', () => {
+  it('ranks the losses in points as the sim does, biggest first, and has none on older runs', () => {
+    const view = breakdownView(breakdown({ losses: [{ kind: 'water', points: 180.4 }, { kind: 'slip', points: 13 }, { kind: 'scans', points: 40 }, { kind: 'impact', points: 0.2 }] }))!;
+    expect(view.losses).toEqual([{ label: 'Water', points: 180 }, { label: 'Wheelspin', points: 13 }, { label: 'Missed scans', points: 40 }]);
+    expect(breakdownView(breakdown())!.losses).toEqual([]);
+  });
+});
+
 describe('RunBreakdown', () => {
   it('renders the scans, the slip, the damage bars and the try-next line', async () => {
     const { createElement } = await import('react');
     const { renderToStaticMarkup } = await import('react-dom/server');
     const { RunBreakdown } = await import('./RunBreakdown');
-    const view = breakdownView(breakdown({ scansDone: 1, scansMissed: 1, scanPenaltyS: 10, slipLostS: 2.5, damageByCause: { impact: 20, landing: 0, water: 8, tipOver: 0, fall: 0 }, tryNext: 'Ease off before the rock' }))!;
+    const view = breakdownView(breakdown({ scansDone: 1, scansMissed: 1, scanPenaltyS: 10, slipLostS: 2.5, damageByCause: { impact: 20, landing: 0, water: 8, tipOver: 0, fall: 0 }, tryNext: 'Ease off before the rock', losses: [{ kind: 'impact', points: 120 }, { kind: 'water', points: 48 }] }))!;
     const shown = renderToStaticMarkup(createElement(RunBreakdown, { view })).replace(/<[^>]+>/g, '|').replace(/\|+/g, '|');
     expect(shown).toContain('Scans: 1 of 2 scanned');
     expect(shown).toContain('1 missed: +10 s');
     expect(shown).toContain('2.5 s lost to wheelspin');
     expect(shown).toContain('Impacts|20%');
     expect(shown).toContain('Water|8%');
+    expect(shown).toContain('BIGGEST LOSS · |Impacts −120 pts');
+    expect(shown).toContain('water −48');
     expect(shown).toContain('TRY NEXT · |Ease off before the rock');
   });
 });

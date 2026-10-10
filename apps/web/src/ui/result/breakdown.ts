@@ -12,7 +12,11 @@ export interface BreakdownView {
   /** Causes that did damage, biggest first. Empty for a clean run. */
   readonly damage: readonly { readonly cause: string; readonly pct: number }[];
   readonly tryNext: string | null;
+  /** Every loss in score points, biggest first, when the sim ranks them. The first is the biggest loss of the run. */
+  readonly losses: readonly { readonly label: string; readonly points: number }[];
 }
+
+const LOSS: Readonly<Record<string, string>> = { impact: 'Impacts', landing: 'Hard landings', fall: 'Falls', water: 'Water', slip: 'Wheelspin', scans: 'Missed scans' };
 
 const CAUSE: Readonly<Record<keyof Breakdown['damageByCause'], string>> = { impact: 'Impacts', landing: 'Hard landings', water: 'Water', tipOver: 'Scraping on slopes', fall: 'Falls' };
 /** Below this, wheelspin cost nothing a player would notice. */
@@ -33,5 +37,6 @@ export function breakdownView(breakdown: Outcome['breakdown']): BreakdownView | 
       .filter((entry) => entry.pct > 0)
       .sort((a, b) => b.pct - a.pct),
     tryNext: breakdown.tryNext.trim() || null,
+    losses: (breakdown.losses ?? []).map((loss) => ({ label: LOSS[loss.kind] ?? loss.kind, points: Math.round(loss.points) })).filter((loss) => loss.points > 0),
   };
 }

@@ -43,6 +43,24 @@ export function RunBreakdown({ view }: { readonly view: BreakdownView }) {
           </span>
         </li>
       </ul>
+      {view.losses.length > 0 ? (
+        <p className="border-t border-tag pt-2 text-xs leading-snug text-text-2">
+          <span className="font-mono text-[10px] font-medium tracking-[1.5px] text-warn">BIGGEST LOSS · </span>
+          <span className="font-semibold text-text">
+            {view.losses[0]!.label} −{view.losses[0]!.points} pts
+          </span>
+          {view.losses.length > 1 ? (
+            <span className="text-muted">
+              {' '}
+              · then{' '}
+              {view.losses
+                .slice(1)
+                .map((loss) => `${loss.label.toLowerCase()} −${loss.points}`)
+                .join(', ')}
+            </span>
+          ) : null}
+        </p>
+      ) : null}
       {view.tryNext ? (
         <p className="rounded-[10px] border border-orange/50 bg-orange-deep px-2.5 py-2 text-[13px] leading-snug text-text">
           <span className="font-mono text-[10px] font-medium tracking-[1.5px] text-orange-soft">TRY NEXT · </span>
