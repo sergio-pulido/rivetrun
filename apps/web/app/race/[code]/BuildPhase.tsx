@@ -26,9 +26,15 @@ const CELLS = [1, 2, 3, 4] as const;
 const WHEELS = [
   { mm: 60, label: 'S' },
   { mm: 80, label: 'M' },
-  { mm: 100, label: 'L' },
+  // L is the real 90 mm wheel (docs/MK2_BOM.md). Builds saved with the old 100 drive the same and read as L.
+  { mm: 90, label: 'L' },
 ] as const;
 const GEARS = [1, 2, 3, 4, 5] as const;
+/** The wheel size as this screen offers it: a legacy 100 is the L wheel. */
+const wheelOf = (build: Build): number => {
+  const mm = build.wheelSizeMm ?? BUILD_TUNING.stockWheelMm;
+  return mm === 100 ? 90 : mm;
+};
 const STOCK = { cells: BUILD_TUNING.stockCells, wheelMm: BUILD_TUNING.stockWheelMm, gear: BUILD_TUNING.stockGear } as const;
 
 interface BuildPhaseProps {
@@ -134,7 +140,7 @@ export function BuildPhase({ mission, build, ready, secondsLeft, onChange }: Bui
             <p className="rr-label mb-1.5">Wheel size</p>
             <div className="flex gap-1">
               {WHEELS.map((wheel) => (
-                <Choice key={wheel.mm} on={(build.wheelSizeMm ?? STOCK.wheelMm) === wheel.mm} onClick={() => set({ ...build, wheelSizeMm: wheel.mm })}>
+                <Choice key={wheel.mm} on={wheelOf(build) === wheel.mm} onClick={() => set({ ...build, wheelSizeMm: wheel.mm })}>
                   {wheel.label}
                 </Choice>
               ))}
