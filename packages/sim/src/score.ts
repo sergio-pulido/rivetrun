@@ -110,6 +110,24 @@ export function why(state: RunState): string {
 
 type LossKind = 'impact' | 'landing' | 'fall' | 'water' | 'slip' | 'scans';
 
+/**
+ * A run that did not finish: the advice is about what ended it, not about where the most points went on the way.
+ * Read from the why-line, which already names the cause.
+ */
+function dnfAdvice(state: RunState): string | undefined {
+  if (state.finished || state.dnfReason === undefined) return undefined;
+  const line = why(state);
+  const hasPiston = state.spec.jumpImpulseMps > 0;
+  if (/^(Flooded in|Sank in)/.test(line)) return 'Fit the waterproof case and the thruster kit: this water is too deep to drive through';
+  if (/^Drowned the electronics/.test(line)) return 'Fit the waterproof case';
+  if (/^Fell into the gap/.test(line)) return hasPiston ? 'Jump later: the piston has to carry the whole gap' : 'Fit the piston: full speed clears the gaps that have a ramp, and one gap here has none';
+  if (/^Blocked by/.test(line)) return 'Use climb mode, bigger wheels or a jump to get over it';
+  if (/^Stood still/.test(line)) return 'Keep some throttle on: 8 s without progress ends the run';
+  if (/^(Spun the wheels|Stuck on a|Bogged down)/.test(line)) return 'Switch to climb mode before soft or steep ground, and ease off when the wheels spin';
+  if (/^Lost headway/.test(line)) return 'Use climb mode in the current, or fit a build with more thrust';
+  return undefined;
+}
+
 /** Gameplay v3 result breakdown: where the time and the hull went, and one thing to try next. */
 function breakdown(state: RunState, scanPenaltyS: number, scanBonus: number): NonNullable<Outcome['breakdown']> {
   const { stats, spec } = state;
@@ -132,6 +150,7 @@ function breakdown(state: RunState, scanPenaltyS: number, scanBonus: number): No
     ['slip', stats.slipLostS * tuning.perSecond, 'Use less throttle on loose ground: spinning wheels grip 30 % less. Tracks or off-road tyres raise the limit'],
     ['scans', scanPenaltyS * tuning.perSecond, 'Stop on the scan zones (under 0.1 m/s for 1.5 s) with the sensor each one needs'],
   ];
+  const advice = dnfAdvice(state);
   const ranked = [...losses].sort((a, b) => b[1] - a[1]);
   const worst = ranked[0]!;
   const listed = ranked.filter((loss) => loss[1] > 0).map(([kind, points]) => ({ kind, points: round1(points) }));
@@ -144,6 +163,7 @@ function breakdown(state: RunState, scanPenaltyS: number, scanBonus: number): No
     decisions: {},
     ...(listed.length > 0 ? { losses: listed, biggestLoss: listed[0]! } : {}),
     tryNext: state.neverStarted ? 'Hold the throttle on the right: the run waits 30 s for a first input'
+      : advice !== undefined ? advice
       : state.dnfReason === 'battery' ? 'Add battery cells or fit the larger pack, and hold a steadier throttle: per metre, steady costs about 70 % of full'
       : state.dnfReason === 'timeout' ? 'Keep moving: a run ends after 180 s'
       : worst[1] >= 8 ? worst[2] : state.finished ? 'Clean run: try a faster build, or more throttle where the ground allows it' : 'Check the test run: the build is missing something this mission needs',

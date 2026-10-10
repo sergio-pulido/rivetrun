@@ -166,3 +166,16 @@ describe('no false alarm once the way out is taken (Q16)', () => {
     }
   }, 30000);
 });
+
+describe('a run that did not finish: "try next" is about what ended it (S1)', () => {
+  it('stuck in mud, flooded, fell without a piston: the advice names the way out, not the biggest point loss', () => {
+    const next = (id: 'M3' | 'M5' | 'M6' | 'M7' | 'M8'): string => naiveDrive(allRounder, MISSIONS[id]).breakdown!.tryNext;
+    for (const id of ['M3', 'M5', 'M8'] as const) expect(next(id), id).toBe('Switch to climb mode before soft or steep ground, and ease off when the wheels spin');
+    expect(next('M6')).toBe('Fit the waterproof case and the thruster kit: this water is too deep to drive through');
+    expect(next('M7')).toBe('Fit the piston: full speed clears the gaps that have a ramp, and one gap here has none');
+  });
+
+  it('a finished run still gets advice from its biggest loss', () => {
+    expect(naiveDrive(allRounder, MISSIONS.M2).breakdown!.tryNext).toBe('Fit the waterproof case');
+  });
+});
