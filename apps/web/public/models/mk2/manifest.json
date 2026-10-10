@@ -1,7 +1,7 @@
 {
   "version": 2,
   "author": "sergio.pulido@alodai.com",
-  "status": "partial_missing_mechanical_dimensions",
+  "status": "partial_demo_visual_assets",
   "reference": [
     "docs/inputs/real-parts.json",
     "docs/inputs/bom-mk2.json"
@@ -83,17 +83,44 @@
       "meshes": 2,
       "bytes": 7204,
       "printedParts": []
+    },
+    "offroad_wheels": {
+      "file": "offroad_wheels.glb",
+      "slot": "locomotion",
+      "triangles": 3188,
+      "meshes": 12,
+      "bytes": 274060,
+      "printedParts": [
+        "motor_cap",
+        "motor_saddle"
+      ]
+    },
+    "tracks": {
+      "file": "tracks.glb",
+      "slot": "locomotion",
+      "triangles": 2944,
+      "meshes": 1,
+      "bytes": 125236,
+      "printedParts": []
+    },
+    "controller": {
+      "file": "controller.glb",
+      "slot": "fixed",
+      "triangles": 2156,
+      "meshes": 6,
+      "bytes": 152796,
+      "printedParts": [
+        "controller_carrier",
+        "electronics_bridge"
+      ]
     }
   },
   "deckOffsetY": {
     "wheels": 0,
-    "offroad_wheels": 0.05,
-    "tracks": 0
+    "offroad_wheels": 0.04,
+    "tracks": -0.205
   },
   "deferred": [
-    "offroad_wheels",
-    "controller",
-    "tracks",
     "imu",
     "moisture_probe",
     "scout_drone",
@@ -105,6 +132,5 @@
   ],
   "scaleMmPerRenderUnit": 100,
   "contractPath": "docs/MK2_ASSET_CONTRACT.md",
-  "pathOverride": "apps/web/public/models/mk2/ requested by human; contract currently names the v1 folder",
-  "manufacturingStatus": "Provisional. No physical fit test. Motor envelopes still use real-parts.json; electronic modules require printed mounts. Controller, insert pilot and wiring interfaces lack BOM dimensions. Not a validated complete build."
+  "manufacturingStatus": "Screen-first demo assembly. Print and physical fit work paused by human. No manufacture certification; track adaptation and controller retention require later fit validation."
 }
