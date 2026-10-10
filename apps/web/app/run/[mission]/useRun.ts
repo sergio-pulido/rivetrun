@@ -58,7 +58,7 @@ async function prepareDriveMode({ mission, build, priority, briefing }: RunOptio
   return {
     seed,
     ghosts: [rival.ghost],
-    results: [{ policy: rival.ghost.policy, outcome: rival.ghost.outcome, decisions: rival.decisions, fallbacks: rival.fallbacks }],
+    results: [{ policy: rival.ghost.policy, outcome: rival.ghost.outcome, decisions: rival.decisions, fallbacks: rival.fallbacks, medianLatencyMs: rival.medianLatencyMs }],
   };
 }
 

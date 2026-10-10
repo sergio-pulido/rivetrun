@@ -8,6 +8,7 @@ export interface RivalGhost {
   readonly ghost: GhostTrace;
   readonly decisions?: number;
   readonly fallbacks?: number;
+  readonly medianLatencyMs?: number;
 }
 
 export interface GhostRequest {
@@ -45,11 +46,11 @@ async function fetchJevGhost(request: GhostRequest, signal: AbortSignal): Promis
   const response = await fetch(ghostUrl(request), { signal });
   if (response.status !== 200) return null;
   const body: unknown = await response.json();
-  // Accepts the trace itself or an envelope `{ ghost, decisions?, fallbacks? }`.
-  const envelope = typeof body === 'object' && body !== null && 'ghost' in body ? (body as { ghost: unknown; decisions?: unknown; fallbacks?: unknown }) : null;
+  // Accepts the trace itself or an envelope `{ ghost, decisions?, fallbacks?, medianLatencyMs? }`.
+  const envelope = typeof body === 'object' && body !== null && 'ghost' in body ? (body as { ghost: unknown; decisions?: unknown; fallbacks?: unknown; medianLatencyMs?: unknown }) : null;
   const parsed = GhostTraceSchema.safeParse(envelope ? envelope.ghost : body);
   if (!parsed.success) return null;
-  return { ghost: parsed.data, decisions: count(envelope?.decisions), fallbacks: count(envelope?.fallbacks) };
+  return { ghost: parsed.data, decisions: count(envelope?.decisions), fallbacks: count(envelope?.fallbacks), medianLatencyMs: count(envelope?.medianLatencyMs) };
 }
 
 /**

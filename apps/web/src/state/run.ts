@@ -13,6 +13,8 @@ export interface GhostResult {
   readonly decisions?: number;
   /** How many of those the heuristic made because Jev failed or timed out. */
   readonly fallbacks?: number;
+  /** Median response time of the ghost's brain over its decisions, ms (from /api/ghost, when it reports one). */
+  readonly medianLatencyMs?: number;
 }
 
 /** What the Result page needs: the player's Episode and the ghost outcomes (two in Jev mode, the rival in Drive mode). */
