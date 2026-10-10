@@ -2,6 +2,32 @@
 
 Marker: RR-SPEC-V3 (supersedes RR-SPEC-V2: adds three swappable policies, Brain Duel ghosts and the benchmark)
 
+## What the game is now
+
+The spec below is the design of 9 October and is kept as written. This list is where the game on `main` differs from it, one line and one commit each (sim side; `docs/CHANGES.md` has every change, `docs/SIM_MODEL.md` the model as it stands).
+
+- **You can drive.** Drive mode: the player's thumbs go through the same physics as the brains, against one precomputed Jev ghost; "AI drives" is the other mode. `7b79040`
+- **Analog controls.** Throttle and brake are 0–1 and map to full / steady / ease / coast and hard / soft brake; nothing held coasts. `a98b083`
+- **Wheelspin.** Asking for more than 1.1× the grip leaves 70 % of it; climb mode is traction control. `a98b083`
+- **Safe speeds.** Contact and rough ground are free at or below a safe speed; damage grows with the square of the excess. Obstacles are solid and can block a build. `a98b083`, `bb9435c`
+- **Scan zones.** Missions have objectives: stop on a zone for 1.5 s with the right sensor; a miss adds 10 s. `a98b083`
+- **Triggers instead of a clock.** A brain is asked only when something changes; the 1.5 s interval is gone, and a slow answer costs sim time. `dc9c5e8`
+- **The brain sees an Observation.** Built only from the fitted sensors plus the core kit (speed, distance, charge, draw, mission plan); a leak test guards it. `dc9c5e8`, `04f0e02`
+- **A change of ground is told twice.** Once when seen, again at 2 m. `17ba1ac`
+- **Energy matters.** Throttle levels differ in cost per metre; a heavy build on the small battery runs out at full throttle on the long missions. `a98b083`
+- **Build tuning.** Battery cells, wheel size and gearing, beyond the part slots. `7b79040`
+- **More parts than twelve.** Scout drone, thruster kit, piston, lidar, ToF ranger, brushless motor, NoIR camera, light sensor. `e252cea`, `b868f17`, `07c15bf`, `e8e60f5`
+- **Height.** Ramps, gaps, drops, falls with a respawn, and a piston jump. `7b79040`
+- **Nine missions, not five.** M6 Deep Water, M7 Earthquake Rescue, M8 Storm Ridge, M9 Polar Night. `76b9f35`, `7b79040`, `e8e60f5`
+- **Weather beyond rain and cold.** Wind as drag with seeded gusts, cold by temperature, fog, night and snowfall on sensor range, snow as a surface; at night a camera scan needs a NoIR camera or headlights. `9d3db6c`, `c9f6f27`, `e8e60f5`
+- **Air levelling.** The robot levels itself in the air for every driver; a player's brake or extra throttle can spoil the landing, which is graded. A held jump button charges the piston. `0e802de`, `2f9a3bb`
+- **Stuck countdown.** After 1.5 s without progress the player sees the seconds left and the command that frees the build. `125bda4`, `b916210`
+- **First-touch rule.** A player's stuck clock starts with their first throttle; an untouched run ends after 30 s as never started. `dc0904c`
+- **A strategy layer.** `assessBuild` tells the Workshop and the Brief what a build can and cannot do on a mission before the run. `bb9435c`
+- **Replayable human runs.** A Drive run's input log replays to the identical outcome, for humans in the Brain Arena. `a8b0d52`, `ad7a909`
+- **The result explains itself.** Losses ranked in points, the biggest one named, and a why-line for every run. `d88704e`, `43f1d8e`
+- **Not built from the spec:** progression beyond point unlocks; "while a decision is pending the run slows to 0.25×" (off by default: a live run keeps its pace).
+
 ## One line
 You build the body. AI drives it. A mobile-browser game where players design a DIY robot (Arduino / Raspberry Pi-class parts) and an AI decision model (Jev) pilots it through terrain missions. Every decision the AI makes is visible on screen.
 
