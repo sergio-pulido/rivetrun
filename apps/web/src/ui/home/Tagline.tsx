@@ -2,7 +2,8 @@
 
 import { useBuildStore } from '@/state/build';
 
-const LINE = 'font-display text-[40px] font-bold leading-[1.02] lg:text-[68px]';
+// Desktop and projector: about half the first version's size, so the call to action and the proof share the first screen.
+const LINE = 'font-display text-[40px] font-bold leading-[1.02] lg:text-[clamp(30px,2.7vw,40px)]';
 
 /** Home's line as one sentence, for places that quote it (the share card): the last part follows who drove. */
 export const tagline = (drove: boolean): string => `Build the body. Brief the brain. ${drove ? 'Then race it.' : 'Watch it drive.'}`;
