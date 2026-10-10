@@ -312,7 +312,12 @@ try {
       await sleep(1500);
       await shot(page, 'phone-01-home');
       await assertHealthy(page, seen);
-      return 'Play Now, Workshop and Room Race visible';
+      // Home may send PLAY NOW to the first mission or to /play (docs/PLAY_AND_PLAN.md): either way it must answer.
+      const target = await page.getByRole('link', { name: /PLAY NOW/ }).first().getAttribute('href');
+      if (!target) throw new Error('PLAY NOW is not a link');
+      const answer = await fetch(new URL(target, BASE)).then((response) => response.status, () => 0);
+      if (answer !== 200) throw new Error(`PLAY NOW points at ${target}, which answers ${answer}`);
+      return `Play Now (→ ${target}), Workshop and Room Race visible`;
     }, page);
 
     await step('workshop', async () => {
@@ -476,13 +481,12 @@ try {
     }, page);
   }
 
-  // ---- The other half of the 60-second path: Jev drives M1 from Play Now to the Result -----------------------------
+  // ---- The other half of the 60-second path: Jev drives M1 from its Brief to the Result ----------------------------
   if (wants('jev')) {
     await step('jev M1 · finish', async () => {
-      await go(page, '/');
-      await page.getByRole('button', { name: 'Jev drives' }).click();
-      await visibleText(page, '· Jev drives ·');
-      await page.getByRole('link', { name: /PLAY NOW/ }).click();
+      await go(page, '/brief/M1');
+      await page.getByRole('button', { name: 'Jev drives' }).first().click();
+      await page.getByRole('link', { name: /^Deploy$/ }).first().click();
       const coachStart = page.locator('button.rr-btn-primary').first();
       const coached = await coachStart.waitFor({ state: 'visible', timeout: 4000 }).then(
         () => true,
@@ -713,10 +717,9 @@ try {
     const downPage = await down.newPage();
     const downSeen = watch(downPage, 'jev-down');
     await step('jev down · fallback', async () => {
-      await go(downPage, '/');
-      await downPage.getByRole('button', { name: 'Jev drives' }).click();
-      await visibleText(downPage, '· Jev drives ·');
-      await downPage.getByRole('link', { name: /PLAY NOW/ }).click();
+      await go(downPage, '/brief/M1');
+      await downPage.getByRole('button', { name: 'Jev drives' }).first().click();
+      await downPage.getByRole('link', { name: /^Deploy$/ }).first().click();
       const coachStart = downPage.locator('button.rr-btn-primary').first();
       if (await coachStart.waitFor({ state: 'visible', timeout: 4000 }).then(() => true, () => false)) await coachStart.click();
       await downPage.waitForURL('**/run/M1', { timeout: NAV_MS });
